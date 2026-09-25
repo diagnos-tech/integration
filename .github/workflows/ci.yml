@@ -1,0 +1,34 @@
+# 🇺🇸 Static checks: lockfile, lint (Python, Rust, bilingual docstrings, docs
+#    pairs and links) and `mypy --strict`. Tests live in their own workflows so
+#    each README badge answers exactly one question.
+# 🇧🇷 Checagens estáticas: lockfile, lint (Python, Rust, docstrings bilíngues,
+#    pares e links da documentação) e `mypy --strict`. Os testes têm workflows
+#    próprios para cada badge do README responder exatamente uma pergunta.
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint · types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - name: uv lock --check
+        run: uv lock --check
+      - name: make lint
+        run: make lint
+      - name: make types
+        run: make types

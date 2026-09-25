@@ -1,0 +1,33 @@
+# 🇺🇸 Weekly, grouped updates for every ecosystem this repository ships or
+#    builds with. Grouping keeps it to one pull request per ecosystem, so
+#    updates get reviewed instead of piling up.
+# 🇧🇷 Atualizações semanais e agrupadas para todo ecossistema que este
+#    repositório publica ou usa no build. Agrupar mantém um pull request por
+#    ecossistema, para as atualizações serem revisadas em vez de acumularem.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      python: { patterns: ["*"] }
+    commit-message: { prefix: "build(deps)" }
+
+  - package-ecosystem: cargo
+    directory: /sdk/native
+    schedule: { interval: weekly }
+    groups:
+      rust: { patterns: ["*"] }
+    commit-message: { prefix: "build(deps)" }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
+    commit-message: { prefix: "ci(deps)" }
+
+  - package-ecosystem: docker
+    directory: /api
+    schedule: { interval: weekly }
+    commit-message: { prefix: "build(deps)" }

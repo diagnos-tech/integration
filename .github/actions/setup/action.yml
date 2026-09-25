@@ -1,0 +1,28 @@
+# 🇺🇸 The one setup every job shares: Rust (for the enclave), uv, Python, and a
+#    locked `uv sync` that builds `diagnos._secure` — the same thing `make sync`
+#    does locally, so CI never drifts from a contributor's machine.
+# 🇧🇷 O setup que todo job compartilha: Rust (para o enclave), uv, Python e um
+#    `uv sync` travado que constrói o `diagnos._secure` — o mesmo que o `make
+#    sync` faz localmente, para a CI nunca divergir da máquina de quem contribui.
+name: Set up the workspace
+description: Rust toolchain, uv, Python and a locked `uv sync --all-packages`.
+inputs:
+  python-version:
+    description: CPython version to test against.
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: sdk/native
+    - uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        python-version: ${{ inputs.python-version }}
+    - name: uv sync --locked
+      shell: bash
+      run: uv sync --all-packages --locked

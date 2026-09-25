@@ -1,0 +1,42 @@
+# 🇺🇸 Consumer-driven contract tests (Pact, Rust `pact_ffi` engine): the real
+#    SDK against the Pact mock server. Fails when the SDK's HTTP behaviour
+#    changed without the committed contract changing with it. The vault
+#    verifies the same file on its side before it deploys (see
+#    `contracts/README.md`).
+# 🇧🇷 Testes de contrato guiados pelo consumidor (Pact, motor Rust `pact_ffi`):
+#    o SDK de verdade contra o mock server do Pact. Falha quando o
+#    comportamento HTTP do SDK mudou sem o contrato commitado mudar junto. O
+#    cofre verifica o mesmo arquivo do lado dele antes de implantar (ver
+#    `contracts/README.pt-BR.md`).
+name: Contract tests
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  consumer:
+    name: SDK → vault (Pact consumer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - name: make contract-check
+        run: make contract-check
+      - name: Contract summary
+        if: always()
+        run: python3 scripts/contract_summary.py contracts/diagnos-sdk-diagnos-vault.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: pact
+          path: contracts/diagnos-sdk-diagnos-vault.json
