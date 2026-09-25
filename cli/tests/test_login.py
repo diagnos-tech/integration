@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import json
+
 from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
 
@@ -20,6 +22,21 @@ def test_login_unlocks_and_shows_groups(runner: CliRunner, patched_build_client:
     assert result.exit_code == 0
     assert patched_build_client._unlocked is True
     assert "sg_oncology" in result.output
+
+
+def test_login_json_reports_workspace_account_and_groups(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 `--json` skips the `rich` banner entirely and emits the same three fields as parseable JSON.
+
+    🇧🇷 `--json` ignora o banner `rich` por completo e emite os mesmos três campos como JSON parseável.
+    """
+    result = runner.invoke(typer_app, ["--json", "login"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data == {
+        "workspace_id": "ws_1",
+        "account_id": "acct_1",
+        "security_groups": ["sg_oncology"],
+    }
 
 
 def test_login_never_echoes_token(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
