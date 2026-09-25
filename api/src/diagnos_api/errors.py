@@ -37,9 +37,10 @@ from diagnos import (
     ValidationError,
     VaultError,
 )
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("diagnos_api")
 
@@ -116,8 +117,17 @@ async def _http_exception_handler(request: Request, exc: Exception) -> JSONRespo
     demais. Registrar isto aqui — em vez de deixar o padrão — é o que
     mantém toda resposta não-2xx desta API, rejeições de mTLS inclusas, na
     mesma forma de topo.
+
+    🇺🇸 Registered for Starlette's base `HTTPException`, not FastAPI's
+    subclass: the router itself raises the base class for an unknown route
+    (404) or a wrong method (405), and a handler for the subclass would
+    never see those.
+    🇧🇷 Registrado para a `HTTPException` base do Starlette, não para a
+    subclasse do FastAPI: o próprio roteador lança a classe base para rota
+    inexistente (404) ou método errado (405), e um handler da subclasse
+    nunca veria esses casos.
     """
-    assert isinstance(exc, HTTPException)
+    assert isinstance(exc, StarletteHTTPException)
     if isinstance(exc.detail, dict) and "error" in exc.detail:
         return JSONResponse(status_code=exc.status_code, content=exc.detail, headers=exc.headers)
     body = _body("http_error", str(exc.detail), None)
@@ -171,6 +181,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RateLimitError, _vault_error_handler(429))
     app.add_exception_handler(VaultError, _vault_error_handler(502))
     app.add_exception_handler(CryptoError, _crypto_error_handler)
-    app.add_exception_handler(HTTPException, _http_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)
     app.add_exception_handler(DiagnosError, _unexpected_error_handler)
