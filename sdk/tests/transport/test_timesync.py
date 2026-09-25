@@ -15,8 +15,6 @@ offset estar perto do relógio de verdade do cofre.
 
 from __future__ import annotations
 
-import json
-
 import httpx
 from diagnos.transport.timesync import ClockSync
 
@@ -30,15 +28,16 @@ BASE_MS = 1_700_000_000_000.0
 
 
 def _client_with_results(results: dict[int, float]) -> httpx.Client:
-    """🇺🇸 A client answering `/time` with a chosen `result` per request id.
+    """🇺🇸 A client answering the n-th `GET /time` with `results[n]` (1-based).
 
-    🇧🇷 Um client que responde `/time` com um `result` escolhido por id de requisição.
+    🇧🇷 Um client que responde o n-ésimo `GET /time` com `results[n]` (a partir de 1).
     """
+    calls = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
-        body = json.loads(request.content)
-        request_id = body["id"]
-        return httpx.Response(200, json={"id": request_id, "result": results[request_id]})
+        assert (request.method, request.url.path) == ("GET", "/time")
+        calls["n"] += 1
+        return httpx.Response(200, json={"result": results[calls["n"]]})
 
     return httpx.Client(transport=httpx.MockTransport(handler), base_url="https://vault.example.test")
 
@@ -93,8 +92,7 @@ def test_sync_makes_exactly_three_round_trips() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls["n"] += 1
-        body = json.loads(request.content)
-        return httpx.Response(200, json={"id": body["id"], "result": BASE_MS})
+        return httpx.Response(200, json={"result": BASE_MS})
 
     client = httpx.Client(transport=httpx.MockTransport(handler), base_url="https://vault.example.test")
     ClockSync(now_ms=lambda: BASE_MS).sync(client)
