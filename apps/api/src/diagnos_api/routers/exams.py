@@ -14,10 +14,11 @@ síncrona numa thread pool em vez do event loop.
 
 from __future__ import annotations
 
-from diagnos import Diagnos, DocumentIndex, Exam, Page
-from fastapi import APIRouter, Depends
+from diagnos import Diagnos, DocumentIndex, Exam, ExamListItem, Page
+from fastapi import APIRouter, Depends, Query
 
 from diagnos_api.deps import get_vault
+from diagnos_api.document_params import DRAFT_QUERY_HELP, SUMMARY_QUERY_HELP, with_summaries
 from diagnos_api.mtls import ClientIdentity, require_client_certificate
 from diagnos_api.schemas import ExamCreateRequest, ExamUpdateRequest
 
@@ -26,21 +27,23 @@ router = APIRouter(prefix="/v1/exams", tags=["exams"])
 
 @router.get(
     "",
-    response_model=Page[DocumentIndex],
-    summary="List exam indexes · Lista índices de exame",
-    description="🇺🇸 One page of exam indexes for this workspace; content stays encrypted, see `GET /v1/exams/{id}`. "
-    "🇧🇷 Uma página de índices de exame deste workspace; o conteúdo permanece cifrado, veja `GET /v1/exams/{id}`.",
+    response_model=Page[ExamListItem],
+    summary="List exams · Lista exames",
+    description="🇺🇸 One page of exams; rows are anonymous unless `summary=true`. "
+    "🇧🇷 Uma página de exames; as linhas são anônimas a menos que `summary=true`.",
 )
 def list_exams(
     security_group: str | None = None,
     include_deleted: bool = False,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=200),
     cursor: str | None = None,
+    summary: bool = Query(False, description=SUMMARY_QUERY_HELP),
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
-) -> Page[DocumentIndex]:
-    """🇺🇸 Delegates straight to `Exams.list`. 🇧🇷 Delega direto para `Exams.list`."""
-    return vault.exams.list(security_group=security_group, include_deleted=include_deleted, limit=limit, cursor=cursor)
+) -> Page[ExamListItem]:
+    """🇺🇸 Delegates to `Exams.list`. 🇧🇷 Delega para `Exams.list`."""
+    page = vault.exams.list(security_group=security_group, include_deleted=include_deleted, limit=limit, cursor=cursor)
+    return with_summaries(page, include=summary)
 
 
 @router.post(
@@ -48,8 +51,8 @@ def list_exams(
     response_model=Exam,
     status_code=201,
     summary="Create an exam · Cria um exame",
-    description="🇺🇸 Encrypts `record`, links it to `patient_id` in clear metadata, and creates the exam. "
-    "🇧🇷 Cifra `record`, liga ao `patient_id` em metadado claro, e cria o exame.",
+    description="🇺🇸 Seals `record`, links it to `patient_id` in clear `meta`, and creates the exam. "
+    "🇧🇷 Sela `record`, liga ao `patient_id` no `meta` em claro, e cria o exame.",
 )
 def create_exam(
     body: ExamCreateRequest,
@@ -57,34 +60,33 @@ def create_exam(
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> Exam:
     """🇺🇸 Delegates to `Exams.create`. 🇧🇷 Delega para `Exams.create`."""
-    return vault.exams.create(
-        body.record, patient_id=body.patient_id, security_group=body.security_group, modality=body.modality
-    )
+    return vault.exams.create(body.record, patient_id=body.patient_id, security_group=body.security_group)
 
 
 @router.get(
     "/{exam_id}",
     response_model=Exam,
     summary="Get one exam · Busca um exame",
-    description="🇺🇸 Fetches and decrypts one exam, latest version unless `version_id` is given. "
-    "🇧🇷 Busca e decifra um exame, na versão mais recente salvo se `version_id` for dado.",
+    description="🇺🇸 Fetches and decrypts one exam: the newest content, or `version_id`. "
+    "🇧🇷 Busca e decifra um exame: o conteúdo mais novo, ou `version_id`.",
 )
 def get_exam(
     exam_id: str,
     version_id: str | None = None,
+    include_draft: bool = Query(True, description=DRAFT_QUERY_HELP),
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> Exam:
     """🇺🇸 Delegates to `Exams.get`. 🇧🇷 Delega para `Exams.get`."""
-    return vault.exams.get(exam_id, version_id=version_id)
+    return vault.exams.get(exam_id, version_id=version_id, include_draft=include_draft)
 
 
 @router.put(
     "/{exam_id}",
     response_model=Exam,
     summary="Update an exam · Atualiza um exame",
-    description="🇺🇸 Encrypts a brand new version of `record`, reusing the exam's existing DEK. "
-    "🇧🇷 Cifra uma versão nova de `record`, reusando a DEK existente do exame.",
+    description="🇺🇸 Seals a complete new version of `record`, reusing the exam's DEK. "
+    "🇧🇷 Sela uma versão nova e completa de `record`, reusando a DEK do exame.",
 )
 def update_exam(
     exam_id: str,
@@ -93,14 +95,14 @@ def update_exam(
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> Exam:
     """🇺🇸 Delegates to `Exams.update`. 🇧🇷 Delega para `Exams.update`."""
-    return vault.exams.update(exam_id, body.record, modality=body.modality)
+    return vault.exams.update(exam_id, body.record, expected_latest_version_id=body.expected_latest_version_id)
 
 
 @router.post(
     "/{exam_id}/archive",
     response_model=DocumentIndex,
     summary="Archive an exam · Arquiva um exame",
-    description="🇺🇸 Marks the exam archived, in a new version. 🇧🇷 Marca o exame arquivado, numa versão nova.",
+    description="🇺🇸 Sets the archived flag (no new version). 🇧🇷 Liga a flag de arquivado (sem versão nova).",
 )
 def archive_exam(
     exam_id: str,
@@ -115,7 +117,7 @@ def archive_exam(
     "/{exam_id}/unarchive",
     response_model=DocumentIndex,
     summary="Unarchive an exam · Desarquiva um exame",
-    description="🇺🇸 Clears the archived flag, in a new version. 🇧🇷 Tira a flag de arquivado, numa versão nova.",
+    description="🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado.",
 )
 def unarchive_exam(
     exam_id: str,
@@ -129,9 +131,9 @@ def unarchive_exam(
 @router.delete(
     "/{exam_id}",
     response_model=DocumentIndex,
-    summary="Delete an exam · Apaga um exame",
-    description="🇺🇸 Marks the exam deleted, in a new version — never a hard delete. "
-    "🇧🇷 Marca o exame apagado, numa versão nova — nunca um apagar de verdade.",
+    summary="Move an exam to the trash · Manda um exame para a lixeira",
+    description="🇺🇸 Sets the deleted flag — never a hard delete; `POST .../restore` undoes it. "
+    "🇧🇷 Liga a flag de apagado — nunca um apagar de verdade; `POST .../restore` desfaz.",
 )
 def delete_exam(
     exam_id: str,
@@ -140,3 +142,18 @@ def delete_exam(
 ) -> DocumentIndex:
     """🇺🇸 Delegates to `Exams.delete`. 🇧🇷 Delega para `Exams.delete`."""
     return vault.exams.delete(exam_id)
+
+
+@router.post(
+    "/{exam_id}/restore",
+    response_model=DocumentIndex,
+    summary="Restore an exam from the trash · Restaura um exame da lixeira",
+    description="🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado.",
+)
+def restore_exam(
+    exam_id: str,
+    vault: Diagnos = Depends(get_vault),
+    _identity: ClientIdentity = Depends(require_client_certificate),
+) -> DocumentIndex:
+    """🇺🇸 Delegates to `Exams.restore`. 🇧🇷 Delega para `Exams.restore`."""
+    return vault.exams.restore(exam_id)

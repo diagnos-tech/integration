@@ -27,6 +27,7 @@ from __future__ import annotations
 from ._version import __version__
 from .client import Diagnos
 from .crypto.secure import MemoryLockWarning, memory_status
+from .dates import TimePrecision, to_iso_instant, truncate_timestamp
 from .errors import (
     AuthenticationError,
     ConfigError,
@@ -37,6 +38,7 @@ from .errors import (
     EnrollmentDeniedError,
     EnrollmentExpiredError,
     NotFoundError,
+    ProtocolError,
     QuotaError,
     RateLimitError,
     SessionExpiredError,
@@ -44,13 +46,23 @@ from .errors import (
     VaultError,
 )
 from .models import (
+    DocumentDraft,
     DocumentIndex,
+    DocumentListItem,
+    DocumentStream,
+    DocumentVersion,
     DriveNode,
     Exam,
+    ExamListItem,
     ExamRecord,
+    ExamSummary,
     Page,
     Patient,
+    PatientAddress,
+    PatientListItem,
     PatientRecord,
+    PatientSummary,
+    PersonalIdentifier,
 )
 from .resources.drives import Drive, Drives
 from .session.enrollment import EnrollmentPrompt
@@ -62,7 +74,11 @@ __all__ = [
     "ConfigError",
     "ConflictError",
     "CryptoError",
+    "DocumentDraft",
     "DocumentIndex",
+    "DocumentListItem",
+    "DocumentStream",
+    "DocumentVersion",
     "Drive",
     "DriveNode",
     "Drives",
@@ -70,7 +86,9 @@ __all__ = [
     "EnrollmentExpiredError",
     "EnrollmentPrompt",
     "Exam",
+    "ExamListItem",
     "ExamRecord",
+    "ExamSummary",
     "GroupKeyUnavailable",
     "Diagnos",
     "DiagnosError",
@@ -79,13 +97,21 @@ __all__ = [
     "NotFoundError",
     "Page",
     "Patient",
+    "PatientAddress",
+    "PatientListItem",
     "PatientRecord",
+    "PatientSummary",
+    "PersonalIdentifier",
+    "ProtocolError",
     "QuotaError",
     "RateLimitError",
     "SessionExpiredError",
     "Settings",
+    "TimePrecision",
     "ValidationError",
     "VaultError",
     "__version__",
     "memory_status",
+    "to_iso_instant",
+    "truncate_timestamp",
 ]

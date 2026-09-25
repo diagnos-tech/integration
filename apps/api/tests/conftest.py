@@ -29,7 +29,19 @@ from pathlib import Path
 from typing import Any, BinaryIO
 
 import pytest
-from diagnos import DocumentIndex, DriveNode, Exam, ExamRecord, NotFoundError, Page, Patient, PatientRecord
+from diagnos import (
+    DocumentIndex,
+    DocumentListItem,
+    DriveNode,
+    Exam,
+    ExamRecord,
+    ExamSummary,
+    NotFoundError,
+    Page,
+    Patient,
+    PatientRecord,
+    PatientSummary,
+)
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -51,30 +63,47 @@ WORKSPACE_ID = "ws_test"
 TRUSTED_IDENTITY = ClientIdentity(common_name="ci-client", serial="01")
 
 
-def _index(document_id: str, *, resource: str, security_groups: list[str]) -> DocumentIndex:
-    """🇺🇸 A minimal, otherwise-valid `DocumentIndex` for the fakes below to hand back.
+def _index(document_id: str, *, resource: str, security_group_id: str, **extra: Any) -> DocumentIndex:
+    """🇺🇸 A vault-shaped `DocumentIndex` with one committed version, for the fakes below to hand back.
 
-    🇧🇷 Um `DocumentIndex` mínimo, do resto válido, para os fakes abaixo devolverem.
+    🇧🇷 Um `DocumentIndex` no formato do cofre com uma versão confirmada, para os fakes abaixo devolverem.
     """
-    return DocumentIndex(
-        document_id=document_id,
-        workspace_id=WORKSPACE_ID,
-        resource=resource,  # type: ignore[arg-type] — a plain str matching the Literal at runtime
-        security_groups=security_groups,
-        encrypted_keys={},
-        latest_version_id="v1",
-        versions=[],
-        meta={},
-        created_at="2024-01-01T00:00:00Z",
-        created_by="tester",
-        updated_at="2024-01-01T00:00:00Z",
+    return DocumentIndex.model_validate(
+        {
+            "document_id": document_id,
+            "workspace_id": WORKSPACE_ID,
+            "resource": resource,
+            "security_group_id": security_group_id,
+            "encrypted_keys": {},
+            "streams": {
+                "data": {
+                    "latest_version_id": "v1",
+                    "versions": [
+                        {"version_id": "v1", "size": 100, "created_at": "2024-01-01T00:00:00Z", "created_by": "t"}
+                    ],
+                    "pending_version_id": None,
+                }
+            },
+            "created_at": "2024-01-01T00:00:00Z",
+            "created_by": "tester",
+            "updated_at": "2024-01-01T00:00:00Z",
+            **extra,
+        }
     )
 
 
 class FakePatients:
     """🇺🇸 Enough of `Patients` (`apps/sdk/src/diagnos/resources/patients.py`) for the routes in `routers/patients.py`.
 
+    Stateful on purpose — a create followed by a get must return what was
+    created — and `calls` records every keyword the routes forwarded, so a
+    test can assert the HTTP → SDK mapping without a real vault.
+
     🇧🇷 O suficiente de `Patients` (`apps/sdk/src/diagnos/resources/patients.py`) para as rotas de `routers/patients.py`.
+
+    Com estado de propósito — criar e depois buscar precisa devolver o que
+    foi criado — e `calls` registra todo argumento nomeado que as rotas
+    repassaram, para um teste assertar o mapeamento HTTP → SDK sem cofre real.
     """
 
     def __init__(self) -> None:
@@ -85,74 +114,79 @@ class FakePatients:
         self._by_id: dict[str, Patient] = {}
         self._counter = 0
         self.raise_on_create: Exception | None = None
+        self.calls: list[tuple[str, dict[str, Any]]] = []
 
-    def list(
-        self,
-        *,
-        security_group: str | None = None,
-        include_deleted: bool = False,
-        limit: int = 50,
-        cursor: str | None = None,
-    ) -> Page[DocumentIndex]:
-        """🇺🇸 Every stored patient's index, unfiltered — no test here needs pagination/filtering fidelity.
+    def list(self, **kwargs: Any) -> Page[DocumentListItem[PatientSummary]]:
+        """🇺🇸 Every stored patient with its summary, unfiltered. 🇧🇷 Todo paciente guardado com o resumo, sem filtro."""
+        self.calls.append(("list", kwargs))
+        items = [DocumentListItem[PatientSummary](index=p.index, summary=p.summary) for p in self._by_id.values()]
+        return Page(items=items, next_cursor=None)
 
-        🇧🇷 O índice de todo paciente guardado, sem filtro — nenhum teste aqui precisa de fidelidade de paginação/filtro.
-        """
-        return Page(items=[patient.index for patient in self._by_id.values()], next_cursor=None)
-
-    def create(self, record: PatientRecord, *, security_group: str, specialist_ids: list[str] | None = None) -> Patient:
+    def create(self, record: PatientRecord, **kwargs: Any) -> Patient:
         """🇺🇸 Stores `record` under a freshly minted id, or raises `raise_on_create` if a test set one.
 
         🇧🇷 Guarda `record` sob um id recém-criado, ou lança `raise_on_create` se um teste tiver setado um.
         """
+        self.calls.append(("create", kwargs))
         if self.raise_on_create is not None:
             raise self.raise_on_create
         self._counter += 1
         patient_id = f"patient_{self._counter}"
-        index = _index(patient_id, resource="patients", security_groups=[security_group])
-        patient = Patient(index=index, record=record)
+        index = _index(patient_id, resource="patients", security_group_id=kwargs["security_group"])
+        patient = Patient(
+            index=index, record=record, summary=PatientSummary.of(record, kwargs.get("tags", ())), version_id="v1"
+        )
         self._by_id[patient_id] = patient
         return patient
 
-    def get(self, patient_id: str, *, version_id: str | None = None) -> Patient:
+    def get(self, patient_id: str, **kwargs: Any) -> Patient:
         """🇺🇸 The stored `Patient`, or `NotFoundError` — exactly what `Patients.get` raises for an unknown id.
 
         🇧🇷 O `Patient` guardado, ou `NotFoundError` — exatamente o que `Patients.get` lança para um id desconhecido.
         """
+        self.calls.append(("get", kwargs))
+        return self._find(patient_id)
+
+    def _find(self, patient_id: str) -> Patient:
+        """🇺🇸 Lookup without recording a call. 🇧🇷 Busca sem registrar chamada."""
         try:
             return self._by_id[patient_id]
         except KeyError:
-            raise NotFoundError(code="PatientNotFound", message=f"no patient {patient_id!r}", status=404) from None
+            raise NotFoundError(code="DocumentNotFound", message=f"no patient {patient_id!r}", status=404) from None
 
-    def update(self, patient_id: str, record: PatientRecord, *, specialist_ids: list[str] | None = None) -> Patient:
+    def update(self, patient_id: str, record: PatientRecord, **kwargs: Any) -> Patient:
         """🇺🇸 Replaces the stored record, keeping the same index.
 
-        🇧🇷 Substitui o registro guardado, mantendo o mesmo índice.
+        🇧🇷 Substitui o registro guardado, mantendo o índice.
         """
-        current = self.get(patient_id)
-        updated = Patient(index=current.index, record=record)
+        self.calls.append(("update", kwargs))
+        current = self._find(patient_id)
+        updated = current.model_copy(update={"record": record})
         self._by_id[patient_id] = updated
         return updated
 
-    def archive(self, patient_id: str) -> DocumentIndex:
-        """🇺🇸 Returns the index unchanged — no test here asserts the archived flag.
+    def _flag(self, patient_id: str, **flags: bool) -> DocumentIndex:
+        """🇺🇸 Applies a flag to the stored index. 🇧🇷 Aplica uma flag ao índice guardado."""
+        current = self._find(patient_id)
+        index = current.index.model_copy(update=flags)
+        self._by_id[patient_id] = current.model_copy(update={"index": index})
+        return index
 
-        🇧🇷 Devolve o índice sem mudar — nenhum teste aqui assere a flag de arquivado.
-        """
-        return self.get(patient_id).index
+    def archive(self, patient_id: str) -> DocumentIndex:
+        """🇺🇸 Sets `is_archived`. 🇧🇷 Liga `is_archived`."""
+        return self._flag(patient_id, is_archived=True)
 
     def unarchive(self, patient_id: str) -> DocumentIndex:
-        """🇺🇸 Mirrors `archive`. 🇧🇷 Espelha `archive`."""
-        return self.get(patient_id).index
+        """🇺🇸 Clears `is_archived`. 🇧🇷 Desliga `is_archived`."""
+        return self._flag(patient_id, is_archived=False)
 
     def delete(self, patient_id: str) -> DocumentIndex:
-        """🇺🇸 Removes the patient and returns its last known index.
+        """🇺🇸 Sets `is_deleted`. 🇧🇷 Liga `is_deleted`."""
+        return self._flag(patient_id, is_deleted=True)
 
-        🇧🇷 Remove o paciente e devolve o último índice conhecido.
-        """
-        index = self.get(patient_id).index
-        del self._by_id[patient_id]
-        return index
+    def restore(self, patient_id: str) -> DocumentIndex:
+        """🇺🇸 Clears `is_deleted`. 🇧🇷 Desliga `is_deleted`."""
+        return self._flag(patient_id, is_deleted=False)
 
 
 class FakeExams:
@@ -166,73 +200,71 @@ class FakeExams:
         self._by_id: dict[str, Exam] = {}
         self._counter = 0
         self.raise_on_create: Exception | None = None
+        self.calls: list[tuple[str, dict[str, Any]]] = []
 
-    def list(
-        self,
-        *,
-        security_group: str | None = None,
-        include_deleted: bool = False,
-        limit: int = 50,
-        cursor: str | None = None,
-    ) -> Page[DocumentIndex]:
-        """🇺🇸 Every stored exam's index. 🇧🇷 O índice de todo exame guardado."""
-        return Page(items=[exam.index for exam in self._by_id.values()], next_cursor=None)
+    def list(self, **kwargs: Any) -> Page[DocumentListItem[ExamSummary]]:
+        """🇺🇸 Every stored exam with its summary. 🇧🇷 Todo exame guardado com o resumo."""
+        self.calls.append(("list", kwargs))
+        items = [DocumentListItem[ExamSummary](index=e.index, summary=e.summary) for e in self._by_id.values()]
+        return Page(items=items, next_cursor=None)
 
-    def create(
-        self,
-        record: ExamRecord,
-        *,
-        patient_id: str,
-        security_group: str,
-        modality: str | None = None,
-    ) -> Exam:
-        """🇺🇸 Stores `record`, linking `patient_id`/`modality` into the index `meta`, mirroring `Exams.create`.
+    def create(self, record: ExamRecord, *, patient_id: str, security_group: str) -> Exam:
+        """🇺🇸 Stores `record`, linking only `patient_id` into the clear `meta`, mirroring `Exams.create`.
 
-        🇧🇷 Guarda `record`, ligando `patient_id`/`modality` no `meta` do índice, espelhando `Exams.create`.
+        🇧🇷 Guarda `record`, ligando só o `patient_id` ao `meta` em claro, espelhando `Exams.create`.
         """
+        self.calls.append(("create", {"patient_id": patient_id, "security_group": security_group}))
         if self.raise_on_create is not None:
             raise self.raise_on_create
         self._counter += 1
         exam_id = f"exam_{self._counter}"
-        index = _index(exam_id, resource="exams", security_groups=[security_group])
-        meta: dict[str, Any] = {"patient_id": patient_id}
-        if modality is not None:
-            meta["modality"] = modality
-        index = index.model_copy(update={"meta": meta})
-        exam = Exam(index=index, record=record)
+        index = _index(exam_id, resource="exams", security_group_id=security_group, meta={"patient_id": patient_id})
+        exam = Exam(index=index, record=record, summary=ExamSummary.of(record), version_id="v1")
         self._by_id[exam_id] = exam
         return exam
 
-    def get(self, exam_id: str, *, version_id: str | None = None) -> Exam:
+    def get(self, exam_id: str, **kwargs: Any) -> Exam:
         """🇺🇸 The stored `Exam`, or `NotFoundError`. 🇧🇷 O `Exam` guardado, ou `NotFoundError`."""
+        self.calls.append(("get", kwargs))
+        return self._find(exam_id)
+
+    def _find(self, exam_id: str) -> Exam:
+        """🇺🇸 Lookup without recording a call. 🇧🇷 Busca sem registrar chamada."""
         try:
             return self._by_id[exam_id]
         except KeyError:
-            raise NotFoundError(code="ExamNotFound", message=f"no exam {exam_id!r}", status=404) from None
+            raise NotFoundError(code="DocumentNotFound", message=f"no exam {exam_id!r}", status=404) from None
 
-    def update(self, exam_id: str, record: ExamRecord, *, modality: str | None = None) -> Exam:
+    def update(self, exam_id: str, record: ExamRecord, **kwargs: Any) -> Exam:
         """🇺🇸 Replaces the stored record. 🇧🇷 Substitui o registro guardado."""
-        current = self.get(exam_id)
-        updated = Exam(index=current.index, record=record)
+        self.calls.append(("update", kwargs))
+        current = self._find(exam_id)
+        updated = current.model_copy(update={"record": record, "summary": ExamSummary.of(record)})
         self._by_id[exam_id] = updated
         return updated
 
+    def _flag(self, exam_id: str, **flags: bool) -> DocumentIndex:
+        """🇺🇸 Applies a flag to the stored index. 🇧🇷 Aplica uma flag ao índice guardado."""
+        current = self._find(exam_id)
+        index = current.index.model_copy(update=flags)
+        self._by_id[exam_id] = current.model_copy(update={"index": index})
+        return index
+
     def archive(self, exam_id: str) -> DocumentIndex:
-        """🇺🇸 Returns the index unchanged. 🇧🇷 Devolve o índice sem mudar."""
-        return self.get(exam_id).index
+        """🇺🇸 Sets `is_archived`. 🇧🇷 Liga `is_archived`."""
+        return self._flag(exam_id, is_archived=True)
 
     def unarchive(self, exam_id: str) -> DocumentIndex:
-        """🇺🇸 Mirrors `archive`. 🇧🇷 Espelha `archive`."""
-        return self.get(exam_id).index
+        """🇺🇸 Clears `is_archived`. 🇧🇷 Desliga `is_archived`."""
+        return self._flag(exam_id, is_archived=False)
 
     def delete(self, exam_id: str) -> DocumentIndex:
-        """🇺🇸 Removes the exam and returns its last known index.
+        """🇺🇸 Sets `is_deleted`. 🇧🇷 Liga `is_deleted`."""
+        return self._flag(exam_id, is_deleted=True)
 
-        🇧🇷 Remove o exame e devolve o último índice conhecido.
-        """
-        index = self.get(exam_id).index
-        del self._by_id[exam_id]
-        return index
+    def restore(self, exam_id: str) -> DocumentIndex:
+        """🇺🇸 Clears `is_deleted`. 🇧🇷 Desliga `is_deleted`."""
+        return self._flag(exam_id, is_deleted=False)
 
 
 class FakeDrive:

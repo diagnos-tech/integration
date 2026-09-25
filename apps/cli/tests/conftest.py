@@ -27,48 +27,60 @@ from typing import Any
 import pytest
 from diagnos import (
     DocumentIndex,
+    DocumentListItem,
     DriveNode,
     Exam,
     ExamRecord,
+    ExamSummary,
     NotFoundError,
     Page,
     Patient,
     PatientRecord,
+    PatientSummary,
 )
 from typer.testing import CliRunner
 
-FIXED_NOW = "2026-09-08T12:00:00Z"
+FIXED_NOW = "2026-09-08T12:00:00.000Z"
 
-PATIENT_INDEX = DocumentIndex(
-    document_id="pat_1",
-    workspace_id="ws_1",
-    resource="patients",
-    security_groups=["sg_oncology"],
-    encrypted_keys={},
-    latest_version_id="v1",
-    versions=[],
-    created_at=FIXED_NOW,
-    created_by="svc_1",
-    updated_at=FIXED_NOW,
-)
+
+def _index(document_id: str, resource: str, **extra: Any) -> DocumentIndex:
+    """🇺🇸 A vault-shaped index with one committed version on `data`.
+
+    🇧🇷 Um índice no formato do cofre com uma versão em `data`.
+    """
+    return DocumentIndex.model_validate(
+        {
+            "document_id": document_id,
+            "workspace_id": "ws_1",
+            "resource": resource,
+            "security_group_id": "sg_oncology",
+            "encrypted_keys": {},
+            "streams": {
+                "data": {
+                    "latest_version_id": "v1",
+                    "versions": [{"version_id": "v1", "size": 120, "created_at": FIXED_NOW, "created_by": "svc_1"}],
+                    "pending_version_id": None,
+                }
+            },
+            "created_at": FIXED_NOW,
+            "created_by": "svc_1",
+            "updated_at": FIXED_NOW,
+            **extra,
+        }
+    )
+
+
+PATIENT_INDEX = _index("pat_1", "patients")
 PATIENT_RECORD = PatientRecord(legal_name="Jane Doe", display_name="Jane")
-PATIENT = Patient(index=PATIENT_INDEX, record=PATIENT_RECORD)
+PATIENT_SUMMARY = PatientSummary.of(PATIENT_RECORD, ["oncology"])
+PATIENT = Patient(index=PATIENT_INDEX, record=PATIENT_RECORD, summary=PATIENT_SUMMARY, version_id="v1")
+PATIENT_ITEM = DocumentListItem[PatientSummary](index=PATIENT_INDEX, summary=PATIENT_SUMMARY)
 
-EXAM_INDEX = DocumentIndex(
-    document_id="exam_1",
-    workspace_id="ws_1",
-    resource="exams",
-    security_groups=["sg_oncology"],
-    encrypted_keys={},
-    latest_version_id="v1",
-    versions=[],
-    meta={"patient_id": "pat_1"},
-    created_at=FIXED_NOW,
-    created_by="svc_1",
-    updated_at=FIXED_NOW,
-)
-EXAM_RECORD = ExamRecord(title="Chest CT")
-EXAM = Exam(index=EXAM_INDEX, record=EXAM_RECORD)
+EXAM_INDEX = _index("exam_1", "exams", meta={"patient_id": "pat_1"})
+EXAM_RECORD = ExamRecord(title="Chest CT", modality="CT", report_html="<p>No acute findings.</p>")
+EXAM_SUMMARY = ExamSummary.of(EXAM_RECORD)
+EXAM = Exam(index=EXAM_INDEX, record=EXAM_RECORD, summary=EXAM_SUMMARY, version_id="v1")
+EXAM_ITEM = DocumentListItem[ExamSummary](index=EXAM_INDEX, summary=EXAM_SUMMARY)
 
 DRIVE_NODE = DriveNode(
     node_id="node_1",
@@ -90,23 +102,35 @@ _DECRYPTED_NAMES = {"node_1": "chest_ct.dcm"}
 
 
 class FakePatients:
-    """🇺🇸 Fixed-data stand-in for `diagnos.resources.patients.Patients`. 🇧🇷 Substituto de dado fixo de `Patients`."""
+    """🇺🇸 Fixed-data stand-in for `diagnos.resources.patients.Patients`; `calls` records every keyword.
 
-    def list(self, **_: Any) -> Page[DocumentIndex]:
-        return Page(items=[PATIENT_INDEX], next_cursor=None)
+    🇧🇷 Substituto de dado fixo de `Patients`; `calls` registra todo argumento nomeado.
+    """
 
-    def iter_all(self, **_: Any) -> Any:
-        yield PATIENT_INDEX
+    def __init__(self) -> None:
+        """🇺🇸 No calls yet. 🇧🇷 Nenhuma chamada ainda."""
+        self.calls: list[tuple[str, dict[str, Any]]] = []
 
-    def get(self, patient_id: str, *, version_id: str | None = None) -> Patient:
+    def list(self, **kwargs: Any) -> Page[DocumentListItem[PatientSummary]]:
+        self.calls.append(("list", kwargs))
+        return Page(items=[PATIENT_ITEM], next_cursor=None)
+
+    def iter_all(self, **kwargs: Any) -> Any:
+        self.calls.append(("iter_all", kwargs))
+        yield PATIENT_ITEM
+
+    def get(self, patient_id: str, **kwargs: Any) -> Patient:
+        self.calls.append(("get", kwargs))
         if patient_id != PATIENT.id:
-            raise NotFoundError(code="PatientNotFound", message=f"no such patient {patient_id!r}", status=404)
+            raise NotFoundError(code="DocumentNotFound", message=f"no such patient {patient_id!r}", status=404)
         return PATIENT
 
-    def create(self, record: Any, *, security_group: Any, specialist_ids: Any = None) -> Patient:
+    def create(self, record: Any, **kwargs: Any) -> Patient:
+        self.calls.append(("create", {"record": record, **kwargs}))
         return PATIENT
 
-    def update(self, patient_id: str, record: Any, *, specialist_ids: Any = None) -> Patient:
+    def update(self, patient_id: str, record: Any, **kwargs: Any) -> Patient:
+        self.calls.append(("update", {"record": record, **kwargs}))
         return PATIENT
 
     def archive(self, patient_id: str) -> DocumentIndex:
@@ -118,25 +142,40 @@ class FakePatients:
     def delete(self, patient_id: str) -> DocumentIndex:
         return PATIENT_INDEX
 
+    def restore(self, patient_id: str) -> DocumentIndex:
+        return PATIENT_INDEX
+
 
 class FakeExams:
-    """🇺🇸 Fixed-data stand-in for `diagnos.resources.exams.Exams`. 🇧🇷 Substituto de dado fixo de `Exams`."""
+    """🇺🇸 Fixed-data stand-in for `diagnos.resources.exams.Exams`; `calls` records every keyword.
 
-    def list(self, **_: Any) -> Page[DocumentIndex]:
-        return Page(items=[EXAM_INDEX], next_cursor=None)
+    🇧🇷 Substituto de dado fixo de `Exams`; `calls` registra todo argumento nomeado.
+    """
 
-    def iter_all(self, **_: Any) -> Any:
-        yield EXAM_INDEX
+    def __init__(self) -> None:
+        """🇺🇸 No calls yet. 🇧🇷 Nenhuma chamada ainda."""
+        self.calls: list[tuple[str, dict[str, Any]]] = []
 
-    def get(self, exam_id: str, *, version_id: str | None = None) -> Exam:
+    def list(self, **kwargs: Any) -> Page[DocumentListItem[ExamSummary]]:
+        self.calls.append(("list", kwargs))
+        return Page(items=[EXAM_ITEM], next_cursor=None)
+
+    def iter_all(self, **kwargs: Any) -> Any:
+        self.calls.append(("iter_all", kwargs))
+        yield EXAM_ITEM
+
+    def get(self, exam_id: str, **kwargs: Any) -> Exam:
+        self.calls.append(("get", kwargs))
         if exam_id != EXAM.id:
-            raise NotFoundError(code="ExamNotFound", message=f"no such exam {exam_id!r}", status=404)
+            raise NotFoundError(code="DocumentNotFound", message=f"no such exam {exam_id!r}", status=404)
         return EXAM
 
-    def create(self, record: Any, *, patient_id: str, security_group: Any, modality: str | None = None) -> Exam:
+    def create(self, record: Any, **kwargs: Any) -> Exam:
+        self.calls.append(("create", {"record": record, **kwargs}))
         return EXAM
 
-    def update(self, exam_id: str, record: Any, *, modality: str | None = None) -> Exam:
+    def update(self, exam_id: str, record: Any, **kwargs: Any) -> Exam:
+        self.calls.append(("update", {"record": record, **kwargs}))
         return EXAM
 
     def archive(self, exam_id: str) -> DocumentIndex:
@@ -146,6 +185,9 @@ class FakeExams:
         return EXAM_INDEX
 
     def delete(self, exam_id: str) -> DocumentIndex:
+        return EXAM_INDEX
+
+    def restore(self, exam_id: str) -> DocumentIndex:
         return EXAM_INDEX
 
 

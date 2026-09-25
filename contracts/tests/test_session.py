@@ -32,6 +32,7 @@ from _crypto import b64url, fixed_bytes, sdk_keypair, seal_to
 from _wire import (
     API_TOKEN,
     EXTERNAL_PREFIX,
+    SECURITY_GROUP_ID,
     SESSION_ID,
     TOKEN,
     WORKSPACE_ID,
@@ -49,7 +50,6 @@ from _wire import (
 from conftest import make_transport
 
 ENROLLMENT_ID = "enr-contract"
-SECURITY_GROUP_ID = "sg-contract"
 EXPIRES_AT = 1_780_000_600
 REGISTRY = f"{EXTERNAL_PREFIX}/workspaces/{WORKSPACE_ID}/session/registry"
 REGISTRY_PATTERN = rf"^{EXTERNAL_PREFIX}/workspaces/[^/]+/session/registry$"

@@ -7,9 +7,9 @@ The `diagnos` command line — the zero-knowledge diagnos vault, from your termi
 signing and retry logic lives in the SDK; this package only parses arguments and renders what the SDK returns.
 
 > [!WARNING]
-> `patients`, `exams` and `files` in this CLI wrap SDK layers that still speak an **earlier revision** of the vault
-> protocol and are not compatible with today's vault (`https://vault.diagnos.health`) yet — those commands fail
-> before anything is written. `login`, `status`, `groups` and `session lock` work today. See
+> `files` in this CLI wraps an SDK layer that still speaks an **earlier revision** of the vault protocol and is not
+> compatible with today's vault (`https://vault.diagnos.health`) yet — those commands fail before anything is
+> written. `login`, `status`, `groups`, `session lock`, `patients` and `exams` work today. See
 > [Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md)
 > for the full picture and the plan to close the gap.
 
@@ -18,8 +18,8 @@ signing and retry logic lives in the SDK; this package only parses arguments and
 > first release, install from source instead (building the SDK needs a [Rust toolchain](https://rustup.rs/); `cli`
 > depends on the not-yet-published `diagnos` SDK, so both come from git in one command):
 > ```sh
-> pipx install "diagnos-cli @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=cli" \
->   --preinstall "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=sdk"
+> pipx install "diagnos-cli @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/cli" \
+>   --preinstall "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"
 > ```
 > Coming from `imgexam-cli`? Versions restart at `0.1.0` under the new name — read
 > [MIGRATING.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.md) before upgrading.
@@ -97,18 +97,20 @@ session itself expires. `login --auto-unseal`/`--no-auto-unseal` overrides the a
 | `diagnos status [--check]` | ✅ works today | Parsed token, OpenBao, SDK version; `--check` also unlocks. |
 | `diagnos groups` | ✅ works today | Lists granted security groups. |
 | `diagnos session lock` | ✅ works today | Ends the session, best-effort. |
-| `diagnos patients list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all]` | ⚠️ see warning | Pages patient indexes. |
-| `diagnos patients get PATIENT_ID [--version V]` | ⚠️ see warning | Decrypts and shows one patient. |
-| `diagnos patients create --group G (--file record.json \| --legal-name ... --display-name ... [--birth-date D])` | ⚠️ see warning | Creates a patient. |
-| `diagnos patients update PATIENT_ID --file record.json` | ⚠️ see warning | New version of the record. |
-| `diagnos patients archive\|unarchive PATIENT_ID` | ⚠️ see warning | Flips the archived flag, in a new version. |
-| `diagnos patients delete PATIENT_ID [--yes]` | ⚠️ see warning | Marks the index deleted, in a new version (`--yes` skips the confirmation prompt). |
-| `diagnos exams list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all]` | ⚠️ see warning | Pages exam indexes. |
-| `diagnos exams get EXAM_ID [--version V]` | ⚠️ see warning | Decrypts and shows one exam. |
-| `diagnos exams create --patient P --group G [--modality M] (--file record.json \| --title T)` | ⚠️ see warning | Creates an exam, linked to a patient. |
-| `diagnos exams update EXAM_ID --file record.json [--modality M]` | ⚠️ see warning | New version of the record. |
-| `diagnos exams archive\|unarchive EXAM_ID` | ⚠️ see warning | Flips the archived flag, in a new version. |
-| `diagnos exams delete EXAM_ID [--yes]` | ⚠️ see warning | Marks the index deleted, in a new version (`--yes` skips the confirmation prompt). |
+| `diagnos patients list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ works today | Pages patients; anonymous unless `--summary` decrypts names and tags. |
+| `diagnos patients get PATIENT_ID [--version V] [--committed]` | ✅ works today | Decrypts and shows one patient (a newer draft wins unless `--committed`). |
+| `diagnos patients create --group G (--file record.json \| --legal-name ... --display-name ... [--birth-date D] [--external-id X]) [--tag T]...` | ✅ works today | Creates a patient. |
+| `diagnos patients update PATIENT_ID --file record.json [--tag T]... [--expect-version V]` | ✅ works today | New complete version; `--tag` replaces the tags, `--expect-version` refuses a stale write. |
+| `diagnos patients archive\|unarchive PATIENT_ID` | ✅ works today | Flips the archived flag (no new version). |
+| `diagnos patients delete PATIENT_ID [--yes]` | ✅ works today | Moves the patient to the trash (`--yes` skips the confirmation prompt). |
+| `diagnos patients restore PATIENT_ID` | ✅ works today | Takes the patient out of the trash. |
+| `diagnos exams list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ works today | Pages exams; anonymous unless `--summary` decrypts title, modality and date. |
+| `diagnos exams get EXAM_ID [--version V] [--committed]` | ✅ works today | Decrypts and shows one exam, the report as plain text. |
+| `diagnos exams create --patient P --group G (--file record.json \| --title T [--modality M] [--exam-date D])` | ✅ works today | Creates an exam; only `--patient` is sent in clear. |
+| `diagnos exams update EXAM_ID --file record.json [--expect-version V]` | ✅ works today | New complete version of the record. |
+| `diagnos exams archive\|unarchive EXAM_ID` | ✅ works today | Flips the archived flag (no new version). |
+| `diagnos exams delete EXAM_ID [--yes]` | ✅ works today | Moves the exam to the trash (`--yes` skips the confirmation prompt). |
+| `diagnos exams restore EXAM_ID` | ✅ works today | Takes the exam out of the trash. |
 | `diagnos files list --group G [--exam E] [--include-pending] [--limit N] [--cursor C] [--all]` | ⚠️ see warning | Lists drive nodes, name decrypted. |
 | `diagnos files upload --group G PATH... [--exam E]` | ⚠️ see warning | Uploads one batch. |
 | `diagnos files download --group G NODE_ID [-o DEST]` | ⚠️ see warning | Downloads and decrypts. |

@@ -33,9 +33,9 @@ vault only ever sees ciphertext. These packages make that the *easy* path.
 
 > [!WARNING]
 > **Status: 0.1.0 preview.** Enrollment, sessions and request signing are verified against the vault by the
-> [contract tests](contracts/README.md). The patients, exams and files APIs still implement an earlier revision of
-> the vault protocol and are **not compatible with vault.diagnos.health yet** — read
-> [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) before building on them.
+> [contract tests](contracts/README.md), and so are patients and exams. The files API still implements an earlier
+> revision of the vault protocol and is **not compatible with vault.diagnos.health yet** — read
+> [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) before building on it.
 
 ## Pick your package
 
@@ -51,7 +51,7 @@ reimplement a single byte of cryptography.
 > [!NOTE]
 > Not on PyPI yet. Until the first release, install from source (building the SDK needs a
 > [Rust toolchain](https://rustup.rs/)):
-> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=sdk"`
+> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"`
 
 ## Quick start
 

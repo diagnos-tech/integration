@@ -5,15 +5,23 @@
 
 from __future__ import annotations
 
+from .content import (
+    SEALED_OVERHEAD_BYTES,
+    derive_content_key,
+    draft_key_id,
+    open_draft_content,
+    open_version_content,
+    seal_version_content,
+)
 from .encoding import b64url_decode, b64url_encode
 from .entropy import EntropyMixer
 from .envelope import EncryptedPayload, decrypt_content, encrypt_content, unwrap_key, wrap_key
 from .hkdf import hkdf_sha256
 from .hybrid import HybridKeyPair, OpenedSession, open_hybrid, seal_hybrid
 from .keys import (
-    DEK_INFO,
+    DOCUMENT_DEK_INFO,
+    INDEX_INFO,
     NODE_NAME_INFO,
-    RECORD_INFO,
     derive_node_key,
     derive_sse_c_key,
     generate_dek,
@@ -45,10 +53,11 @@ from .secure import (
 __all__ = [
     "ABYTES",
     "CHUNK_SIZE",
-    "DEK_INFO",
+    "DOCUMENT_DEK_INFO",
     "HEADER_BYTES",
+    "INDEX_INFO",
     "NODE_NAME_INFO",
-    "RECORD_INFO",
+    "SEALED_OVERHEAD_BYTES",
     "EncryptedPayload",
     "EntropyMixer",
     "HybridKeyPair",
@@ -63,8 +72,10 @@ __all__ = [
     "decrypt_bytes",
     "decrypt_content",
     "decrypt_stream",
+    "derive_content_key",
     "derive_node_key",
     "derive_sse_c_key",
+    "draft_key_id",
     "encrypt_bytes",
     "encrypt_content",
     "encrypt_stream",
@@ -73,8 +84,11 @@ __all__ = [
     "harden_process",
     "hkdf_sha256",
     "memory_status",
+    "open_draft_content",
     "open_hybrid",
+    "open_version_content",
     "seal_hybrid",
+    "seal_version_content",
     "secret_from_b64url",
     "sse_c_headers",
     "unwrap_key",

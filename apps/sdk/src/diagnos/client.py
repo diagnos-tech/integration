@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any
 
 from diagnos.crypto import EntropyMixer
 from diagnos.errors import SessionExpiredError
-from diagnos.models import ExamRecord, PatientRecord
+from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary
 from diagnos.resources._documents import VersionedDocuments
 from diagnos.resources.drives import Drives
 from diagnos.resources.exams import Exams
@@ -245,9 +245,9 @@ class Diagnos:
                 workspace_id=self.workspace_id,
                 resource="patients",
                 record_model=PatientRecord,
-                settings=self._settings,
+                summary_model=PatientSummary,
             )
-            self._patients = Patients(documents)
+            self._patients = Patients(documents, time_precision=self._settings.time_precision)
         return self._patients
 
     @property
@@ -264,9 +264,9 @@ class Diagnos:
                 workspace_id=self.workspace_id,
                 resource="exams",
                 record_model=ExamRecord,
-                settings=self._settings,
+                summary_model=ExamSummary,
             )
-            self._exams = Exams(documents)
+            self._exams = Exams(documents, time_precision=self._settings.time_precision)
         return self._exams
 
     @property

@@ -119,3 +119,34 @@ def random_seed(enc_key: bytes, session_id: str, *, label: str) -> dict[str, str
     body = json.dumps({"seed": b64url(fixed_bytes(f"{label}/seed"))}, separators=(",", ":")).encode("utf-8")
     ciphertext = AESGCM(enc_key).encrypt(nonce, body, session_id.encode("utf-8"))
     return {"nonce": b64url(nonce), "ciphertext": b64url(ciphertext)}
+
+
+# 🇺🇸 Frozen wire constants (`docs/PROTOCOL.md §8`), repeated here on purpose: the oracle must not import
+#    the SDK's own constants, or a wrong label would agree with itself.
+# 🇧🇷 Constantes de fio congeladas (`docs/PROTOCOL.md §8`), repetidas aqui de propósito: o oráculo não pode
+#    importar as constantes do próprio SDK, senão um rótulo errado concordaria consigo mesmo.
+DOCUMENT_DEK_INFO = "imgexam-patient-dek-v1"
+INDEX_INFO = {"patients": "imgexam-patient-index-v1", "exams": "imgexam-exam-index-v1"}
+VERSION_CONTENT_INFO = "imgexam-document-version-v1"
+DRAFT_CONTENT_INFO = "imgexam-document-draft-v1"
+
+
+def content_key(dek: bytes, key_id: str, security_context: str) -> bytes:
+    """🇺🇸 `HKDF-SHA256(dek, salt = utf8(key_id), info = utf8(security_context))` — the per-object key.
+
+    🇧🇷 `HKDF-SHA256(dek, salt = utf8(key_id), info = utf8(security_context))` — a chave por objeto.
+    """
+    return HKDF(
+        algorithm=hashes.SHA256(), length=32, salt=key_id.encode("utf-8"), info=security_context.encode("utf-8")
+    ).derive(dek)
+
+
+def seal_body(key: bytes, plaintext: bytes, info: str, *, label: str) -> bytes:
+    """🇺🇸 A stored object body as the web app writes it: raw `salt(16) ‖ nonce(12) ‖ ciphertext`.
+
+    🇧🇷 O corpo de um objeto guardado como o app web grava: `salt(16) ‖ nonce(12) ‖ ciphertext` cru.
+    """
+    salt = fixed_bytes(f"{label}/salt", 16)
+    derived = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=info.encode("utf-8")).derive(key)
+    nonce = fixed_bytes(f"{label}/nonce", 12)
+    return salt + nonce + AESGCM(derived).encrypt(nonce, plaintext, None)

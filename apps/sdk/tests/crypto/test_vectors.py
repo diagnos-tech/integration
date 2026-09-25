@@ -9,6 +9,17 @@ import json
 from typing import Any
 
 import pytest
+from diagnos.crypto import DOCUMENT_DEK_INFO, INDEX_INFO
+from diagnos.crypto.content import (
+    DRAFT_CONTENT_INFO,
+    SEALED_OVERHEAD_BYTES,
+    VERSION_CONTENT_INFO,
+    derive_content_key,
+    draft_key_id,
+    open_draft_content,
+    open_version_content,
+    seal_version_content,
+)
 from diagnos.crypto.encoding import b64url_decode
 from diagnos.crypto.envelope import EncryptedPayload, decrypt_content, unwrap_key
 from diagnos.crypto.hkdf import hkdf_sha256
@@ -143,3 +154,94 @@ def test_decrypt_stream_at_arbitrary_boundaries_matches_vector() -> None:
     one_byte_at_a_time = (framed_body[i : i + 1] for i in range(len(framed_body)))
     assembled = b"".join(decrypt_stream(key, one_byte_at_a_time))
     assert assembled == expected
+
+
+def test_document_dek_unwraps_with_the_document_label() -> None:
+    """🇺🇸 A document DEK the web app sealed opens with `DOCUMENT_DEK_INFO` — one label for every resource.
+
+    🇧🇷 Uma DEK de documento que o app web selou abre com `DOCUMENT_DEK_INFO` — um rótulo para todo recurso.
+    """
+    vector = load_vector("document_content")
+    assert vector["dek_info"] == DOCUMENT_DEK_INFO
+    dek = unwrap_key(
+        b64url_decode(vector["group_kek_b64url"]), EncryptedPayload.from_dict(vector["wrapped_dek"]), DOCUMENT_DEK_INFO
+    )
+    assert bytes(dek.reveal()) == b64url_decode(vector["document_dek_b64url"])
+
+
+def test_content_key_and_version_body_match_the_web_app() -> None:
+    """🇺🇸 Content key = HKDF(dek, salt=version_id, info=security_context); the raw sealed body opens.
+
+    🇧🇷 Chave de conteúdo = HKDF(dek, salt=version_id, info=security_context); o corpo selado cru abre.
+    """
+    vector = load_vector("document_content")
+    dek = b64url_decode(vector["document_dek_b64url"])
+    version = vector["version"]
+    assert version["info"] == VERSION_CONTENT_INFO
+    key = derive_content_key(dek, version["version_id"], version["security_context"])
+    assert bytes(key.reveal()) == b64url_decode(version["content_key_b64url"])
+    sealed = b64url_decode(version["sealed_b64url"])
+    plaintext = open_version_content(dek, version["version_id"], version["security_context"], sealed)
+    assert plaintext.decode("utf-8") == version["plaintext_utf8"]
+    assert len(sealed) - len(plaintext) == version["sealed_overhead_bytes"] == SEALED_OVERHEAD_BYTES
+
+
+def test_draft_body_matches_the_web_app() -> None:
+    """🇺🇸 The draft head opens with its fixed key id (`draft:data` on patients) and the draft label.
+
+    🇧🇷 A cabeça de rascunho abre com o id fixo (`draft:data` em pacientes) e o rótulo de rascunho.
+    """
+    vector = load_vector("document_content")
+    draft = vector["draft"]
+    assert draft["info"] == DRAFT_CONTENT_INFO
+    assert draft["draft_key_id"] == draft_key_id("data", multi_stream=True)
+    plaintext = open_draft_content(
+        b64url_decode(vector["document_dek_b64url"]),
+        draft["draft_key_id"],
+        draft["security_context"],
+        b64url_decode(draft["sealed_b64url"]),
+    )
+    assert json.loads(plaintext)["legal_name"] == "Maria da Silva"
+
+
+@pytest.mark.parametrize(("name", "resource"), [("patient_index", "patients"), ("exam_index", "exams")])
+def test_encrypted_index_matches_the_web_app(name: str, resource: str) -> None:
+    """🇺🇸 `encrypted_index` opens under the DEK with the resource's index label.
+
+    🇧🇷 O `encrypted_index` abre sob a DEK com o rótulo de índice do recurso.
+    """
+    vector = load_vector("document_content")
+    entry = vector[name]
+    assert entry["info"] == INDEX_INFO[resource]
+    plaintext = decrypt_content(
+        b64url_decode(vector["document_dek_b64url"]), EncryptedPayload.from_dict(entry["encrypted"]), entry["info"]
+    )
+    assert plaintext.decode("utf-8") == entry["plaintext_utf8"]
+
+
+def test_version_body_rejects_the_wrong_context_and_short_frames() -> None:
+    """🇺🇸 A different `security_context` or a truncated frame never opens.
+
+    🇧🇷 Outro contexto ou quadro curto nunca abre.
+    """
+    vector = load_vector("document_content")
+    dek = b64url_decode(vector["document_dek_b64url"])
+    version = vector["version"]
+    sealed = b64url_decode(version["sealed_b64url"])
+    with pytest.raises(CryptoError):
+        open_version_content(dek, version["version_id"], "another-context", sealed)
+    with pytest.raises(CryptoError):
+        open_version_content(dek, version["version_id"], version["security_context"], sealed[:28])
+
+
+def test_seal_version_content_round_trips_with_fresh_salt() -> None:
+    """🇺🇸 Sealing twice gives different bytes (fresh salt/nonce) that both open.
+
+    🇧🇷 Selar duas vezes dá bytes diferentes que abrem.
+    """
+    vector = load_vector("document_content")
+    dek = b64url_decode(vector["document_dek_b64url"])
+    first = seal_version_content(dek, "v1", "ctx", b"{}")
+    second = seal_version_content(dek, "v1", "ctx", b"{}")
+    assert first != second
+    assert open_version_content(dek, "v1", "ctx", first) == open_version_content(dek, "v1", "ctx", second) == b"{}"

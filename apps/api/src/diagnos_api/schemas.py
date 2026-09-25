@@ -25,7 +25,12 @@ fora de "um corpo JSON chegou por HTTP".
 from __future__ import annotations
 
 from diagnos import DriveNode, ExamRecord, PatientRecord
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+_EXPECT = (
+    "🇺🇸 The `latest_version_id` you read; the write is refused with 409 if another version was saved since. "
+    "🇧🇷 O `latest_version_id` que você leu; a gravação é recusada com 409 se outra versão foi salva depois."
+)
 
 
 class PatientCreateRequest(BaseModel):
@@ -34,16 +39,23 @@ class PatientCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     record: PatientRecord
-    security_group: str
+    security_group: str = Field(min_length=1, description="🇺🇸 The one group the patient belongs to. 🇧🇷 O grupo.")
+    tags: list[str] = Field(default_factory=list, description="🇺🇸 Sealed list labels. 🇧🇷 Rótulos selados.")
     specialist_ids: list[str] | None = None
 
 
 class PatientUpdateRequest(BaseModel):
-    """🇺🇸 Body of `PUT /v1/patients/{id}`. 🇧🇷 Corpo de `PUT /v1/patients/{id}`."""
+    """🇺🇸 Body of `PUT /v1/patients/{id}`: a complete new record.
+
+    🇧🇷 Corpo de `PUT /v1/patients/{id}`: o registro completo.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     record: PatientRecord
+    tags: list[str] | None = Field(default=None, description="🇺🇸 `null` keeps the tags. 🇧🇷 `null` mantém as tags.")
+    specialist_ids: list[str] | None = None
+    expected_latest_version_id: str | None = Field(default=None, description=_EXPECT)
 
 
 class ExamCreateRequest(BaseModel):
@@ -52,18 +64,17 @@ class ExamCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     record: ExamRecord
-    patient_id: str
-    security_group: str
-    modality: str | None = None
+    patient_id: str = Field(min_length=1)
+    security_group: str = Field(min_length=1)
 
 
 class ExamUpdateRequest(BaseModel):
-    """🇺🇸 Body of `PUT /v1/exams/{id}`. 🇧🇷 Corpo de `PUT /v1/exams/{id}`."""
+    """🇺🇸 Body of `PUT /v1/exams/{id}`: a complete new record. 🇧🇷 Corpo de `PUT /v1/exams/{id}`: o registro completo."""
 
     model_config = ConfigDict(extra="forbid")
 
     record: ExamRecord
-    modality: str | None = None
+    expected_latest_version_id: str | None = Field(default=None, description=_EXPECT)
 
 
 class NodeView(BaseModel):

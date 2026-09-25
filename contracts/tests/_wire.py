@@ -55,11 +55,14 @@ WORKSPACE_ID = "ws-contract"
 ACCOUNT_ID = "acc-contract"
 KEY_ID = "key-contract"
 SESSION_ID = "sess-contract"
+SECURITY_GROUP_ID = "sg-contract"
 SIGN_KEY = fixed_bytes("session/sign-key")
 ENC_KEY = fixed_bytes("session/enc-key")
 SERVER_TIME_MS = 1_780_000_000_000
 
 B64URL = r"^[A-Za-z0-9_-]+$"
+ISO_INSTANT = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+HTTPS_URL = r"^https://.+$"
 EXTERNAL_PREFIX = "/api/external/v1"
 
 
@@ -209,6 +212,14 @@ def encrypted(example: dict[str, str]) -> dict[str, object]:
     🇧🇷 Um `EncryptedPayload` (`docs/PROTOCOL.md §7`): três strings b64url, cada uma travada só pela forma.
     """
     return {key: match.regex(value, regex=B64URL) for key, value in example.items()}
+
+
+def instant(example: str) -> GenericMatcher[str]:
+    """🇺🇸 An ISO 8601 instant — the SDK compares these (draft precedence), so the shape is pinned.
+
+    🇧🇷 Um instante ISO 8601 — o SDK compara estes (precedência do rascunho), então a forma é travada.
+    """
+    return GenericMatcher("regex", value=example, regex=ISO_INSTANT)
 
 
 def declare_clock(pact: Pact) -> None:

@@ -154,3 +154,59 @@ def test_delete_exam_declined_never_calls_delete(runner: CliRunner, patched_buil
     result = runner.invoke(typer_app, ["exams", "delete", EXAM_INDEX.document_id], input="n\n")
     assert result.exit_code == 0
     assert "exams" not in result.output.lower()
+
+
+def test_create_exam_inline_fields_go_into_the_sealed_record(
+    runner: CliRunner, patched_build_client: FakeDiagnos
+) -> None:
+    """🇺🇸 `--modality`/`--exam-date` are record fields (sealed), never clear `meta`.
+
+    🇧🇷 `--modality`/`--exam-date` são campos do registro (selados), nunca `meta` em claro.
+    """
+    result = runner.invoke(
+        typer_app,
+        ["exams", "create", "--patient", "pat_1", "-g", "sg_oncology", "--modality", "MR", "--exam-date", "2026-09-01"],
+    )
+    assert result.exit_code == 0
+    name, kwargs = patched_build_client.exams.calls[-1]
+    assert name == "create"
+    assert kwargs == {
+        "record": {"modality": "MR", "exam_date": "2026-09-01"},
+        "patient_id": "pat_1",
+        "security_group": "sg_oncology",
+    }
+
+
+def test_list_exams_summary_flag(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 Titles appear only with `--summary`. 🇧🇷 Títulos só aparecem com `--summary`."""
+    hidden = runner.invoke(typer_app, ["exams", "list"])
+    shown = runner.invoke(typer_app, ["exams", "list", "-s"])
+    assert "Chest CT" not in hidden.output
+    assert "Chest CT" in shown.output
+
+
+def test_get_exam_committed_and_update_expect_version(
+    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path
+) -> None:
+    """🇺🇸 `--committed` skips the draft; `--expect-version` becomes the conflict guard.
+
+    🇧🇷 `--committed` pula o rascunho; `--expect-version` vira a trava de conflito.
+    """
+    record_file = tmp_path / "record.json"
+    record_file.write_text(json.dumps({"title": "Chest CT"}), encoding="utf-8")
+
+    runner.invoke(typer_app, ["exams", "get", EXAM_INDEX.document_id, "--committed"])
+    runner.invoke(
+        typer_app, ["exams", "update", EXAM_INDEX.document_id, "--file", str(record_file), "--expect-version", "v1"]
+    )
+
+    calls = dict(patched_build_client.exams.calls)
+    assert calls["get"] == {"version_id": None, "include_draft": False}
+    assert calls["update"]["expected_latest_version_id"] == "v1"
+
+
+def test_restore_exam_renders_index(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 `restore` takes the exam out of the trash. 🇧🇷 `restore` tira o exame da lixeira."""
+    result = runner.invoke(typer_app, ["exams", "restore", EXAM_INDEX.document_id])
+    assert result.exit_code == 0
+    assert EXAM_INDEX.document_id in result.output

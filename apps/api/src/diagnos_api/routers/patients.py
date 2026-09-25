@@ -20,10 +20,11 @@ razão inteira destas ficarem síncronas.
 
 from __future__ import annotations
 
-from diagnos import Diagnos, DocumentIndex, Page, Patient
-from fastapi import APIRouter, Depends
+from diagnos import Diagnos, DocumentIndex, Page, Patient, PatientListItem
+from fastapi import APIRouter, Depends, Query
 
 from diagnos_api.deps import get_vault
+from diagnos_api.document_params import DRAFT_QUERY_HELP, SUMMARY_QUERY_HELP, with_summaries
 from diagnos_api.mtls import ClientIdentity, require_client_certificate
 from diagnos_api.schemas import PatientCreateRequest, PatientUpdateRequest
 
@@ -32,25 +33,25 @@ router = APIRouter(prefix="/v1/patients", tags=["patients"])
 
 @router.get(
     "",
-    response_model=Page[DocumentIndex],
-    summary="List patient indexes · Lista índices de paciente",
-    description="🇺🇸 One page of patient indexes for this workspace; content stays encrypted, see "
-    "`GET /v1/patients/{id}`. "
-    "🇧🇷 Uma página de índices de paciente deste workspace; o conteúdo permanece cifrado, veja "
-    "`GET /v1/patients/{id}`.",
+    response_model=Page[PatientListItem],
+    summary="List patients · Lista pacientes",
+    description="🇺🇸 One page of patients; rows are anonymous unless `summary=true`. "
+    "🇧🇷 Uma página de pacientes; as linhas são anônimas a menos que `summary=true`.",
 )
 def list_patients(
     security_group: str | None = None,
     include_deleted: bool = False,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=200),
     cursor: str | None = None,
+    summary: bool = Query(False, description=SUMMARY_QUERY_HELP),
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
-) -> Page[DocumentIndex]:
-    """🇺🇸 Delegates straight to `Patients.list`. 🇧🇷 Delega direto para `Patients.list`."""
-    return vault.patients.list(
+) -> Page[PatientListItem]:
+    """🇺🇸 Delegates to `Patients.list`. 🇧🇷 Delega para `Patients.list`."""
+    page = vault.patients.list(
         security_group=security_group, include_deleted=include_deleted, limit=limit, cursor=cursor
     )
+    return with_summaries(page, include=summary)
 
 
 @router.post(
@@ -58,8 +59,8 @@ def list_patients(
     response_model=Patient,
     status_code=201,
     summary="Create a patient · Cria um paciente",
-    description="🇺🇸 Encrypts `record` under `security_group` and creates the patient. "
-    "🇧🇷 Cifra `record` sob `security_group` e cria o paciente.",
+    description="🇺🇸 Seals `record` under `security_group` and creates the patient with its first version. "
+    "🇧🇷 Sela `record` sob `security_group` e cria o paciente com a primeira versão.",
 )
 def create_patient(
     body: PatientCreateRequest,
@@ -67,32 +68,35 @@ def create_patient(
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> Patient:
     """🇺🇸 Delegates to `Patients.create`. 🇧🇷 Delega para `Patients.create`."""
-    return vault.patients.create(body.record, security_group=body.security_group, specialist_ids=body.specialist_ids)
+    return vault.patients.create(
+        body.record, security_group=body.security_group, tags=body.tags, specialist_ids=body.specialist_ids
+    )
 
 
 @router.get(
     "/{patient_id}",
     response_model=Patient,
     summary="Get one patient · Busca um paciente",
-    description="🇺🇸 Fetches and decrypts one patient, latest version unless `version_id` is given. "
-    "🇧🇷 Busca e decifra um paciente, na versão mais recente salvo se `version_id` for dado.",
+    description="🇺🇸 Fetches and decrypts one patient: the newest content, or `version_id`. "
+    "🇧🇷 Busca e decifra um paciente: o conteúdo mais novo, ou `version_id`.",
 )
 def get_patient(
     patient_id: str,
     version_id: str | None = None,
+    include_draft: bool = Query(True, description=DRAFT_QUERY_HELP),
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> Patient:
     """🇺🇸 Delegates to `Patients.get`. 🇧🇷 Delega para `Patients.get`."""
-    return vault.patients.get(patient_id, version_id=version_id)
+    return vault.patients.get(patient_id, version_id=version_id, include_draft=include_draft)
 
 
 @router.put(
     "/{patient_id}",
     response_model=Patient,
     summary="Update a patient · Atualiza um paciente",
-    description="🇺🇸 Encrypts a brand new version of `record`, reusing the patient's existing DEK. "
-    "🇧🇷 Cifra uma versão nova de `record`, reusando a DEK existente do paciente.",
+    description="🇺🇸 Seals a complete new version of `record`, reusing the patient's DEK. "
+    "🇧🇷 Sela uma versão nova e completa de `record`, reusando a DEK do paciente.",
 )
 def update_patient(
     patient_id: str,
@@ -101,14 +105,20 @@ def update_patient(
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> Patient:
     """🇺🇸 Delegates to `Patients.update`. 🇧🇷 Delega para `Patients.update`."""
-    return vault.patients.update(patient_id, body.record)
+    return vault.patients.update(
+        patient_id,
+        body.record,
+        tags=body.tags,
+        specialist_ids=body.specialist_ids,
+        expected_latest_version_id=body.expected_latest_version_id,
+    )
 
 
 @router.post(
     "/{patient_id}/archive",
     response_model=DocumentIndex,
     summary="Archive a patient · Arquiva um paciente",
-    description="🇺🇸 Marks the patient archived, in a new version. 🇧🇷 Marca o paciente arquivado, numa versão nova.",
+    description="🇺🇸 Sets the archived flag (no new version). 🇧🇷 Liga a flag de arquivado (sem versão nova).",
 )
 def archive_patient(
     patient_id: str,
@@ -123,7 +133,7 @@ def archive_patient(
     "/{patient_id}/unarchive",
     response_model=DocumentIndex,
     summary="Unarchive a patient · Desarquiva um paciente",
-    description="🇺🇸 Clears the archived flag, in a new version. 🇧🇷 Tira a flag de arquivado, numa versão nova.",
+    description="🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado.",
 )
 def unarchive_patient(
     patient_id: str,
@@ -137,9 +147,9 @@ def unarchive_patient(
 @router.delete(
     "/{patient_id}",
     response_model=DocumentIndex,
-    summary="Delete a patient · Apaga um paciente",
-    description="🇺🇸 Marks the patient deleted, in a new version — never a hard delete. "
-    "🇧🇷 Marca o paciente apagado, numa versão nova — nunca um apagar de verdade.",
+    summary="Move a patient to the trash · Manda um paciente para a lixeira",
+    description="🇺🇸 Sets the deleted flag — never a hard delete; `POST .../restore` undoes it. "
+    "🇧🇷 Liga a flag de apagado — nunca um apagar de verdade; `POST .../restore` desfaz.",
 )
 def delete_patient(
     patient_id: str,
@@ -148,3 +158,18 @@ def delete_patient(
 ) -> DocumentIndex:
     """🇺🇸 Delegates to `Patients.delete`. 🇧🇷 Delega para `Patients.delete`."""
     return vault.patients.delete(patient_id)
+
+
+@router.post(
+    "/{patient_id}/restore",
+    response_model=DocumentIndex,
+    summary="Restore a patient from the trash · Restaura um paciente da lixeira",
+    description="🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado.",
+)
+def restore_patient(
+    patient_id: str,
+    vault: Diagnos = Depends(get_vault),
+    _identity: ClientIdentity = Depends(require_client_certificate),
+) -> DocumentIndex:
+    """🇺🇸 Delegates to `Patients.restore`. 🇧🇷 Delega para `Patients.restore`."""
+    return vault.patients.restore(patient_id)

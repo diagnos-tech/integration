@@ -27,10 +27,9 @@ from conftest import FakeDiagnos
 def _create_body() -> dict[str, object]:
     """🇺🇸 A minimal valid `POST /v1/exams` body. 🇧🇷 Um corpo mínimo válido de `POST /v1/exams`."""
     return {
-        "record": {"title": "Chest CT"},
+        "record": {"title": "Chest CT", "modality": "CT"},
         "patient_id": "patient_1",
         "security_group": "sg1",
-        "modality": "CT",
     }
 
 
@@ -42,7 +41,7 @@ def test_create_then_get_round_trips_the_record(client: TestClient) -> None:
     created = client.post("/v1/exams", json=_create_body())
     assert created.status_code == 201
     exam_id = created.json()["index"]["document_id"]
-    assert created.json()["index"]["meta"]["patient_id"] == "patient_1"
+    assert created.json()["index"]["meta"] == {"patient_id": "patient_1"}
 
     fetched = client.get(f"/v1/exams/{exam_id}")
 
@@ -94,17 +93,41 @@ def test_archive_then_unarchive_round_trip(client: TestClient) -> None:
     assert unarchived.json()["document_id"] == exam_id
 
 
-def test_delete_removes_the_exam(client: TestClient) -> None:
-    """🇺🇸 After `DELETE`, the same id 404s on `GET`. 🇧🇷 Depois do `DELETE`, o mesmo id dá 404 no `GET`."""
-    created = client.post("/v1/exams", json=_create_body())
-    exam_id = created.json()["index"]["document_id"]
+def test_delete_and_restore_flip_the_trash_flag(client: TestClient) -> None:
+    """🇺🇸 `DELETE` moves the exam to the trash; `POST .../restore` takes it out.
 
-    deleted = client.delete(f"/v1/exams/{exam_id}")
-    assert deleted.status_code == 200
+    🇧🇷 `DELETE` manda à lixeira; `restore` tira.
+    """
+    exam_id = client.post("/v1/exams", json=_create_body()).json()["index"]["document_id"]
 
-    missing = client.get(f"/v1/exams/{exam_id}")
-    assert missing.status_code == 404
-    assert missing.json()["error"]["code"] == "ExamNotFound"
+    assert client.delete(f"/v1/exams/{exam_id}").json()["is_deleted"] is True
+    assert client.post(f"/v1/exams/{exam_id}/restore").json()["is_deleted"] is False
+
+
+def test_modality_is_a_record_field_not_a_top_level_one(client: TestClient) -> None:
+    """🇺🇸 A top-level `modality` (the old clear-meta shape) is 422: modality is sealed in the record.
+
+    🇧🇷 Um `modality` no topo (a forma antiga, em claro) é 422: a modalidade é selada no registro.
+    """
+    response = client.post("/v1/exams", json={**_create_body(), "modality": "CT"})
+    assert response.status_code == 422
+
+
+def test_list_summary_and_update_guard(client: TestClient, fake_vault: FakeDiagnos) -> None:
+    """🇺🇸 `?summary=true` shows titles; `expected_latest_version_id` and `include_draft` reach the SDK.
+
+    🇧🇷 `?summary=true` mostra títulos; `expected_latest_version_id` e `include_draft` chegam ao SDK.
+    """
+    exam_id = client.post("/v1/exams", json=_create_body()).json()["index"]["document_id"]
+
+    listed = client.get("/v1/exams", params={"summary": "true"}).json()["items"]
+    client.get(f"/v1/exams/{exam_id}", params={"include_draft": "false"})
+    get_call = fake_vault.exams.calls[-1]
+    client.put(f"/v1/exams/{exam_id}", json={"record": {"title": "B"}, "expected_latest_version_id": "v1"})
+
+    assert listed[0]["summary"] == {"title": "Chest CT", "modality": "CT", "exam_date": None}
+    assert get_call == ("get", {"version_id": None, "include_draft": False})
+    assert fake_vault.exams.calls[-1] == ("update", {"expected_latest_version_id": "v1"})
 
 
 def test_get_unknown_exam_is_404_with_the_uniform_envelope(client: TestClient) -> None:

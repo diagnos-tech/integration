@@ -1,6 +1,6 @@
-"""🇺🇸 `diagnos exams` — list, get, create, update, archive/unarchive/delete.
+"""🇺🇸 `diagnos exams` — list, get, create, update, archive/unarchive, delete/restore.
 
-🇧🇷 `diagnos exams` — listar, ler, criar, atualizar, arquivar/desarquivar/apagar.
+🇧🇷 `diagnos exams` — listar, ler, criar, atualizar, arquivar/desarquivar, apagar/restaurar.
 """
 
 from __future__ import annotations
@@ -16,19 +16,27 @@ from diagnos_cli.render import get_console, get_err_console, render_document_ind
 
 app = typer.Typer(help="Exams · Exames")
 
+_SUMMARY_HELP = (
+    "Also decrypt each row's sealed summary (title, modality, date) · Também decifra o resumo selado de cada linha"
+)
+_EXPECT_HELP = (
+    "Refuse if a version newer than this one was saved meanwhile · Recusa se uma versão mais nova que esta foi salva"
+)
+
 
 @app.command("list", help="List exams (one page, or all with --all) · Lista exames (uma página, ou todas com --all)")
 def list_exams(
     ctx: typer.Context,
     group: str | None = typer.Option(None, "--group", "-g", help="Security group filter · Filtro de security group"),
-    include_deleted: bool = typer.Option(False, "--include-deleted", help="Include soft-deleted · Inclui apagados"),
+    include_deleted: bool = typer.Option(False, "--include-deleted", help="Include the trash · Inclui a lixeira"),
     limit: int = typer.Option(50, "--limit", help="Page size · Tamanho da página"),
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from this cursor · Retoma a partir deste cursor"),
     all_pages: bool = typer.Option(False, "--all", help="Walk every page · Percorre todas as páginas"),
+    summary: bool = typer.Option(False, "--summary", "-s", help=_SUMMARY_HELP),
 ) -> None:
-    """🇺🇸 One page of exam indexes, or every page with `--all`.
+    """🇺🇸 One page of exams, or every page with `--all`; titles only with `--summary`.
 
-    🇧🇷 Uma página de índices de exame, ou todas as páginas com `--all`.
+    🇧🇷 Uma página de exames, ou todas com `--all`; títulos só com `--summary`.
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
@@ -41,7 +49,7 @@ def list_exams(
         else:
             page = vault.exams.list(security_group=group, include_deleted=include_deleted, limit=limit, cursor=cursor)
             items, next_cursor = list(page.items), page.next_cursor
-    render_index_table(console, items, json_output=opts.json_output, next_cursor=next_cursor)
+    render_index_table(console, items, json_output=opts.json_output, next_cursor=next_cursor, show_summary=summary)
 
 
 @app.command("get", help="Fetch and decrypt one exam · Busca e decifra um exame")
@@ -49,6 +57,9 @@ def get_exam(
     ctx: typer.Context,
     exam_id: str = typer.Argument(..., help="Exam document id · Id do documento de exame"),
     version: str | None = typer.Option(None, "--version", help="A specific version id · Um id de versão específico"),
+    committed: bool = typer.Option(
+        False, "--committed", help="Ignore a newer unsaved draft · Ignora um rascunho mais novo não salvo"
+    ),
 ) -> None:
     """🇺🇸 Fetches and decrypts one exam — the only place exam content is ever printed.
 
@@ -59,30 +70,31 @@ def get_exam(
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
-        exam = vault.exams.get(exam_id, version_id=version)
+        exam = vault.exams.get(exam_id, version_id=version, include_draft=not committed)
     render_exam(console, exam, json_output=opts.json_output)
 
 
 @app.command("create", help="Encrypt and create an exam for a patient · Cifra e cria um exame de um paciente")
 def create_exam(
     ctx: typer.Context,
-    patient_id: str = typer.Option(..., "--patient", help="Owning patient id · Id do paciente dono"),
+    patient_id: str = typer.Option(..., "--patient", help="The exam's patient id · Id do paciente do exame"),
     group: str = typer.Option(..., "--group", "-g", help="Security group to encrypt under · Grupo sob o qual cifrar"),
-    modality: str | None = typer.Option(None, "--modality", help="e.g. CT, MRI · ex: CT, RM"),
     file: Path | None = typer.Option(None, "--file", help="Record JSON file · Arquivo JSON do registro"),
     title: str | None = typer.Option(None, "--title"),
+    modality: str | None = typer.Option(None, "--modality", help="e.g. CT, MR, US · ex: CT, MR, US"),
+    exam_date: str | None = typer.Option(None, "--exam-date", help="ISO date · Data ISO"),
 ) -> None:
-    """🇺🇸 Encrypts a new exam under `--group`, linked to `--patient` in clear `meta`.
+    """🇺🇸 Encrypts a new exam under `--group`; only `--patient` goes to clear `meta`, the rest is sealed.
 
-    🇧🇷 Cifra um exame novo sob `--group`, ligado a `--patient` no `meta` em claro.
+    🇧🇷 Cifra um exame novo sob `--group`; só `--patient` vai ao `meta` em claro, o resto é selado.
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
-    record = load_record(file, {"title": title})
+    record = load_record(file, {"title": title, "modality": modality, "exam_date": exam_date})
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
-        exam = vault.exams.create(record, patient_id=patient_id, security_group=group, modality=modality)
+        exam = vault.exams.create(record, patient_id=patient_id, security_group=group)
     render_exam(console, exam, json_output=opts.json_output)
 
 
@@ -91,11 +103,11 @@ def update_exam(
     ctx: typer.Context,
     exam_id: str = typer.Argument(...),
     file: Path = typer.Option(..., "--file", help="New record JSON file · Arquivo JSON do registro novo"),
-    modality: str | None = typer.Option(None, "--modality"),
+    expect_version: str | None = typer.Option(None, "--expect-version", help=_EXPECT_HELP),
 ) -> None:
-    """🇺🇸 Encrypts a brand new version of the record, reusing the exam's existing DEK.
+    """🇺🇸 Encrypts a brand new, complete version of the record, reusing the exam's existing DEK.
 
-    🇧🇷 Cifra uma versão nova do registro, reusando a DEK existente do exame.
+    🇧🇷 Cifra uma versão nova e completa do registro, reusando a DEK existente do exame.
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
@@ -103,13 +115,13 @@ def update_exam(
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
-        exam = vault.exams.update(exam_id, record, modality=modality)
+        exam = vault.exams.update(exam_id, record, expected_latest_version_id=expect_version)
     render_exam(console, exam, json_output=opts.json_output)
 
 
-@app.command("archive", help="Archive an exam (new version) · Arquiva um exame (versão nova)")
+@app.command("archive", help="Archive an exam · Arquiva um exame")
 def archive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
-    """🇺🇸 Marks the exam archived, in a new version. 🇧🇷 Marca o exame arquivado, numa versão nova."""
+    """🇺🇸 Marks the exam archived (a flag, no new version). 🇧🇷 Marca o exame arquivado (uma flag, sem versão nova)."""
     opts: CliOptions = ctx.obj
     console = get_console(opts)
     err_console = get_err_console(opts)
@@ -119,9 +131,9 @@ def archive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("unarchive", help="Unarchive an exam (new version) · Desarquiva um exame (versão nova)")
+@app.command("unarchive", help="Unarchive an exam · Desarquiva um exame")
 def unarchive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
-    """🇺🇸 Clears the archived flag, in a new version. 🇧🇷 Tira a flag de arquivado, numa versão nova."""
+    """🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado."""
     opts: CliOptions = ctx.obj
     console = get_console(opts)
     err_console = get_err_console(opts)
@@ -131,24 +143,36 @@ def unarchive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> No
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("delete", help="Flag an exam as deleted (new version) · Marca um exame como apagado (versão nova)")
+@app.command("delete", help="Move an exam to the trash · Manda um exame para a lixeira")
 def delete_exam(
     ctx: typer.Context,
     exam_id: str = typer.Argument(...),
     yes: bool = typer.Option(False, "--yes", help="Skip the confirmation prompt · Pula a confirmação"),
 ) -> None:
-    """🇺🇸 Flags the index deleted, in a new version — the encrypted history stays (`apps/sdk/README.md`).
+    """🇺🇸 Flags the exam deleted — never a hard delete; `restore` undoes it.
 
-    🇧🇷 Marca o índice como apagado, numa versão nova — o histórico cifrado permanece (`apps/sdk/README.md`).
+    🇧🇷 Marca o exame como apagado — nunca um apagar de verdade; `restore` desfaz.
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
     if not yes:
-        confirmed = typer.confirm(f"Delete exam {exam_id}? · Apagar exame {exam_id}?")
+        confirmed = typer.confirm(f"Move exam {exam_id} to the trash? · Mandar o exame {exam_id} à lixeira?")
         if not confirmed:
             raise typer.Exit(code=0)
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
         index = vault.exams.delete(exam_id)
+    render_document_index(console, index, json_output=opts.json_output)
+
+
+@app.command("restore", help="Take an exam out of the trash · Tira um exame da lixeira")
+def restore_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
+    """🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado."""
+    opts: CliOptions = ctx.obj
+    console = get_console(opts)
+    err_console = get_err_console(opts)
+    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
+        vault = context.build_client(opts, on_prompt=on_prompt)
+        index = vault.exams.restore(exam_id)
     render_document_index(console, index, json_output=opts.json_output)

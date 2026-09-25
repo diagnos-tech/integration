@@ -7,15 +7,12 @@ gerados a partir da implementação de referência do cofre. Quando este
 documento e um vetor discordarem, o vetor vence e este documento tem um bug.
 
 > [!NOTE]
-> As seções [8](#8-documentos-versionados) e [9](#9-drives-arquivos)
-> descrevem a implementação 0.1 do SDK `diagnos` para pacientes, exames e
-> arquivos de drive, anterior à revisão atual do protocolo do cofre. Veja
+> As seções [9](#9-drives-arquivos) e [10](#10-sse-c-opcional) descrevem a
+> implementação 0.1 do SDK `diagnos` para arquivos de drive, anterior à
+> revisão atual do protocolo do cofre. Veja
 > [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md) para o que é e o que não
-> é compatível com `vault.diagnos.health` hoje. O resto deste documento —
-> convenções, identidade, relógio, assinatura, chaves de sessão e a semente
-> da resposta, enrollment, o selo híbrido, rótulos congelados, SSE-C,
-> auto-unseal com OpenBao, erros e limites — é fiel ao cofre como ele roda
-> hoje.
+> é compatível com `vault.diagnos.health` hoje. O resto deste documento é
+> fiel ao cofre e ao app web como eles rodam hoje.
 
 ## 0. Convenções
 
@@ -187,101 +184,170 @@ Vetor: `hybrid_seal.json` (contém as chaves secretas do destinatário).
 
 ## 7. Envelope de chave e de conteúdo
 
-`EncryptedPayload` (`{salt, nonce, ciphertext}`, tudo b64url) é o único
-envelope simétrico do produto.
+`EncryptedPayload` (`{salt, nonce, ciphertext}`, tudo b64url) é o envelope
+simétrico de chaves e de payloads JSON pequenos.
 
 ```
 salt     = random(16)
 derived  = HKDF-SHA256(ikm = wrapping_key, salt = salt, info = utf8(info), L = 32)
 nonce    = random(12)
-ct       = AES-256-GCM(derived, nonce, plaintext, aad = ∅)          (tag anexada)
+ct       = AES-256-GCM(derived, nonce, plaintext, aad = ∅)          (tag no fim)
 ```
 
-`wrapKey` (o plaintext é uma chave) e `encryptContent` (o plaintext é dado)
-são os mesmos bytes; só `info` muda. As strings de `info` são versionadas e
-nunca compartilhadas entre propósitos — a lista completa e congelada está
-em [Rótulos congelados](#rótulos-congelados), logo abaixo.
+`wrapKey` (o texto claro é uma chave) e `encryptContent` (o texto claro é
+dado) são os mesmos bytes; só o `info` muda. As strings de `info` são
+versionadas e nunca compartilhadas entre propósitos — a lista completa e
+congelada está em [Rótulos congelados](#rótulos-congelados) abaixo.
 
-Vetor: `aes_gcm_envelope.json` (HKDF, wrapKey, encryptContent).
+Objetos guardados (uma versão de documento, uma cabeça de rascunho) nunca
+usam uma chave de longa duração direto. Cada objeto ganha a própria **chave
+de conteúdo**, derivada da DEK do documento e do `security_context` que o
+cofre devolve junto de toda URL assinada de upload/download — opaco para o
+cliente, amarrado pelo cofre ao endereço real do objeto:
+
+```
+content_key = HKDF-SHA256(ikm = dek, salt = utf8(key_id), info = utf8(security_context.value), L = 32)
+key_id      = version_id                           (uma versão confirmada)
+            = "draft"  |  "draft:<fluxo>"          (a cabeça de rascunho; "draft:<fluxo>" em recurso de vários fluxos)
+```
+
+O corpo do objeto é binário cru — sem JSON, sem base64 — selado com a mesma
+primitiva do envelope acima:
+
+```
+body           = salt(16) ‖ nonce(12) ‖ AES-256-GCM(HKDF-SHA256(content_key, salt, utf8(info)), nonce, plaintext)
+info           = "imgexam-document-version-v1"  (uma versão)  |  "imgexam-document-draft-v1"  (um rascunho)
+content_length = len(plaintext) + 44            (declarado antes de selar; o PUT assinado o trava)
+```
+
+Vetores: `aes_gcm_envelope.json` (HKDF, wrapKey, encryptContent);
+`document_content.json` (a DEK de um documento, a chave de conteúdo, uma
+versão selada, um rascunho selado e os dois resumos `encrypted_index` —
+selados pelo próprio código do app web).
 
 ## Rótulos congelados
 
 Todo rótulo de HKDF/AAD abaixo mantém o prefixo histórico `imgexam-` de
 propósito. O nome é anterior ao `diagnos`, mas essas strings são constantes
-de fio gravadas em todo ciphertext já armazenado — renomear uma tornaria
-dados existentes ilegíveis. Nunca reaproveite um rótulo para um significado
-novo; uma derivação que muda ganha uma string nova, versionada separadamente
-(`-v2`). Código que usa um destes aponta de volta para cá pelo nome — veja
-`apps/sdk/src/diagnos/crypto/keys.py`, `hybrid.py` e `hkdf.py`.
+de fio embutidas em todo ciphertext já gravado — renomear uma tornaria dado
+existente ilegível. Nunca reaproveite um rótulo para um significado novo;
+uma derivação alterada ganha uma string nova, versionada à parte (`-v2`).
+Código que usa um destes aponta de volta para cá pelo nome — ver
+`apps/sdk/src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` e `hkdf.py`.
 
 | Rótulo | Propósito | Seção |
 |---|---|---|
-| `imgexam-sdk-hybrid-seal-v1` | `info` do HKDF do selo híbrido (sessão e selagem de chave de grupo) | §6 |
-| `imgexam-patient-dek-v1` | embrulha a DEK de um documento de paciente sob a DEK do security group | §7, §8 |
-| `imgexam-exam-dek-v1` | embrulha a DEK de um documento de exame | §7, §8 |
-| `imgexam-template-dek-v1` | embrulha a DEK de um documento de modelo | §7, §8 |
-| `imgexam-patient-record-v1` | cifra o corpo do registro de um paciente | §7, §8 |
-| `imgexam-exam-record-v1` | cifra o corpo do registro de um exame | §7, §8 |
-| `imgexam-template-record-v1` | cifra o corpo do registro de um modelo | §7, §8 |
-| `imgexam-drive-node-key-v1` | deriva a chave de conteúdo de um nó de drive a partir da DEK do grupo (salt = `node_id`) | §9 |
-| `imgexam-drive-node-name-v1` | embrulha o nome de arquivo de um nó de drive sob a DEK do grupo | §9 |
-| `imgexam-sse-c-v1` | deriva a chave de cliente opcional do SSE-C a partir de uma chave de documento ou de nó | §10 |
+| `imgexam-sdk-hybrid-seal-v1` | `info` do HKDF do selo híbrido (selagem de sessão e de chave de grupo) | §6 |
+| `imgexam-patient-dek-v1` | embrulha a DEK de **todo** documento (pacientes, exames, modelos) sob a chave do security group — o app web usa este único rótulo para os três | §7, §8 |
+| `imgexam-patient-index-v1` | sela o `encrypted_index` de um paciente sob a DEK | §8 |
+| `imgexam-exam-index-v1` | sela o `encrypted_index` de um exame | §8 |
+| `imgexam-template-index-v1` | sela o `encrypted_index` de um modelo de laudo | §8 |
+| `imgexam-document-version-v1` | sela o corpo de uma versão confirmada sob a chave de conteúdo dela | §7, §8 |
+| `imgexam-document-draft-v1` | sela o corpo de uma cabeça de rascunho sob a chave de conteúdo dela | §7, §8 |
+| `imgexam-drive-node-key-v1` | só drives do SDK 0.1 — deriva a chave de conteúdo de um nó | §9 |
+| `imgexam-drive-node-name-v1` | só drives do SDK 0.1 — embrulha o nome de arquivo de um nó | §9 |
+| `imgexam-sse-c-v1` | só drives do SDK 0.1 — deriva a chave opcional de SSE-C | §10 |
 
 ## 8. Documentos versionados
 
-> [!WARNING]
-> Esta seção descreve a implementação 0.1 do SDK para pacientes, exames e
-> modelos, anterior à revisão atual do protocolo do cofre — veja
-> [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md). Ela fica aqui como
-> registro do que `vault.patients`/`vault.exams` (rotulados **prévia** em
-> [`apps/sdk/README.pt-BR.md`](../apps/sdk/README.pt-BR.md)) mandam e esperam hoje, não
-> como descrição do que o `vault.diagnos.health` aceita atualmente.
+Pacientes, exames e modelos de laudo compartilham um modelo: um **índice**
+no Firestore que a API expõe (fluxos de versões, a DEK embrulhada, um resumo
+selado, `meta` em claro) e, por versão, um objeto selado no R2 que o SDK lê
+e grava por URLs assinadas. Só clientes veem texto claro. A API externa
+serve pacientes e exames; modelos existem só no app web.
 
-Pacientes, exames e modelos compartilham um modelo: um **índice** que a
-API expõe (versões, mais recente, grupos, chaves embrulhadas, `meta` em
-claro) e, por versão, um objeto cifrado no R2 que o SDK lê/escreve por URL
-assinada. Só o SDK vê texto claro.
+**Fluxos.** Um documento tem um ou mais fluxos independentes de versões.
+Exames (e modelos) têm um, `data`. Pacientes têm dois: `data` (o registro
+estruturado) e `file` (o documento rico do editor web, Lexical + Yjs, não
+exposto pelo SDK). Isso decide a forma das rotas de versão: um recurso de
+vários fluxos leva `/streams/{fluxo}`, um de fluxo único não.
 
-Índice (`result.document`):
+Índice (`result.document`, a mesma forma em toda resposta):
 ```json
-{ "document_id", "workspace_id", "resource": "patients", "security_groups": ["sg1"],
-  "encrypted_keys": { "sg1": <EncryptedKeyPayload> }, "latest_version_id", "versions": [{ "version_id", "size", "created_at", "created_by" }],
-  "pending_version_id", "meta": {…}, "created_at", "created_by", "updated_at", "updated_by", "is_archived", "is_deleted" }
+{ "document_id", "workspace_id", "resource": "patients",
+  "security_group_id": "sg1",
+  "encrypted_keys": { "sg1": <EncryptedPayload> },
+  "encrypted_index": <EncryptedPayload>,
+  "streams": {
+    "data": { "latest_version_id", "versions": [{ "version_id", "size", "created_at", "created_by" }],
+              "pending_version_id", "draft"?: { "rev", "size", "updated_at", "updated_by" } },
+    "file": { … } },
+  "meta"?: { … }, "created_at", "created_by", "updated_at", "updated_by"?, "is_archived", "is_deleted" }
 ```
+
+Um documento pertence a **exatamente um** security group: compartilhar um
+paciente com outra equipe é copiá-lo, nunca compartilhar a chave.
 
 Chaves:
-- `doc_dek` = 32 bytes aleatórios, uma por **documento** (as versões
-  reusam). `encrypted_keys[sg]` = `wrapKey(group_dek[sg], doc_dek, "imgexam-<singular>-dek-v1")`
-  (veja [Rótulos congelados](#rótulos-congelados) para as três strings
-  concretas).
-- Corpo do objeto = JSON UTF-8 de `encryptContent(doc_dek, utf8(json(record)), "imgexam-<singular>-record-v1")`,
-  isto é, `{"salt":…,"nonce":…,"ciphertext":…}`. `Content-Type: application/json`.
+- `dek` = 32 bytes aleatórios, um por **documento**, compartilhado por todo
+  fluxo e versão. `encrypted_keys[security_group_id]` =
+  `wrapKey(group_key, dek, "imgexam-patient-dek-v1")` — para todo recurso.
+- O corpo de cada versão é selado sob a própria chave de conteúdo (§7), com
+  `key_id = version_id`; uma cabeça de rascunho com `key_id = "draft"`
+  (fluxo único) ou `"draft:<fluxo>"` (vários fluxos).
+- `encrypted_index` = `encryptContent(dek, utf8(json(resumo)), "imgexam-<recurso>-index-v1")`,
+  regravado a cada versão, para listas abrirem sem baixar nenhuma.
 
-Registros (JSON antes de cifrar):
-- `patients` — espelha `@repo/core/schemas/Patient.ts#PatientRecord`:
-  `legal_name`, `display_name`, `legal_id?`, `external_id?`, `birth_date?` (data ISO),
-  `biological_sex?` (`MALE|FEMALE|INTERSEX|UNDEFINED`), `gender_identity?`, `race_identity?`,
-  `internal_notes?: string[]`, `email?`, `phone?`, `custom_attributes?: object`.
-- `exams` — `title?`, `description?`, `report?: { format: "html"|"markdown"|"text", content }`, `custom_attributes?: object`.
-- `templates` — `title`, `content_html`, `category?`. (só client web.)
+Registros (JSON antes de selar; campos ausentes ficam de fora):
+- `patients` (fluxo `data`) — `legal_name`, `display_name`,
+  `identifiers?: [{ name, value }]` (cada `value` é `secret:v1:…`, selado
+  pela rota de dado sensível do cofre; abrir um é auditado),
+  `external_id?`, `birth_date?`, `biological_sex?`
+  (`MALE|FEMALE|INTERSEX|UNDEFINED`), `gender_identity?`, `race_identity?`,
+  `email?`, `phone?`, `address?: { postal_code?, street?, number?,
+  complement?, district?, city?, state?, country? }`, `internal_notes?:
+  string[]`, `custom_attributes?: object`.
+- `exams` — `title?`, `modality?`, `exam_date?`, `report_lexical?` (o estado
+  do editor, a fonte da verdade), `report_html?` (derivado dele),
+  `custom_attributes?: object`.
 
-`meta` (em claro): patients `{ specialist_ids? }` · exams `{ patient_id, modality?, report_status?, dicom_manifest_status?, … }` · templates `{ category? }`.
+Resumos (o texto claro de `encrypted_index`): pacientes
+`{ display_name, legal_name, external_id?, birth_date?, tags: string[] }` —
+nunca documentos de identidade; exames `{ title?, modality?, exam_date? }`.
 
-Rotas (`{base}` = `/api/external/v1/workspaces/{workspace_id}/{resource}`):
+Datas são instantes ISO 8601 em UTC (`Date.toISOString()`), truncados na
+precisão de anonimização do workspace (`month|day|hour|minute|second`)
+antes de selar.
+
+`meta` (em claro, o que o próprio cofre lê): pacientes `{ specialist_ids? }` ·
+exames `{ patient_id, modality?, report_status?, published_at?,
+published_by? }` — o app web grava só `patient_id`; todo dado clínico fica
+selado.
+
+Rotas (`{base}` = `/api/external/v1/workspaces/{workspace_id}/{patients|exams}`,
+`{s}` = `/streams/{fluxo}` em pacientes, vazio em exames):
 ```
-GET  {base}?limit=&cursor=&security_group_id=&include_deleted=      → { items: [index…], next_cursor }
-POST {base}   { security_groups, encrypted_keys, content_length, meta? }
-              → 201 { document, version_id, upload: { url, method: "PUT", headers: { "content-length" }, expires_at } }
-PUT  upload.url   (corpo = objeto cifrado; header content-length EXATAMENTE como dado)
-POST {base}/{document_id}/versions/{version_id}/commit               → { document }
-GET  {base}/{document_id}?version_id=                                 → { document, version, download: { url, method: "GET", expires_at } }
-POST {base}/{document_id}/versions   { content_length, meta?, is_archived?, is_deleted? }
-              → 201 { document, version_id, upload }   depois PUT, depois commit
+GET  {base}?limit=&cursor=&security_group_id=&include_deleted=true    → { items: [índice…], next_cursor }
+POST {base}   { security_group_id, encrypted_keys, content_length, encrypted_index, stream: "data", meta? }
+              → 201 { document, stream, version_id, security_context: { value, kid },
+                      upload: { url, method: "PUT", headers: { "content-length", … }, client_headers, expires_at } }
+PUT  upload.url                                            (corpo = objeto selado, content-length exatamente como assinado)
+POST {base}/{id}{s}/versions/{version_id}/commit           → { document }        (idempotente ao reenviar)
+GET  {base}/{id}?stream=&version_id=                       → { document, stream, version, security_context, download }
+POST {base}/{id}{s}/versions   { content_length, encrypted_index?, meta?, expected_latest_version_id? }
+              → 201 { staged: true, document, stream, version_id, security_context, upload }   depois PUT, depois commit
+POST {base}/{id}{s}/versions   { is_archived?, is_deleted? }                    (sem content_length: só patch)
+              → 200 { staged: false, document }
+GET  {base}/{id}{s}/draft                                  → { download, security_context, draft_rev, draft_size, updated_at } | null
+PUT  {base}/{id}{s}/draft      { content_length, draft_rev? } → { upload, security_context, draft_rev }   (o autosave do editor web)
 ```
 
-Não existe atualização parcial nem apagar: mudar é sempre uma versão nova e
-inteira; arquivar/apagar são flags do índice gravadas por uma versão nova.
-Só quem reservou a versão pode confirmá-la.
+Regras:
+- Uma mudança é sempre uma versão nova e completa; não existe atualização
+  parcial. Arquivar e apagar são flags ligadas por uma reserva só de patch —
+  sem versão nova, sem upload — e apagar nunca é um apagar de verdade.
+- Uma versão pendente por fluxo: uma segunda reserva responde
+  `409 DocumentVersionPending` até a primeira ser confirmada ou expirar
+  (retente por pouco tempo). `expected_latest_version_id` responde
+  `409 DocumentVersionMismatch` quando outra versão foi confirmada depois.
+  Um commit antes de o objeto ser enviado responde `400 DocumentObjectNotFound`.
+- Leitura: a cabeça de rascunho vence quando existe e o `updated_at` dela é
+  posterior ao `created_at` da versão corrente; senão a versão corrente
+  vence (um commit não apaga o rascunho, só o supera).
+- O cofre lista headers de SSE-C junto das URLs de documento, mas o app web
+  não usa SSE-C em documento — nem no `PUT` nem no `GET` — então o SDK manda
+  só o `content-length` assinado e lê com um `GET` simples. Uma segunda
+  camada que só um lado mandasse tornaria o objeto ilegível para o outro.
 
 ## 9. Drives (arquivos)
 
@@ -372,13 +438,13 @@ requisição ser montada.
 
 | `code` | HTTP | Exceção do SDK |
 |---|---|---|
-| `ValidationError` | 400 | `ValidationError` |
+| `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound` | 400 | `ValidationError` |
 | `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (sessão sumiu → refaça o enrollment) |
 | `SignatureTimestampSkew` | 401 | ressincroniza o relógio, tenta uma vez, depois `AuthenticationError` |
 | `QuotaExceeded`, `BudgetNotProvisioned` | 402 | `QuotaError` |
 | `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember` | 403 | `DiagnosPermissionError` |
 | `DocumentNotFound`, `DocumentVersionNotFound`, `DriveNodeNotFound`, `SdkEnrollmentNotFound`, `NotFound` | 404 | `NotFoundError` |
-| `DocumentVersionPending`, `DocumentVersionNotPending`, `ReplayDetected`, `DriveNodeNotPending` | 409 | `ConflictError` (`ReplayDetected` é retentado uma vez, com nonce novo) |
+| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending` | 409 | `ConflictError` (`ReplayDetected` é retentado uma vez, com nonce novo; `DocumentVersionPending` numa reserva é retentado depois de 1,5 s e 3 s) |
 | `RateLimitExceeded` | 429 | `RateLimitError` (respeita `Retry-After` se vier; senão backoff com jitter, até 3 tentativas) |
 | `RequestBodyTooLarge` | 413 | `ValidationError` |
 | 5xx / `InternalServerError` | 5xx | `VaultError` (carrega `trace_id`; uma retentativa depois de um backoff fixo) |
@@ -387,7 +453,11 @@ Uma resposta que não é JSON válido (uma página de erro de proxy, um corpo
 truncado) não carrega `code` nenhum; o SDK lança `VaultError` com o código
 sintético `InvalidResponse` em vez de deixar vazar um erro de parse cru.
 `SessionExpiredError` é um erro puramente local — o SDK não tem sessão viva
-para assinar com — e nunca vem de uma resposta do cofre.
+para assinar com — e nunca vem de uma resposta do cofre. `ProtocolError` é
+lançado quando uma resposta bem formada quebra o protocolo (um tamanho
+assinado que não é o do corpo selado, uma reserva de versão respondida como
+só-patch). Um commit que falha na rede ou com 5xx é reenviado com backoff
+(0,5 s, 1 s): commits são idempotentes.
 
 ## 13. Limites
 

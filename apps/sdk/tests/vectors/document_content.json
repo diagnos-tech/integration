@@ -1,0 +1,44 @@
+{
+  "description": "Versioned document content and encrypted_index, sealed by the web client's own code (sealedBytes.ts, contentEnvelope.ts).",
+  "group_kek_b64url": "VVxjanF4f4aNlJuiqbC3vsXM09rh6O_2_QQLEhkgJy4",
+  "document_dek_b64url": "dHuCiZCXnqWss7rByM_W3eTr8vkABw4VHCMqMTg_Rk0",
+  "dek_info": "imgexam-patient-dek-v1",
+  "wrapped_dek": {
+    "salt": "eBPlGxu6T9A_Ksd5Jty5KA",
+    "nonce": "gvSMgY0ph-UrHKMZ",
+    "ciphertext": "f3YM3DDGPEaeRyPA6iUXKEL2_3xVnAQr-NO2SwtEFJ_5XwygPQ95nsQdk5Moe-3r"
+  },
+  "version": {
+    "info": "imgexam-document-version-v1",
+    "version_id": "ver_01J8Z3Q4K5",
+    "security_context": "c2VjdXJpdHktY29udGV4dC1leGFtcGxl",
+    "content_key_b64url": "dP47wq5p2MwBbM5jMYvovdF6Z__Y_ma4kaoggcknxno",
+    "plaintext_utf8": "{\"legal_name\":\"Maria da Silva\",\"display_name\":\"Maria\",\"birth_date\":\"1984-03-02\",\"identifiers\":[{\"name\":\"cpf\",\"value\":\"secret:v1:abc\"}],\"address\":{\"city\":\"Recife\",\"country\":\"BR\"}}",
+    "sealed_b64url": "T_Qy-JJkDyPDMcQJS2Oclgugv6_X_07sbsJDlaUXKaocXwDX9sbQN8MwnONZ9-M7pWH9LujEk7jh0LGmcmVHbibHulIS2EjzCrxDgBb60rUi3lIvcIlz1posXLcH0ogYzvoydTSLNRineBB79kIiE5c09LcfEr7ggLjpmcIaRE2MP_Jh6OQ4KPSHqkiNtgw8xgFQ6lz7_z4iT9R5OpeIABI1TxPhqQ_Amsf1BptfJMpxzTHOiP7ADD9BUppBwUUJqq2u_md8CwPRfRnmMfE8NXOQUztte6kmzkZbnjbD",
+    "sealed_overhead_bytes": 44
+  },
+  "draft": {
+    "info": "imgexam-document-draft-v1",
+    "draft_key_id": "draft:data",
+    "security_context": "c2VjdXJpdHktY29udGV4dC1leGFtcGxl",
+    "sealed_b64url": "ZPPtH6Yq5ELIyNnSsICCJfe8au2GOEg0twEVc0XufvrUzW5hBDNNQ4X2l9tC3OPCv5ZxfCuoHGzI6-oa6aoTRTsY1fw7q9Z2bF4PgQwSzluv_bh4EzRCNyyLXXr720a_5x_oAfNr6jh_tAPHOABI-kcJ8AoItm2FRKSe4o4U8qaBRO5Evp4tvmPtjs88EkLx2cFAJ2l9yKvyzL8NsQmt9LgUaMQTBttMtUPXjXiFJByuOfJ9R8Wkm4XtAL0CRUatONSTgMv9fHzzwF0UBjgbRdGcuD2DTi6bXhvUAh92"
+  },
+  "patient_index": {
+    "info": "imgexam-patient-index-v1",
+    "plaintext_utf8": "{\"display_name\":\"Maria\",\"legal_name\":\"Maria da Silva\",\"birth_date\":\"1984-03-02\",\"tags\":[\"diabetes\"]}",
+    "encrypted": {
+      "salt": "bn3SsXPMoofuk_L1H_U6fA",
+      "nonce": "SIOl1ZvA1MnArvMQ",
+      "ciphertext": "DdD1CgRQWgmq9GQTQ1dWsvXoq33X8H3aIIBCfZvz-6nkzAy7bju3IYEXdb6FSHJ08SqtjftZrF-F1-mU5xUCrp37sSpp2sd2I9VHAWVBkhQMZDvokBti3B2DVOK2MrgxknyYUuZbt_fhJiZQo7BbC756REg"
+    }
+  },
+  "exam_index": {
+    "info": "imgexam-exam-index-v1",
+    "plaintext_utf8": "{\"title\":\"RM de crânio\",\"modality\":\"MR\",\"exam_date\":\"2026-09-01\"}",
+    "encrypted": {
+      "salt": "TX0Hq3HcygWRaVVwBNIKMQ",
+      "nonce": "BqTJ4wiVlZ3byXxS",
+      "ciphertext": "0MEdUzUKWSZVsqv76-NEmz8S3RRDGoFcdzwpfRl7yMVRfSpm06ch2Zyx7-dl-o8tL4Ts8wA0lvMyFEUY0_UVe54UTAUaKWxYOQSZuZQFSO-9vA"
+    }
+  }
+}

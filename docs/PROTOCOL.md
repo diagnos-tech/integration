@@ -7,15 +7,12 @@ generated from the vault's reference implementation. When this document and
 a vector disagree, the vector wins and this document has a bug.
 
 > [!NOTE]
-> Sections [8](#8-versioned-documents) and [9](#9-drives-files) describe the
-> `diagnos` SDK's 0.1 implementation of patients, exams and drive files,
-> which predates the vault's current protocol revision. See
-> [COMPATIBILITY.md](COMPATIBILITY.md) for exactly what is and is not
-> compatible with `vault.diagnos.health` today. Everything else in this
-> document — conventions, identity, clock, signature, session keys and the
-> response seed, enrollment, the hybrid seal, frozen labels, SSE-C, OpenBao
-> auto-unseal, errors and limits — is accurate to the vault as it runs
-> today.
+> Sections [9](#9-drives-files) and [10](#10-sse-c-opt-in) describe the
+> `diagnos` SDK's 0.1 implementation of drive files, which predates the
+> vault's current protocol revision. See [COMPATIBILITY.md](COMPATIBILITY.md)
+> for exactly what is and is not compatible with `vault.diagnos.health`
+> today. Everything else in this document is accurate to the vault and the
+> web app as they run today.
 
 ## 0. Conventions
 
@@ -185,8 +182,8 @@ Vector: `hybrid_seal.json` (contains the recipient secret keys).
 
 ## 7. Key and content envelope
 
-`EncryptedPayload` (`{salt, nonce, ciphertext}`, all b64url) is the one
-symmetric envelope of the product.
+`EncryptedPayload` (`{salt, nonce, ciphertext}`, all b64url) is the
+symmetric envelope for keys and small JSON payloads.
 
 ```
 salt     = random(16)
@@ -200,7 +197,31 @@ are the same bytes; only `info` changes. `info` strings are versioned and
 never shared between purposes — the full, frozen list is in
 [Frozen labels](#frozen-labels) below.
 
-Vector: `aes_gcm_envelope.json` (HKDF, wrapKey, encryptContent).
+Stored objects (a document version, a draft head) never use a long-lived
+key directly. Each object gets its own **content key**, derived from the
+document's DEK and the `security_context` the vault returns next to every
+signed upload/download URL — opaque to the client, bound by the vault to
+the object's real address:
+
+```
+content_key = HKDF-SHA256(ikm = dek, salt = utf8(key_id), info = utf8(security_context.value), L = 32)
+key_id      = version_id                           (a committed version)
+            = "draft"  |  "draft:<stream>"         (a stream's draft head; "draft:<stream>" on multi-stream resources)
+```
+
+The object body is raw bytes — no JSON, no base64 — sealed with the same
+primitive as the envelope above:
+
+```
+body           = salt(16) ‖ nonce(12) ‖ AES-256-GCM(HKDF-SHA256(content_key, salt, utf8(info)), nonce, plaintext)
+info           = "imgexam-document-version-v1"  (a version)  |  "imgexam-document-draft-v1"  (a draft head)
+content_length = len(plaintext) + 44            (declared before sealing; the signed PUT locks it)
+```
+
+Vectors: `aes_gcm_envelope.json` (HKDF, wrapKey, encryptContent);
+`document_content.json` (a document DEK, its content key, a sealed version,
+a sealed draft and both `encrypted_index` summaries — sealed by the web
+app's own code).
 
 ## Frozen labels
 
@@ -210,75 +231,123 @@ baked into every ciphertext already stored — renaming one would make
 existing data unreadable. Never repurpose a label for a new meaning; a
 changed derivation gets a new, separately versioned string (`-v2`) instead.
 Code that uses one of these points back here by name — see
-`apps/sdk/src/diagnos/crypto/keys.py`, `hybrid.py` and `hkdf.py`.
+`apps/sdk/src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` and `hkdf.py`.
 
 | Label | Purpose | Section |
 |---|---|---|
 | `imgexam-sdk-hybrid-seal-v1` | HKDF `info` for the hybrid seal (session and group-key sealing) | §6 |
-| `imgexam-patient-dek-v1` | wraps a patient document's DEK under its security group's DEK | §7, §8 |
-| `imgexam-exam-dek-v1` | wraps an exam document's DEK | §7, §8 |
-| `imgexam-template-dek-v1` | wraps a template document's DEK | §7, §8 |
-| `imgexam-patient-record-v1` | encrypts a patient record's body | §7, §8 |
-| `imgexam-exam-record-v1` | encrypts an exam record's body | §7, §8 |
-| `imgexam-template-record-v1` | encrypts a template record's body | §7, §8 |
-| `imgexam-drive-node-key-v1` | derives a drive node's content key from its group DEK (salted by `node_id`) | §9 |
-| `imgexam-drive-node-name-v1` | wraps a drive node's file name under the group DEK | §9 |
-| `imgexam-sse-c-v1` | derives the optional SSE-C customer key from a document or node key | §10 |
+| `imgexam-patient-dek-v1` | wraps **every** document's DEK (patients, exams, templates) under its security group's key — the web app uses this one label for all three | §7, §8 |
+| `imgexam-patient-index-v1` | seals a patient's `encrypted_index` under its DEK | §8 |
+| `imgexam-exam-index-v1` | seals an exam's `encrypted_index` | §8 |
+| `imgexam-template-index-v1` | seals a report template's `encrypted_index` | §8 |
+| `imgexam-document-version-v1` | seals a committed version's body under its content key | §7, §8 |
+| `imgexam-document-draft-v1` | seals a draft head's body under its content key | §7, §8 |
+| `imgexam-drive-node-key-v1` | SDK 0.1 drives only — derives a node's content key | §9 |
+| `imgexam-drive-node-name-v1` | SDK 0.1 drives only — wraps a node's file name | §9 |
+| `imgexam-sse-c-v1` | SDK 0.1 drives only — derives the optional SSE-C customer key | §10 |
 
 ## 8. Versioned documents
 
-> [!WARNING]
-> This section describes the SDK 0.1 implementation of patients, exams and
-> templates, which predates the vault's current protocol revision — see
-> [COMPATIBILITY.md](COMPATIBILITY.md). It is kept here as a record of what
-> `vault.patients`/`vault.exams` (labelled **preview** in
-> [`apps/sdk/README.md`](../apps/sdk/README.md)) send and expect today, not as a
-> description of what `vault.diagnos.health` currently accepts.
+Patients, exams and report templates share one model: a Firestore **index**
+the API exposes (streams of versions, the wrapped DEK, a sealed summary,
+clear `meta`) and, per version, a sealed object in R2 the SDK reads and
+writes through signed URLs. Only clients ever see plaintext. The external
+API serves patients and exams; templates exist only in the web app.
 
-Patients, exams and templates share one model: a Firestore **index** the
-API exposes (versions, latest, groups, wrapped keys, clear `meta`) and, per
-version, an encrypted object in R2 the SDK reads/writes through signed URLs.
-Only the SDK ever sees plaintext.
+**Streams.** A document has one or more independent streams of versions.
+Exams (and templates) have one, `data`. Patients have two: `data` (the
+structured record) and `file` (the web editor's rich document, Lexical +
+Yjs, not exposed by the SDK). This decides the shape of the version routes:
+a multi-stream resource carries `/streams/{stream}`, a single-stream one
+does not.
 
-Index (`result.document`):
+Index (`result.document`, the same shape in every response):
 ```json
-{ "document_id", "workspace_id", "resource": "patients", "security_groups": ["sg1"],
-  "encrypted_keys": { "sg1": <EncryptedKeyPayload> }, "latest_version_id", "versions": [{ "version_id", "size", "created_at", "created_by" }],
-  "pending_version_id", "meta": {…}, "created_at", "created_by", "updated_at", "updated_by", "is_archived", "is_deleted" }
+{ "document_id", "workspace_id", "resource": "patients",
+  "security_group_id": "sg1",
+  "encrypted_keys": { "sg1": <EncryptedPayload> },
+  "encrypted_index": <EncryptedPayload>,
+  "streams": {
+    "data": { "latest_version_id", "versions": [{ "version_id", "size", "created_at", "created_by" }],
+              "pending_version_id", "draft"?: { "rev", "size", "updated_at", "updated_by" } },
+    "file": { … } },
+  "meta"?: { … }, "created_at", "created_by", "updated_at", "updated_by"?, "is_archived", "is_deleted" }
 ```
+
+A document belongs to **exactly one** security group: sharing a patient
+with another team means copying it, never sharing its key.
 
 Keys:
-- `doc_dek` = 32 random bytes, one per **document** (versions reuse it).
-  `encrypted_keys[sg]` = `wrapKey(group_dek[sg], doc_dek, "imgexam-<singular>-dek-v1")`
-  (see [Frozen labels](#frozen-labels) for the three concrete strings).
-- Object body = UTF-8 JSON of `encryptContent(doc_dek, utf8(json(record)), "imgexam-<singular>-record-v1")`,
-  i.e. `{"salt":…,"nonce":…,"ciphertext":…}`. `Content-Type: application/json`.
+- `dek` = 32 random bytes, one per **document**, shared by every stream and
+  version. `encrypted_keys[security_group_id]` =
+  `wrapKey(group_key, dek, "imgexam-patient-dek-v1")` — for every resource.
+- Each version's body is sealed under its own content key (§7), with
+  `key_id = version_id`; a draft head with `key_id = "draft"` (single
+  stream) or `"draft:<stream>"` (multi-stream).
+- `encrypted_index` = `encryptContent(dek, utf8(json(summary)), "imgexam-<resource>-index-v1")`,
+  rewritten with every version, so lists open without downloading one.
 
-Records (JSON before encryption):
-- `patients` — mirrors `@repo/core/schemas/Patient.ts#PatientRecord`:
-  `legal_name`, `display_name`, `legal_id?`, `external_id?`, `birth_date?` (ISO date),
-  `biological_sex?` (`MALE|FEMALE|INTERSEX|UNDEFINED`), `gender_identity?`, `race_identity?`,
-  `internal_notes?: string[]`, `email?`, `phone?`, `custom_attributes?: object`.
-- `exams` — `title?`, `description?`, `report?: { format: "html"|"markdown"|"text", content }`, `custom_attributes?: object`.
-- `templates` — `title`, `content_html`, `category?`. (web client only.)
+Records (JSON before sealing; absent fields are left out):
+- `patients` (`data` stream) — `legal_name`, `display_name`,
+  `identifiers?: [{ name, value }]` (each `value` is `secret:v1:…`, sealed
+  by the vault's sensitive-data route; opening one is audited),
+  `external_id?`, `birth_date?`, `biological_sex?`
+  (`MALE|FEMALE|INTERSEX|UNDEFINED`), `gender_identity?`, `race_identity?`,
+  `email?`, `phone?`, `address?: { postal_code?, street?, number?,
+  complement?, district?, city?, state?, country? }`, `internal_notes?:
+  string[]`, `custom_attributes?: object`.
+- `exams` — `title?`, `modality?`, `exam_date?`, `report_lexical?` (the
+  editor's state, the source of truth), `report_html?` (derived from it),
+  `custom_attributes?: object`.
 
-`meta` (clear): patients `{ specialist_ids? }` · exams `{ patient_id, modality?, report_status?, dicom_manifest_status?, … }` · templates `{ category? }`.
+Summaries (the plaintext of `encrypted_index`): patients
+`{ display_name, legal_name, external_id?, birth_date?, tags: string[] }` —
+never identity documents; exams `{ title?, modality?, exam_date? }`.
 
-Routes (`{base}` = `/api/external/v1/workspaces/{workspace_id}/{resource}`):
+Dates are UTC ISO 8601 instants (`Date.toISOString()`), truncated to the
+workspace's anonymization precision (`month|day|hour|minute|second`) before
+sealing.
+
+`meta` (clear, what the vault itself reads): patients `{ specialist_ids? }` ·
+exams `{ patient_id, modality?, report_status?, published_at?,
+published_by? }` — the web app writes only `patient_id`; everything
+clinical stays sealed.
+
+Routes (`{base}` = `/api/external/v1/workspaces/{workspace_id}/{patients|exams}`,
+`{s}` = `/streams/{stream}` on patients, empty on exams):
 ```
-GET  {base}?limit=&cursor=&security_group_id=&include_deleted=      → { items: [index…], next_cursor }
-POST {base}   { security_groups, encrypted_keys, content_length, meta? }
-              → 201 { document, version_id, upload: { url, method: "PUT", headers: { "content-length" }, expires_at } }
-PUT  upload.url   (body = encrypted object; header content-length EXACTLY as given)
-POST {base}/{document_id}/versions/{version_id}/commit               → { document }
-GET  {base}/{document_id}?version_id=                                 → { document, version, download: { url, method: "GET", expires_at } }
-POST {base}/{document_id}/versions   { content_length, meta?, is_archived?, is_deleted? }
-              → 201 { document, version_id, upload }   then PUT, then commit
+GET  {base}?limit=&cursor=&security_group_id=&include_deleted=true    → { items: [index…], next_cursor }
+POST {base}   { security_group_id, encrypted_keys, content_length, encrypted_index, stream: "data", meta? }
+              → 201 { document, stream, version_id, security_context: { value, kid },
+                      upload: { url, method: "PUT", headers: { "content-length", … }, client_headers, expires_at } }
+PUT  upload.url                                            (body = sealed object, content-length exactly as signed)
+POST {base}/{id}{s}/versions/{version_id}/commit           → { document }        (idempotent on replay)
+GET  {base}/{id}?stream=&version_id=                       → { document, stream, version, security_context, download }
+POST {base}/{id}{s}/versions   { content_length, encrypted_index?, meta?, expected_latest_version_id? }
+              → 201 { staged: true, document, stream, version_id, security_context, upload }   then PUT, then commit
+POST {base}/{id}{s}/versions   { is_archived?, is_deleted? }                    (no content_length: patch-only)
+              → 200 { staged: false, document }
+GET  {base}/{id}{s}/draft                                  → { download, security_context, draft_rev, draft_size, updated_at } | null
+PUT  {base}/{id}{s}/draft      { content_length, draft_rev? } → { upload, security_context, draft_rev }   (the web editor's autosave)
 ```
 
-There is no partial update and no delete: a change is a new full
-version; archival/deletion are flags on the index set through a new version.
-Only the principal that staged a version may commit it.
+Rules:
+- A change is always a new, complete version; there is no partial update.
+  Archive and delete are flags set by a patch-only reservation — no new
+  version, no upload — and delete is never a hard delete.
+- One pending version per stream: a second reservation answers
+  `409 DocumentVersionPending` until the first is committed or expires
+  (retry briefly). `expected_latest_version_id` answers
+  `409 DocumentVersionMismatch` when another version was committed since.
+  A commit before the object was uploaded answers `400 DocumentObjectNotFound`.
+- Reading: the draft head wins when it exists and its `updated_at` is later
+  than the latest version's `created_at`; otherwise the latest version wins
+  (a commit does not erase the draft, it supersedes it).
+- The vault lists SSE-C headers next to document URLs, but the web app does
+  not use SSE-C on documents — neither on the `PUT` nor on the `GET` — so
+  the SDK sends only the signed `content-length` and reads with a plain
+  `GET`. A second layer only one side sent would make the object unreadable
+  to the other.
 
 ## 9. Drives (files)
 
@@ -367,13 +436,13 @@ buffers that are zeroed right after the request is built.
 
 | `code` | HTTP | SDK exception |
 |---|---|---|
-| `ValidationError` | 400 | `ValidationError` |
+| `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound` | 400 | `ValidationError` |
 | `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (session gone → re-enroll) |
 | `SignatureTimestampSkew` | 401 | resync clock, retry once, then `AuthenticationError` |
 | `QuotaExceeded`, `BudgetNotProvisioned` | 402 | `QuotaError` |
 | `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember` | 403 | `DiagnosPermissionError` |
 | `DocumentNotFound`, `DocumentVersionNotFound`, `DriveNodeNotFound`, `SdkEnrollmentNotFound`, `NotFound` | 404 | `NotFoundError` |
-| `DocumentVersionPending`, `DocumentVersionNotPending`, `ReplayDetected`, `DriveNodeNotPending` | 409 | `ConflictError` (`ReplayDetected` is retried once with a new nonce) |
+| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending` | 409 | `ConflictError` (`ReplayDetected` is retried once with a new nonce; `DocumentVersionPending` on a reservation is retried after 1.5 s and 3 s) |
 | `RateLimitExceeded` | 429 | `RateLimitError` (honour `Retry-After` if present; else a jittered backoff, up to 3 retries) |
 | `RequestBodyTooLarge` | 413 | `ValidationError` |
 | 5xx / `InternalServerError` | 5xx | `VaultError` (carries `trace_id`; one retry after a fixed backoff) |
@@ -382,7 +451,11 @@ A response that is not valid JSON at all (a proxy's error page, a truncated
 body) never carries a `code`; the SDK raises `VaultError` with the synthetic
 code `InvalidResponse` instead of leaking a bare parse error. `SessionExpiredError`
 is a purely local error — the SDK has no live session to sign with — and
-never comes from a vault response.
+never comes from a vault response. `ProtocolError` is raised when a
+well-formed answer breaks the protocol (a signed size that is not the
+sealed body's, a version reservation answered as patch-only). A commit that
+fails on the network or with a 5xx is replayed with backoff (0.5 s, 1 s):
+commits are idempotent.
 
 ## 13. Limits
 

@@ -11,13 +11,13 @@ complexidade mora.
 > [!WARNING]
 > **Situação: prévia 0.1.0.** Enrollment, chaves de sessão, assinatura de
 > requisição, relógio e lock são verificados contra o cofre pelos testes de
-> contrato Pact (`contracts/`). `vault.patients`, `vault.exams` e
-> `vault.drives`, logo abaixo, ainda implementam uma **revisão anterior** do
-> protocolo do cofre e ainda não são compatíveis com o `vault.diagnos.health`
-> — leia
+> contrato Pact (`contracts/`), assim como `vault.patients` e
+> `vault.exams`. `vault.drives`, logo abaixo, ainda implementa uma **revisão
+> anterior** do protocolo do cofre e ainda não é compatível com o
+> `vault.diagnos.health` — leia
 > [COMPATIBILITY.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md)
-> antes de construir em cima deles. Eles continuam documentados aqui,
-> rotulados **prévia**, para o formato da API poder ser revisado.
+> antes de construir em cima dele. Ele continua documentado aqui, rotulado
+> **prévia**, para o formato da API poder ser revisado.
 
 A meta é o seu código poder ler assim:
 
@@ -25,8 +25,8 @@ A meta é o seu código poder ler assim:
 from diagnos import Diagnos
 
 with Diagnos() as vault:
-    for index in vault.patients.list():
-        patient = vault.patients.get(index.document_id)
+    for row in vault.patients.list():
+        patient = vault.patients.get(row.id)
         print(patient.record.legal_name)
 ```
 
@@ -40,7 +40,7 @@ export DIAGNOS_API_TOKEN="apikey-…"   # emitido por um admin do workspace
 > [!NOTE]
 > Ainda não está no PyPI. Até o primeiro release, instale do fonte
 > (construir o enclave exige um [toolchain Rust](https://rustup.rs/)):
-> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=sdk"`
+> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"`
 
 `DIAGNOS_API_TOKEN` identifica *esta* service account e o workspace dela;
 sozinho, ele não desbloqueia nada — veja [Enrollment](#enrollment-o-link-e-o-código) abaixo.
@@ -53,8 +53,8 @@ from diagnos import Diagnos
 vault = Diagnos()  # lê DIAGNOS_API_TOKEN
 vault.unlock()  # imprime link + código de 6 dígitos, espera aprovação
 
-for index in vault.patients.list():
-    print(index.document_id, index.updated_at)
+for row in vault.patients.list():
+    print(row.id, row.summary.display_name if row.summary else "—")
 ```
 
 Você nem precisa chamar `unlock()`: na primeira vez que você toca
@@ -147,46 +147,65 @@ recusar a rodar assim. Para um container sem root travar memória, conceda
 [`native/README.pt-BR.md`](native/README.pt-BR.md) diz exatamente o que é e
 o que não é garantido.
 
-## Pacientes (prévia)
+## Pacientes
 
 ```python
+from datetime import date
+
 from diagnos import PatientRecord
 
 patient = vault.patients.create(
-    {
-        "legal_name": "Jane Doe",
-        "display_name": "Jane",
-    },  # um dict é validado para você
-    security_group="sg_oncology",
-    specialist_ids=["specialist_123"],
+    {"legal_name": "Jane Doe", "display_name": "Jane", "birth_date": date(1990, 1, 31)},  # um dict é validado
+    security_group="sg_oncology",  # exatamente um grupo por documento
+    tags=["diabetes"],  # rótulos selados de lista/busca, nunca vão em claro
+    specialist_ids=["specialist_123"],  # metadado em claro pelo qual o próprio cofre filtra
 )
 
-patient = vault.patients.get(patient.id)
-patient = vault.patients.update(patient.id, PatientRecord(legal_name="Jane R. Doe", display_name="Jane"))
+patient = vault.patients.get(patient.id)  # o conteúdo mais novo: um rascunho mais novo do editor web vence
+renamed = patient.record.model_copy(update={"display_name": "Jane R."})
+patient = vault.patients.update(
+    patient.id,
+    renamed,  # sempre o registro completo: toda versão é um retrato inteiro
+    expected_latest_version_id=patient.index.latest_version_id,  # recusado se alguém salvou no meio-tempo
+)
 
-vault.patients.archive(patient.id)
+vault.patients.archive(patient.id)  # uma flag, sem versão nova
 vault.patients.unarchive(patient.id)
-vault.patients.delete(patient.id)  # marca o índice; o histórico cifrado permanece
+vault.patients.delete(patient.id)  # para a lixeira; o histórico cifrado fica
+vault.patients.restore(patient.id)
 
-for index in vault.patients.iter_all(security_group="sg_oncology"):
-    ...
+for row in vault.patients.iter_all(security_group="sg_oncology"):
+    print(row.id, row.summary.display_name if row.summary else "—")  # decifrado localmente, sem download
 ```
 
-## Exames (prévia)
+- **O que você grava é o que o app web lê.** `PatientRecord` espelha o registro do app web campo a campo. Um campo
+  digitado errado (`birthdate`) é recusado com o campo parecido; qualquer outro campo desconhecido é mantido, então um
+  ler-modificar-gravar com `model_copy` nunca perde um campo que o app web acrescentou depois deste SDK ser lançado.
+- **Datas** (`birth_date`, `exam_date`) aceitam `date`, `datetime` com fuso ou string ISO, e são gravadas como o app
+  web grava: um instante UTC. Defina `DIAGNOS_TIME_PRECISION` com a precisão de anonimização do workspace e elas são
+  truncadas antes de selar, como o app web faz.
+- **Documentos de identidade** (`identifiers`, ex.: CPF) são selados pelo cofre, não pelo SDK: valores existentes
+  sobrevivem à ida e volta; um valor em texto claro é recusado. Use `external_id` para um id de outro sistema.
+- **Rascunhos**: `get()` devolve o rascunho do editor web quando ele é mais novo que a versão corrente
+  (`patient.from_draft`); `include_draft=False` lê só versões confirmadas. O SDK nunca grava rascunhos.
+
+## Exames
 
 ```python
 from diagnos import ExamRecord
 
 exam = vault.exams.create(
-    ExamRecord(title="Chest CT", report={"format": "text", "content": "unremarkable"}),
-    patient_id=patient.id,  # obrigatório, em claro no índice — o cofre roteia por ele
+    ExamRecord(title="TC de tórax", modality="CT", exam_date="2026-09-01", report_html="<p>Sem alterações.</p>"),
+    patient_id=patient.id,  # obrigatório, em claro no índice — o cofre roteia por ele; o resto é selado
     security_group="sg_oncology",
-    modality="CT",
 )
 
 exam = vault.exams.get(exam.id)
-print(exam.patient_id, exam.record.report.content)
+print(exam.patient_id, exam.report_status, exam.record.report_html)
 ```
+
+`report_lexical` é o estado do editor web e a fonte da verdade do laudo; `report_html` é derivado dele para quem lê
+sem abrir o editor. Grave os dois ao produzir um laudo que o editor web deva abrir.
 
 ## Drives — arquivos (prévia)
 
@@ -247,6 +266,7 @@ por mensagem
 | `DIAGNOS_API_TOKEN` | — (obrigatória) | O `apikey-<jwt>` que um admin do workspace emitiu. |
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | Onde o cofre mora. |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | Timeout HTTP por requisição. |
+| `DIAGNOS_TIME_PRECISION` | não definida | A precisão de anonimização do workspace (`month`, `day`, `hour`, `minute`, `second`); as datas são truncadas nela antes de selar. |
 | `DIAGNOS_SSE_C` | desligado | Soma SSE-C do R2 em cima da cifragem ponta a ponta em PUT/GET único ([`docs/PROTOCOL.pt-BR.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.pt-BR.md) §10). |
 | `OPENBAO_ADDR` | não definida | Liga o auto-unseal quando definida. |
 | `OPENBAO_TOKEN` | não definida | Token restrito ao path deste SDK no OpenBao. |
