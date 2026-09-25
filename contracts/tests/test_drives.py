@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import types
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -85,7 +86,12 @@ UPLOAD_DEK = fixed_bytes("node/upload-dek")
 NODE_ID = "node-contract"
 FOLDER_ID = "folder-contract"
 EXAM_ID = "exam-contract"
-CLIENT_REF = uuid.UUID(bytes=fixed_bytes("node/client-ref", 16)).hex
+# 🇺🇸 One idempotency ref per reservation: the vault deduplicates by `(workspace, client_ref)`, so a folder and a
+#    file sharing one ref would come back as the same node — exactly as it should.
+# 🇧🇷 Uma ref de idempotência por reserva: o cofre deduplica por `(workspace, client_ref)`, então uma pasta e um
+#    arquivo com a mesma ref voltariam como o mesmo nó — exatamente como deve ser.
+FILE_REF = uuid.UUID(bytes=fixed_bytes("node/client-ref/file", 16)).hex
+FOLDER_REF = uuid.UUID(bytes=fixed_bytes("node/client-ref/folder", 16)).hex
 CONTEXT = b64url(fixed_bytes("node/security-context"))
 CREATED_AT = "2026-09-01T12:00:00.000Z"
 UPLOAD_URL = "https://objects.diagnos.test/node-upload?X-Amz-Signature=contract"
@@ -145,13 +151,13 @@ def _ready_file() -> dict[str, object]:
     }
 
 
-def _stage_entry(**fields: object) -> dict[str, object]:
+def _stage_entry(client_ref: str, **fields: object) -> dict[str, object]:
     """🇺🇸 What every stage entry carries: an idempotency ref, the sealed name, the wrapped DEK.
 
     🇧🇷 O que toda entrada de reserva leva: uma ref de idempotência, o nome selado, a DEK embrulhada.
     """
     return {
-        "client_ref": match.regex(CLIENT_REF, regex=_CLIENT_REF),
+        "client_ref": match.regex(client_ref, regex=_CLIENT_REF),
         "encrypted_name": encrypted(_sealed_name()),
         "encrypted_keys": {SECURITY_GROUP_ID: encrypted(_wrapped_dek())},
         **fields,
@@ -173,21 +179,26 @@ def _drives(url: str, storage: Any) -> Drives:
 
 
 @pytest.fixture
-def fixed_refs(monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 Pins the SDK's `client_ref` (and, for uploads, its DEK) so the mock's canned answer matches them.
+def pin_client_ref(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
+    """🇺🇸 Pins the SDK's next `client_ref` (and its DEK) so the mock's canned answer matches them.
 
     The vault echoes each `client_ref` back and the SDK matches its files by
     it; a mock cannot echo, so the SDK must draw the ref the example
     carries. The fixed DEK lets the oracle open what the SDK uploaded.
 
-    🇧🇷 Fixa o `client_ref` do SDK (e, em uploads, a DEK) para a resposta pronta do mock bater com eles.
+    🇧🇷 Fixa o próximo `client_ref` do SDK (e a DEK) para a resposta pronta do mock bater com eles.
 
     O cofre ecoa cada `client_ref` e o SDK casa os arquivos por ele; um mock
     não ecoa, então o SDK precisa sortear a ref que o exemplo leva. A DEK
     fixa deixa o oráculo abrir o que o SDK subiu.
     """
-    monkeypatch.setattr(nodes_module, "uuid", types.SimpleNamespace(uuid4=lambda: uuid.UUID(hex=CLIENT_REF)))
     monkeypatch.setattr(nodes_module, "generate_dek", lambda entropy: SecretBox.from_bytes(bytearray(UPLOAD_DEK)))
+
+    def pin(client_ref: str) -> None:
+        """🇺🇸 Every `uuid4()` the SDK draws is now `client_ref`. 🇧🇷 Todo `uuid4()` do SDK vira `client_ref`."""
+        monkeypatch.setattr(nodes_module, "uuid", types.SimpleNamespace(uuid4=lambda: uuid.UUID(hex=client_ref)))
+
+    return pin
 
 
 class _Storage:
@@ -221,7 +232,7 @@ class _Storage:
 # -- upload --------------------------------------------------------------------
 
 
-def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, fixed_refs: None) -> None:
+def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, pin_client_ref: Callable[[str], None]) -> None:
     """🇺🇸 One reservation (sealed name, wrapped DEK, framed size, MIME) → signed `PUT` with SSE-C → confirm.
 
     🇧🇷 Uma reserva (nome selado, DEK embrulhada, tamanho enquadrado, MIME) → `PUT` assinado com SSE-C → confirmar.
@@ -239,7 +250,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, fixed_refs: None
             {
                 "security_group_id": literal(SECURITY_GROUP_ID),
                 "exam_id": match.str(EXAM_ID),
-                "files": [_stage_entry(size=match.int(SEALED_SIZE), mime_type=literal(DICOM_MIME))],
+                "files": [_stage_entry(FILE_REF, size=match.int(SEALED_SIZE), mime_type=literal(DICOM_MIME))],
             },
             content_type="application/json",
         )
@@ -249,7 +260,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, fixed_refs: None
                 {
                     "items": [
                         {
-                            "client_ref": match.str(CLIENT_REF),
+                            "client_ref": match.str(FILE_REF),
                             "node_id": match.str(NODE_ID),
                             "version_id": match.str(NODE_ID),
                             "security_context": {"value": match.regex(CONTEXT, regex=B64URL)},
@@ -279,6 +290,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, fixed_refs: None
         .with_body(ok({"ready": match.each_like(_ready_file()), "missing": []}), content_type="application/json")
     )
     storage = _Storage(UPLOAD_DEK)
+    pin_client_ref(FILE_REF)
 
     with pact.serve() as server:
         node = (
@@ -295,7 +307,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, fixed_refs: None
     assert node.status == "ready"
 
 
-def test_create_folder_reserves_a_folder_node(pact: Pact, fixed_refs: None) -> None:
+def test_create_folder_reserves_a_folder_node(pact: Pact, pin_client_ref: Callable[[str], None]) -> None:
     """🇺🇸 A folder is a stage entry of `kind: folder`, no size: ready at once, nothing to upload.
 
     🇧🇷 Uma pasta é uma entrada de reserva `kind: folder`, sem tamanho: pronta na hora, nada a subir.
@@ -310,7 +322,10 @@ def test_create_folder_reserves_a_folder_node(pact: Pact, fixed_refs: None) -> N
         .with_request("POST", _nodes_path("/uploads"))
         .with_headers(signed_headers())
         .with_body(
-            {"security_group_id": literal(SECURITY_GROUP_ID), "files": [_stage_entry(kind=literal("folder"))]},
+            {
+                "security_group_id": literal(SECURITY_GROUP_ID),
+                "files": [_stage_entry(FOLDER_REF, kind=literal("folder"))],
+            },
             content_type="application/json",
         )
         .will_respond_with(201)
@@ -319,7 +334,7 @@ def test_create_folder_reserves_a_folder_node(pact: Pact, fixed_refs: None) -> N
                 {
                     "items": [
                         {
-                            "client_ref": match.str(CLIENT_REF),
+                            "client_ref": match.str(FOLDER_REF),
                             "node_id": match.str(FOLDER_ID),
                             "version_id": match.str(FOLDER_ID),
                             "security_context": {"value": match.regex(CONTEXT, regex=B64URL)},
@@ -331,6 +346,8 @@ def test_create_folder_reserves_a_folder_node(pact: Pact, fixed_refs: None) -> N
             content_type="application/json",
         )
     )
+
+    pin_client_ref(FOLDER_REF)
 
     with pact.serve() as server:
         folder_id = _drives(str(server.url), _Storage(UPLOAD_DEK)).drive(SECURITY_GROUP_ID).create_folder("Tomografias")
