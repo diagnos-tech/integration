@@ -28,6 +28,7 @@ from dataclasses import dataclass
 
 from diagnos import Diagnos, EnrollmentPrompt, Settings
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 
 
@@ -87,7 +88,7 @@ def _render_prompt_panel(console: Console, prompt: EnrollmentPrompt) -> None:
     body = (
         "Open this link and type the code below to approve this session.\n"
         "Abra este link e digite o código abaixo para aprovar esta sessão.\n\n"
-        f"[bold cyan]{prompt.approval_url}[/bold cyan]\n\n"
+        f"[bold cyan]{escape(prompt.approval_url)}[/bold cyan]\n\n"
         f"[bold white on grey23]  {spaced_code}  [/bold white on grey23]"
     )
     console.print(Panel(body, title="diagnos · enrollment", expand=False))
