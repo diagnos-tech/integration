@@ -1,0 +1,10 @@
+# 🇺🇸 Blank issues disabled: every issue starts from a form, so it always carries the fields we need to act on it.
+# 🇧🇷 Issues em branco desabilitadas: toda issue começa de um formulário, para sempre trazer os campos de que precisamos para agir.
+blank_issues_enabled: false
+contact_links:
+  - name: "Report a vulnerability · Reportar uma vulnerabilidade"
+    url: https://github.com/diagnos-tech/integration/security/advisories/new
+    about: "🇺🇸 Security issues go here privately, never as a public issue — see SECURITY.md. · 🇧🇷 Questões de segurança vão para cá em privado, nunca como issue pública — veja SECURITY.pt-BR.md."
+  - name: "Usage questions · Dúvidas de uso"
+    url: https://github.com/diagnos-tech/integration#readme
+    about: "🇺🇸 Not a bug or a feature request? Start with the README — it covers install, quick start and where each package lives. · 🇧🇷 Não é um bug nem um pedido de funcionalidade? Comece pelo README — ele cobre instalação, início rápido e onde cada pacote mora."
