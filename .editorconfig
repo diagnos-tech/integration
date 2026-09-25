@@ -1,0 +1,22 @@
+# 🇺🇸 Editor defaults that match the formatters (ruff: 4 spaces, 120 columns;
+#    rustfmt: see sdk/native/rustfmt.toml). Makefiles need real tabs.
+# 🇧🇷 Padrões de editor que batem com os formatadores (ruff: 4 espaços, 120
+#    colunas; rustfmt: ver sdk/native/rustfmt.toml). Makefile exige TAB de verdade.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json,toml,hcl}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false

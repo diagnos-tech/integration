@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "charliermarsh.ruff",
+    "ms-python.python",
+    "ms-python.mypy-type-checker",
+    "rust-lang.rust-analyzer",
+    "tamasfe.even-better-toml",
+    "editorconfig.editorconfig"
+  ]
+}
