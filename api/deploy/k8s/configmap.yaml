@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: diagnos-api
+data:
+  DIAGNOS_VAULT_URL: "https://vault.diagnos.health"
+  DIAGNOS_API_PORT: "8443"
+  OPENBAO_ADDR: "http://openbao.openbao.svc:8200"
+  OPENBAO_MOUNT: "secret"
+  OPENBAO_PATH_PREFIX: "diagnos"
+  # 🇺🇸 Uncomment to fail startup instead of running with swappable keys —
+  # the difference between a loud crash on a misconfigured node (no
+  # `cap_ipc_lock`, `RLIMIT_MEMLOCK` too low) and silently holding session
+  # keys/DEKs in memory the kernel is free to page to disk. Pairs with
+  # `deployment.yaml`'s `capabilities.add: [IPC_LOCK]` — this flag is what
+  # turns "the capability happens to be there" into "the process verified
+  # it and refuses to start otherwise."
+  # 🇧🇷 Descomente para falhar a subida em vez de rodar com chaves que podem
+  # ir para swap — a diferença entre uma quebra ruidosa num nó mal
+  # configurado (sem `cap_ipc_lock`, `RLIMIT_MEMLOCK` baixo demais) e
+  # guardar em silêncio chaves de sessão/DEKs numa memória que o kernel é
+  # livre para paginar para o disco. Combina com o `capabilities.add:
+  # [IPC_LOCK]` de `deployment.yaml` — esta flag é o que transforma "a
+  # capability por acaso está lá" em "o processo verificou e se recusa a
+  # subir senão."
+  # DIAGNOS_MEMORY_LOCK: "require"
+  # 🇺🇸 Defaults to "1": disables core dumps and `ptrace` attach for this
+  # process, so a crash or a debugger cannot pull session keys/DEKs out of
+  # a live process's memory. Not set here on purpose — the default already
+  # applies without this key present; uncomment with "0" only on a
+  # deployment you are actively debugging, and revert right after.
+  # 🇧🇷 Padrão "1": desliga core dumps e anexar via `ptrace` neste processo,
+  # para uma quebra ou um debugger não conseguirem puxar chaves de sessão/
+  # DEKs da memória de um processo vivo. Não definido aqui de propósito —
+  # o padrão já vale sem esta chave presente; descomente com "0" só num
+  # deployment que você está depurando ativamente, e reverta logo depois.
+  # DIAGNOS_HARDEN_PROCESS: "0"

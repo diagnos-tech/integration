@@ -1,0 +1,39 @@
+# 🇺🇸 uv workspace for the three public Python packages. `sdk` is the base;
+#    `cli` and `api` are thin shells over it and never talk HTTP themselves.
+# 🇧🇷 Workspace uv dos três pacotes Python públicos. `sdk` é a base; `cli` e
+#    `api` são cascas finas sobre ele e nunca falam HTTP por conta própria.
+[tool.uv.workspace]
+members = ["sdk", "cli", "api"]
+
+[tool.uv.sources]
+diagnos = { workspace = true }
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "S", "ANN", "D"]
+ignore = ["D203", "D213", "ANN401", "S101"]
+
+[tool.ruff.lint.per-file-ignores]
+# 🇺🇸 B008 (function call in a default) is the documented `typer` pattern for
+# every option/argument in `cli/src/diagnos_cli/commands/`; there is no
+# alternative spelling. Tests get a docstring pass on trivial one-line fake
+# methods (`cli/tests/conftest.py`'s stand-ins) — the "why" they exist is on
+# the class, not worth repeating per accessor.
+# 🇧🇷 B008 (chamada de função num default) é o padrão documentado do `typer`
+# para toda option/argument em `cli/src/diagnos_cli/commands/`; não há outra
+# forma de escrever isso. Testes ganham dispensa de docstring em métodos
+# falsos triviais de uma linha (os substitutos de `cli/tests/conftest.py`) —
+# o "porquê" deles está na classe, não vale repetir por acessor.
+"cli/src/diagnos_cli/commands/*.py" = ["B008"]
+"cli/tests/*.py" = ["D102", "D103", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true

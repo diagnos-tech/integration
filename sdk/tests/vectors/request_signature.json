@@ -1,0 +1,13 @@
+{
+  "sign_key_b64url": "HyYtNDtCSVBXXmVsc3qBiI-WnaSrsrnAx87V3OPq8fg",
+  "method": "post",
+  "path": "/api/external/v1/workspaces/ws%201/patients",
+  "raw_query": "limit=10&cursor=abc%3D&a=1",
+  "timestamp": "1757203200",
+  "nonce": "n0nce-Xy_12345",
+  "body_utf8": "{\"security_groups\":[\"sg1\"],\"content_length\":42}",
+  "body_sha256_hex": "7968565221785ed7329eeda22dd6f8ea1ce0c49d179fc7ef743ebd7267c8b833",
+  "canonical_string": "POST\n/api/external/v1/workspaces/ws%201/patients\na=1&cursor=abc%3D&limit=10\n1757203200\nn0nce-Xy_12345\n7968565221785ed7329eeda22dd6f8ea1ce0c49d179fc7ef743ebd7267c8b833",
+  "hmac_sha512_hex": "3f264635d13923f3d537166c86f1ce152427df25e656611259be86091e2d16016de8fd5244455528db9dff2a09d4937f280b90c6c858b88c36a645519fa7724f",
+  "empty_body_sha256_hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

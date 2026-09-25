@@ -1,0 +1,105 @@
+"""🇺🇸 Request/response shapes that exist only at the HTTP boundary — never reused by the SDK.
+
+`diagnos`'s own models (`PatientRecord`, `ExamRecord`, `DocumentIndex`,
+`DriveNode`, `Page`) are returned to callers exactly as the SDK produces
+them (`CONVENTIONS.md`: reuse, never reimplement); the types below are the
+thin envelopes an HTTP body needs around them — a create call bundles a
+record with the `security_group` it belongs to, a listing of drive nodes
+needs each node's name decrypted alongside it. None of this belongs in the
+SDK, because none of it means anything outside of "a JSON body arrived over
+HTTP".
+
+🇧🇷 Formas de requisição/resposta que existem só na fronteira HTTP — nunca
+reaproveitadas pelo SDK.
+
+Os próprios modelos do `diagnos` (`PatientRecord`, `ExamRecord`,
+`DocumentIndex`, `DriveNode`, `Page`) são devolvidos a quem chama exatamente
+como o SDK os produz (`CONVENTIONS.md`: reusar, nunca reimplementar); os
+tipos abaixo são os envelopes finos que um corpo HTTP precisa ao redor
+deles — uma chamada de criação empacota um registro com o `security_group`
+a que pertence, uma listagem de nós de drive precisa do nome decifrado de
+cada nó junto. Nada disto pertence ao SDK, porque nada disto significa algo
+fora de "um corpo JSON chegou por HTTP".
+"""
+
+from __future__ import annotations
+
+from diagnos import DriveNode, ExamRecord, PatientRecord
+from pydantic import BaseModel, ConfigDict
+
+
+class PatientCreateRequest(BaseModel):
+    """🇺🇸 Body of `POST /v1/patients`. 🇧🇷 Corpo de `POST /v1/patients`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    record: PatientRecord
+    security_group: str
+    specialist_ids: list[str] | None = None
+
+
+class PatientUpdateRequest(BaseModel):
+    """🇺🇸 Body of `PUT /v1/patients/{id}`. 🇧🇷 Corpo de `PUT /v1/patients/{id}`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    record: PatientRecord
+
+
+class ExamCreateRequest(BaseModel):
+    """🇺🇸 Body of `POST /v1/exams`. 🇧🇷 Corpo de `POST /v1/exams`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    record: ExamRecord
+    patient_id: str
+    security_group: str
+    modality: str | None = None
+
+
+class ExamUpdateRequest(BaseModel):
+    """🇺🇸 Body of `PUT /v1/exams/{id}`. 🇧🇷 Corpo de `PUT /v1/exams/{id}`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    record: ExamRecord
+    modality: str | None = None
+
+
+class NodeView(BaseModel):
+    """🇺🇸 One drive node plus its decrypted name — `DriveNode` alone keeps the name sealed (`resources/drives.py`).
+
+    🇧🇷 Um nó de drive mais seu nome decifrado — `DriveNode` sozinho mantém o nome selado
+    (`resources/drives.py`).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    node: DriveNode
+    name: str | None = None
+
+
+class ClientIdentityView(BaseModel):
+    """🇺🇸 The mTLS identity of the caller, as `GET /v1/session` reports it.
+
+    🇧🇷 A identidade mTLS de quem chama, como `GET /v1/session` reporta.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    common_name: str
+    serial: str
+
+
+class SessionInfo(BaseModel):
+    """🇺🇸 Response of `GET /v1/session`: what this process is, plus who is asking.
+
+    🇧🇷 Resposta de `GET /v1/session`: o que este processo é, mais quem está perguntando.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    workspace_id: str
+    account_id: str
+    security_groups: list[str]
+    client: ClientIdentityView

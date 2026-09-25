@@ -1,0 +1,29 @@
+{
+  "hkdf": {
+    "ikm_b64url": "PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30-wIJEBc",
+    "info": "imgexam-test-hkdf-v1",
+    "salt_b64url": "fIOKkZifpq20u8LJ0Nfe5Q",
+    "okm_32_b64url": "igV_eeafoaNw7Ku14lyy_SQsP7qbtGjrAW5l1wBl2L8",
+    "okm_no_salt_b64url": "4dn6rFKxLZOf3p5dgd6FiTDEP06KptIQ4mk8yRjXoGg"
+  },
+  "wrap_key": {
+    "wrapping_key_b64url": "PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30-wIJEBc",
+    "plaintext_b64url": "XWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY",
+    "info": "imgexam-patient-dek-v1",
+    "payload": {
+      "salt": "L4XvzAfQZGMIz0csBgrY9g",
+      "nonce": "jt9MkPz-Ou0Y7FFV",
+      "ciphertext": "bcDIGw3vNP-JW71iS15OYOaEAIE-BPvp62ESvo5qXTUBnZcuy1XOZSSSR7-hXRPp"
+    }
+  },
+  "encrypt_content": {
+    "dek_b64url": "XWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY",
+    "plaintext_utf8": "{\"legal_name\":\"Maria da Silva\",\"display_name\":\"Maria\",\"birth_date\":\"1980-05-04\"}",
+    "info": "imgexam-patient-record-v1",
+    "payload": {
+      "salt": "6J_W79au68OzpZw_HxJHfw",
+      "nonce": "pWjfMrjemnXe8Xw2",
+      "ciphertext": "JDDvgg1pxzys3NI4ePwYnK4zbuv8YX1nzKsrtoV82gEcxm0goZ7tORFRqx3nsuxqh75GpRnhlea86eg0eNXNQ0dDXv1vdfPU8nGLypqSB7LGOnhuFmVTAWuCFEJTSGgN"
+    }
+  }
+}

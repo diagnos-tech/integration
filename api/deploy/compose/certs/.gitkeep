@@ -1,0 +1,13 @@
+# 🇺🇸 Put the mTLS material `docker-compose.yml` mounts read-only here:
+# `clients-ca.pem` (the CA `DIAGNOS_API_MTLS_CA_FILE` trusts), `server.pem`/
+# `server-key.pem` (this API's own HTTPS certificate). Generate all three
+# with the `openssl` recipe in `../../../README.md`'s "Generating a CA and
+# certificates with openssl" section — this compose stack expects exactly
+# those three filenames. Nothing here is ever committed (`.gitignore`).
+# 🇧🇷 Coloque aqui o material de mTLS que `docker-compose.yml` monta
+# somente-leitura: `clients-ca.pem` (a CA que `DIAGNOS_API_MTLS_CA_FILE`
+# confia), `server.pem`/`server-key.pem` (o certificado HTTPS da própria
+# API). Gere os três com a receita de `openssl` na seção "Gerando uma CA e
+# certificados com openssl" de `../../../README.md` — esta stack de compose
+# espera exatamente esses três nomes de arquivo. Nada aqui é commitado
+# (`.gitignore`).

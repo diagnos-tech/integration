@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openbao
+  labels: { app.kubernetes.io/name: openbao }
+spec:
+  serviceName: openbao
+  # 🇺🇸 One replica: raft tolerates zero node failures at this size, which
+  # is the same tradeoff `../deployment.yaml` already makes for the API
+  # (one process, one session) — scaling this base to a real quorum (3/5
+  # nodes) is future work, not something any `autounseal/<provider>`
+  # overlay assumes.
+  # 🇧🇷 Uma réplica: o raft tolera zero falhas de nó neste tamanho, o mesmo
+  # tradeoff que `../deployment.yaml` já faz para a API (um processo, uma
+  # sessão) — escalar esta base para um quórum de verdade (3/5 nós) é
+  # trabalho futuro, não algo que nenhum overlay `autounseal/<provedor>`
+  # pressupõe.
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: openbao }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: openbao }
+    spec:
+      serviceAccountName: openbao
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 100
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: openbao
+          image: openbao/openbao:2.6.2
+          args: ["server", "-config=/openbao/config"]
+          env:
+            # 🇺🇸 The image's own `.release/docker/docker-entrypoint.sh`
+            # unconditionally `chown -R openbao:openbao`s `/openbao/logs`
+            # and `/openbao/file` (no `||` fallback on those two, unlike its
+            # `/openbao/config` chown attempt) whenever their owning UID
+            # does not match its baked-in `openbao` system user — which it
+            # never will here, since `runAsUser: 100` is an explicit choice
+            # independent of whatever UID Alpine's `adduser -S` happened to
+            # assign that user at image-build time (`config.hcl`'s sibling
+            # comment on `runAsUser`). Without dropped `CAP_CHOWN` and a
+            # read-only root filesystem, that `chown` fails outright and,
+            # under the script's `set -e`, crashes the container on every
+            # start. `SKIP_CHOWN` (documented in that same entrypoint
+            # script) is the escape hatch: it skips all three chown
+            # attempts, which is exactly what a fixed, explicit
+            # `runAsUser` + `fsGroup` already handles correctly on its own.
+            # 🇧🇷 O próprio `.release/docker/docker-entrypoint.sh` da imagem
+            # faz `chown -R openbao:openbao` incondicional em `/openbao/logs`
+            # e `/openbao/file` (sem fallback `||` nesses dois, diferente da
+            # tentativa de chown em `/openbao/config`) sempre que o UID dono
+            # não bate com o usuário `openbao` do sistema já embutido na
+            # imagem — o que nunca vai bater aqui, já que `runAsUser: 100` é
+            # uma escolha explícita independente do UID que o `adduser -S`
+            # do Alpine atribuiu a esse usuário no momento de build da
+            # imagem (comentário irmão sobre `runAsUser` em `config.hcl`).
+            # Sem `CAP_CHOWN` derrubada e com filesystem raiz somente-
+            # leitura, esse `chown` falha de vez e, sob o `set -e` do
+            # script, derruba o container a cada subida. `SKIP_CHOWN`
+            # (documentado no mesmo script de entrypoint) é a válvula de
+            # escape: pula as três tentativas de chown, que é exatamente o
+            # que um `runAsUser` + `fsGroup` fixos e explícitos já resolvem
+            # sozinhos.
+            - { name: SKIP_CHOWN, value: "1" }
+          ports:
+            - { name: http, containerPort: 8200 }
+            - { name: cluster, containerPort: 8201 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            # 🇺🇸 `disable_mlock = false` (`config.hcl`) calls `mlock()` on
+            # key material — dropping every other Linux capability and
+            # adding back only this one is what lets a non-root,
+            # read-only-root-filesystem process still lock memory past the
+            # 64 KiB `RLIMIT_MEMLOCK` default, the exact reasoning
+            # `../deployment.yaml` documents for the API container.
+            # 🇧🇷 `disable_mlock = false` (`config.hcl`) chama `mlock()` no
+            # material de chave — derrubar toda outra capability do Linux e
+            # somar de volta só esta é o que permite um processo não-root,
+            # com filesystem raiz somente-leitura, ainda travar memória além
+            # do padrão de 64 KiB do `RLIMIT_MEMLOCK`, o mesmo raciocínio
+            # que `../deployment.yaml` documenta para o container da API.
+            capabilities: { drop: [ALL], add: [IPC_LOCK] }
+          volumeMounts:
+            - { name: config, mountPath: /openbao/config, readOnly: true }
+            - { name: bootstrap, mountPath: /bootstrap, readOnly: true }
+            - { name: data, mountPath: /openbao/data }
+            # 🇺🇸 Same PVC as `/openbao/data`, a different `subPath` — gives
+            # `bootstrap.sh` (identical file to `../compose/openbao/
+            # bootstrap.sh`, mounted from the `bootstrap` ConfigMap above) a
+            # writable `/state` without a second PersistentVolumeClaim or
+            # any change to that script, which hard-codes `/state`.
+            # 🇧🇷 Mesma PVC de `/openbao/data`, um `subPath` diferente — dá
+            # ao `bootstrap.sh` (arquivo idêntico ao `../compose/openbao/
+            # bootstrap.sh`, montado do ConfigMap `bootstrap` acima) um
+            # `/state` gravável sem uma segunda PersistentVolumeClaim nem
+            # mudar aquele script, que fixa `/state` no código.
+            - { name: data, mountPath: /state, subPath: bootstrap-state }
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            # 🇺🇸 `sealedcode=204`/`uninitcode=204` turn "sealed" and "not
+            # yet initialized" into a 2xx instead of OpenBao's default 5xx/
+            # 4xx for those states — deliberately, because a freshly-created
+            # pod that is merely waiting for `bootstrap.sh` to run is not
+            # "broken" and should still receive traffic on `/v1/sys/health`
+            # itself (health checks are exempt from mTLS-equivalent gating
+            # inside OpenBao); `standbyok=true` matters once this ever scales
+            # past one replica, where a raft standby is a normal state, not
+            # a failure.
+            # 🇧🇷 `sealedcode=204`/`uninitcode=204` transformam "selado" e
+            # "ainda não inicializado" num 2xx em vez do 5xx/4xx padrão do
+            # OpenBao para esses estados — de propósito, porque um pod
+            # recém-criado que só está esperando o `bootstrap.sh` rodar não
+            # está "quebrado" e ainda deve receber tráfego em `/v1/sys/health`
+            # (checks de saúde ficam fora do controle equivalente ao mTLS
+            # dentro do OpenBao); `standbyok=true` importa quando isto um dia
+            # escalar além de uma réplica, onde um standby do raft é estado
+            # normal, não falha.
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            # 🇺🇸 Same endpoint/codes as readiness: a sealed or uninitialised
+            # node is not "dead", so liveness must not restart the container
+            # for a state only `bootstrap.sh` (run by a human via `kubectl
+            # exec`, see `bootstrap-configmap.yaml`) resolves — only an
+            # actual health-endpoint failure (connection refused, 5xx from
+            # OpenBao itself) should trigger a restart.
+            # 🇧🇷 Mesmo endpoint/códigos da readiness: um nó selado ou não
+            # inicializado não está "morto", então a liveness não pode
+            # reiniciar o container por um estado que só o `bootstrap.sh`
+            # (rodado por um humano via `kubectl exec`, veja
+            # `bootstrap-configmap.yaml`) resolve — só uma falha de verdade
+            # no endpoint de saúde (conexão recusada, 5xx do próprio OpenBao)
+            # deve disparar um restart.
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: http
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+      volumes:
+        - name: config
+          configMap: { name: openbao-config }
+        - name: bootstrap
+          configMap: { name: openbao-bootstrap }
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 1Gi }

@@ -1,0 +1,63 @@
+# 🇺🇸 `diagnos._secure`: the native memory enclave of the diagnos SDK. Built and
+#    shipped inside the `diagnos` wheel by maturin (`sdk/pyproject.toml`); never
+#    published to crates.io on its own. See README.md for the threat model.
+# 🇧🇷 `diagnos._secure`: o enclave de memória nativo do SDK diagnos. Construído e
+#    embarcado no wheel `diagnos` pelo maturin (`sdk/pyproject.toml`); nunca
+#    publicado sozinho no crates.io. Veja README.md para o modelo de ameaça.
+[package]
+name = "diagnos-secure"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "Apache-2.0"
+description = "Locked-memory secret handling for the diagnos Python SDK"
+publish = false
+
+[lib]
+name = "_secure"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# 🇺🇸 `abi3-py311` = one wheel per platform for every CPython ≥ 3.11 (the SDK's
+#    own floor), instead of one wheel per interpreter version.
+# 🇧🇷 `abi3-py311` = um wheel por plataforma para todo CPython ≥ 3.11 (o piso do
+#    próprio SDK), em vez de um wheel por versão do interpretador.
+pyo3 = { version = "0.29", features = ["abi3-py311"] }
+zeroize = { version = "1.8", features = ["derive", "serde"] }
+subtle = "2.6"
+hmac = "0.13"
+sha2 = "0.11"
+hkdf = "0.13"
+aes-gcm = "0.11"
+# 🇺🇸 `xchacha` exposes HChaCha20, the subkey step of libsodium's secretstream.
+# 🇧🇷 `xchacha` expõe o HChaCha20, o passo de subchave do secretstream do libsodium.
+chacha20 = { version = "0.10", features = ["xchacha"] }
+poly1305 = "0.9"
+base64 = "0.22"
+x25519-dalek = { version = "3.0", features = ["static_secrets", "zeroize"] }
+ml-kem = { version = "0.3", features = ["zeroize"] }
+rand_core = "0.10"
+getrandom = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+# 🇺🇸 Only for `VirtualLock`/`VirtualUnlock`; the Unix path talks to libc directly.
+# 🇧🇷 Só para `VirtualLock`/`VirtualUnlock`; o caminho Unix fala com a libc direto.
+memsec = { version = "0.7", default-features = false, features = ["use_os"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+# 🇺🇸 Integer overflow stays a panic in release: silent wraparound in length
+#    arithmetic is exactly the class of bug a secrets module cannot afford.
+# 🇧🇷 Overflow de inteiro continua sendo panic em release: wraparound silencioso
+#    em aritmética de tamanho é exatamente a classe de bug que um módulo de
+#    segredos não pode se permitir.
+overflow-checks = true
+debug = false
+strip = "symbols"

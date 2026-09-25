@@ -1,0 +1,7 @@
+# 🇺🇸 Real key material lands in this directory at runtime (see .gitkeep);
+# nothing generated here should ever reach a commit.
+# 🇧🇷 Material de chave de verdade cai neste diretório em tempo de
+# execução (veja .gitkeep); nada gerado aqui deve chegar a um commit.
+*
+!.gitignore
+!.gitkeep

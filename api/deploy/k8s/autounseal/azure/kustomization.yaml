@@ -1,0 +1,39 @@
+# 🇺🇸 Azure Key Vault auto-unseal overlay. `kubectl apply -k
+# deploy/k8s/autounseal/azure` (see `README.md` for the RBAC side of this).
+# 🇧🇷 Overlay de auto-unseal com Azure Key Vault. `kubectl apply -k
+# deploy/k8s/autounseal/azure` (veja `README.md` para o lado RBAC disto).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../openbao
+configMapGenerator:
+  - name: openbao-config
+    behavior: merge
+    files:
+      - seal.hcl
+patches:
+  # 🇺🇸 This annotation is what the AKS workload-identity webhook reads to
+  # know which Azure AD application to federate this ServiceAccount's
+  # tokens against; it also injects AZURE_TENANT_ID/AZURE_CLIENT_ID/
+  # AZURE_FEDERATED_TOKEN_FILE from it, which is why `seal.hcl` leaves all
+  # three unset.
+  # 🇧🇷 Esta anotação é o que o webhook de workload identity do AKS lê para
+  # saber com qual aplicação do Azure AD federar os tokens deste
+  # ServiceAccount; ele também injeta AZURE_TENANT_ID/AZURE_CLIENT_ID/
+  # AZURE_FEDERATED_TOKEN_FILE a partir dela, por isso `seal.hcl` deixa os
+  # três sem definir.
+  - target: { kind: ServiceAccount, name: openbao }
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          azure.workload.identity/client-id: "REPLACE_ME_CLIENT_ID"
+  # 🇺🇸 The label the webhook actually watches for before it mutates a pod
+  # at all — without it, the annotation above is inert.
+  # 🇧🇷 O label que o webhook de fato observa antes de mutar um pod — sem
+  # ele, a anotação acima é inerte.
+  - target: { kind: StatefulSet, name: openbao }
+    patch: |
+      - op: add
+        path: /spec/template/metadata/labels/azure.workload.identity~1use
+        value: "true"

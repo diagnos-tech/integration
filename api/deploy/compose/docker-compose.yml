@@ -1,0 +1,199 @@
+# 🇺🇸 One `docker compose up` for a full diagnos-api stack: OpenBao (raft,
+# one node), a one-shot bootstrap that initialises/unseals it and hands the
+# API a scoped token, and the API itself. Meant for local development and
+# staging, not as a template for a production OpenBao cluster — see
+# `../k8s/openbao` for that. Copy `.env.example` to `.env` and `certs/` per
+# `README.md` before running this.
+# 🇧🇷 Um único `docker compose up` para uma stack completa do diagnos-api:
+# OpenBao (raft, um nó), um bootstrap de execução única que inicializa/
+# dessela e entrega um token restrito para a API, e a própria API. Feito
+# para desenvolvimento local e staging, não como modelo de cluster OpenBao
+# de produção — veja `../k8s/openbao` para isso. Copie `.env.example` para
+# `.env` e `certs/` conforme `README.md` antes de rodar isto.
+
+services:
+  openbao:
+    # 🇺🇸 Pinned exact tag, not `:latest` — a silent minor bump here could
+    # change raft's on-disk format or the seal stanza's accepted fields out
+    # from under a running deployment. Verified on Docker Hub
+    # (openbao/openbao:2.6.2, linux/amd64+arm64, pushed as the `2.6.2`/
+    # `2.6`/`latest` tags) and cross-checked against the GitHub release
+    # `v2.6.2` (2026-08-18).
+    # 🇧🇷 Tag exata fixada, não `:latest` — um bump menor silencioso aqui
+    # poderia mudar o formato em disco do raft ou os campos aceitos pelo
+    # stanza de seal debaixo de um deployment rodando. Verificado no Docker
+    # Hub (openbao/openbao:2.6.2, linux/amd64+arm64, publicada como as tags
+    # `2.6.2`/`2.6`/`latest`) e conferido contra o release `v2.6.2` do
+    # GitHub (2026-08-18).
+    image: openbao/openbao:2.6.2
+    # 🇺🇸 `disable_mlock = false` in `openbao/config.hcl` means the process
+    # calls `mlock()` on its key material; without this capability it
+    # refuses to start rather than silently letting keys be swapped to
+    # disk. The image already runs as its built-in non-root `openbao` user.
+    # 🇧🇷 `disable_mlock = false` em `openbao/config.hcl` significa que o
+    # processo chama `mlock()` no material de chave; sem esta capability ele
+    # se recusa a subir em vez de deixar em silêncio as chaves irem para o
+    # disco via swap. A imagem já roda com seu usuário não-root embutido
+    # `openbao`.
+    cap_add: [IPC_LOCK]
+    security_opt: [no-new-privileges:true]
+    command: ["server", "-config=/openbao/config"]
+    env_file: .env
+    environment:
+      # 🇺🇸 The image's own `.release/docker/docker-entrypoint.sh` chowns
+      # `/openbao/config` to its baked-in `openbao` user whenever the
+      # mounted content's owner differs — true here, since `config.hcl`/
+      # `seal.hcl` are bind-mounted from the host and keep the host's
+      # ownership. That one chown has a `|| echo ...` fallback so it cannot
+      # crash the container, but it does print a spurious "Could not
+      # chown" line every start; `SKIP_CHOWN` silences it. It also matters
+      # more than cosmetics if this ever mounts the same `config.hcl` the
+      # Kubernetes base uses and the two need to behave identically.
+      # 🇧🇷 O próprio `.release/docker/docker-entrypoint.sh` da imagem chowna
+      # `/openbao/config` para seu usuário `openbao` embutido sempre que o
+      # dono do conteúdo montado é diferente — verdade aqui, já que
+      # `config.hcl`/`seal.hcl` são bind-mounts do host e mantêm a
+      # propriedade do host. Esse chown específico tem fallback `|| echo
+      # ...` então não derruba o container, mas imprime uma linha "Could
+      # not chown" espúria toda subida; `SKIP_CHOWN` silencia. Também
+      # importa além do cosmético se isto um dia montar o mesmo
+      # `config.hcl` que a base do Kubernetes usa e os dois precisarem se
+      # comportar de forma idêntica.
+      - SKIP_CHOWN=1
+      # 🇺🇸 The healthcheck's `bao status` runs inside this container and
+      # would otherwise dial the CLI default, `https://127.0.0.1:8200`, on a
+      # listener that has `tls_disable = true` — exit 1 forever.
+      # 🇧🇷 O `bao status` do healthcheck roda dentro deste container e sem
+      # isto discaria o padrão da CLI, `https://127.0.0.1:8200`, num listener
+      # com `tls_disable = true` — exit 1 para sempre.
+      - BAO_ADDR=http://127.0.0.1:8200
+    volumes:
+      - ./openbao/config.hcl:/openbao/config/config.hcl:ro
+      # 🇺🇸 `OPENBAO_SEAL` picks which provider's stanza joins `config.hcl`
+      # in the same directory; `bao server -config=<dir>` merges every file
+      # it finds there. `shamir`'s file is comment-only (no `seal` block —
+      # Shamir is OpenBao's default when none is configured), kept only so
+      # this bind mount does not need a special case.
+      # 🇧🇷 `OPENBAO_SEAL` escolhe qual stanza de qual provedor se junta ao
+      # `config.hcl` no mesmo diretório; `bao server -config=<dir>` funde
+      # todo arquivo que encontra lá. O arquivo do `shamir` só tem
+      # comentário (sem bloco `seal` — Shamir é o padrão do OpenBao quando
+      # nenhum é configurado), mantido só para este bind mount não precisar
+      # de caso especial.
+      - ../k8s/autounseal/${OPENBAO_SEAL:-shamir}/seal.hcl:/openbao/config/seal.hcl:ro
+      - openbao-data:/openbao/data
+    healthcheck:
+      # 🇺🇸 `bao status` exits 0 unsealed, 2 sealed, 1 error — Docker only
+      # sees "0 is healthy", so a sealed node is reported unhealthy on
+      # purpose. That is exactly right for anything that should wait for
+      # `condition: service_healthy` here (nothing in this file does —
+      # `openbao-bootstrap` must run *while* this is sealed, so it depends
+      # on `service_started` instead and polls `bao status` itself).
+      # 🇧🇷 `bao status` sai 0 desselado, 2 selado, 1 erro — o Docker só
+      # enxerga "0 é saudável", então um nó selado é reportado como não
+      # saudável de propósito. Isso é exatamente certo para qualquer coisa
+      # que deva esperar por `condition: service_healthy` aqui (nada neste
+      # arquivo faz isso — `openbao-bootstrap` precisa rodar *enquanto*
+      # isto está selado, então depende de `service_started` e sonda
+      # `bao status` por conta própria).
+      test: ["CMD", "bao", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  openbao-bootstrap:
+    image: openbao/openbao:2.6.2
+    entrypoint: ["sh", "/bootstrap/bootstrap.sh"]
+    # 🇺🇸 Root inside its own throwaway container, on purpose: the `state`
+    # volume is created root-owned by Docker, and the token it writes has to
+    # end up owned by the API's uid (10001, `api/Dockerfile`) so a `0600`
+    # file is readable there and by nobody else — `bootstrap.sh` does that
+    # `chown`. The image's `openbao` user could do neither.
+    # 🇧🇷 Root dentro do próprio container descartável, de propósito: o volume
+    # `state` é criado pelo Docker com dono root, e o token que ele escreve
+    # precisa terminar com o uid da API (10001, `api/Dockerfile`) para um
+    # arquivo `0600` ser legível lá e por mais ninguém — o `bootstrap.sh` faz
+    # esse `chown`. O usuário `openbao` da imagem não conseguiria nenhum dos
+    # dois.
+    user: "0:0"
+    depends_on:
+      openbao:
+        condition: service_started
+    env_file: .env
+    environment:
+      - OPENBAO_ADDR=http://openbao:8200
+    volumes:
+      - ./openbao/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+      - ./openbao/policy.hcl:/bootstrap/policy.hcl:ro
+      - openbao-state:/state
+    security_opt: [no-new-privileges:true]
+    # 🇺🇸 Runs once and exits 0; `api`'s `depends_on: condition:
+    # service_completed_successfully` is what actually gates startup, so
+    # this must never restart on its own (a restart loop here would mask a
+    # real bootstrap failure as "still starting").
+    # 🇧🇷 Roda uma vez e sai com 0; `depends_on: condition:
+    # service_completed_successfully` do `api` é o que de fato trava a
+    # subida, então isto nunca pode reiniciar sozinho (um loop de restart
+    # aqui esconderia uma falha real de bootstrap como "ainda subindo").
+    restart: "no"
+
+  api:
+    build:
+      # 🇺🇸 Context is the workspace root (`apps/integration`), matching
+      # `api/Dockerfile`'s own header comment — the image needs `sdk/` and
+      # `cli/` alongside `api/` to install `diagnos-api` from source.
+      # 🇧🇷 O contexto é a raiz do workspace (`apps/integration`), igual ao
+      # comentário de cabeçalho do próprio `api/Dockerfile` — a imagem
+      # precisa de `sdk/` e `cli/` ao lado de `api/` para instalar o
+      # `diagnos-api` a partir do fonte.
+      context: ../../..
+      dockerfile: api/Dockerfile
+    cap_add: [IPC_LOCK]
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: [no-new-privileges:true]
+    env_file: .env
+    environment:
+      - OPENBAO_ADDR=http://openbao:8200
+      # 🇺🇸 Read by the SDK (`diagnos.Settings.from_env`, `OPENBAO_TOKEN`
+      # unset): a file the bootstrap wrote, `0600`, owned by the API's uid —
+      # never the token itself in this environment block.
+      # 🇧🇷 Lido pelo SDK (`diagnos.Settings.from_env`, `OPENBAO_TOKEN` sem
+      # definir): um arquivo que o bootstrap escreveu, `0600`, com o uid da
+      # API — nunca o token em si neste bloco de ambiente.
+      - OPENBAO_TOKEN_FILE=/state/openbao-token
+      - DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem
+      - DIAGNOS_API_TLS_CERT_FILE=/certs/server.pem
+      - DIAGNOS_API_TLS_KEY_FILE=/certs/server-key.pem
+    volumes:
+      - ./certs:/certs:ro
+      - openbao-state:/state:ro
+    ports:
+      - "8443:8443"
+    depends_on:
+      openbao-bootstrap:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  # 🇺🇸 Raft's data — deleting this (`docker compose down -v`) destroys the
+  # workspace's saved sessions beyond recovery unless the recovery/unseal
+  # keys `openbao-bootstrap` printed were copied out already.
+  # 🇧🇷 Dados do raft — apagar isto (`docker compose down -v`) destrói as
+  # sessões salvas do workspace sem volta, a menos que as chaves de
+  # recovery/unseal que o `openbao-bootstrap` imprimiu já tenham sido
+  # copiadas para fora.
+  openbao-data:
+  # 🇺🇸 Shared between `openbao-bootstrap` and `api`: the init/unseal JSON
+  # (staging-only, see `openbao/bootstrap.sh`) and the scoped token `api`
+  # reads. Same durability warning as `openbao-data`.
+  # 🇧🇷 Compartilhado entre `openbao-bootstrap` e `api`: o JSON de init/
+  # unseal (só-staging, veja `openbao/bootstrap.sh`) e o token restrito que
+  # `api` lê. Mesmo aviso de durabilidade de `openbao-data`.
+  openbao-state:

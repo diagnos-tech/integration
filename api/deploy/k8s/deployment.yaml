@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diagnos-api
+  labels: { app.kubernetes.io/name: diagnos-api }
+spec:
+  # 🇺🇸 One replica per service account: a session belongs to one process.
+  # 🇧🇷 Uma réplica por service account: uma sessão pertence a um processo.
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: diagnos-api }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: diagnos-api }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api
+          image: ghcr.io/diagnos/diagnos-api:0.1.0
+          ports: [{ name: https, containerPort: 8443 }]
+          envFrom:
+            - configMapRef: { name: diagnos-api }
+          env:
+            - name: DIAGNOS_API_TOKEN
+              valueFrom: { secretKeyRef: { name: diagnos-api, key: DIAGNOS_API_TOKEN } }
+            - name: OPENBAO_TOKEN
+              valueFrom: { secretKeyRef: { name: diagnos-api, key: OPENBAO_TOKEN } }
+            - { name: DIAGNOS_API_TLS_CERT_FILE, value: /certs/tls.crt }
+            - { name: DIAGNOS_API_TLS_KEY_FILE, value: /certs/tls.key }
+            - { name: DIAGNOS_API_MTLS_CA_FILE, value: /certs/clients-ca.pem }
+          volumeMounts:
+            - { name: certs, mountPath: /certs, readOnly: true }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            # 🇺🇸 The SDK locks its key material in RAM (`mlock`, `docs/
+            # PROTOCOL.md`'s "never sends a key to the vault" guarantee is
+            # only as good as that key never reaching swap) and the image
+            # carries `cap_ipc_lock` as a file capability for exactly this;
+            # dropping every other capability and adding only `IPC_LOCK`
+            # back is what lets this non-root, read-only-root-filesystem
+            # process still lock memory past the 64 KiB `RLIMIT_MEMLOCK`
+            # default instead of needing `CAP_SYS_RESOURCE` or root.
+            # 🇧🇷 O SDK trava seu material de chave na RAM (`mlock`; a
+            # garantia "nunca envia uma chave ao cofre" de `docs/
+            # PROTOCOL.md` só vale o que essa chave nunca alcançar o swap) e
+            # a imagem carrega `cap_ipc_lock` como file capability
+            # exatamente para isto; derrubar toda outra capability e somar
+            # de volta só `IPC_LOCK` é o que permite este processo não-root,
+            # com filesystem raiz somente-leitura, ainda travar memória além
+            # do padrão de 64 KiB do `RLIMIT_MEMLOCK` sem precisar de
+            # `CAP_SYS_RESOURCE` nem de root.
+            capabilities: { drop: [ALL], add: [IPC_LOCK] }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          readinessProbe:
+            # 🇺🇸 TCP only: an HTTPS probe without a client certificate is rejected by design.
+            # 🇧🇷 Só TCP: uma sonda HTTPS sem certificado de cliente é recusada por desenho.
+            tcpSocket: { port: https }
+            periodSeconds: 10
+      volumes:
+        - name: certs
+          secret:
+            secretName: diagnos-api
+            items:
+              - { key: tls.crt, path: tls.crt }
+              - { key: tls.key, path: tls.key }
+              - { key: clients-ca.pem, path: clients-ca.pem }

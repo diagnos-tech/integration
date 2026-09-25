@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+uv.lock.bak
+.env
+# 🇺🇸 Rust build output of the SDK's native enclave (`sdk/native`) and any
+#    locally built extension module.
+# 🇧🇷 Saída de build Rust do enclave nativo do SDK (`sdk/native`) e qualquer
+#    módulo de extensão construído localmente.
+sdk/native/target/
+*.so
+*.pyd

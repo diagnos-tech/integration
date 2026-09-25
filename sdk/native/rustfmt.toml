@@ -1,0 +1,6 @@
+# 🇺🇸 120 columns, like the Python side (`ruff` line-length = 120), so a bilingual
+#    doc line fits without wrapping mid-sentence.
+# 🇧🇷 120 colunas, como o lado Python (`ruff` line-length = 120), para uma linha
+#    de doc bilíngue caber sem quebrar no meio da frase.
+max_width = 120
+use_small_heuristics = "Max"
