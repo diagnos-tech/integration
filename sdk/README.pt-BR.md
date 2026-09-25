@@ -87,8 +87,10 @@ passo — é o modelo de segurança inteiro, não um atrito para contornar.
 ```python
 from diagnos import Diagnos, EnrollmentPrompt
 
+
 def show_prompt(prompt: EnrollmentPrompt) -> None:
     print(f"Abra {prompt.approval_url} e digite {prompt.code}")
+
 
 vault = Diagnos(on_prompt=show_prompt)  # o prompt padrão já imprime em stderr
 vault.unlock()

@@ -67,9 +67,9 @@ which security groups this process may read.
 ```python
 from diagnos import Diagnos
 
-with Diagnos() as vault:            # enrolls on entry: prints the approval link + code
+with Diagnos() as vault:  # enrolls on entry: prints the approval link + code
     print(vault.workspace_id)
-    print(vault.security_groups)    # the groups the admin granted
+    print(vault.security_groups)  # the groups the admin granted
 ```
 
 ```sh

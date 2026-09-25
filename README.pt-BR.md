@@ -67,9 +67,9 @@ diagnos e escolhe quais security groups este processo pode ler.
 ```python
 from diagnos import Diagnos
 
-with Diagnos() as vault:            # faz enrollment na entrada: imprime o link de aprovação + código
+with Diagnos() as vault:  # faz enrollment na entrada: imprime o link de aprovação + código
     print(vault.workspace_id)
-    print(vault.security_groups)    # os grupos que o admin concedeu
+    print(vault.security_groups)  # os grupos que o admin concedeu
 ```
 
 ```sh

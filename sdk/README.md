@@ -83,8 +83,10 @@ it is the whole security model, not friction to route around.
 ```python
 from diagnos import Diagnos, EnrollmentPrompt
 
+
 def show_prompt(prompt: EnrollmentPrompt) -> None:
     print(f"Open {prompt.approval_url} and type {prompt.code}")
+
 
 vault = Diagnos(on_prompt=show_prompt)  # default prompt already prints to stderr
 vault.unlock()
