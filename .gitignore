@@ -16,3 +16,11 @@ uv.lock.bak
 sdk/native/target/
 *.so
 *.pyd
+# 🇺🇸 Test and coverage output — `make clean` removes all of it.
+# 🇧🇷 Saída de teste e de cobertura — `make clean` remove tudo.
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+contracts/.pact-raw/

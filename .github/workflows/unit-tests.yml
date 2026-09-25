@@ -1,0 +1,82 @@
+# 🇺🇸 Unit tests of the three Python packages on every supported CPython, plus
+#    the Rust enclave's own tests. Every leg enforces the coverage floor
+#    (`fail_under` in `pyproject.toml`); on `develop`, the 3.12 leg also
+#    publishes the coverage badge to the `badges` branch.
+# 🇧🇷 Testes unitários dos três pacotes Python em todo CPython suportado, mais
+#    os testes do próprio enclave Rust. Toda perna exige o piso de cobertura
+#    (`fail_under` no `pyproject.toml`); na `develop`, a perna 3.12 também
+#    publica o badge de cobertura na branch `badges`.
+name: Unit tests
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python }}
+      - name: make cov
+        run: make cov
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo "### Coverage · Cobertura — Python ${{ matrix.python }}"
+            uv run coverage report --format=markdown
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage report
+        if: always() && matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            htmlcov/
+            coverage.xml
+            coverage.json
+
+  rust:
+    name: Rust enclave
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - name: make test-rust
+        run: make test-rust
+
+  badge:
+    name: Publish coverage badge
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [python, rust]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: badges
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+      - name: Write badge JSON
+        run: python3 scripts/badge.py coverage.json > "$RUNNER_TEMP/coverage.json"
+      - name: Push to the badges branch
+        run: scripts/publish-badge.sh "$RUNNER_TEMP/coverage.json" coverage.json
