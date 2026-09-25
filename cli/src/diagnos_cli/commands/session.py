@@ -15,7 +15,10 @@ from diagnos_cli.render import get_console
 app = typer.Typer(help="Session lifecycle · Ciclo de vida da sessão")
 
 
-@app.command("lock")
+@app.command(
+    "lock",
+    help="End the session on the vault and wipe local keys · Encerra a sessão no cofre e apaga as chaves locais",
+)
 def lock(ctx: typer.Context) -> None:
     """🇺🇸 Calls `vault.lock()` on a freshly built client.
 

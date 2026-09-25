@@ -17,7 +17,7 @@ from diagnos_cli.render import get_console, get_err_console, render_document_ind
 app = typer.Typer(help="Exams · Exames")
 
 
-@app.command("list")
+@app.command("list", help="List exams (one page, or all with --all) · Lista exames (uma página, ou todas com --all)")
 def list_exams(
     ctx: typer.Context,
     group: str | None = typer.Option(None, "--group", "-g", help="Security group filter · Filtro de security group"),
@@ -44,7 +44,7 @@ def list_exams(
     render_index_table(console, items, json_output=opts.json_output, next_cursor=next_cursor)
 
 
-@app.command("get")
+@app.command("get", help="Fetch and decrypt one exam · Busca e decifra um exame")
 def get_exam(
     ctx: typer.Context,
     exam_id: str = typer.Argument(..., help="Exam document id · Id do documento de exame"),
@@ -63,7 +63,7 @@ def get_exam(
     render_exam(console, exam, json_output=opts.json_output)
 
 
-@app.command("create")
+@app.command("create", help="Encrypt and create an exam for a patient · Cifra e cria um exame de um paciente")
 def create_exam(
     ctx: typer.Context,
     patient_id: str = typer.Option(..., "--patient", help="Owning patient id · Id do paciente dono"),
@@ -86,7 +86,7 @@ def create_exam(
     render_exam(console, exam, json_output=opts.json_output)
 
 
-@app.command("update")
+@app.command("update", help="Write a new version of an exam · Grava uma versão nova de um exame")
 def update_exam(
     ctx: typer.Context,
     exam_id: str = typer.Argument(...),
@@ -107,7 +107,7 @@ def update_exam(
     render_exam(console, exam, json_output=opts.json_output)
 
 
-@app.command("archive")
+@app.command("archive", help="Archive an exam (new version) · Arquiva um exame (versão nova)")
 def archive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Marks the exam archived, in a new version. 🇧🇷 Marca o exame arquivado, numa versão nova."""
     opts: CliOptions = ctx.obj
@@ -119,7 +119,7 @@ def archive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("unarchive")
+@app.command("unarchive", help="Unarchive an exam (new version) · Desarquiva um exame (versão nova)")
 def unarchive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Clears the archived flag, in a new version. 🇧🇷 Tira a flag de arquivado, numa versão nova."""
     opts: CliOptions = ctx.obj
@@ -131,7 +131,7 @@ def unarchive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> No
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("delete")
+@app.command("delete", help="Flag an exam as deleted (new version) · Marca um exame como apagado (versão nova)")
 def delete_exam(
     ctx: typer.Context,
     exam_id: str = typer.Argument(...),

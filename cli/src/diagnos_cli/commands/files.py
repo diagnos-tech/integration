@@ -46,7 +46,10 @@ Drive = Any
 app = typer.Typer(help="Drive files · Arquivos de drive")
 
 
-@app.command("list")
+@app.command(
+    "list",
+    help="List a drive's files (one page, or all with --all) · Lista arquivos do drive (uma página, ou --all)",
+)
 def list_files(
     ctx: typer.Context,
     group: str = typer.Option(..., "--group", "-g", help="Security group (drive) · Security group (drive)"),
@@ -107,7 +110,7 @@ def _upload_with_progress(
     return nodes
 
 
-@app.command("upload")
+@app.command("upload", help="Encrypt and upload files · Cifra e envia arquivos")
 def upload_files(
     ctx: typer.Context,
     paths: list[Path] = typer.Argument(..., help="Files to upload · Arquivos para subir"),
@@ -131,7 +134,7 @@ def upload_files(
     render_drive_node_table(console, drive, nodes, json_output=opts.json_output)
 
 
-@app.command("download")
+@app.command("download", help="Download and decrypt one file · Baixa e decifra um arquivo")
 def download_file(
     ctx: typer.Context,
     node_id: str = typer.Argument(...),
@@ -169,7 +172,7 @@ def download_file(
         console.print(f"[green]Saved · Salvo:[/green] {destination}")
 
 
-@app.command("get")
+@app.command("get", help="Show one file's metadata and name · Mostra metadados e nome de um arquivo")
 def get_file(
     ctx: typer.Context,
     node_id: str = typer.Argument(...),
