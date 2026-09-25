@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from rich.table import Table
 
-from diagnos_cli.render._shared import record_panel
+from diagnos_cli.render._shared import plain, record_panel
 from diagnos_cli.render.json import print_json
 
 if TYPE_CHECKING:
@@ -67,12 +67,12 @@ def render_drive_node_table(
     table.add_column("Exam · Exame")
     for node in nodes:
         table.add_row(
-            node.node_id,
-            drive.name_of(node) or "—",
+            plain(node.node_id),
+            plain(drive.name_of(node) or None),
             human_size(node.size),
-            node.mime_type or "—",
-            node.status,
-            node.exam_id or "—",
+            plain(node.mime_type),
+            plain(node.status),
+            plain(node.exam_id),
         )
     console.print(table)
     if not nodes:
