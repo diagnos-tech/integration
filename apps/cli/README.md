@@ -131,7 +131,7 @@ Every command accepts `--json` before the subcommand name — the output is plai
 `rich`, so a long field can never break a line mid-document the way a terminal-width-aware renderer could:
 
 ```sh
-diagnos --json patients list --group sg_oncology | jq '.items[].document_id'
+diagnos --json patients list --group sg_oncology | jq '.items[].index.document_id'
 ```
 
 ## Exit codes
