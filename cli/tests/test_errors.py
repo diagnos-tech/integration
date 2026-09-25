@@ -22,7 +22,9 @@ from __future__ import annotations
 import sys
 
 import pytest
+from diagnos import DiagnosError
 from diagnos_cli import main as main_module
+from diagnos_cli.exit_codes import EXIT_GENERAL, classify
 
 from .conftest import FakeDiagnos
 
@@ -44,3 +46,14 @@ def test_not_found_exits_4_without_traceback(
     assert "Traceback" not in captured.err
     assert "Traceback" not in captured.out
     assert "Not found" in captured.err
+
+
+def test_classify_falls_back_to_exit_general_for_an_unmapped_diagnos_error() -> None:
+    """🇺🇸 A bare `DiagnosError` matches none of `_RULES` — `classify` still has to return something, not raise.
+
+    🇧🇷 Um `DiagnosError` puro não bate com nenhuma regra de `_RULES` —
+    `classify` ainda assim precisa devolver algo, nunca lançar.
+    """
+    code, label = classify(DiagnosError("an unmapped, unforeseen failure"))
+    assert code == EXIT_GENERAL
+    assert label == "Error · Erro"

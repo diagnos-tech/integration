@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
-from conftest import FakeDiagnos, build_app
 from fastapi.testclient import TestClient
 
 from diagnos_api.settings import ApiSettings
+
+from conftest import FakeDiagnos, build_app
 
 
 def test_startup_unlocks_and_shutdown_closes(fake_vault: FakeDiagnos, api_settings: ApiSettings) -> None:

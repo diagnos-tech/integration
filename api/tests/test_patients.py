@@ -5,9 +5,10 @@
 
 from __future__ import annotations
 
-from conftest import FakeDiagnos
 from diagnos import QuotaError
 from fastapi.testclient import TestClient
+
+from conftest import FakeDiagnos
 
 
 def _create_body() -> dict[str, object]:
@@ -44,6 +45,39 @@ def test_list_includes_created_patients(client: TestClient) -> None:
 
     assert listed.status_code == 200
     assert len(listed.json()["items"]) == 1
+
+
+def test_update_replaces_the_record(client: TestClient) -> None:
+    """🇺🇸 `PUT` reuses the patient's existing DEK — the caller only ever sees a fresh `record` come back.
+
+    🇧🇷 `PUT` reusa a DEK existente do paciente — quem chama só vê um `record` novo voltar.
+    """
+    created = client.post("/v1/patients", json=_create_body())
+    patient_id = created.json()["index"]["document_id"]
+
+    updated = client.put(
+        f"/v1/patients/{patient_id}", json={"record": {"legal_name": "Jane Doe, revised", "display_name": "Jane"}}
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["record"]["legal_name"] == "Jane Doe, revised"
+
+
+def test_archive_then_unarchive_round_trip(client: TestClient) -> None:
+    """🇺🇸 Both mutation routes delegate straight to the fake and return its index unchanged.
+
+    🇧🇷 As duas rotas de mutação delegam direto ao fake e devolvem o índice dele sem mudar.
+    """
+    created = client.post("/v1/patients", json=_create_body())
+    patient_id = created.json()["index"]["document_id"]
+
+    archived = client.post(f"/v1/patients/{patient_id}/archive")
+    assert archived.status_code == 200
+    assert archived.json()["document_id"] == patient_id
+
+    unarchived = client.post(f"/v1/patients/{patient_id}/unarchive")
+    assert unarchived.status_code == 200
+    assert unarchived.json()["document_id"] == patient_id
 
 
 def test_delete_removes_the_patient(client: TestClient) -> None:

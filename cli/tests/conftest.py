@@ -199,6 +199,15 @@ class FakeDiagnos:
         self.exams = FakeExams()
         self.drives = FakeDrives()
         self._unlocked = False
+        # 🇺🇸 A test overrides this (e.g. to `[]`) *before* invoking a command
+        # to exercise the "nothing granted" branch of `groups`/`status
+        # --check` — the property below only ever returns it post-`unlock()`,
+        # exactly like the real `Diagnos.security_groups`.
+        # 🇧🇷 Um teste sobrescreve isto (ex.: para `[]`) *antes* de invocar um
+        # comando para exercitar o ramo "nada concedido" de `groups`/`status
+        # --check` — a property abaixo só o devolve depois de `unlock()`,
+        # exatamente como a `Diagnos.security_groups` de verdade.
+        self.granted_groups: list[str] = ["sg_oncology"]
 
     @property
     def workspace_id(self) -> str:
@@ -210,7 +219,7 @@ class FakeDiagnos:
 
     @property
     def security_groups(self) -> list[str]:
-        return ["sg_oncology"] if self._unlocked else []
+        return self.granted_groups if self._unlocked else []
 
     def unlock(self) -> Any:
         self._unlocked = True
