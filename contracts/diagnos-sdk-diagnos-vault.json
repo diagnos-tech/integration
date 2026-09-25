@@ -1598,7 +1598,7 @@
           "content": {
             "files": [
               {
-                "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                "client_ref": "7d97d2bdd21f6347821f8da52392cc9a",
                 "encrypted_keys": {
                   "sg-contract": {
                     "ciphertext": "W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg",
@@ -1781,7 +1781,7 @@
             "result": {
               "items": [
                 {
-                  "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                  "client_ref": "7d97d2bdd21f6347821f8da52392cc9a",
                   "kind": "folder",
                   "node_id": "folder-contract",
                   "security_context": {
@@ -5750,7 +5750,7 @@
             "exam_id": "exam-contract",
             "files": [
               {
-                "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                "client_ref": "736a0354bd8034d9475f90171e3e576d",
                 "encrypted_keys": {
                   "sg-contract": {
                     "ciphertext": "W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg",
@@ -5950,7 +5950,7 @@
             "result": {
               "items": [
                 {
-                  "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                  "client_ref": "736a0354bd8034d9475f90171e3e576d",
                   "kind": "file",
                   "mode": "single",
                   "node_id": "node-contract",
