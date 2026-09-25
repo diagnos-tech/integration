@@ -1,0 +1,33 @@
+# 🇺🇸 Transit auto-unseal overlay (another OpenBao/Vault's transit engine).
+# `kubectl apply -k deploy/k8s/autounseal/transit` (see `README.md` for the
+# policy the token below needs).
+# 🇧🇷 Overlay de auto-unseal com transit (transit engine de outro OpenBao/
+# Vault). `kubectl apply -k deploy/k8s/autounseal/transit` (veja
+# `README.md` para a política que o token abaixo precisa).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../openbao
+  - secret.yaml
+configMapGenerator:
+  - name: openbao-config
+    behavior: merge
+    files:
+      - seal.hcl
+patches:
+  # 🇺🇸 The one credential this seal type cannot get from ambient cloud
+  # identity — a plain OpenBao/Vault token, so it comes from a Secret like
+  # any other credential in this repo (`../../secret.yaml`'s own
+  # convention).
+  # 🇧🇷 A única credencial que este tipo de seal não consegue tirar de
+  # identidade de nuvem ambiente — um token OpenBao/Vault comum, então vem
+  # de um Secret como qualquer outra credencial neste repositório (mesma
+  # convenção de `../../secret.yaml`).
+  - target: { kind: StatefulSet, name: openbao }
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef: { name: openbao-transit-unseal, key: VAULT_TOKEN }

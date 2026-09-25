@@ -1,0 +1,36 @@
+# 🇺🇸 ClusterIP only — never a LoadBalancer/NodePort. The name+namespace
+# (`openbao.openbao.svc`) is exactly what `../configmap.yaml`'s
+# `OPENBAO_ADDR` already hard-codes for the API deployment, so this Service
+# existing under this name is what makes that value resolve, not a
+# coincidence to keep in sync by hand.
+# 🇧🇷 Só ClusterIP — nunca LoadBalancer/NodePort. O nome+namespace
+# (`openbao.openbao.svc`) é exatamente o que o `OPENBAO_ADDR` de
+# `../configmap.yaml` já hard-codifica para o deployment da API, então este
+# Service existir com este nome é o que faz aquele valor resolver, não uma
+# coincidência para manter sincronizada na mão.
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbao
+spec:
+  # 🇺🇸 Plain ClusterIP: this base ships exactly one replica
+  # (`statefulset.yaml`), so there is no raft-peer-discovery case that would
+  # call for a headless Service — one stable virtual IP behind the name is
+  # simpler and is all `../configmap.yaml`'s `OPENBAO_ADDR` needs.
+  # `TODO(gustavo)`: switching to a headless Service is the first change a
+  # future multi-replica raft cluster would need, so peers can address each
+  # other by stable per-pod DNS instead of round-robining through this one.
+  # 🇧🇷 ClusterIP comum: esta base sobe exatamente uma réplica
+  # (`statefulset.yaml`), então não existe o caso de descoberta de peers do
+  # raft que pediria um Service headless — um único IP virtual estável atrás
+  # do nome é mais simples e é tudo que o `OPENBAO_ADDR` de
+  # `../configmap.yaml` precisa. `TODO(gustavo)`: trocar para um Service
+  # headless é a primeira mudança que um futuro cluster raft multi-réplica
+  # precisaria, para os peers se endereçarem por DNS estável por pod em vez
+  # de fazer round-robin por este único.
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: openbao
+  ports:
+    - { name: http, port: 8200, targetPort: http }
+    - { name: cluster, port: 8201, targetPort: cluster }

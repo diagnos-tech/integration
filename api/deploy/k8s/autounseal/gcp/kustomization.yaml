@@ -1,0 +1,27 @@
+# 🇺🇸 GCP Cloud KMS auto-unseal overlay. `kubectl apply -k
+# deploy/k8s/autounseal/gcp` (see `README.md` for the IAM side of this).
+# 🇧🇷 Overlay de auto-unseal com GCP Cloud KMS. `kubectl apply -k
+# deploy/k8s/autounseal/gcp` (veja `README.md` para o lado IAM disto).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../openbao
+configMapGenerator:
+  - name: openbao-config
+    behavior: merge
+    files:
+      - seal.hcl
+patches:
+  # 🇺🇸 Workload Identity: this GSA is what the GKE metadata server hands
+  # ambient credentials for to any pod running as this KSA — no key file,
+  # no Secret. `README.md` has the one IAM role this GSA needs.
+  # 🇧🇷 Workload Identity: é para esta GSA que o metadata server do GKE
+  # entrega credencial ambiente para qualquer pod rodando como esta KSA —
+  # sem arquivo de chave, sem Secret. `README.md` tem o único papel IAM que
+  # esta GSA precisa.
+  - target: { kind: ServiceAccount, name: openbao }
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          iam.gke.io/gcp-service-account: "REPLACE_ME_GSA@REPLACE_ME_PROJECT.iam.gserviceaccount.com"

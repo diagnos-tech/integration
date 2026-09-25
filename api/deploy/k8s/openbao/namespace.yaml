@@ -1,0 +1,12 @@
+# 🇺🇸 Own namespace, matching what `../configmap.yaml`'s `OPENBAO_ADDR`
+# (`http://openbao.openbao.svc:8200`) already assumes for the API side —
+# OpenBao is shared infrastructure, not owned by any one workspace's API
+# deployment.
+# 🇧🇷 Namespace próprio, batendo com o que o `OPENBAO_ADDR`
+# (`http://openbao.openbao.svc:8200`) de `../configmap.yaml` já assume do
+# lado da API — o OpenBao é infraestrutura compartilhada, não pertence a
+# nenhum deployment de API de workspace específico.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openbao

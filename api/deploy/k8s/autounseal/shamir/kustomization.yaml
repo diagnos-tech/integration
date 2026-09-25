@@ -1,0 +1,21 @@
+# 🇺🇸 The fallback: no seal stanza at all, so no `configMapGenerator` merge
+# either — `../../openbao/config.hcl` alone already *is* Shamir, which is
+# what OpenBao defaults to whenever nothing under `seal "..."` is present.
+# This overlay exists only so `shamir` is a real, documented choice next to
+# `aws`/`gcp`/`azure`/`transit`/`static`, not a special case elsewhere.
+# `kubectl apply -k deploy/k8s/autounseal/shamir` is identical to
+# `kubectl apply -k deploy/k8s/openbao` — see `README.md` for the manual
+# unseal this implies.
+# 🇧🇷 O fallback: nenhum stanza de seal, então também nenhum merge de
+# `configMapGenerator` — só o `../../openbao/config.hcl` já *é* Shamir,
+# que é o padrão do OpenBao sempre que nada sob `seal "..."` está
+# presente. Este overlay existe só para `shamir` ser uma escolha real e
+# documentada ao lado de `aws`/`gcp`/`azure`/`transit`/`static`, não um
+# caso especial em outro lugar. `kubectl apply -k
+# deploy/k8s/autounseal/shamir` é idêntico a `kubectl apply -k
+# deploy/k8s/openbao` — veja `README.md` para o unseal manual que isso
+# implica.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../openbao

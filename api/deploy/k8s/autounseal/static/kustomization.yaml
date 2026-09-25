@@ -1,0 +1,34 @@
+# 🇺🇸 Static-key auto-unseal overlay — read `README.md`'s security warning
+# before using this in anything but a throwaway environment or one where
+# some other trusted secrets manager already exists to hand this key over.
+# `kubectl apply -k deploy/k8s/autounseal/static`.
+# 🇧🇷 Overlay de auto-unseal com chave estática — leia o aviso de segurança
+# do `README.md` antes de usar isto em qualquer coisa além de um ambiente
+# descartável ou um onde já exista outro gerenciador de segredos confiável
+# para entregar esta chave. `kubectl apply -k
+# deploy/k8s/autounseal/static`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../openbao
+  - secret.yaml
+configMapGenerator:
+  - name: openbao-config
+    behavior: merge
+    files:
+      - seal.hcl
+patches:
+  # 🇺🇸 The 32-byte key `seal.hcl`'s `env://OPENBAO_STATIC_SEAL_CURRENT_KEY`
+  # reads — from a Secret, never from the ConfigMap `seal.hcl` itself lives
+  # in.
+  # 🇧🇷 A chave de 32 bytes que o `env://OPENBAO_STATIC_SEAL_CURRENT_KEY` de
+  # `seal.hcl` lê — de um Secret, nunca do ConfigMap onde o próprio
+  # `seal.hcl` mora.
+  - target: { kind: StatefulSet, name: openbao }
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: OPENBAO_STATIC_SEAL_CURRENT_KEY
+          valueFrom:
+            secretKeyRef: { name: openbao-static-seal, key: OPENBAO_STATIC_SEAL_CURRENT_KEY }

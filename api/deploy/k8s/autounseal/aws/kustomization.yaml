@@ -1,0 +1,49 @@
+# 🇺🇸 AWS KMS auto-unseal overlay. `kubectl apply -k deploy/k8s/autounseal/aws`
+# (see `README.md` for the IAM side of this).
+# 🇧🇷 Overlay de auto-unseal com AWS KMS. `kubectl apply -k
+# deploy/k8s/autounseal/aws` (veja `README.md` para o lado IAM disto).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../openbao
+configMapGenerator:
+  # 🇺🇸 `behavior: merge` adds the `seal.hcl` key to the *same* generated
+  # `openbao-config` ConfigMap the base already produces from `config.hcl`
+  # — both land in `/openbao/config` (`../../openbao/statefulset.yaml`),
+  # which is the directory `bao server -config=` reads every file from.
+  # 🇧🇷 `behavior: merge` soma a chave `seal.hcl` ao *mesmo* ConfigMap
+  # `openbao-config` gerado que a base já produz a partir de `config.hcl`
+  # — os dois caem em `/openbao/config`
+  # (`../../openbao/statefulset.yaml`), o diretório de onde `bao server
+  # -config=` lê todo arquivo.
+  - name: openbao-config
+    behavior: merge
+    files:
+      - seal.hcl
+patches:
+  # 🇺🇸 IRSA: the pod's ServiceAccount token exchanges for temporary AWS
+  # credentials scoped to this one role — no access key ever needs to
+  # exist as a Kubernetes Secret. `README.md` has the trust policy and the
+  # KMS permissions that role needs.
+  # 🇧🇷 IRSA: o token do ServiceAccount do pod troca por credenciais AWS
+  # temporárias restritas a este único role — nenhuma access key precisa
+  # existir como Secret do Kubernetes. `README.md` tem a trust policy e as
+  # permissões de KMS que esse role precisa.
+  - target: { kind: ServiceAccount, name: openbao }
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: "REPLACE_ME_ROLE_ARN"
+  # 🇺🇸 `seal.hcl` leaves `region` unset on purpose (see that file) — this
+  # is the one place it comes from for the Kubernetes path.
+  # 🇧🇷 `seal.hcl` deixa `region` sem definir de propósito (veja aquele
+  # arquivo) — este é o único lugar de onde ele vem no caminho do
+  # Kubernetes.
+  - target: { kind: StatefulSet, name: openbao }
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AWS_REGION
+          value: REPLACE_ME_AWS_REGION

@@ -1,0 +1,38 @@
+# 🇺🇸 OpenBao itself — separate from `../kustomization.yaml` (the API),
+# because OpenBao is shared infrastructure one team can own independently
+# of any single workspace's API deployment. `namespace: openbao` here
+# mirrors the top-level API kustomization's own `namespace: diagnos`
+# pattern rather than hard-coding it into every manifest.
+# 🇧🇷 O próprio OpenBao — separado do `../kustomization.yaml` (a API),
+# porque o OpenBao é infraestrutura compartilhada que um time pode possuir
+# independente de qualquer deployment de API de um workspace só.
+# `namespace: openbao` aqui espelha o mesmo padrão que o
+# `namespace: diagnos` do kustomization de nível raiz da API já usa, em vez
+# de fixar em cada manifesto.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: openbao
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - statefulset.yaml
+  - service.yaml
+  - bootstrap-configmap.yaml
+configMapGenerator:
+  # 🇺🇸 Generated (not a plain `configmap.yaml`) so every
+  # `../autounseal/<provider>` overlay can `behavior: merge` its own
+  # `seal.hcl` key into this exact ConfigMap — kustomize hashes the
+  # resulting name and rewrites `statefulset.yaml`'s `configMap.name:
+  # openbao-config` reference automatically, so a config change always
+  # forces the pod to restart onto the new content instead of a stale mount
+  # silently persisting.
+  # 🇧🇷 Gerado (não um `configmap.yaml` simples) para todo overlay
+  # `../autounseal/<provedor>` poder fazer `behavior: merge` da própria
+  # chave `seal.hcl` neste ConfigMap exato — o kustomize hasheia o nome
+  # resultante e reescreve a referência `configMap.name: openbao-config` de
+  # `statefulset.yaml` automaticamente, então uma mudança de config sempre
+  # força o pod a reiniciar sobre o conteúdo novo em vez de um mount velho
+  # persistir em silêncio.
+  - name: openbao-config
+    files:
+      - config.hcl
