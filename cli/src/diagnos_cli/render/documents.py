@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from rich.table import Table
 
-from diagnos_cli.render._shared import record_panel
+from diagnos_cli.render._shared import plain, record_panel
 from diagnos_cli.render.json import print_json
 
 if TYPE_CHECKING:
@@ -60,18 +60,18 @@ def render_index_table(
         if index.pending_version_id:
             flags.append("pending")
         table.add_row(
-            index.document_id,
-            index.updated_at,
-            index.latest_version_id or "—",
+            plain(index.document_id),
+            plain(index.updated_at),
+            plain(index.latest_version_id),
             str(len(index.versions)),
-            ", ".join(index.security_groups) or "—",
+            plain(", ".join(index.security_groups) or None),
             ", ".join(flags) or "—",
         )
     console.print(table)
     if not items:
         console.print("[dim]No results · Nenhum resultado[/dim]")
     if next_cursor:
-        console.print(f"[dim]next cursor · próximo cursor: {next_cursor}[/dim]")
+        console.print(f"[dim]next cursor · próximo cursor: {plain(next_cursor)}[/dim]")
 
 
 def render_patient(console: Console, patient: Patient, *, json_output: bool) -> None:
