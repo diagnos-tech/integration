@@ -9,13 +9,14 @@ import json
 from typing import Any
 
 import pytest
-from conftest import VECTORS
 from diagnos.crypto.encoding import b64url_decode
 from diagnos.crypto.envelope import EncryptedPayload, decrypt_content, unwrap_key
 from diagnos.crypto.hkdf import hkdf_sha256
 from diagnos.crypto.hybrid import HybridKeyPair, open_hybrid
 from diagnos.crypto.secretstream import decrypt_bytes, decrypt_stream
 from diagnos.errors import CryptoError
+
+from conftest import VECTORS
 
 
 def load_vector(name: str) -> dict[str, Any]:

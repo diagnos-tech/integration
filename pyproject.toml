@@ -33,7 +33,49 @@ ignore = ["D203", "D213", "ANN401", "S101"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.ruff.lint.isort]
+# 🇺🇸 Test helpers imported by bare name (pytest puts each test folder on
+#    `sys.path`) sort as local code, after `diagnos` and third-party imports.
+# 🇧🇷 Helpers de teste importados pelo nome (o pytest põe cada pasta de teste
+#    no `sys.path`) ordenam como código local, depois de `diagnos` e terceiros.
+known-local-folder = ["_crypto", "_wire", "conftest", "vault_double"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
 warn_unused_ignores = true
+# 🇺🇸 The contract suite imports its helpers by bare name, as pytest runs it.
+# 🇧🇷 A suíte de contrato importa os helpers pelo nome, como o pytest a roda.
+mypy_path = "contracts/tests"
+
+[[tool.mypy.overrides]]
+# 🇺🇸 Test-only crypto oracles that ship no type information.
+# 🇧🇷 Oráculos de cripto só de teste que não trazem informação de tipo.
+module = ["kyber_py.*"]
+ignore_missing_imports = true
+
+# 🇺🇸 One combined coverage number for the three packages (`make cov`), with
+#    branch coverage. `fail_under` is a ratchet: raise it when coverage goes
+#    up, never lower it to make a pull request pass.
+# 🇧🇷 Um número de cobertura combinado dos três pacotes (`make cov`), com
+#    cobertura de ramos. `fail_under` é uma catraca: suba quando a cobertura
+#    subir, nunca baixe para um pull request passar.
+[tool.coverage.run]
+branch = true
+source_pkgs = ["diagnos", "diagnos_cli", "diagnos_api"]
+relative_files = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+precision = 1
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "@overload",
+  "raise NotImplementedError",
+  "^\\s*\\.\\.\\.$",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"

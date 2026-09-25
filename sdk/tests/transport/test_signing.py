@@ -21,9 +21,10 @@ import hashlib
 import json
 from typing import Any
 
-from conftest import VECTORS
 from diagnos.crypto.encoding import b64url_decode
 from diagnos.transport.signing import canonical_string, normalize_query, sign_canonical
+
+from conftest import VECTORS
 
 
 def _load_vector() -> dict[str, Any]:

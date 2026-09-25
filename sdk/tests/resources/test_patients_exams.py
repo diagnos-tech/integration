@@ -8,6 +8,7 @@ from __future__ import annotations
 from diagnos.models import ExamRecord, PatientRecord
 from diagnos.resources.exams import Exams
 from diagnos.resources.patients import Patients
+
 from vault_double import (  # noqa: F401 — `harness` is a fixture, used by name as a parameter
     Harness,
     harness,
