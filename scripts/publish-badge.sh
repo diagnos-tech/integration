@@ -13,13 +13,15 @@ set -euo pipefail
 source_file="$1"
 target_name="$2"
 worktree="$(mktemp -d)"
+# 🇺🇸 Always drop the temporary worktree, so a second run in the same clone starts clean.
+# 🇧🇷 Sempre remove o worktree temporário, para uma segunda rodada no mesmo clone começar limpa.
+trap 'git worktree remove --force "$worktree" 2>/dev/null || true' EXIT
 
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
 if git fetch --depth=1 origin badges 2>/dev/null; then
-  git worktree add "$worktree" FETCH_HEAD
-  git -C "$worktree" switch -c badges
+  git worktree add -B badges "$worktree" FETCH_HEAD
 else
   git worktree add --orphan -b badges "$worktree"
 fi
