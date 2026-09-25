@@ -137,6 +137,23 @@ def path(example: str, *, pattern: str, expression: str | None = None) -> Generi
     return GenericMatcher("regex", value=example, regex=pattern, generator=generator)
 
 
+def from_state(example: str, name: str) -> GenericMatcher[str]:
+    """🇺🇸 A body or query value the vault's state handler supplies at verification (`${name}`); any string here.
+
+    For the few requests that carry an id the provider must choose — the
+    version a conflict guard expects, the node a confirmation names, the
+    folder a listing is scoped to.
+
+    🇧🇷 Um valor de corpo ou query que o state handler do cofre fornece na verificação (`${name}`); qualquer
+    string aqui.
+
+    Para as poucas requisições que levam um id que o provider precisa
+    escolher — a versão que uma trava de conflito espera, o nó que uma
+    confirmação nomeia, a pasta a que uma listagem se restringe.
+    """
+    return GenericMatcher("type", value=example, generator=generate.provider_state(f"${{{name}}}"))
+
+
 def bearer_header() -> Headers:
     """🇺🇸 `Authorization` on every request (`docs/PROTOCOL.md §1`) — its shape, not our fixed token.
 

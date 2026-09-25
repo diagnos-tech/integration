@@ -93,9 +93,13 @@ adivinhar os fixos do consumidor (`ws-contract`, `enr-contract`, `pat-contract`)
 - `${enrollment_id}` — o path de poll de enrollment,
   `/api/external/v1/workspaces/{workspace_id}/session/registry/{enrollment_id}`.
 - `${document_id}` — todo path sob `…/patients/{document_id}` e `…/exams/{document_id}`.
-- `${version_id}` — o path de commit, `…/versions/{version_id}/commit`.
-- `${node_id}` — `…/nodes/{node_id}`, e o único valor de **corpo** de requisição que um state fornece:
-  `node_ids[0]` na confirmação de um upload (`_from_state()` em `test_drives.py`).
+- `${version_id}` — o path de commit, `…/versions/{version_id}/commit`, e o `expected_latest_version_id` que uma
+  reserva com trava de conflito manda.
+- `${node_id}` — `…/nodes/{node_id}`, e `node_ids[0]` na confirmação de um upload.
+- `${parent_id}` — o parâmetro de query `parent_id` da listagem de uma pasta.
+
+Um valor fora do path (um campo de corpo, um parâmetro de query) é marcado com `from_state(example, name)`
+(`_wire.py`).
 
 Os states de documento e de arquivo também levam `security_group_id` (`sg-contract`): ele é a chave de
 `encrypted_keys` em toda reserva, que nenhum gerador consegue reescrever, então o cofre concede à service account
@@ -114,12 +118,12 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
 | `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | Uma sessão ativa cuja service account pertence a `security_group_id` e pode criar pacientes, exames e arquivos nele, com orçamento de armazenamento. |
 | `a patient has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Um paciente nesse grupo com `version_id` reservada no fluxo `data` e o objeto já enviado, para o commit encontrá-lo. |
 | `an exam has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | O mesmo para um exame (sem segmento de fluxo nas rotas); `meta.patient_id` definido. |
-| `a patient has one committed version` | `workspace_id`, `security_group_id`, `document_id` | Um paciente nesse grupo com uma versão `data` confirmada, um `encrypted_index`, sem versão pendente e sem rascunho; o único paciente do workspace (a interação de lista lê uma linha). |
-| `a patient has a draft newer than its latest version` | `workspace_id`, `security_group_id`, `document_id` | Como acima, mais uma cabeça de rascunho em `data` cujo `updated_at` é posterior ao `created_at` da versão corrente. |
-| `a patient has a committed version and another one pending` | `workspace_id`, `security_group_id`, `document_id` | Uma versão `data` confirmada mais uma reserva pendente não expirada, para uma reserva nova responder `409 DocumentVersionPending`. |
-| `an exam has one committed version` | `workspace_id`, `security_group_id`, `document_id` | Um exame nesse grupo com uma versão confirmada, um `encrypted_index` e `meta.patient_id`. |
+| `a patient has one committed version` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Um paciente nesse grupo com uma versão `data` confirmada (`version_id`), um `encrypted_index`, sem versão pendente e sem rascunho; o único paciente vivo que a service account consegue listar (a interação de lista lê uma página em que toda linha tem essa forma). |
+| `a patient has a draft newer than its latest version` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Como acima, mais uma cabeça de rascunho em `data` cujo `updated_at` é posterior ao `created_at` da versão corrente. |
+| `a patient has a committed version and another one pending` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Uma versão `data` confirmada mais uma reserva pendente não expirada, para uma reserva nova responder `409 DocumentVersionPending`. |
+| `an exam has one committed version` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Um exame nesse grupo com uma versão confirmada, um `encrypted_index` e `meta.patient_id`. |
 | `a file was uploaded and awaits confirmation` | `workspace_id`, `security_group_id`, `node_id` | Um nó de arquivo em modo single, reservado pela service account nesse grupo com um `mime_type`, ainda `pending`, cujo objeto já está no R2 — para `uploads/complete` reportá-lo `ready`. |
-| `a security group holds one ready file` | `workspace_id`, `security_group_id`, `node_id` | Um arquivo pronto em modo single nesse grupo, com `mime_type` e `size`. A interação de listagem lê uma página dos arquivos prontos do grupo, então eles precisam ser menos de 50 (`next_cursor: null`). |
+| `a folder holds one ready file` | `workspace_id`, `security_group_id`, `parent_id`, `node_id` | Uma pasta (`parent_id`) nesse grupo com exatamente um nó: um arquivo pronto em modo single, com `mime_type` e `size`. |
 
 ## Como adicionar uma interação, passo a passo
 

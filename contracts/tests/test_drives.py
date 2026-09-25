@@ -46,8 +46,7 @@ from diagnos.crypto.secure import SecretBox
 from diagnos.resources.drives import Drives
 from diagnos.resources.drives import _nodes as nodes_module
 from diagnos.session.keyring import Keyring
-from pact import Pact, generate, match
-from pact.match.matcher import GenericMatcher
+from pact import Pact, match
 
 from _crypto import (
     NODE_DEK_INFO,
@@ -69,6 +68,7 @@ from _wire import (
     WORKSPACE_ID,
     declare_clock,
     encrypted,
+    from_state,
     instant,
     literal,
     ok,
@@ -109,14 +109,6 @@ _CLIENT_REF = r"^[A-Za-z0-9_-]{1,64}$"
 def _nodes_path(suffix: str = "") -> Any:
     """🇺🇸 `…/nodes{suffix}` under the provider's workspace. 🇧🇷 `…/nodes{suffix}` sob o workspace do provider."""
     return path(f"{_BASE}{suffix}", pattern=rf"{_WS}/nodes{suffix}$", expression=f"{_WS_EXPR}/nodes{suffix}")
-
-
-def _from_state(example: str, name: str) -> GenericMatcher[str]:
-    """🇺🇸 A body value the vault's state handler supplies at verification (`${name}`); any string here.
-
-    🇧🇷 Um valor de corpo que o state handler do cofre fornece na verificação (`${name}`); qualquer string aqui.
-    """
-    return GenericMatcher("type", value=example, generator=generate.provider_state(f"${{{name}}}"))
 
 
 def _wrapped_dek() -> dict[str, str]:
@@ -282,7 +274,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, fixed_refs: None
         .given(name, params)
         .with_request("POST", _nodes_path("/uploads/complete"))
         .with_headers(signed_headers())
-        .with_body({"node_ids": [_from_state(NODE_ID, "node_id")]}, content_type="application/json")
+        .with_body({"node_ids": [from_state(NODE_ID, "node_id")]}, content_type="application/json")
         .will_respond_with(200)
         .with_body(ok({"ready": match.each_like(_ready_file()), "missing": []}), content_type="application/json")
     )
@@ -356,7 +348,7 @@ def test_download_opens_what_the_web_app_sealed(pact: Pact) -> None:
     """
     declare_clock(pact)
     name, params = workspace_state(
-        "a security group holds one ready file", security_group_id=SECURITY_GROUP_ID, node_id=NODE_ID
+        "a folder holds one ready file", security_group_id=SECURITY_GROUP_ID, parent_id=FOLDER_ID, node_id=NODE_ID
     )
     (
         pact.upon_receiving("an SDK process reads a ready file and its download URL")
@@ -391,20 +383,29 @@ def test_download_opens_what_the_web_app_sealed(pact: Pact) -> None:
     assert content == PLAINTEXT
 
 
-def test_list_decrypts_each_name(pact: Pact) -> None:
-    """🇺🇸 `GET /nodes?security_group_id=…&limit=50` → one page; every name opens with the group key.
+def test_list_a_folder_decrypts_each_name(pact: Pact) -> None:
+    """🇺🇸 `GET /nodes?security_group_id=…&parent_id=…&limit=50` → one page; every name opens with the group key.
 
-    🇧🇷 `GET /nodes?security_group_id=…&limit=50` → uma página; todo nome abre com a chave do grupo.
+    Scoped to one folder, as a file browser lists: a group's root may hold
+    folders and files other interactions left there, and every row must
+    match the one shape this interaction pins.
+
+    🇧🇷 `GET /nodes?security_group_id=…&parent_id=…&limit=50` → uma página; todo nome abre com a chave do grupo.
+
+    Restrito a uma pasta, como um navegador de arquivos lista: a raiz de um
+    grupo pode ter pastas e arquivos que outras interações deixaram, e toda
+    linha precisa bater com a única forma que esta interação trava.
     """
     declare_clock(pact)
     name, params = workspace_state(
-        "a security group holds one ready file", security_group_id=SECURITY_GROUP_ID, node_id=NODE_ID
+        "a folder holds one ready file", security_group_id=SECURITY_GROUP_ID, parent_id=FOLDER_ID, node_id=NODE_ID
     )
     (
-        pact.upon_receiving("an SDK process lists the files of a security group")
+        pact.upon_receiving("an SDK process lists the files of a folder")
         .given(name, params)
         .with_request("GET", _nodes_path())
         .with_query_parameter("security_group_id", SECURITY_GROUP_ID)
+        .with_query_parameter("parent_id", from_state(FOLDER_ID, "parent_id"))
         .with_query_parameter("limit", "50")
         .with_headers(signed_headers())
         .will_respond_with(200)
@@ -413,7 +414,7 @@ def test_list_decrypts_each_name(pact: Pact) -> None:
 
     with pact.serve() as server:
         drives = _drives(str(server.url), _Storage(NODE_DEK))
-        page = drives.list(security_group=SECURITY_GROUP_ID)
+        page = drives.list(security_group=SECURITY_GROUP_ID, parent_id=FOLDER_ID)
         names = [drives.name_of(node) for node in page.items]
 
     assert names == [FILE_NAME]

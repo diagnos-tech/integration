@@ -12,6 +12,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -2509,13 +2510,14 @@
       "type": "Synchronous/HTTP"
     },
     {
-      "description": "an SDK process lists the files of a security group",
+      "description": "an SDK process lists the files of a folder",
       "pending": false,
       "providerStates": [
         {
-          "name": "a security group holds one ready file",
+          "name": "a folder holds one ready file",
           "params": {
             "node_id": "node-contract",
+            "parent_id": "folder-contract",
             "security_group_id": "sg-contract",
             "workspace_id": "ws-contract"
           }
@@ -2526,6 +2528,12 @@
           "path": {
             "expression": "/api/external/v1/workspaces/${workspace_id}/nodes",
             "type": "ProviderState"
+          },
+          "query": {
+            "parent_id": {
+              "expression": "${parent_id}",
+              "type": "ProviderState"
+            }
           }
         },
         "headers": {
@@ -2589,6 +2597,16 @@
                 "regex": "^/api/external/v1/workspaces/[^/]+/nodes$"
               }
             ]
+          },
+          "query": {
+            "parent_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
           }
         },
         "method": "GET",
@@ -2596,6 +2614,9 @@
         "query": {
           "limit": [
             "50"
+          ],
+          "parent_id": [
+            "folder-contract"
           ],
           "security_group_id": [
             "sg-contract"
@@ -2800,6 +2821,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -3126,6 +3148,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -3484,6 +3507,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -3873,6 +3897,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -4223,6 +4248,7 @@
           "params": {
             "document_id": "exam-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -4973,9 +4999,10 @@
       "pending": false,
       "providerStates": [
         {
-          "name": "a security group holds one ready file",
+          "name": "a folder holds one ready file",
           "params": {
             "node_id": "node-contract",
+            "parent_id": "folder-contract",
             "security_group_id": "sg-contract",
             "workspace_id": "ws-contract"
           }
@@ -5483,6 +5510,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -5502,6 +5530,12 @@
           "encoded": false
         },
         "generators": {
+          "body": {
+            "$.expected_latest_version_id": {
+              "expression": "${version_id}",
+              "type": "ProviderState"
+            }
+          },
           "path": {
             "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}/streams/data/versions",
             "type": "ProviderState"
@@ -6027,6 +6061,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
@@ -6169,6 +6204,7 @@
           "params": {
             "document_id": "pat-contract",
             "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }

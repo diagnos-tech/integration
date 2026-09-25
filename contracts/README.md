@@ -91,9 +91,12 @@ consumer's fixed ones (`ws-contract`, `enr-contract`, `pat-contract`). The place
 - `${enrollment_id}` — the enrollment-poll path,
   `/api/external/v1/workspaces/{workspace_id}/session/registry/{enrollment_id}`.
 - `${document_id}` — every path under `…/patients/{document_id}` and `…/exams/{document_id}`.
-- `${version_id}` — the commit path, `…/versions/{version_id}/commit`.
-- `${node_id}` — `…/nodes/{node_id}`, and the one request **body** value a state supplies: `node_ids[0]` in the
-  confirmation of an upload (`_from_state()` in `test_drives.py`).
+- `${version_id}` — the commit path, `…/versions/{version_id}/commit`, and the `expected_latest_version_id` a
+  conflict-guarded reservation sends.
+- `${node_id}` — `…/nodes/{node_id}`, and `node_ids[0]` in the confirmation of an upload.
+- `${parent_id}` — the `parent_id` query parameter of the folder listing.
+
+A value outside the path (a body field, a query parameter) is marked with `from_state(example, name)` (`_wire.py`).
 
 The document and file states also carry `security_group_id` (`sg-contract`): it is the key of `encrypted_keys` in
 every reservation, which no generator can rewrite, so the vault grants the service account that literal group.
@@ -111,12 +114,12 @@ Every provider state name in the current contract, and what the vault must seed 
 | `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | An active session whose service account belongs to `security_group_id` and may create patients, exams and files in it, with storage budget. |
 | `a patient has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | A patient in that group with `version_id` reserved on its `data` stream and the object already uploaded, so the commit finds it. |
 | `an exam has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | The same for an exam (no stream segment in its routes); `meta.patient_id` set. |
-| `a patient has one committed version` | `workspace_id`, `security_group_id`, `document_id` | A patient in that group with one committed `data` version, an `encrypted_index`, no pending version and no draft; the only patient of the workspace (the list interaction reads one row). |
-| `a patient has a draft newer than its latest version` | `workspace_id`, `security_group_id`, `document_id` | As above, plus a `data` draft head whose `updated_at` is later than the latest version's `created_at`. |
-| `a patient has a committed version and another one pending` | `workspace_id`, `security_group_id`, `document_id` | One committed `data` version plus an unexpired pending reservation, so a new reservation answers `409 DocumentVersionPending`. |
-| `an exam has one committed version` | `workspace_id`, `security_group_id`, `document_id` | An exam in that group with one committed version, an `encrypted_index` and `meta.patient_id`. |
+| `a patient has one committed version` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | A patient in that group with one committed `data` version (`version_id`), an `encrypted_index`, no pending version and no draft; the only live patient the service account can list (the list interaction reads one page whose every row has that shape). |
+| `a patient has a draft newer than its latest version` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | As above, plus a `data` draft head whose `updated_at` is later than the latest version's `created_at`. |
+| `a patient has a committed version and another one pending` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | One committed `data` version plus an unexpired pending reservation, so a new reservation answers `409 DocumentVersionPending`. |
+| `an exam has one committed version` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | An exam in that group with one committed version, an `encrypted_index` and `meta.patient_id`. |
 | `a file was uploaded and awaits confirmation` | `workspace_id`, `security_group_id`, `node_id` | A single-mode file node, staged by the service account in that group with a `mime_type`, still `pending`, whose object is already in R2 — so `uploads/complete` reports it `ready`. |
-| `a security group holds one ready file` | `workspace_id`, `security_group_id`, `node_id` | A ready single-mode file in that group, with a `mime_type` and a `size`. The list interaction reads a page of the group's ready files, so it must be under 50 of them (`next_cursor: null`). |
+| `a folder holds one ready file` | `workspace_id`, `security_group_id`, `parent_id`, `node_id` | A folder (`parent_id`) in that group holding exactly one node: a ready single-mode file with a `mime_type` and a `size`. |
 
 ## How to add an interaction, step by step
 
