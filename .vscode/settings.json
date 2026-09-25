@@ -6,7 +6,7 @@
     "editor.codeActionsOnSave": { "source.organizeImports": "explicit" }
   },
   "mypy-type-checker.importStrategy": "fromEnvironment",
-  "rust-analyzer.linkedProjects": ["sdk/native/Cargo.toml"],
+  "rust-analyzer.linkedProjects": ["apps/sdk/native/Cargo.toml"],
   "editor.rulers": [120],
   "files.exclude": { "**/__pycache__": true, "**/.pytest_cache": true, "**/.mypy_cache": true, "**/.ruff_cache": true }
 }

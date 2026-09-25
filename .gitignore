@@ -9,11 +9,11 @@ build/
 *.egg-info/
 uv.lock.bak
 .env
-# 🇺🇸 Rust build output of the SDK's native enclave (`sdk/native`) and any
+# 🇺🇸 Rust build output of the SDK's native enclave (`apps/sdk/native`) and any
 #    locally built extension module.
-# 🇧🇷 Saída de build Rust do enclave nativo do SDK (`sdk/native`) e qualquer
+# 🇧🇷 Saída de build Rust do enclave nativo do SDK (`apps/sdk/native`) e qualquer
 #    módulo de extensão construído localmente.
-sdk/native/target/
+apps/sdk/native/target/
 *.so
 *.pyd
 # 🇺🇸 Test and coverage output — `make clean` removes all of it.

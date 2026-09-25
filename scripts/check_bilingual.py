@@ -5,7 +5,7 @@ Every module, class and public function must carry a docstring with both the
 enforces that they speak both languages. The same rule applies to `native/`'s
 Rust doc comments (`//!` module docs, `///` item docs) — `rustdoc`/clippy have
 no equivalent of this check, so it lives here too.
-Run: `uv run python scripts/check_bilingual.py sdk cli api contracts scripts`.
+Run: `uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts`.
 
 🇧🇷 Guarda da regra de docstring bilíngue de `CONVENTIONS.md`.
 
@@ -96,7 +96,7 @@ def check(path: Path) -> list[str]:
 
 def main(argv: list[str]) -> int:
     """🇺🇸 Exit 1 when any source file breaks the rule. 🇧🇷 Sai com 1 quando algum arquivo quebra a regra."""
-    roots = [Path(arg) for arg in argv] or [Path("sdk"), Path("cli"), Path("api")]
+    roots = [Path(arg) for arg in argv] or [Path("apps/sdk"), Path("apps/cli"), Path("apps/api")]
     problems: list[str] = []
     for root in roots:
         # 🇺🇸 A package root is checked through its `src/`; any other folder (`contracts`, `scripts`) as a whole.

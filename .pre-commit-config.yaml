@@ -21,7 +21,7 @@ repos:
         types: [python]
       - id: bilingual-docstrings
         name: bilingual docstrings · docstrings bilíngues
-        entry: uv run python scripts/check_bilingual.py sdk cli api contracts scripts
+        entry: uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts
         language: system
         pass_filenames: false
         types_or: [python, rust]
@@ -33,6 +33,6 @@ repos:
         types: [markdown]
       - id: cargo-fmt
         name: cargo fmt
-        entry: cargo fmt --manifest-path sdk/native/Cargo.toml --
+        entry: cargo fmt --manifest-path apps/sdk/native/Cargo.toml --
         language: system
         types: [rust]

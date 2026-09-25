@@ -2,7 +2,7 @@
 
 **English** · [Português (Brasil)](PROTOCOL.pt-BR.md)
 
-Normative. Every format below is pinned by `sdk/tests/vectors/*.json`,
+Normative. Every format below is pinned by `apps/sdk/tests/vectors/*.json`,
 generated from the vault's reference implementation. When this document and
 a vector disagree, the vector wins and this document has a bug.
 
@@ -114,7 +114,7 @@ block = SHA-256(os_random(32) ‖ state ‖ counter)   # counter resets to 0 on 
 `os_random(32)` always dominates each block, so a seed of all zeros degrades
 gracefully to plain OS randomness, never to something weaker — the seed
 augments `os.urandom`, it never replaces it. The reference SDK opens, parses
-and decodes `random_seed` inside its memory enclave (`sdk/native/README.md`);
+and decodes `random_seed` inside its memory enclave (`apps/sdk/native/README.md`);
 it never exists as a Python object.
 
 The vault also accepts an optional client-contributed `random_seed` field in
@@ -210,7 +210,7 @@ baked into every ciphertext already stored — renaming one would make
 existing data unreadable. Never repurpose a label for a new meaning; a
 changed derivation gets a new, separately versioned string (`-v2`) instead.
 Code that uses one of these points back here by name — see
-`sdk/src/diagnos/crypto/keys.py`, `hybrid.py` and `hkdf.py`.
+`apps/sdk/src/diagnos/crypto/keys.py`, `hybrid.py` and `hkdf.py`.
 
 | Label | Purpose | Section |
 |---|---|---|
@@ -232,7 +232,7 @@ Code that uses one of these points back here by name — see
 > templates, which predates the vault's current protocol revision — see
 > [COMPATIBILITY.md](COMPATIBILITY.md). It is kept here as a record of what
 > `vault.patients`/`vault.exams` (labelled **preview** in
-> [`sdk/README.md`](../sdk/README.md)) send and expect today, not as a
+> [`apps/sdk/README.md`](../apps/sdk/README.md)) send and expect today, not as a
 > description of what `vault.diagnos.health` currently accepts.
 
 Patients, exams and templates share one model: a Firestore **index** the
@@ -287,7 +287,7 @@ Only the principal that staged a version may commit it.
 > predates the vault's current protocol revision — see
 > [COMPATIBILITY.md](COMPATIBILITY.md). It is kept here as a record of what
 > `vault.drives` (labelled **preview** in
-> [`sdk/README.md`](../sdk/README.md)) sends and expects today, not as a
+> [`apps/sdk/README.md`](../apps/sdk/README.md)) sends and expects today, not as a
 > description of what `vault.diagnos.health` currently accepts.
 
 A drive is a security group. Any file (DICOM, image, video, PDF) is a

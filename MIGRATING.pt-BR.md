@@ -58,16 +58,16 @@ de valores aceitos:
 | `IMGEXAM_VAULT_URL` | `DIAGNOS_VAULT_URL` | SDK (`transport/config.py`), CLI (override `--vault-url`) |
 | `IMGEXAM_TIMEOUT_SECONDS` | `DIAGNOS_TIMEOUT_SECONDS` | SDK (`transport/config.py`) |
 | `IMGEXAM_SSE_C` | `DIAGNOS_SSE_C` | SDK (`transport/config.py`) |
-| `IMGEXAM_HARDEN_PROCESS` | `DIAGNOS_HARDEN_PROCESS` | SDK (`transport/config.py`), enclave Rust (`sdk/native`) |
-| `IMGEXAM_MEMORY_LOCK` | `DIAGNOS_MEMORY_LOCK` | enclave Rust (`sdk/native/src/locked/mod.rs`, `error.rs`) |
+| `IMGEXAM_HARDEN_PROCESS` | `DIAGNOS_HARDEN_PROCESS` | SDK (`transport/config.py`), enclave Rust (`apps/sdk/native`) |
+| `IMGEXAM_MEMORY_LOCK` | `DIAGNOS_MEMORY_LOCK` | enclave Rust (`apps/sdk/native/src/locked/mod.rs`, `error.rs`) |
 | `IMGEXAM_API_MTLS_CA_FILE` | `DIAGNOS_API_MTLS_CA_FILE` | API (`diagnos_api/settings.py`), manifestos de deploy |
 | `IMGEXAM_API_TLS_CERT_FILE` | `DIAGNOS_API_TLS_CERT_FILE` | API (`diagnos_api/settings.py`), manifestos de deploy |
 | `IMGEXAM_API_TLS_KEY_FILE` | `DIAGNOS_API_TLS_KEY_FILE` | API (`diagnos_api/settings.py`), manifestos de deploy |
 | `IMGEXAM_API_HOST` | `DIAGNOS_API_HOST` | API (`diagnos_api/settings.py`) |
 | `IMGEXAM_API_PORT` | `DIAGNOS_API_PORT` | API (`diagnos_api/settings.py`), manifestos de deploy |
 | `IMGEXAM_API_ALLOWED_CLIENT_CN` | `DIAGNOS_API_ALLOWED_CLIENT_CN` | API (`diagnos_api/settings.py`) |
-| `IMGEXAM_WORKSPACE_ID` | `DIAGNOS_WORKSPACE_ID` | só em tempo de deploy — bootstrap da policy do OpenBao (`api/deploy/k8s/openbao/`, `api/deploy/compose/openbao/`) |
-| `IMGEXAM_ACCOUNT_ID` | `DIAGNOS_ACCOUNT_ID` | só em tempo de deploy — bootstrap da policy do OpenBao (`api/deploy/k8s/openbao/`, `api/deploy/compose/openbao/`) |
+| `IMGEXAM_WORKSPACE_ID` | `DIAGNOS_WORKSPACE_ID` | só em tempo de deploy — bootstrap da policy do OpenBao (`apps/api/deploy/k8s/openbao/`, `apps/api/deploy/compose/openbao/`) |
+| `IMGEXAM_ACCOUNT_ID` | `DIAGNOS_ACCOUNT_ID` | só em tempo de deploy — bootstrap da policy do OpenBao (`apps/api/deploy/k8s/openbao/`, `apps/api/deploy/compose/openbao/`) |
 
 As variáveis `OPENBAO_*` (`OPENBAO_ADDR`, `OPENBAO_TOKEN`, `OPENBAO_TOKEN_FILE`, `OPENBAO_MOUNT`,
 `OPENBAO_PATH_PREFIX`, `OPENBAO_NAMESPACE`) nunca tiveram prefixo `IMGEXAM_` e não mudaram — o OpenBao é um produto
@@ -76,7 +76,7 @@ separado, com nomenclatura própria. Uma delas, porém, muda de comportamento: v
 ### Auto-unseal do OpenBao: o prefixo padrão do path na KV
 
 O valor **padrão** do prefixo de path da KV do OpenBao (`DEFAULT_OPENBAO_PATH_PREFIX` em
-`sdk/src/diagnos/transport/config.py`) mudou de `"imgexam"` para `"diagnos"`. Ele continua podendo ser sobrescrito
+`apps/sdk/src/diagnos/transport/config.py`) mudou de `"imgexam"` para `"diagnos"`. Ele continua podendo ser sobrescrito
 pela variável de ambiente `OPENBAO_PATH_PREFIX`, cujo nome não mudou.
 
 Se você já roda o auto-unseal do OpenBao contra um deploy `imgexam` e atualiza no local sem definir
@@ -95,10 +95,10 @@ novo ou recriada.
 Duas categorias de constante foram deliberadamente **não** renomeadas, porque são constantes criptográficas de fio
 persistidas, não nomes de produto:
 
-- Os rótulos HKDF/AAD `imgexam-*-v1` (`sdk/src/diagnos/crypto/hkdf.py`, `hybrid.py`, `keys.py`,
-  `sdk/native/src/hybrid.rs`) — por exemplo `imgexam-sdk-hybrid-seal-v1`, `imgexam-patient-dek-v1`,
+- Os rótulos HKDF/AAD `imgexam-*-v1` (`apps/sdk/src/diagnos/crypto/hkdf.py`, `hybrid.py`, `keys.py`,
+  `apps/sdk/native/src/hybrid.rs`) — por exemplo `imgexam-sdk-hybrid-seal-v1`, `imgexam-patient-dek-v1`,
   `imgexam-drive-node-key-v1`.
-- O id de chave de seal estático do OpenBao `imgexam-static-v1` (`api/deploy/k8s/autounseal/static/seal.hcl`).
+- O id de chave de seal estático do OpenBao `imgexam-static-v1` (`apps/api/deploy/k8s/autounseal/static/seal.hcl`).
 
 Renomear qualquer um deles tornaria todo ciphertext já produzido sob o rótulo antigo — ou uma instalação existente
 do OpenBao com static seal usando a chave `imgexam-static-v1` — permanentemente ilegível. Eles estão documentados
@@ -123,15 +123,15 @@ falso positivo:
 - [ ] Se você fixa a URL do cofre: confirme que ainda aponta para onde você quer — o padrão mudou, conforme acima.
 - [ ] Se você usa auto-unseal do OpenBao: decida entre as duas opções da seção acima (`OPENBAO_PATH_PREFIX` ou
       fazer o enrollment de novo) **antes** de fazer o deploy da renomeação, não depois.
-- [ ] **Não toque**: toda string `imgexam-*-v1` em `crypto/`, `native/src/hybrid.rs`, `sdk/tests/vectors/`, e
-      `imgexam-static-v1` em `api/deploy/k8s/autounseal/static/seal.hcl`.
+- [ ] **Não toque**: toda string `imgexam-*-v1` em `crypto/`, `native/src/hybrid.rs`, `apps/sdk/tests/vectors/`, e
+      `imgexam-static-v1` em `apps/api/deploy/k8s/autounseal/static/seal.hcl`.
 
 ## Um comando de exemplo para adaptar
 
 Isso cobre só as renomeações mecânicas — imports, os nomes de classe/exceção, o comando da CLI e a imagem Docker.
 De propósito **não** toca em variáveis de ambiente (revise essas à mão contra a tabela acima, já que algumas vivem
 em secrets perto dos quais você não quer uma reescrita cega) nem em nada sob `crypto/`, `native/src/`,
-`sdk/tests/vectors/` ou `autounseal/` (os rótulos congelados `imgexam-*-v1` / `imgexam-static-v1`):
+`apps/sdk/tests/vectors/` ou `autounseal/` (os rótulos congelados `imgexam-*-v1` / `imgexam-static-v1`):
 
 ```sh
 # Ajuste a lista de arquivos para o seu checkout; rode numa árvore git limpa para poder revisar o diff.

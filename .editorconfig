@@ -1,7 +1,7 @@
 # 🇺🇸 Editor defaults that match the formatters (ruff: 4 spaces, 120 columns;
-#    rustfmt: see sdk/native/rustfmt.toml). Makefiles need real tabs.
+#    rustfmt: see apps/sdk/native/rustfmt.toml). Makefiles need real tabs.
 # 🇧🇷 Padrões de editor que batem com os formatadores (ruff: 4 espaços, 120
-#    colunas; rustfmt: ver sdk/native/rustfmt.toml). Makefile exige TAB de verdade.
+#    colunas; rustfmt: ver apps/sdk/native/rustfmt.toml). Makefile exige TAB de verdade.
 root = true
 
 [*]

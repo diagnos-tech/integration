@@ -344,7 +344,7 @@ wheels = [
 [[package]]
 name = "diagnos"
 version = "0.1.0"
-source = { editable = "sdk" }
+source = { editable = "apps/sdk" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
@@ -394,7 +394,7 @@ dev = [
 [[package]]
 name = "diagnos-api"
 version = "0.1.0"
-source = { editable = "api" }
+source = { editable = "apps/api" }
 dependencies = [
     { name = "diagnos", extra = ["openbao"] },
     { name = "fastapi" },
@@ -412,7 +412,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "diagnos", extras = ["openbao"], editable = "sdk" },
+    { name = "diagnos", extras = ["openbao"], editable = "apps/sdk" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "python-multipart", specifier = ">=0.0.12" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
@@ -429,7 +429,7 @@ dev = [
 [[package]]
 name = "diagnos-cli"
 version = "0.1.0"
-source = { editable = "cli" }
+source = { editable = "apps/cli" }
 dependencies = [
     { name = "diagnos" },
     { name = "rich" },
@@ -450,8 +450,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "diagnos", editable = "sdk" },
-    { name = "diagnos", extras = ["openbao"], marker = "extra == 'openbao'", editable = "sdk" },
+    { name = "diagnos", editable = "apps/sdk" },
+    { name = "diagnos", extras = ["openbao"], marker = "extra == 'openbao'", editable = "apps/sdk" },
     { name = "rich", specifier = ">=13.9" },
     { name = "typer", specifier = ">=0.15" },
 ]
