@@ -68,6 +68,7 @@ from _wire import (
     declare_clock,
     encrypted,
     failure,
+    from_state,
     instant,
     literal,
     ok,
@@ -276,7 +277,9 @@ def _declare_open_patient(pact: Pact, *, state: str, description: str, stream: d
 
     🇧🇷 `GET .../patients/{id}?stream=data` sob `state`, respondendo o índice mais a versão corrente.
     """
-    name, params = workspace_state(state, document_id=PATIENT_ID, security_group_id=SECURITY_GROUP_ID)
+    name, params = workspace_state(
+        state, document_id=PATIENT_ID, version_id=VERSION_1, security_group_id=SECURITY_GROUP_ID
+    )
     (
         pact.upon_receiving(description)
         .given(name, params)
@@ -436,7 +439,9 @@ def test_open_patient_prefers_a_newer_draft(pact: Pact) -> None:
             },
         ),
     )
-    name, params = workspace_state(state, document_id=PATIENT_ID, security_group_id=SECURITY_GROUP_ID)
+    name, params = workspace_state(
+        state, document_id=PATIENT_ID, version_id=VERSION_1, security_group_id=SECURITY_GROUP_ID
+    )
     (
         pact.upon_receiving("an SDK process resolves the draft head of a patient's data stream")
         .given(name, params)
@@ -479,7 +484,9 @@ def test_update_patient_reserves_the_next_version_under_the_conflict_guard(pact:
         description="an SDK process opens the latest version of a patient",
         stream=_stream(size=_sealed_length(MARIA)),
     )
-    name, params = workspace_state(state, document_id=PATIENT_ID, security_group_id=SECURITY_GROUP_ID)
+    name, params = workspace_state(
+        state, document_id=PATIENT_ID, version_id=VERSION_1, security_group_id=SECURITY_GROUP_ID
+    )
     (
         pact.upon_receiving("an SDK process reserves the next version of a patient's data stream")
         .given(name, params)
@@ -489,7 +496,7 @@ def test_update_patient_reserves_the_next_version_under_the_conflict_guard(pact:
             {
                 "content_length": match.int(size),
                 "encrypted_index": encrypted(_summary_payload("patients", PatientSummary.of(renamed, ["diabetes"]))),
-                "expected_latest_version_id": match.str(VERSION_1),
+                "expected_latest_version_id": from_state(VERSION_1, "version_id"),
             },
             content_type="application/json",
         )
@@ -521,7 +528,10 @@ def test_archive_patient_is_a_patch_only_reservation(pact: Pact) -> None:
     🇧🇷 Só a flag viaja: sem `content_length`, sem upload, sem commit.
     """
     name, params = workspace_state(
-        "a patient has one committed version", document_id=PATIENT_ID, security_group_id=SECURITY_GROUP_ID
+        "a patient has one committed version",
+        document_id=PATIENT_ID,
+        version_id=VERSION_1,
+        security_group_id=SECURITY_GROUP_ID,
     )
     declare_clock(pact)
     (
@@ -561,7 +571,10 @@ def test_list_patients_opens_each_summary_without_downloading(pact: Pact) -> Non
     🇧🇷 Uma página; o `encrypted_index` de cada linha abre sob a DEK; `next_cursor: null` encerra a caminhada.
     """
     name, params = workspace_state(
-        "a patient has one committed version", document_id=PATIENT_ID, security_group_id=SECURITY_GROUP_ID
+        "a patient has one committed version",
+        document_id=PATIENT_ID,
+        version_id=VERSION_1,
+        security_group_id=SECURITY_GROUP_ID,
     )
     declare_clock(pact)
     (
@@ -610,7 +623,9 @@ def test_reserving_while_another_version_is_pending_backs_off_then_raises(pact: 
         description="an SDK process opens a patient that has a version pending",
         stream=_stream(size=_sealed_length(MARIA), pending=VERSION_2),
     )
-    name, params = workspace_state(state, document_id=PATIENT_ID, security_group_id=SECURITY_GROUP_ID)
+    name, params = workspace_state(
+        state, document_id=PATIENT_ID, version_id=VERSION_1, security_group_id=SECURITY_GROUP_ID
+    )
     (
         pact.upon_receiving("an SDK process tries to reserve a version while another is pending")
         .given(name, params)
@@ -693,7 +708,10 @@ def test_open_exam_decrypts_the_report(pact: Pact) -> None:
     🇧🇷 `GET .../exams/{id}` sem query de fluxo; o laudo abre sob a chave da versão.
     """
     name, params = workspace_state(
-        "an exam has one committed version", document_id=EXAM_ID, security_group_id=SECURITY_GROUP_ID
+        "an exam has one committed version",
+        document_id=EXAM_ID,
+        version_id=VERSION_1,
+        security_group_id=SECURITY_GROUP_ID,
     )
     declare_clock(pact)
     (
