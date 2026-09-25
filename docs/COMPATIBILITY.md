@@ -17,56 +17,66 @@ SDK speaks the vault's current protocol for it.
 | Session keys | hybrid seal (X25519 + ML-KEM-768), `random_seed` | ✅ Compatible | contract + vectors |
 | Lock | `session/lock` | ✅ Compatible | contract |
 | OpenBao auto-unseal | save/restore of the unlocked session | ✅ Client-side only | unit tests |
-| Patients, exams | `vault.patients`, `vault.exams` (versioned documents) | ⚠️ Earlier protocol revision | — |
+| Patients, exams | `vault.patients`, `vault.exams` (versioned documents) | ✅ Compatible | contract + web-app vectors |
 | Files | `vault.drives` | ⚠️ Earlier protocol revision | — |
 
-The CLI (`diagnos-cli`) and the API (`diagnos-api`) are thin shells over the SDK: `login`, `status` and session
-commands work today; commands and routes for patients, exams and files inherit the ⚠️ rows.
+The CLI (`diagnos-cli`) and the API (`diagnos-api`) are thin shells over the SDK: every command and route inherits
+its row. Commands and routes for files inherit the ⚠️.
 
-The cryptographic primitives themselves are not the problem: the SDK's suite passes against vectors freshly
-regenerated from the vault's reference implementation (request signature, key envelope, content envelope, hybrid
-seal, secretstream framing). What changed is how the vault *composes* them for documents and files.
+"Verified by contract" means the SDK's side is pinned in
+[`contracts/diagnos-sdk-diagnos-vault.json`](../contracts/diagnos-sdk-diagnos-vault.json) and the vault replays it in
+its own repository (provider verification). "Web-app vectors" means the SDK opens bytes sealed by the web app's own
+code ([`document_content.json`](../apps/sdk/tests/vectors/document_content.json)) and the contract's oracles seal
+them with an independent implementation — a document the SDK writes is one the web app opens, and the other way
+round.
 
-## What changed in the vault
+## Patients and exams
 
-The document and file layers of the SDK were written against an earlier revision of the vault protocol. Since then the
-vault changed in ways that are not renames:
+The SDK follows the web app step for step:
 
-**Versioned documents (patients, exams)**
+- A document belongs to exactly one security group (`security_group_id`). Its data key (DEK) is sealed for that
+  group with the same label the web app uses for every document.
+- Writing is reserve → signed `PUT` → commit. Each version is sealed under its own key, derived from the DEK and the
+  `security_context` the vault returns next to the signed URL; the body is raw `salt ‖ nonce ‖ ciphertext`.
+  Patients have two streams, so their version routes carry `/streams/data`; exams do not.
+- Every write carries the sealed summary (`encrypted_index`: names and tags, or title, modality and date), so lists
+  open without downloading any version — `vault.patients.list()` returns them already decrypted.
+- Reading follows the web app's rule: the editor's draft wins when it is newer than the latest version
+  (`include_draft=False` reads committed versions only).
+- Archive and delete are flag changes without a new version (`restore` undoes a delete).
+- `expected_latest_version_id` makes the vault refuse a write if someone saved in between; a reservation that finds
+  another writer's pending version is retried briefly, then raised.
 
-- A document belongs to exactly one security group: `security_group_id` (a string) replaced `security_groups` (a list),
-  in requests and in the index.
-- Version state moved under `document.streams.<stream>` (`latest_version_id`, `versions`, `pending_version_id`).
-  Patients have two streams (`data`, `file`), so their version routes gained a segment:
-  `…/{document_id}/streams/{stream}/versions[/{version_id}/commit]`.
-- Creating a patient requires an `encrypted_index`: a small summary encrypted under the document key, so lists and
-  search never open the full record.
-- The content of each version is encrypted under a per-version key derived from a `security_context` that the vault
-  returns next to every signed upload/download URL, and the object body is raw bytes (`salt ‖ nonce ‖ ciphertext`),
-  not a JSON envelope.
+### Known limits
 
-**Files**
+- **The patient's `file` stream** (the web editor's rich document, Lexical + Yjs) is not exposed; the SDK reads and
+  writes the structured `data` stream.
+- **Identity documents** (`identifiers[].value`, e.g. CPF) are sealed by the vault's sensitive-data route, which the
+  external API does not offer. The SDK carries existing values through a read-modify-write untouched and refuses a
+  plain-text value.
+- **Anonymization precision**: the web app truncates every date to the workspace's `time_precision` before
+  encrypting. The external API does not expose that setting; set `DIAGNOS_TIME_PRECISION` to the workspace's value
+  and the SDK applies the same truncation.
+- **Drafts** are read, never written: the SDK's writes are committed versions.
+- **Report templates** have no external route; they are only in the web app.
+- **SSE-C**: document objects are stored without SSE-C, exactly as the web app stores them (a second layer only one
+  side sent would make the object unreadable to the other). The body is end-to-end encrypted either way.
+
+## Files
+
+The file layer of the SDK was written against an earlier revision of the vault protocol:
 
 - Drive routes moved from `…/drives/{security_group_id}/…` to `…/nodes/…`, with `security_group_id` in the body or
   the query string.
 - Every file gets its own data key, wrapped for each security group in `encrypted_keys`; the file name is encrypted
   under that key, and content keys are derived through the same `security_context` scheme as documents.
 
-## What this means for you
-
-- Enrolling, holding a session and making signed requests work today.
-- Do not use `vault.patients`, `vault.exams` or `vault.drives` against the production vault yet. Today those calls
-  fail loudly — a validation error, a `400` or a `404` — before anything is stored, so no data the web app could not
-  read gets written. They remain in the package as a preview so the API shape can be reviewed.
+Do not use `vault.drives` against the production vault yet. Its calls fail loudly — a validation error, a `400` or a
+`404` — before anything is stored, so no data the web app could not read gets written.
 
 ## The way back to green
 
-Each item lands as its own pull request, together with its contract interactions, so the vault's provider
-verification proves it before it ships:
-
-1. Documents: models (`security_group_id`, `streams`), stream-aware routes, `encrypted_index` for patients,
-   `security_context` content keys and raw-byte bodies — with vectors regenerated from the vault's reference
-   implementation.
+1. ~~Documents~~ — done: current routes and models, web-app vectors, contract interactions.
 2. Files: `/nodes` routes, per-file keys, encrypted names, `security_context` content keys.
 3. Entropy: contribute the SDK's own `random_seed` in request bodies (the vault already accepts it; today the SDK
    only consumes the vault's).

@@ -85,11 +85,16 @@ Request paths that embed those same values use `path(example, pattern=..., expre
 is the regex matcher the consumer side checks the path against, and `expression` is a Pact `ProviderState`
 generator — a template with `${name}` placeholders that the vault's state handler fills in with the *real* ids it
 just seeded, so verification exercises the vault's own workspace and enrollment rather than guessing the
-consumer's fixed ones (`ws-contract`, `enr-contract`). Both placeholders currently in use:
+consumer's fixed ones (`ws-contract`, `enr-contract`, `pat-contract`). The placeholders currently in use:
 
 - `${workspace_id}` — every path under `/api/external/v1/workspaces/{workspace_id}/...`.
 - `${enrollment_id}` — the enrollment-poll path,
   `/api/external/v1/workspaces/{workspace_id}/session/registry/{enrollment_id}`.
+- `${document_id}` — every path under `…/patients/{document_id}` and `…/exams/{document_id}`.
+- `${version_id}` — the commit path, `…/versions/{version_id}/commit`.
+
+The document states also carry `security_group_id` (`sg-contract`): it is the key of `encrypted_keys` in the create
+request, which no generator can rewrite, so the vault grants the service account that literal group.
 
 Every provider state name in the current contract, and what the vault must seed for it:
 
@@ -101,6 +106,13 @@ Every provider state name in the current contract, and what the vault must seed 
 | `an admin denied the enrollment` | `workspace_id`, `enrollment_id` | An enrollment an admin has explicitly denied — `GET` on it returns `"status": "denied"`. |
 | `the vault no longer knows the enrollment` | `workspace_id`, `enrollment_id` | No enrollment at that id at all (expired and swept, or never existed) — `GET` on it returns `404`. |
 | `an SDK session is active` | `workspace_id` | An active, signed session the vault will accept a `session/lock` request for. |
+| `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | An active session whose service account belongs to `security_group_id` and may create patients and exams in it. |
+| `a patient has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | A patient in that group with `version_id` reserved on its `data` stream and the object already uploaded, so the commit finds it. |
+| `an exam has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | The same for an exam (no stream segment in its routes); `meta.patient_id` set. |
+| `a patient has one committed version` | `workspace_id`, `security_group_id`, `document_id` | A patient in that group with one committed `data` version, an `encrypted_index`, no pending version and no draft; the only patient of the workspace (the list interaction reads one row). |
+| `a patient has a draft newer than its latest version` | `workspace_id`, `security_group_id`, `document_id` | As above, plus a `data` draft head whose `updated_at` is later than the latest version's `created_at`. |
+| `a patient has a committed version and another one pending` | `workspace_id`, `security_group_id`, `document_id` | One committed `data` version plus an unexpired pending reservation, so a new reservation answers `409 DocumentVersionPending`. |
+| `an exam has one committed version` | `workspace_id`, `security_group_id`, `document_id` | An exam in that group with one committed version, an `encrypted_index` and `meta.patient_id`. |
 
 ## How to add an interaction, step by step
 
@@ -139,12 +151,14 @@ The file is sorted and normalized, so a diff is meaningful, not noise from reord
 - **A `pactRust`/tool-version-shaped diff**: should not happen — normalization strips `metadata.pactRust`
   specifically to prevent this. If you see one, something bypassed `normalize()`/`render()`.
 
-## Current scope, and why documents/drives aren't here yet
+## Current scope, and why drives aren't here yet
 
-The contract currently covers: the vault's clock (`GET /time`), enrollment (registration, and polling through
-pending/approved/denied/forgotten), and lock (`POST session/lock`). This is the surface that matches today's vault.
+The contract covers: the vault's clock (`GET /time`), enrollment (registration, and polling through
+pending/approved/denied/forgotten), lock (`POST session/lock`), and versioned documents — creating a patient or an
+exam (reserve, commit), opening the latest version, preferring a newer draft, reserving the next version under the
+conflict guard, archiving without a new version, listing, and backing off on a pending version. This is the surface
+that matches today's vault.
 
-The document layer (`vault.patients`, `vault.exams`) and the drive/file layer (`vault.drives`) are not in the
-contract yet because the SDK code for them targets an earlier revision of the vault's protocol — see
-[`../docs/COMPATIBILITY.md`](../docs/COMPATIBILITY.md) for exactly what changed and the plan to bring them back into
-the contract, area by area, each as its own pull request with its own provider states.
+The drive/file layer (`vault.drives`) is not in the contract yet because the SDK code for it targets an earlier
+revision of the vault's protocol — see [`../docs/COMPATIBILITY.md`](../docs/COMPATIBILITY.md) for exactly what
+changed and the plan to bring it into the contract, with its own provider states.

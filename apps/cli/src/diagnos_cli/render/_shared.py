@@ -26,7 +26,7 @@ def record_panel(console: Console, title: str, fields: list[tuple[str, Any]]) ->
     sumindo com texto (`[html]`) ou mudando o estilo do terminal.
     """
     lines = [f"[bold]{label}[/bold]: {plain(value)}" for label, value in fields]
-    console.print(Panel("\n".join(lines), title=title, expand=False))
+    console.print(Panel("\n".join(lines), title=escape(title), expand=False))
 
 
 def plain(value: Any) -> str:

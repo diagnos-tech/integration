@@ -9,9 +9,9 @@ a importar Python. Nunca soma capacidade que o SDK já não tenha — toda rota 
 ([`CONTRIBUTING.pt-BR.md`](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.pt-BR.md)).
 
 > [!WARNING]
-> As rotas `/v1/patients`, `/v1/exams` e `/v1/drives` envolvem camadas do SDK que ainda falam uma **revisão
-> anterior** do protocolo do cofre e não são compatíveis com o cofre atual (`https://vault.diagnos.health`) — elas
-> falham antes de gravar qualquer coisa. `/v1/session` e `/healthz` funcionam hoje. Veja
+> As rotas `/v1/drives` envolvem uma camada do SDK que ainda fala uma **revisão anterior** do protocolo do cofre e
+> não é compatível com o cofre atual (`https://vault.diagnos.health`) — elas falham antes de gravar qualquer coisa.
+> `/v1/session`, `/v1/patients`, `/v1/exams` e `/healthz` funcionam hoje. Veja
 > [Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md)
 > para o panorama completo e o plano para fechar essa lacuna.
 
@@ -118,20 +118,22 @@ Toda rota exige certificado de cliente; `{sg}` é um id de security group.
 
 | Método | Caminho | O que faz | Situação |
 |---|---|---|---|
-| `GET` | `/v1/patients` | Lista índices de paciente | ⚠️ veja o aviso |
-| `POST` | `/v1/patients` | Cria um paciente | ⚠️ veja o aviso |
-| `GET` | `/v1/patients/{id}` | Busca um paciente (`?version_id=`) | ⚠️ veja o aviso |
-| `PUT` | `/v1/patients/{id}` | Atualiza um paciente | ⚠️ veja o aviso |
-| `POST` | `/v1/patients/{id}/archive` | Arquiva | ⚠️ veja o aviso |
-| `POST` | `/v1/patients/{id}/unarchive` | Desarquiva | ⚠️ veja o aviso |
-| `DELETE` | `/v1/patients/{id}` | Apaga (reversível) | ⚠️ veja o aviso |
-| `GET` | `/v1/exams` | Lista índices de exame | ⚠️ veja o aviso |
-| `POST` | `/v1/exams` | Cria um exame | ⚠️ veja o aviso |
-| `GET` | `/v1/exams/{id}` | Busca um exame (`?version_id=`) | ⚠️ veja o aviso |
-| `PUT` | `/v1/exams/{id}` | Atualiza um exame | ⚠️ veja o aviso |
-| `POST` | `/v1/exams/{id}/archive` | Arquiva | ⚠️ veja o aviso |
-| `POST` | `/v1/exams/{id}/unarchive` | Desarquiva | ⚠️ veja o aviso |
-| `DELETE` | `/v1/exams/{id}` | Apaga (reversível) | ⚠️ veja o aviso |
+| `GET` | `/v1/patients` | Lista pacientes (`?summary=true` acrescenta nomes e tags decifrados) | ✅ funciona hoje |
+| `POST` | `/v1/patients` | Cria um paciente (`record`, `security_group`, `tags`, `specialist_ids`) | ✅ funciona hoje |
+| `GET` | `/v1/patients/{id}` | Busca um paciente (`?version_id=`, `?include_draft=false`) | ✅ funciona hoje |
+| `PUT` | `/v1/patients/{id}` | Versão nova e completa (`record`, `tags`, `expected_latest_version_id`) | ✅ funciona hoje |
+| `POST` | `/v1/patients/{id}/archive` | Arquiva (sem versão nova) | ✅ funciona hoje |
+| `POST` | `/v1/patients/{id}/unarchive` | Desarquiva | ✅ funciona hoje |
+| `DELETE` | `/v1/patients/{id}` | Manda para a lixeira (soft) | ✅ funciona hoje |
+| `POST` | `/v1/patients/{id}/restore` | Tira da lixeira | ✅ funciona hoje |
+| `GET` | `/v1/exams` | Lista exames (`?summary=true` acrescenta título, modalidade e data) | ✅ funciona hoje |
+| `POST` | `/v1/exams` | Cria um exame (`record`, `patient_id`, `security_group`) | ✅ funciona hoje |
+| `GET` | `/v1/exams/{id}` | Busca um exame (`?version_id=`, `?include_draft=false`) | ✅ funciona hoje |
+| `PUT` | `/v1/exams/{id}` | Versão nova e completa (`record`, `expected_latest_version_id`) | ✅ funciona hoje |
+| `POST` | `/v1/exams/{id}/archive` | Arquiva (sem versão nova) | ✅ funciona hoje |
+| `POST` | `/v1/exams/{id}/unarchive` | Desarquiva | ✅ funciona hoje |
+| `DELETE` | `/v1/exams/{id}` | Manda para a lixeira (soft) | ✅ funciona hoje |
+| `POST` | `/v1/exams/{id}/restore` | Tira da lixeira | ✅ funciona hoje |
 | `GET` | `/v1/drives/{sg}/nodes` | Lista nós, nomes decifrados | ⚠️ veja o aviso |
 | `GET` | `/v1/drives/{sg}/nodes/{id}` | Busca um nó | ⚠️ veja o aviso |
 | `POST` | `/v1/drives/{sg}/nodes` | Sobe um arquivo (multipart) | ⚠️ veja o aviso |

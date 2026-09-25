@@ -35,22 +35,22 @@ DEK_LENGTH = 32
 #    `docs/PROTOCOL.pt-BR.md` ("Rótulos congelados"); os vetores em
 #    `tests/vectors/` os travam.
 #
-# 🇺🇸 `info` for wrapping a document DEK under its security group's DEK,
-#    keyed by resource (`patients` | `exams` | `templates`).
-# 🇧🇷 `info` para embrulhar a DEK de um documento sob a DEK do security
-#    group, indexado por recurso (`patients` | `exams` | `templates`).
-DEK_INFO: Final[dict[str, str]] = {
-    "patients": "imgexam-patient-dek-v1",
-    "exams": "imgexam-exam-dek-v1",
-    "templates": "imgexam-template-dek-v1",
-}
+# 🇺🇸 `info` for wrapping a document's DEK under its security group's key. One
+#    label for patients, exams *and* templates: the web app seals every
+#    document DEK with it (`DOCUMENT_DEK_INFO` in its security module), so the
+#    `patient` in the name is history, not scope.
+# 🇧🇷 `info` para embrulhar a DEK de um documento sob a chave do security
+#    group. Um rótulo só para pacientes, exames *e* modelos: o app web sela
+#    toda DEK de documento com ele (`DOCUMENT_DEK_INFO` no módulo de
+#    segurança dele), então o `patient` no nome é histórico, não escopo.
+DOCUMENT_DEK_INFO: Final[str] = "imgexam-patient-dek-v1"
 
-# 🇺🇸 `info` for encrypting the record body itself, same keys as `DEK_INFO`.
-# 🇧🇷 `info` para cifrar o corpo do registro em si, mesmas chaves de `DEK_INFO`.
-RECORD_INFO: Final[dict[str, str]] = {
-    "patients": "imgexam-patient-record-v1",
-    "exams": "imgexam-exam-record-v1",
-    "templates": "imgexam-template-record-v1",
+# 🇺🇸 `info` for sealing a document's `encrypted_index` (its list/search summary) under the document DEK.
+# 🇧🇷 `info` para selar o `encrypted_index` de um documento (resumo de lista/busca) sob a DEK do documento.
+INDEX_INFO: Final[dict[str, str]] = {
+    "patients": "imgexam-patient-index-v1",
+    "exams": "imgexam-exam-index-v1",
+    "templates": "imgexam-template-index-v1",
 }
 
 NODE_NAME_INFO: Final[str] = "imgexam-drive-node-name-v1"

@@ -33,7 +33,7 @@ def test_list_patients_json_is_valid(runner: CliRunner, patched_build_client: Fa
     result = runner.invoke(typer_app, ["--json", "patients", "list"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["items"][0]["document_id"] == PATIENT_INDEX.document_id
+    assert data["items"][0]["index"]["document_id"] == PATIENT_INDEX.document_id
 
 
 def test_get_patient_shows_decrypted_legal_name(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
@@ -156,3 +156,81 @@ def test_delete_patient_declined_never_renders_the_result(runner: CliRunner, pat
     result = runner.invoke(typer_app, ["patients", "delete", PATIENT_INDEX.document_id], input="n\n")
     assert result.exit_code == 0
     assert "patients" not in result.output.lower()
+
+
+def test_list_patients_summary_flag_shows_names(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 Names (and tags) appear only with `--summary` — the default stays anonymous.
+
+    🇧🇷 Nomes (e tags) só aparecem com `--summary` — o padrão continua anônimo.
+    """
+    result = runner.invoke(typer_app, ["patients", "list", "--summary"])
+    assert result.exit_code == 0
+    # 🇺🇸 The runner's 80-column terminal wraps the cell. 🇧🇷 O terminal de 80 colunas do runner quebra a célula.
+    assert "Jane" in result.output
+    assert "[oncology]" in result.output
+
+
+def test_create_patient_passes_tags_and_inline_fields(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 `--tag` is repeatable and `--external-id` joins the record.
+
+    🇧🇷 `--tag` é repetível e `--external-id` entra no registro.
+    """
+    result = runner.invoke(
+        typer_app,
+        [
+            "patients",
+            "create",
+            "-g",
+            "sg1",
+            "--legal-name",
+            "Ana",
+            "--external-id",
+            "mrn-9",
+            "--tag",
+            "a",
+            "--tag",
+            "b",
+        ],
+    )
+    assert result.exit_code == 0
+    name, kwargs = patched_build_client.patients.calls[-1]
+    assert name == "create"
+    assert kwargs == {
+        "record": {"legal_name": "Ana", "external_id": "mrn-9"},
+        "security_group": "sg1",
+        "tags": ["a", "b"],
+    }
+
+
+def test_update_patient_tags_and_expect_version(
+    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path
+) -> None:
+    """🇺🇸 No `--tag` keeps the tags (`None`); `--expect-version` is the conflict guard.
+
+    🇧🇷 Sem `--tag` mantém as tags (`None`); `--expect-version` é a trava de conflito.
+    """
+    record_file = tmp_path / "record.json"
+    record_file.write_text(json.dumps({"legal_name": "Jane Doe", "display_name": "Jane"}), encoding="utf-8")
+    args = ["patients", "update", PATIENT_INDEX.document_id, "--file", str(record_file)]
+
+    runner.invoke(typer_app, args)
+    runner.invoke(typer_app, [*args, "--tag", "vip", "--expect-version", "v1"])
+
+    (_, kept), (_, replaced) = patched_build_client.patients.calls[-2:]
+    assert kept["tags"] is None
+    assert kept["expected_latest_version_id"] is None
+    assert replaced["tags"] == ["vip"]
+    assert replaced["expected_latest_version_id"] == "v1"
+
+
+def test_get_patient_committed_flag(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 `--committed` asks for saved versions only. 🇧🇷 `--committed` pede só versões salvas."""
+    runner.invoke(typer_app, ["patients", "get", PATIENT_INDEX.document_id, "--committed"])
+    assert patched_build_client.patients.calls[-1] == ("get", {"version_id": None, "include_draft": False})
+
+
+def test_restore_patient_renders_index(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 `restore` takes the patient out of the trash. 🇧🇷 `restore` tira o paciente da lixeira."""
+    result = runner.invoke(typer_app, ["patients", "restore", PATIENT_INDEX.document_id])
+    assert result.exit_code == 0
+    assert PATIENT_INDEX.document_id in result.output

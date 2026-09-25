@@ -5,10 +5,13 @@ a real `httpx.MockTransport` handler, plain Python dicts standing in for
 Firestore and R2, so a bug in how `resources/` builds a request (a wrong
 path, a missing field, a `content-length` that does not match the body it
 sends) shows up as a real HTTP-shaped failure, the same way it would against
-the vault. `Keyring`s in these tests are built by hand with known group DEKs
-— the whole point of `resources/` is that it never invents keys of its own,
-so a test that cannot supply a `Keyring` directly would be testing the
-wrong layer.
+the vault. The document half follows `routes/factories/versionedDocuments.ts`
+and `services/documents/store.ts` rule for rule: stream-aware paths, the
+singular `security_group_id`, required `encrypted_index`, a signed `PUT`
+locked to the declared size, one pending slot per stream, patch-only
+reservations, `expected_latest_version_id`, and the draft head. `Keyring`s
+in these tests are built by hand with known group keys — the whole point of
+`resources/` is that it never invents keys of its own.
 
 🇧🇷 Um duplo minúsculo de cofre + R2 em memória, compartilhado por todo teste de `resources/`.
 
@@ -17,37 +20,36 @@ um handler de `httpx.MockTransport` de verdade, dicts Python puros no lugar
 do Firestore e do R2, para um bug em como `resources/` monta uma requisição
 (um path errado, um campo faltando, um `content-length` que não bate com o
 corpo que manda) aparecer como uma falha HTTP de verdade, do mesmo jeito que
-apareceria contra o cofre. Os `Keyring`s destes testes são montados à mão
-com DEKs de grupo conhecidas — o ponto inteiro de `resources/` é nunca
-inventar chave própria, então um teste que não pudesse fornecer um `Keyring`
-direto estaria testando a camada errada.
+apareceria contra o cofre. A metade de documentos segue
+`routes/factories/versionedDocuments.ts` e `services/documents/store.ts`
+regra por regra: paths cientes de fluxo, `security_group_id` no singular,
+`encrypted_index` obrigatório, `PUT` assinado travado no tamanho declarado,
+um slot pendente por fluxo, reservas só de patch,
+`expected_latest_version_id` e a cabeça de rascunho. Os `Keyring`s destes
+testes são montados à mão com chaves de grupo conhecidas — o ponto inteiro
+de `resources/` é nunca inventar chave própria.
 
 🇺🇸 Named `vault_double.py`, not `conftest.py`, on purpose: `apps/sdk/tests/conftest.py`
 already claims the bare module name every test file imports from
-(`from conftest import VECTORS`, `tests/transport/test_signing.py`), and a
-second file also named `conftest.py` would collide with it the moment both
-get imported under the same top-level name in the same test run. Every test
-file here imports what it needs explicitly — `from vault_double import
-Harness, harness, make_documents` — the same bare-import shape the rest of
-the suite already uses, just against a different name.
+(`from conftest import VECTORS`), and a second file also named `conftest.py`
+would collide with it the moment both get imported under the same top-level
+name in the same test run.
 🇧🇷 Chamado `vault_double.py`, não `conftest.py`, de propósito:
 `apps/sdk/tests/conftest.py` já reivindica o nome de módulo cru que todo arquivo
-de teste importa (`from conftest import VECTORS`,
-`tests/transport/test_signing.py`), e um segundo arquivo também chamado
-`conftest.py` colidiria com ele assim que os dois fossem importados sob o
-mesmo nome de topo na mesma rodada de teste. Todo arquivo de teste aqui
-importa o que precisa explicitamente — `from vault_double import Harness,
-harness, make_documents` — o mesmo formato de import direto que o resto da
-suíte já usa, só que contra um nome diferente.
+de teste importa (`from conftest import VECTORS`), e um segundo arquivo também
+chamado `conftest.py` colidiria com ele assim que os dois fossem importados
+sob o mesmo nome de topo na mesma rodada de teste.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar
 
 import httpx
@@ -63,9 +65,11 @@ from diagnos.transport.token import ServiceAccountToken
 from pydantic import BaseModel
 
 RecordT = TypeVar("RecordT", bound=BaseModel)
+SummaryT = TypeVar("SummaryT", bound=BaseModel)
 
 WORKSPACE_ID = "ws_1"
 VAULT_URL = "https://vault.example.test"
+ACTOR = "svc_test"
 
 # 🇺🇸 §13's `content_length` limit does not apply to this double — a huge
 # `_DEFAULT_SINGLE_THRESHOLD` just means "everything is 'single' unless a
@@ -74,6 +78,17 @@ VAULT_URL = "https://vault.example.test"
 # `_DEFAULT_SINGLE_THRESHOLD` enorme só significa "tudo é 'single' a menos
 # que um teste o abaixe", espelhando o corte single-vs-multipart de `services/uploads`.
 _DEFAULT_SINGLE_THRESHOLD = 1_000_000
+
+_STREAMS: dict[str, tuple[str, ...]] = {"patients": ("data", "file"), "exams": ("data",), "templates": ("data",)}
+_REQUIRES_ENCRYPTED_INDEX = frozenset({"patients", "templates"})
+_SSE_C_ALGORITHM_HEADER = "x-amz-server-side-encryption-customer-algorithm"
+_SSE_C_CLIENT_HEADERS = ["x-amz-server-side-encryption-customer-key", "x-amz-server-side-encryption-customer-key-md5"]
+_CREATE_FIELDS = frozenset(
+    {"security_group_id", "encrypted_keys", "content_length", "stream", "meta", "encrypted_index"}
+)
+_STAGE_FIELDS = frozenset(
+    {"content_length", "meta", "is_archived", "is_deleted", "encrypted_index", "expected_latest_version_id"}
+)
 
 
 def _time_response(request: httpx.Request) -> httpx.Response:
@@ -112,18 +127,37 @@ def _envelope_error(code: str, *, status: int, message: str = "not found") -> ht
     )
 
 
-@dataclass
-class _PendingVersion:
-    """🇺🇸 What `create`/`update` staged but has not yet `commit`-ted.
+class _VaultRefusal(Exception):  # noqa: N818 — a control-flow signal inside the fake, not an error type
+    """🇺🇸 Internal signal from a `FakeVault` operation to `handle_api`: answer with this error envelope.
 
-    🇧🇷 O que `create`/`update` reservou mas ainda não confirmou (`commit`).
+    🇧🇷 Sinal interno de uma operação de `FakeVault` para `handle_api`: responda com este envelope de erro.
+    """
+
+    def __init__(self, code: str, detail: str, *, status: int = 404) -> None:
+        """🇺🇸 `code`/`status` as the vault sends them; `detail` is just for the message.
+
+        🇧🇷 `code`/`status` como o cofre os manda; `detail` é só para a mensagem.
+        """
+        super().__init__(detail)
+        self.code = code
+        self.status = status
+
+
+# 🇺🇸 Kept under its old name for the drive half, which only ever raises 404s.
+# 🇧🇷 Mantido sob o nome antigo para a metade de drives, que só lança 404.
+_NotFoundError = _VaultRefusal
+
+
+@dataclass
+class _Pending:
+    """🇺🇸 A reserved version of one stream, not yet committed, plus the patch that rides with it.
+
+    🇧🇷 Uma versão reservada de um fluxo, ainda não confirmada, mais o patch que viaja com ela.
     """
 
     version_id: str
-    storage_key: str
-    meta: dict[str, Any] | None
-    is_archived: bool | None
-    is_deleted: bool | None
+    size: int
+    patch: dict[str, Any] = field(default_factory=dict)
 
 
 class FakeVault:
@@ -138,19 +172,21 @@ class FakeVault:
         🇧🇷 Começa vazio; cada teste semeia só o que precisa.
         """
         self._documents: dict[tuple[str, str], dict[str, Any]] = {}
-        self._pending: dict[tuple[str, str], _PendingVersion] = {}
+        self._pending: dict[tuple[str, str, str], _Pending] = {}
         self._nodes: dict[tuple[str, str], dict[str, Any]] = {}
         self._objects: dict[str, bytes] = {}
+        self._signed_sizes: dict[str, int] = {}
         self._parts: dict[tuple[str, int], bytes] = {}
         self._counter = 0
+        self._clock = datetime(2026, 9, 1, tzinfo=UTC)
         self.single_threshold = _DEFAULT_SINGLE_THRESHOLD
         self.part_size = 32 * 1024 * 1024
-        # 🇺🇸 Every `PUT` to storage, kept verbatim (headers included) so a test
-        # can assert on `content-length`/SSE-C headers without needing its own
-        # transport-level spy.
-        # 🇧🇷 Todo `PUT` ao armazenamento, guardado ao pé da letra (headers
-        # inclusos) para um teste assertar `content-length`/headers de SSE-C
-        # sem precisar do próprio espião no nível de transporte.
+        # 🇺🇸 A test sets this to make the next N commits fail with a 503, as a flaky network would.
+        # 🇧🇷 Um teste define isto para os próximos N commits falharem com 503, como uma rede instável.
+        self.fail_next_commits = 0
+        # 🇺🇸 Every API request and every storage `PUT`/`GET`, kept verbatim for assertions.
+        # 🇧🇷 Toda requisição de API e todo `PUT`/`GET` de armazenamento, guardados ao pé da letra.
+        self.api_requests: list[httpx.Request] = []
         self.put_requests: list[httpx.Request] = []
         self.get_requests: list[httpx.Request] = []
 
@@ -162,6 +198,14 @@ class FakeVault:
         self._counter += 1
         return f"{prefix}_{self._counter}"
 
+    def now(self) -> str:
+        """🇺🇸 A strictly increasing server clock, one second per call, as ISO strings.
+
+        🇧🇷 Um relógio de servidor estritamente crescente, um segundo por chamada, em strings ISO.
+        """
+        self._clock += timedelta(seconds=1)
+        return self._clock.isoformat().replace("+00:00", ".000Z")
+
     # -- httpx.MockTransport handlers ---------------------------------------
 
     def handle_api(self, request: httpx.Request) -> httpx.Response:
@@ -171,6 +215,7 @@ class FakeVault:
         """
         if request.url.path == "/time":
             return _time_response(request)
+        self.api_requests.append(request)
 
         method = request.method
         path = request.url.path
@@ -185,20 +230,23 @@ class FakeVault:
                 continue
             try:
                 return handler(self, match.groupdict(), query, body)
-            except _NotFoundError as exc:
-                return _envelope_error(exc.code, status=404, message=str(exc))
+            except _VaultRefusal as exc:
+                return _envelope_error(exc.code, status=exc.status, message=str(exc))
 
         raise AssertionError(f"FakeVault: no route for {method} {path}")
 
     def handle_storage(self, request: httpx.Request) -> httpx.Response:
-        """🇺🇸 Routes a `PUT`/`GET` against a presigned R2 URL to the in-memory object store.
+        """🇺🇸 A `PUT`/`GET` against a presigned R2 URL; a `PUT` must match the size the URL was signed for.
 
-        🇧🇷 Roteia um `PUT`/`GET` contra uma URL presigned do R2 para o armazém de objetos em memória.
+        🇧🇷 Um `PUT`/`GET` contra uma URL presigned do R2; um `PUT` precisa bater com o tamanho assinado.
         """
         url = str(request.url)
         if request.method == "PUT":
-            self._objects[url] = request.content
             self.put_requests.append(request)
+            signed = self._signed_sizes.get(url)
+            if signed is not None and signed != len(request.content):
+                return httpx.Response(403)
+            self._objects[url] = request.content
             etag = f'"{secrets.token_hex(8)}"'
             return httpx.Response(200, headers={"ETag": etag})
         if request.method == "GET":
@@ -209,7 +257,7 @@ class FakeVault:
             return httpx.Response(200, content=data)
         raise AssertionError(f"FakeVault: unexpected storage method {request.method}")
 
-    # -- documents (patients/exams) ------------------------------------------
+    # -- documents (patients/exams/templates) --------------------------------
 
     def _object_url(self, key: str) -> str:
         """🇺🇸 A stable, opaque presigned-looking URL for one storage key.
@@ -218,6 +266,77 @@ class FakeVault:
         """
         return f"https://r2.example.test/objects/{key}"
 
+    @staticmethod
+    def security_context(resource: str, document_id: str, key_id: str) -> dict[str, str]:
+        """🇺🇸 The deterministic `security_context` of one object — a test can derive the same content key.
+
+        🇧🇷 O `security_context` determinístico de um objeto — um teste consegue derivar a mesma chave de conteúdo.
+        """
+        raw = f"ctx|{WORKSPACE_ID}|{resource}|{document_id}|{key_id}".encode()
+        return {"value": base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii"), "kid": "ctx_k1"}
+
+    def version_url(self, resource: str, version_id: str) -> str:
+        """🇺🇸 Where a version's object lives (flat by `version_id`, as in R2). 🇧🇷 Onde mora o objeto de uma versão."""
+        return self._object_url(f"workspaces/{WORKSPACE_ID}/{resource}/{version_id}")
+
+    def draft_url(self, resource: str, document_id: str, stream: str) -> str:
+        """🇺🇸 Where a stream's draft head lives. 🇧🇷 Onde mora a cabeça de rascunho de um fluxo."""
+        suffix = f"/{stream}" if len(_STREAMS[resource]) > 1 else ""
+        return self._object_url(f"workspaces/{WORKSPACE_ID}/{resource}/{document_id}/draft{suffix}")
+
+    def _signed_upload(self, url: str, size: int) -> dict[str, Any]:
+        """🇺🇸 `SignedUploadResponse`: the size is locked into the URL; SSE-C names ride alongside.
+
+        🇧🇷 `SignedUploadResponse`: o tamanho fica travado na URL; os nomes de SSE-C vão junto.
+        """
+        self._signed_sizes[url] = size
+        return {
+            "url": url,
+            "method": "PUT",
+            "headers": {"content-length": str(size), _SSE_C_ALGORITHM_HEADER: "AES256"},
+            "client_headers": list(_SSE_C_CLIENT_HEADERS),
+            "expires_at": 9_999_999_999,
+        }
+
+    @staticmethod
+    def _signed_download(url: str) -> dict[str, Any]:
+        """🇺🇸 `SignedDownloadResponse`. 🇧🇷 `SignedDownloadResponse`."""
+        return {
+            "url": url,
+            "method": "GET",
+            "headers": {_SSE_C_ALGORITHM_HEADER: "AES256"},
+            "client_headers": list(_SSE_C_CLIENT_HEADERS),
+            "expires_at": 9_999_999_999,
+        }
+
+    def _index(self, resource: str, document_id: str) -> dict[str, Any]:
+        """🇺🇸 The stored index, or `DocumentNotFound`. 🇧🇷 O índice guardado, ou `DocumentNotFound`."""
+        index = self._documents.get((resource, document_id))
+        if index is None:
+            raise _VaultRefusal("DocumentNotFound", document_id)
+        return index
+
+    def _response(self, resource: str, document_id: str) -> dict[str, Any]:
+        """🇺🇸 `documentIndexResponse`: `pending_version_id` as an id only, streams always as a map.
+
+        🇧🇷 `documentIndexResponse`: `pending_version_id` só como id, fluxos sempre como mapa.
+        """
+        index = self._documents[(resource, document_id)]
+        streams = {}
+        for name, stream in index["streams"].items():
+            pending = self._pending.get((resource, document_id, name))
+            entry = {
+                "latest_version_id": stream["latest_version_id"],
+                "versions": [dict(v) for v in stream["versions"]],
+                "pending_version_id": pending.version_id if pending else None,
+            }
+            if stream.get("draft") is not None:
+                entry["draft"] = dict(stream["draft"])
+            streams[name] = entry
+        response = {key: value for key, value in index.items() if key != "streams"}
+        response["streams"] = streams
+        return json.loads(json.dumps(response))
+
     def list_documents(
         self, resource: str, *, security_group_id: str | None, include_deleted: bool, limit: int, cursor: str | None
     ) -> dict[str, Any]:
@@ -225,131 +344,200 @@ class FakeVault:
 
         🇧🇷 Todo índice de `resource`, filtrado e paginado do jeito que `GET {base}` promete.
         """
-        items = [
-            index
-            for (res, _document_id), index in self._documents.items()
+        ids = sorted(
+            document_id
+            for (res, document_id), index in self._documents.items()
             if res == resource and (include_deleted or not index["is_deleted"])
-            if security_group_id is None or security_group_id in index["security_groups"]
-        ]
-        items.sort(key=lambda index: index["document_id"])
-        start = 0
-        if cursor is not None:
-            start = next(i for i, index in enumerate(items) if index["document_id"] == cursor) + 1
-        page = items[start : start + limit]
-        next_cursor = page[-1]["document_id"] if start + limit < len(items) else None
-        return {"items": page, "next_cursor": next_cursor}
+            if security_group_id is None or index["security_group_id"] == security_group_id
+        )
+        start = ids.index(cursor) + 1 if cursor is not None else 0
+        page = ids[start : start + limit]
+        next_cursor = page[-1] if start + limit < len(ids) else None
+        return {"items": [self._response(resource, document_id) for document_id in page], "next_cursor": next_cursor}
 
     def create_document(self, resource: str, body: dict[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `POST {base}` — a brand new document with one pending version.
+        """🇺🇸 `POST {base}` — `createDocumentRequest` validation, then a new index with one pending version.
 
-        🇧🇷 `POST {base}` — um documento novo com uma versão pendente.
+        🇧🇷 `POST {base}` — validação de `createDocumentRequest`, depois um índice novo com uma versão pendente.
         """
+        unknown = set(body) - _CREATE_FIELDS
+        if unknown:
+            raise _VaultRefusal("ValidationError", f"unknown fields {sorted(unknown)}", status=400)
+        group = body.get("security_group_id")
+        if not isinstance(group, str) or not group:
+            raise _VaultRefusal("ValidationError", "security_group_id is required", status=400)
+        if group not in body.get("encrypted_keys", {}):
+            raise _VaultRefusal("ValidationError", "encrypted_keys must hold the DEK for security_group_id", status=400)
+        if resource in _REQUIRES_ENCRYPTED_INDEX and "encrypted_index" not in body:
+            raise _VaultRefusal("ValidationError", "encrypted_index is required for this resource", status=400)
+        size = body.get("content_length")
+        if not isinstance(size, int) or size <= 0:
+            raise _VaultRefusal("ValidationError", "content_length must be a positive integer", status=400)
+        stream = body.get("stream", "data") if len(_STREAMS[resource]) > 1 else "data"
+
         document_id = self._next_id("doc")
         version_id = self._next_id("ver")
-        storage_key = f"doc/{resource}/{document_id}/{version_id}"
-        index = {
+        now = self.now()
+        index: dict[str, Any] = {
             "document_id": document_id,
             "workspace_id": WORKSPACE_ID,
             "resource": resource,
-            "security_groups": body["security_groups"],
+            "security_group_id": group,
             "encrypted_keys": body["encrypted_keys"],
-            "latest_version_id": None,
-            "versions": [],
-            "pending_version_id": version_id,
-            "meta": body.get("meta") or {},
-            "created_at": "2024-01-01T00:00:00Z",
-            "created_by": "test-actor",
-            "updated_at": "2024-01-01T00:00:00Z",
-            "updated_by": "test-actor",
+            "streams": {name: {"latest_version_id": None, "versions": []} for name in _STREAMS[resource]},
+            "created_at": now,
+            "created_by": ACTOR,
+            "updated_at": now,
+            "updated_by": ACTOR,
             "is_archived": False,
             "is_deleted": False,
         }
+        if "encrypted_index" in body:
+            index["encrypted_index"] = body["encrypted_index"]
+        if body.get("meta") is not None:
+            index["meta"] = body["meta"]
         self._documents[(resource, document_id)] = index
-        self._pending[(resource, document_id)] = _PendingVersion(
-            version_id=version_id, storage_key=storage_key, meta=None, is_archived=None, is_deleted=None
-        )
-        upload = {
-            "url": self._object_url(storage_key),
-            "method": "PUT",
-            "headers": {"content-length": str(body["content_length"])},
-            "expires_at": 9_999_999_999,
+        self._pending[(resource, document_id, stream)] = _Pending(version_id=version_id, size=size)
+        return {
+            "document": self._response(resource, document_id),
+            "stream": stream,
+            "version_id": version_id,
+            "security_context": self.security_context(resource, document_id, version_id),
+            "upload": self._signed_upload(self.version_url(resource, version_id), size),
         }
-        return {"document": dict(index), "version_id": version_id, "upload": upload}
 
-    def stage_version(self, resource: str, document_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `POST {base}/{id}/versions` — a new pending version for an existing document.
+    def stage_version(self, resource: str, document_id: str, stream: str, body: dict[str, Any]) -> dict[str, Any]:
+        """🇺🇸 `POST .../versions` — a patch-only flag flip, or a new pending version (409 while one is open).
 
-        🇧🇷 `POST {base}/{id}/versions` — uma versão pendente nova para um documento existente.
+        🇧🇷 `POST .../versions` — uma troca de flag só-patch, ou uma versão pendente nova (409 com uma aberta).
         """
-        key = (resource, document_id)
-        if key not in self._documents:
-            raise _NotFoundError("DocumentNotFound", document_id)
+        unknown = set(body) - _STAGE_FIELDS
+        if unknown:
+            raise _VaultRefusal("ValidationError", f"unknown fields {sorted(unknown)}", status=400)
+        index = self._index(resource, document_id)
+        size = body.get("content_length")
+        patch = {key: body[key] for key in ("meta", "is_archived", "is_deleted", "encrypted_index") if key in body}
+        if size is None:
+            if "meta" in patch or "encrypted_index" in patch or not {"is_archived", "is_deleted"} & set(patch):
+                raise _VaultRefusal("ValidationError", "content_length is required", status=400)
+            index.update(patch)
+            index["updated_at"] = self.now()
+            return {"staged": False, "document": self._response(resource, document_id)}
+
+        expected = body.get("expected_latest_version_id")
+        if expected is not None and expected != index["streams"][stream]["latest_version_id"]:
+            raise _VaultRefusal("DocumentVersionMismatch", "another version was committed", status=409)
+        if (resource, document_id, stream) in self._pending:
+            raise _VaultRefusal("DocumentVersionPending", "a version is already pending", status=409)
         version_id = self._next_id("ver")
-        storage_key = f"doc/{resource}/{document_id}/{version_id}"
-        self._pending[key] = _PendingVersion(
-            version_id=version_id,
-            storage_key=storage_key,
-            meta=body.get("meta"),
-            is_archived=body.get("is_archived"),
-            is_deleted=body.get("is_deleted"),
-        )
-        index = dict(self._documents[key])
-        index["pending_version_id"] = version_id
-        upload = {
-            "url": self._object_url(storage_key),
-            "method": "PUT",
-            "headers": {"content-length": str(body["content_length"])},
-            "expires_at": 9_999_999_999,
+        self._pending[(resource, document_id, stream)] = _Pending(version_id=version_id, size=size, patch=patch)
+        return {
+            "staged": True,
+            "document": self._response(resource, document_id),
+            "stream": stream,
+            "version_id": version_id,
+            "security_context": self.security_context(resource, document_id, version_id),
+            "upload": self._signed_upload(self.version_url(resource, version_id), size),
         }
-        return {"document": index, "version_id": version_id, "upload": upload}
 
-    def commit_version(self, resource: str, document_id: str, version_id: str) -> dict[str, Any]:
-        """🇺🇸 `POST {base}/{id}/versions/{version_id}/commit` — promotes the pending version to latest.
+    def commit_version(self, resource: str, document_id: str, stream: str, version_id: str) -> dict[str, Any]:
+        """🇺🇸 `POST .../versions/{id}/commit` — promotes the pending version; a replay is idempotent.
 
-        🇧🇷 `POST {base}/{id}/versions/{version_id}/commit` — promove a versão pendente a mais recente.
+        🇧🇷 `POST .../versions/{id}/commit` — promove a versão pendente; reenviar é idempotente.
         """
-        key = (resource, document_id)
-        pending = self._pending.get(key)
+        if self.fail_next_commits > 0:
+            self.fail_next_commits -= 1
+            raise _VaultRefusal("ServiceUnavailable", "try again", status=503)
+        index = self._index(resource, document_id)
+        state = index["streams"][stream]
+        if any(v["version_id"] == version_id for v in state["versions"]):
+            return {"document": self._response(resource, document_id)}
+        pending = self._pending.get((resource, document_id, stream))
         if pending is None or pending.version_id != version_id:
-            raise _NotFoundError("DocumentVersionNotFound", version_id)
-        body_bytes = self._objects[self._object_url(pending.storage_key)]
-        index = self._documents[key]
-        index["latest_version_id"] = version_id
-        index["versions"].append(
-            {
-                "version_id": version_id,
-                "size": len(body_bytes),
-                "created_at": "2024-01-01T00:00:00Z",
-                "created_by": "test-actor",
-            }
+            raise _VaultRefusal("DocumentVersionNotPending", version_id, status=409)
+        stored = self._objects.get(self.version_url(resource, version_id))
+        if stored is None:
+            raise _VaultRefusal("DocumentObjectNotFound", version_id, status=400)
+        now = self.now()
+        state["versions"].append(
+            {"version_id": version_id, "size": len(stored), "created_at": now, "created_by": ACTOR}
         )
-        index["pending_version_id"] = None
-        if pending.meta:
-            index["meta"] = {**index["meta"], **pending.meta}
-        if pending.is_archived is not None:
-            index["is_archived"] = pending.is_archived
-        if pending.is_deleted is not None:
-            index["is_deleted"] = pending.is_deleted
-        index["updated_at"] = "2024-01-02T00:00:00Z"
-        del self._pending[key]
-        return {"document": dict(index)}
+        state["latest_version_id"] = version_id
+        patch = pending.patch
+        if "meta" in patch:
+            index["meta"] = {**index.get("meta", {}), **patch["meta"]}
+        for key in ("encrypted_index", "is_archived", "is_deleted"):
+            if key in patch:
+                index[key] = patch[key]
+        index["updated_at"] = now
+        del self._pending[(resource, document_id, stream)]
+        return {"document": self._response(resource, document_id)}
 
-    def get_document(self, resource: str, document_id: str, *, version_id: str | None) -> dict[str, Any]:
-        """🇺🇸 `GET {base}/{id}` — the index plus a download URL for `version_id` (or latest).
+    def get_document(self, resource: str, document_id: str, *, stream: str, version_id: str | None) -> dict[str, Any]:
+        """🇺🇸 `GET {base}/{id}` — the index plus a download URL for `version_id` (or the stream's latest).
 
-        🇧🇷 `GET {base}/{id}` — o índice mais uma URL de download para `version_id` (ou a mais recente).
+        🇧🇷 `GET {base}/{id}` — o índice mais uma URL de download de `version_id` (ou da corrente do fluxo).
         """
-        key = (resource, document_id)
-        index = self._documents.get(key)
-        if index is None:
-            raise _NotFoundError("DocumentNotFound", document_id)
-        target_version_id = version_id or index["latest_version_id"]
-        version = next((v for v in index["versions"] if v["version_id"] == target_version_id), None)
+        index = self._index(resource, document_id)
+        state = index["streams"][stream]
+        target = version_id or state["latest_version_id"]
+        version = next((v for v in state["versions"] if v["version_id"] == target), None)
         if version is None:
-            raise _NotFoundError("DocumentVersionNotFound", str(target_version_id))
-        storage_key = f"doc/{resource}/{document_id}/{target_version_id}"
-        download = {"url": self._object_url(storage_key), "method": "GET", "expires_at": 9_999_999_999}
-        return {"document": dict(index), "version": version, "download": download}
+            raise _VaultRefusal("DocumentVersionNotFound", str(target))
+        return {
+            "document": self._response(resource, document_id),
+            "stream": stream,
+            "version": dict(version),
+            "security_context": self.security_context(resource, document_id, version["version_id"]),
+            "download": self._signed_download(self.version_url(resource, version["version_id"])),
+        }
+
+    def draft_key_id(self, resource: str, stream: str) -> str:
+        """🇺🇸 The fixed key id the vault derives a draft's context from. 🇧🇷 O id fixo do contexto de um rascunho."""
+        return f"draft:{stream}" if len(_STREAMS[resource]) > 1 else "draft"
+
+    def put_draft(self, resource: str, document_id: str, stream: str, body: dict[str, Any]) -> dict[str, Any]:
+        """🇺🇸 `PUT .../draft` — reserves the draft head's signed `PUT` and bumps its `rev`.
+
+        🇧🇷 `PUT .../draft` — reserva o `PUT` assinado da cabeça de rascunho e incrementa o `rev`.
+        """
+        index = self._index(resource, document_id)
+        state = index["streams"][stream]
+        current = state.get("draft")
+        expected = body.get("draft_rev")
+        if expected is not None and current is not None and expected != current["rev"]:
+            raise _VaultRefusal("DocumentDraftMismatch", "draft was overwritten", status=409)
+        rev = (current["rev"] + 1) if current is not None else 1
+        state["draft"] = {"rev": rev, "size": body["content_length"], "updated_at": self.now(), "updated_by": ACTOR}
+        return {
+            "upload": self._signed_upload(self.draft_url(resource, document_id, stream), body["content_length"]),
+            "security_context": self.security_context(resource, document_id, self.draft_key_id(resource, stream)),
+            "draft_rev": rev,
+        }
+
+    def get_draft(self, resource: str, document_id: str, stream: str) -> dict[str, Any] | None:
+        """🇺🇸 `GET .../draft` — `null` when the stream never had one.
+
+        🇧🇷 `GET .../draft` — `null` quando o fluxo nunca teve.
+        """
+        draft = self._index(resource, document_id)["streams"][stream].get("draft")
+        if draft is None:
+            return None
+        return {
+            "download": self._signed_download(self.draft_url(resource, document_id, stream)),
+            "security_context": self.security_context(resource, document_id, self.draft_key_id(resource, stream)),
+            "draft_rev": draft["rev"],
+            "draft_size": draft["size"],
+            "updated_at": draft["updated_at"],
+        }
+
+    def seed_draft(self, resource: str, document_id: str, sealed: bytes, *, stream: str = "data") -> None:
+        """🇺🇸 What the web editor's autosave does: `PUT .../draft` then the object `PUT`, in one step.
+
+        🇧🇷 O que o autosave do editor web faz: `PUT .../draft` e depois o `PUT` do objeto, num passo só.
+        """
+        reservation = self.put_draft(resource, document_id, stream, {"content_length": len(sealed)})
+        self._objects[reservation["upload"]["url"]] = sealed
 
     # -- drives ---------------------------------------------------------------
 
@@ -506,28 +694,21 @@ class FakeVault:
         return {"node": dict(node), "download": download}
 
 
-class _NotFoundError(Exception):
-    """🇺🇸 Internal signal from a `FakeVault` operation to `handle_api`: turn this into a 404 envelope.
-
-    🇧🇷 Sinal interno de uma operação de `FakeVault` para `handle_api`: transforme isto num envelope 404.
-    """
-
-    def __init__(self, code: str, detail: str) -> None:
-        """🇺🇸 `code` is the vault error code (`docs/PROTOCOL.md §12`); `detail` is just for the message.
-
-        🇧🇷 `code` é o código de erro do cofre (`docs/PROTOCOL.md §12`); `detail` é só para a mensagem.
-        """
-        super().__init__(detail)
-        self.code = code
-
-
 _RouteHandler = Callable[[FakeVault, dict[str, str], dict[str, str], dict[str, Any]], httpx.Response]
+
+
+def _stream_of(groups: dict[str, str]) -> str:
+    """🇺🇸 The stream a version/draft route touches: from the path, or the implicit `data`.
+
+    🇧🇷 O fluxo que uma rota de versão/rascunho toca: do path, ou o `data` implícito.
+    """
+    return groups.get("stream") or "data"
 
 
 def _list_documents_route(
     vault: FakeVault, groups: dict[str, str], query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET {base}` for patients/exams. 🇧🇷 `GET {base}` de pacientes/exames."""
+    """🇺🇸 `GET {base}`. 🇧🇷 `GET {base}`."""
     result = vault.list_documents(
         groups["resource"],
         security_group_id=query.get("security_group_id"),
@@ -541,7 +722,7 @@ def _list_documents_route(
 def _create_document_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}` for patients/exams. 🇧🇷 `POST {base}` de pacientes/exames."""
+    """🇺🇸 `POST {base}`. 🇧🇷 `POST {base}`."""
     return _envelope_success(vault.create_document(groups["resource"], body), status=201)
 
 
@@ -549,27 +730,40 @@ def _get_document_route(
     vault: FakeVault, groups: dict[str, str], query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
     """🇺🇸 `GET {base}/{document_id}`. 🇧🇷 `GET {base}/{document_id}`."""
-    result = vault.get_document(groups["resource"], groups["document_id"], version_id=query.get("version_id"))
+    resource = groups["resource"]
+    stream = query.get("stream", "data") if len(_STREAMS[resource]) > 1 else "data"
+    result = vault.get_document(resource, groups["document_id"], stream=stream, version_id=query.get("version_id"))
     return _envelope_success(result)
 
 
 def _stage_version_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}/{document_id}/versions`. 🇧🇷 `POST {base}/{document_id}/versions`."""
-    result = vault.stage_version(groups["resource"], groups["document_id"], body)
-    return _envelope_success(result, status=201)
+    """🇺🇸 `POST .../versions`. 🇧🇷 `POST .../versions`."""
+    result = vault.stage_version(groups["resource"], groups["document_id"], _stream_of(groups), body)
+    return _envelope_success(result, status=201 if result["staged"] else 200)
 
 
 def _commit_version_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}/{document_id}/versions/{version_id}/commit`.
-
-    🇧🇷 `POST {base}/{document_id}/versions/{version_id}/commit`.
-    """
-    result = vault.commit_version(groups["resource"], groups["document_id"], groups["version_id"])
+    """🇺🇸 `POST .../versions/{version_id}/commit`. 🇧🇷 `POST .../versions/{version_id}/commit`."""
+    result = vault.commit_version(groups["resource"], groups["document_id"], _stream_of(groups), groups["version_id"])
     return _envelope_success(result)
+
+
+def _get_draft_route(
+    vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
+) -> httpx.Response:
+    """🇺🇸 `GET .../draft`. 🇧🇷 `GET .../draft`."""
+    return _envelope_success(vault.get_draft(groups["resource"], groups["document_id"], _stream_of(groups)))
+
+
+def _put_draft_route(
+    vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
+) -> httpx.Response:
+    """🇺🇸 `PUT .../draft`. 🇧🇷 `PUT .../draft`."""
+    return _envelope_success(vault.put_draft(groups["resource"], groups["document_id"], _stream_of(groups), body))
 
 
 def _stage_uploads_route(
@@ -632,6 +826,15 @@ def _get_node_route(
 
 
 _WS = WORKSPACE_ID
+_DOCS = rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams|templates)"
+# 🇺🇸 Version and draft routes carry `/streams/{stream}` on patients only — the same table the vault
+#    builds its routes from, so `/patients/{id}/versions` has no route here, exactly as in production.
+# 🇧🇷 Rotas de versão e rascunho carregam `/streams/{fluxo}` só em pacientes — a mesma tabela de que
+#    o cofre monta as rotas, então `/patients/{id}/versions` não tem rota aqui, exatamente como em produção.
+_STREAM_BASES = (
+    rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients)/(?P<document_id>[^/]+)/streams/(?P<stream>data|file)",
+    rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>exams|templates)/(?P<document_id>[^/]+)",
+)
 # 🇺🇸 Ordered most-specific-first: a literal segment (`complete`, `versions`)
 # must be tried before the catch-all `{node_id}`/`{document_id}` pattern it
 # would otherwise also match.
@@ -639,28 +842,19 @@ _WS = WORKSPACE_ID
 # `versions`) precisa ser tentado antes do padrão coringa `{node_id}`/`{document_id}`
 # que também bateria nele.
 _ROUTES: list[tuple[re.Pattern[str], str, _RouteHandler]] = [
-    (re.compile(rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams)$"), "GET", _list_documents_route),
-    (re.compile(rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams)$"), "POST", _create_document_route),
-    (
-        re.compile(
-            rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams)/(?P<document_id>[^/]+)/versions$"
-        ),
-        "POST",
-        _stage_version_route,
+    (re.compile(rf"{_DOCS}$"), "GET", _list_documents_route),
+    (re.compile(rf"{_DOCS}$"), "POST", _create_document_route),
+    *(
+        route
+        for base in _STREAM_BASES
+        for route in (
+            (re.compile(rf"{base}/versions$"), "POST", _stage_version_route),
+            (re.compile(rf"{base}/versions/(?P<version_id>[^/]+)/commit$"), "POST", _commit_version_route),
+            (re.compile(rf"{base}/draft$"), "GET", _get_draft_route),
+            (re.compile(rf"{base}/draft$"), "PUT", _put_draft_route),
+        )
     ),
-    (
-        re.compile(
-            rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams)/(?P<document_id>[^/]+)"
-            r"/versions/(?P<version_id>[^/]+)/commit$"
-        ),
-        "POST",
-        _commit_version_route,
-    ),
-    (
-        re.compile(rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams)/(?P<document_id>[^/]+)$"),
-        "GET",
-        _get_document_route,
-    ),
+    (re.compile(rf"{_DOCS}/(?P<document_id>[^/]+)$"), "GET", _get_document_route),
     (
         re.compile(rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)/uploads$"),
         "POST",
@@ -764,6 +958,7 @@ class Harness:
     entropy: EntropyMixer
     keyring: Keyring
     settings: Settings
+    sleeps: list[float] = field(default_factory=list)
 
     def keyring_provider(self) -> Keyring:
         """🇺🇸 The callable shape `VersionedDocuments`/`Drive` expect for `keyring_provider`.
@@ -828,6 +1023,7 @@ def _build_harness(group_deks: dict[str, bytes], *, sse_c: bool) -> Harness:
         session_keys=lambda: keyring.session,
         client=api_client,
         storage_client=storage_client,
+        sleep=lambda _seconds: None,
     )
     return Harness(vault=vault, transport=transport, entropy=entropy, keyring=keyring, settings=settings)
 
@@ -847,11 +1043,11 @@ def _token() -> ServiceAccountToken:
 
 
 def make_documents(
-    harness: Harness, *, resource: ResourceKind, record_model: type[RecordT]
-) -> VersionedDocuments[RecordT]:
-    """🇺🇸 A `VersionedDocuments` wired to `harness`, for `test_documents.py` to exercise the engine directly.
+    harness: Harness, *, resource: ResourceKind, record_model: type[RecordT], summary_model: type[SummaryT]
+) -> VersionedDocuments[RecordT, SummaryT]:
+    """🇺🇸 A `VersionedDocuments` wired to `harness`, with a no-op `sleep` so retries cost no wall time.
 
-    🇧🇷 Um `VersionedDocuments` conectado a `harness`, para `test_documents.py` exercitar o motor direto.
+    🇧🇷 Um `VersionedDocuments` conectado a `harness`, com `sleep` que não faz nada para retentativas não custarem tempo.
     """
     return VersionedDocuments(
         harness.transport,
@@ -860,5 +1056,6 @@ def make_documents(
         workspace_id=WORKSPACE_ID,
         resource=resource,
         record_model=record_model,
-        settings=harness.settings,
+        summary_model=summary_model,
+        sleep=harness.sleeps.append,
     )

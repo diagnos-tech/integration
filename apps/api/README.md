@@ -9,9 +9,9 @@ HTTP than import Python. It never adds capability the SDK does not already have 
 ([`CONTRIBUTING.md`](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.md)).
 
 > [!WARNING]
-> The `/v1/patients`, `/v1/exams` and `/v1/drives` routes wrap SDK layers that still speak an **earlier revision** of
-> the vault protocol and are not compatible with today's vault (`https://vault.diagnos.health`) yet — they fail
-> before writing anything. `/v1/session` and `/healthz` work today. See
+> The `/v1/drives` routes wrap an SDK layer that still speaks an **earlier revision** of the vault protocol and is
+> not compatible with today's vault (`https://vault.diagnos.health`) yet — they fail before writing anything.
+> `/v1/session`, `/v1/patients`, `/v1/exams` and `/healthz` work today. See
 > [Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md) for
 > the full picture and the plan to close the gap.
 
@@ -113,20 +113,22 @@ Every route requires a client certificate; `{sg}` is a security group id.
 
 | Method | Path | What it does | Status |
 |---|---|---|---|
-| `GET` | `/v1/patients` | List patient indexes | ⚠️ see warning |
-| `POST` | `/v1/patients` | Create a patient | ⚠️ see warning |
-| `GET` | `/v1/patients/{id}` | Get one patient (`?version_id=`) | ⚠️ see warning |
-| `PUT` | `/v1/patients/{id}` | Update a patient | ⚠️ see warning |
-| `POST` | `/v1/patients/{id}/archive` | Archive | ⚠️ see warning |
-| `POST` | `/v1/patients/{id}/unarchive` | Unarchive | ⚠️ see warning |
-| `DELETE` | `/v1/patients/{id}` | Delete (soft) | ⚠️ see warning |
-| `GET` | `/v1/exams` | List exam indexes | ⚠️ see warning |
-| `POST` | `/v1/exams` | Create an exam | ⚠️ see warning |
-| `GET` | `/v1/exams/{id}` | Get one exam (`?version_id=`) | ⚠️ see warning |
-| `PUT` | `/v1/exams/{id}` | Update an exam | ⚠️ see warning |
-| `POST` | `/v1/exams/{id}/archive` | Archive | ⚠️ see warning |
-| `POST` | `/v1/exams/{id}/unarchive` | Unarchive | ⚠️ see warning |
-| `DELETE` | `/v1/exams/{id}` | Delete (soft) | ⚠️ see warning |
+| `GET` | `/v1/patients` | List patients (`?summary=true` adds decrypted names and tags) | ✅ works today |
+| `POST` | `/v1/patients` | Create a patient (`record`, `security_group`, `tags`, `specialist_ids`) | ✅ works today |
+| `GET` | `/v1/patients/{id}` | Get one patient (`?version_id=`, `?include_draft=false`) | ✅ works today |
+| `PUT` | `/v1/patients/{id}` | New complete version (`record`, `tags`, `expected_latest_version_id`) | ✅ works today |
+| `POST` | `/v1/patients/{id}/archive` | Archive (no new version) | ✅ works today |
+| `POST` | `/v1/patients/{id}/unarchive` | Unarchive | ✅ works today |
+| `DELETE` | `/v1/patients/{id}` | Move to the trash (soft) | ✅ works today |
+| `POST` | `/v1/patients/{id}/restore` | Take out of the trash | ✅ works today |
+| `GET` | `/v1/exams` | List exams (`?summary=true` adds title, modality and date) | ✅ works today |
+| `POST` | `/v1/exams` | Create an exam (`record`, `patient_id`, `security_group`) | ✅ works today |
+| `GET` | `/v1/exams/{id}` | Get one exam (`?version_id=`, `?include_draft=false`) | ✅ works today |
+| `PUT` | `/v1/exams/{id}` | New complete version (`record`, `expected_latest_version_id`) | ✅ works today |
+| `POST` | `/v1/exams/{id}/archive` | Archive (no new version) | ✅ works today |
+| `POST` | `/v1/exams/{id}/unarchive` | Unarchive | ✅ works today |
+| `DELETE` | `/v1/exams/{id}` | Move to the trash (soft) | ✅ works today |
+| `POST` | `/v1/exams/{id}/restore` | Take out of the trash | ✅ works today |
 | `GET` | `/v1/drives/{sg}/nodes` | List drive nodes, names decrypted | ⚠️ see warning |
 | `GET` | `/v1/drives/{sg}/nodes/{id}` | Get one node | ⚠️ see warning |
 | `POST` | `/v1/drives/{sg}/nodes` | Upload a file (multipart) | ⚠️ see warning |

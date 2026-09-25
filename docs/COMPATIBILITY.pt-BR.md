@@ -17,36 +17,54 @@ contrato quando o SDK já fala, para ela, o protocolo atual do cofre.
 | Chaves de sessão | selo híbrido (X25519 + ML-KEM-768), `random_seed` | ✅ Compatível | contrato + vetores |
 | Lock | `session/lock` | ✅ Compatível | contrato |
 | Auto-unseal com OpenBao | salvar/restaurar a sessão desbloqueada | ✅ Só do lado do cliente | testes unitários |
-| Pacientes, exames | `vault.patients`, `vault.exams` (documentos versionados) | ⚠️ Revisão anterior do protocolo | — |
+| Pacientes, exames | `vault.patients`, `vault.exams` (documentos versionados) | ✅ Compatível | contrato + vetores do app web |
 | Arquivos | `vault.drives` | ⚠️ Revisão anterior do protocolo | — |
 
-A CLI (`diagnos-cli`) e a API (`diagnos-api`) são cascas finas sobre o SDK: `login`, `status` e os comandos de sessão
-funcionam hoje; comandos e rotas de pacientes, exames e arquivos herdam as linhas ⚠️.
+A CLI (`diagnos-cli`) e a API (`diagnos-api`) são cascas finas sobre o SDK: todo comando e rota herda a sua linha.
+Comandos e rotas de arquivos herdam o ⚠️.
 
-As primitivas criptográficas em si não são o problema: a suíte do SDK passa contra vetores regerados agora mesmo a
-partir da implementação de referência do cofre (assinatura de requisição, envelope de chave, envelope de conteúdo,
-selo híbrido, framing do secretstream). O que mudou foi como o cofre *compõe* essas primitivas para documentos e
-arquivos.
+"Verificado por contrato" significa que o lado do SDK está travado em
+[`contracts/diagnos-sdk-diagnos-vault.json`](../contracts/diagnos-sdk-diagnos-vault.json) e o cofre o reproduz no
+próprio repositório (verificação de provider). "Vetores do app web" significa que o SDK abre bytes selados pelo
+próprio código do app web ([`document_content.json`](../apps/sdk/tests/vectors/document_content.json)) e os oráculos
+do contrato os selam com uma implementação independente — um documento que o SDK grava é um que o app web abre, e
+vice-versa.
 
-## O que mudou no cofre
+## Pacientes e exames
 
-As camadas de documentos e de arquivos do SDK foram escritas contra uma revisão anterior do protocolo do cofre. Desde
-então o cofre mudou de formas que não são renomeações:
+O SDK segue o app web passo a passo:
 
-**Documentos versionados (pacientes, exames)**
+- Um documento pertence a exatamente um security group (`security_group_id`). A chave de dados dele (DEK) é selada
+  para esse grupo com o mesmo rótulo que o app web usa para todo documento.
+- Gravar é reservar → `PUT` assinado → confirmar. Cada versão é selada sob a própria chave, derivada da DEK e do
+  `security_context` que o cofre devolve junto da URL assinada; o corpo é `salt ‖ nonce ‖ ciphertext` cru. Paciente
+  tem dois fluxos, então as rotas de versão dele levam `/streams/data`; as de exame não.
+- Toda gravação leva o resumo selado (`encrypted_index`: nomes e tags, ou título, modalidade e data), então listas
+  abrem sem baixar nenhuma versão — `vault.patients.list()` já os devolve decifrados.
+- Ler segue a regra do app web: o rascunho do editor vence quando é mais novo que a versão corrente
+  (`include_draft=False` lê só versões confirmadas).
+- Arquivar e apagar são trocas de flag sem versão nova (`restore` desfaz um apagar).
+- `expected_latest_version_id` faz o cofre recusar uma gravação se alguém salvou no meio-tempo; uma reserva que
+  encontra a versão pendente de outro escritor é retentada por pouco tempo, depois lançada.
 
-- Um documento pertence a exatamente um security group: `security_group_id` (uma string) substituiu `security_groups`
-  (uma lista), nas requisições e no índice.
-- O estado das versões foi para `document.streams.<fluxo>` (`latest_version_id`, `versions`, `pending_version_id`).
-  Paciente tem dois fluxos (`data`, `file`), então as rotas de versão dele ganharam um segmento:
-  `…/{document_id}/streams/{fluxo}/versions[/{version_id}/commit]`.
-- Criar um paciente exige um `encrypted_index`: um resumo pequeno cifrado sob a chave do documento, para listagem e
-  busca nunca abrirem a ficha inteira.
-- O conteúdo de cada versão é cifrado sob uma chave por versão, derivada de um `security_context` que o cofre devolve
-  junto de toda URL assinada de upload/download, e o corpo do objeto é binário cru (`salt ‖ nonce ‖ ciphertext`), não
-  um envelope JSON.
+### Limites conhecidos
 
-**Arquivos**
+- **O fluxo `file` do paciente** (o documento rico do editor web, Lexical + Yjs) não é exposto; o SDK lê e grava o
+  fluxo estruturado `data`.
+- **Documentos de identidade** (`identifiers[].value`, ex.: CPF) são selados pela rota de dado sensível do cofre, que
+  a API externa não oferece. O SDK carrega os valores existentes intactos num ler-modificar-gravar e recusa um valor
+  em texto claro.
+- **Precisão de anonimização**: o app web trunca toda data na `time_precision` do workspace antes de cifrar. A API
+  externa não expõe essa configuração; defina `DIAGNOS_TIME_PRECISION` com o valor do workspace e o SDK aplica o mesmo
+  truncamento.
+- **Rascunhos** são lidos, nunca gravados: as gravações do SDK são versões confirmadas.
+- **Modelos de laudo** não têm rota externa; existem só no app web.
+- **SSE-C**: objetos de documento são guardados sem SSE-C, exatamente como o app web os guarda (uma segunda camada
+  que só um lado mandasse tornaria o objeto ilegível para o outro). O corpo é cifrado ponta a ponta de qualquer jeito.
+
+## Arquivos
+
+A camada de arquivos do SDK foi escrita contra uma revisão anterior do protocolo do cofre:
 
 - As rotas de drive saíram de `…/drives/{security_group_id}/…` para `…/nodes/…`, com `security_group_id` no corpo ou
   na query string.
@@ -54,22 +72,12 @@ então o cofre mudou de formas que não são renomeações:
   arquivo é cifrado sob essa chave, e as chaves de conteúdo são derivadas pelo mesmo esquema de `security_context` dos
   documentos.
 
-## O que isso significa para você
-
-- Fazer enrollment, manter uma sessão e fazer requisições assinadas funciona hoje.
-- Não use `vault.patients`, `vault.exams` nem `vault.drives` contra o cofre de produção ainda. Hoje essas chamadas
-  falham alto — um erro de validação, um `400` ou um `404` — antes de qualquer coisa ser gravada, então nenhum dado
-  que o app web não conseguiria ler chega a ser escrito. Elas continuam no pacote como prévia, para o formato da API
-  poder ser revisado.
+Não use `vault.drives` contra o cofre de produção ainda. As chamadas dele falham alto — um erro de validação, um `400`
+ou um `404` — antes de qualquer coisa ser gravada, então nenhum dado que o app web não conseguiria ler é escrito.
 
 ## O caminho de volta ao verde
 
-Cada item entra no seu próprio pull request, junto com as interações de contrato dele, para a verificação de provider
-do cofre prová-lo antes de ser publicado:
-
-1. Documentos: modelos (`security_group_id`, `streams`), rotas cientes do fluxo, `encrypted_index` para pacientes,
-   chaves de conteúdo por `security_context` e corpos em binário cru — com vetores regerados a partir da implementação
-   de referência do cofre.
+1. ~~Documentos~~ — feito: rotas e modelos atuais, vetores do app web, interações de contrato.
 2. Arquivos: rotas `/nodes`, chave por arquivo, nomes cifrados, chaves de conteúdo por `security_context`.
 3. Entropia: contribuir com o `random_seed` do próprio SDK no corpo das requisições (o cofre já aceita; hoje o SDK só
    consome o do cofre).

@@ -87,11 +87,17 @@ Paths de requisição que embutem esses mesmos valores usam `path(example, patte
 (`_wire.py`): `pattern` é o matcher regex que o lado consumidor confere contra o path, e `expression` é um gerador
 `ProviderState` do Pact — um template com marcadores `${nome}` que o manipulador de state do cofre preenche com os
 ids *reais* que acabou de semear, para a verificação exercitar o próprio workspace e enrollment do cofre em vez de
-adivinhar os fixos do consumidor (`ws-contract`, `enr-contract`). Os dois marcadores em uso atualmente:
+adivinhar os fixos do consumidor (`ws-contract`, `enr-contract`, `pat-contract`). Os marcadores em uso atualmente:
 
 - `${workspace_id}` — todo path sob `/api/external/v1/workspaces/{workspace_id}/...`.
 - `${enrollment_id}` — o path de poll de enrollment,
   `/api/external/v1/workspaces/{workspace_id}/session/registry/{enrollment_id}`.
+- `${document_id}` — todo path sob `…/patients/{document_id}` e `…/exams/{document_id}`.
+- `${version_id}` — o path de commit, `…/versions/{version_id}/commit`.
+
+Os states de documento também levam `security_group_id` (`sg-contract`): ele é a chave de `encrypted_keys` na
+requisição de criação, que nenhum gerador consegue reescrever, então o cofre concede à service account esse grupo
+literal.
 
 Todo nome de provider state no contrato atual, e o que o cofre precisa semear para cada um:
 
@@ -103,6 +109,13 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
 | `an admin denied the enrollment` | `workspace_id`, `enrollment_id` | Um enrollment que um admin negou explicitamente — `GET` nele devolve `"status": "denied"`. |
 | `the vault no longer knows the enrollment` | `workspace_id`, `enrollment_id` | Nenhum enrollment naquele id (expirado e varrido, ou nunca existiu) — `GET` nele devolve `404`. |
 | `an SDK session is active` | `workspace_id` | Uma sessão ativa e assinada, para a qual o cofre aceitará uma requisição `session/lock`. |
+| `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | Uma sessão ativa cuja service account pertence a `security_group_id` e pode criar pacientes e exames nele. |
+| `a patient has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Um paciente nesse grupo com `version_id` reservada no fluxo `data` e o objeto já enviado, para o commit encontrá-lo. |
+| `an exam has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | O mesmo para um exame (sem segmento de fluxo nas rotas); `meta.patient_id` definido. |
+| `a patient has one committed version` | `workspace_id`, `security_group_id`, `document_id` | Um paciente nesse grupo com uma versão `data` confirmada, um `encrypted_index`, sem versão pendente e sem rascunho; o único paciente do workspace (a interação de lista lê uma linha). |
+| `a patient has a draft newer than its latest version` | `workspace_id`, `security_group_id`, `document_id` | Como acima, mais uma cabeça de rascunho em `data` cujo `updated_at` é posterior ao `created_at` da versão corrente. |
+| `a patient has a committed version and another one pending` | `workspace_id`, `security_group_id`, `document_id` | Uma versão `data` confirmada mais uma reserva pendente não expirada, para uma reserva nova responder `409 DocumentVersionPending`. |
+| `an exam has one committed version` | `workspace_id`, `security_group_id`, `document_id` | Um exame nesse grupo com uma versão confirmada, um `encrypted_index` e `meta.patient_id`. |
 
 ## Como adicionar uma interação, passo a passo
 
@@ -144,13 +157,14 @@ O arquivo é ordenado e normalizado, então um diff é significativo, não ruíd
   `metadata.pactRust` especificamente para evitar isso. Se você ver um, algo passou por cima de
   `normalize()`/`render()`.
 
-## Escopo atual, e por que documentos/drives ainda não estão aqui
+## Escopo atual, e por que drives ainda não estão aqui
 
-O contrato hoje cobre: o relógio do cofre (`GET /time`), enrollment (registro, e poll através de
-pending/approved/denied/forgotten), e lock (`POST session/lock`). Esta é a superfície que casa com o cofre de hoje.
+O contrato cobre: o relógio do cofre (`GET /time`), enrollment (registro, e poll através de
+pending/approved/denied/forgotten), lock (`POST session/lock`) e documentos versionados — criar paciente ou exame
+(reservar, confirmar), abrir a versão corrente, preferir um rascunho mais novo, reservar a próxima versão sob a trava
+de conflito, arquivar sem versão nova, listar, e recuar diante de uma versão pendente. Esta é a superfície que casa
+com o cofre de hoje.
 
-A camada de documentos (`vault.patients`, `vault.exams`) e a camada de drive/arquivo (`vault.drives`) ainda não
-estão no contrato porque o código do SDK para elas mira uma revisão anterior do protocolo do cofre — veja
-[`../docs/COMPATIBILITY.pt-BR.md`](../docs/COMPATIBILITY.pt-BR.md) para exatamente o que mudou e o plano para
-trazê-las de volta ao contrato, área por área, cada uma como seu próprio pull request com seus próprios provider
-states.
+A camada de drive/arquivo (`vault.drives`) ainda não está no contrato porque o código do SDK para ela mira uma
+revisão anterior do protocolo do cofre — veja [`../docs/COMPATIBILITY.pt-BR.md`](../docs/COMPATIBILITY.pt-BR.md) para
+exatamente o que mudou e o plano para trazê-la ao contrato, com os próprios provider states.

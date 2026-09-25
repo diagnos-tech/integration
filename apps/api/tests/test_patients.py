@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from diagnos import QuotaError
+from diagnos import ConflictError, QuotaError
 from fastapi.testclient import TestClient
 
 from conftest import FakeDiagnos
@@ -34,63 +34,109 @@ def test_create_then_get_round_trips_the_record(client: TestClient) -> None:
     assert fetched.json()["record"]["legal_name"] == "Jane Doe"
 
 
-def test_list_includes_created_patients(client: TestClient) -> None:
-    """🇺🇸 A patient created via `POST` shows up in `GET /v1/patients`'s index list.
+def test_list_is_anonymous_unless_summary_is_asked(client: TestClient) -> None:
+    """🇺🇸 Rows carry `summary: null` by default; `?summary=true` adds the decrypted names and tags.
 
-    🇧🇷 Um paciente criado via `POST` aparece na lista de índices de `GET /v1/patients`.
+    🇧🇷 Linhas trazem `summary: null` por padrão; `?summary=true` acrescenta nomes e tags decifrados.
     """
-    client.post("/v1/patients", json=_create_body())
+    client.post("/v1/patients", json={**_create_body(), "tags": ["vip"]})
 
-    listed = client.get("/v1/patients")
+    anonymous = client.get("/v1/patients").json()["items"]
+    named = client.get("/v1/patients", params={"summary": "true"}).json()["items"]
 
-    assert listed.status_code == 200
-    assert len(listed.json()["items"]) == 1
+    assert anonymous[0]["summary"] is None
+    assert anonymous[0]["index"]["security_group_id"] == "sg1"
+    assert named[0]["summary"]["display_name"] == "Jane"
+    assert named[0]["summary"]["tags"] == ["vip"]
 
 
-def test_update_replaces_the_record(client: TestClient) -> None:
-    """🇺🇸 `PUT` reuses the patient's existing DEK — the caller only ever sees a fresh `record` come back.
+def test_list_rejects_a_page_size_the_vault_would_refuse(client: TestClient) -> None:
+    """🇺🇸 `limit` is bounded to 1..200 at the edge (§13). 🇧🇷 `limit` é limitado a 1..200 na borda (§13)."""
+    assert client.get("/v1/patients", params={"limit": 201}).status_code == 422
 
-    🇧🇷 `PUT` reusa a DEK existente do paciente — quem chama só vê um `record` novo voltar.
+
+def test_update_replaces_the_record_and_forwards_the_guards(client: TestClient, fake_vault: FakeDiagnos) -> None:
+    """🇺🇸 `PUT` sends a complete record; `tags: null` keeps tags; the version guard reaches the SDK.
+
+    🇧🇷 `PUT` manda o registro completo; `tags: null` mantém as tags; a trava de versão chega ao SDK.
     """
     created = client.post("/v1/patients", json=_create_body())
     patient_id = created.json()["index"]["document_id"]
 
     updated = client.put(
-        f"/v1/patients/{patient_id}", json={"record": {"legal_name": "Jane Doe, revised", "display_name": "Jane"}}
+        f"/v1/patients/{patient_id}",
+        json={
+            "record": {"legal_name": "Jane Doe, revised", "display_name": "Jane"},
+            "expected_latest_version_id": "v1",
+        },
     )
 
     assert updated.status_code == 200
     assert updated.json()["record"]["legal_name"] == "Jane Doe, revised"
+    assert fake_vault.patients.calls[-1] == (
+        "update",
+        {"tags": None, "specialist_ids": None, "expected_latest_version_id": "v1"},
+    )
 
 
-def test_archive_then_unarchive_round_trip(client: TestClient) -> None:
-    """🇺🇸 Both mutation routes delegate straight to the fake and return its index unchanged.
+def test_get_forwards_version_and_draft_choice(client: TestClient, fake_vault: FakeDiagnos) -> None:
+    """🇺🇸 `version_id`/`include_draft` reach `Patients.get`. 🇧🇷 `version_id`/`include_draft` chegam a `Patients.get`."""
+    patient_id = client.post("/v1/patients", json=_create_body()).json()["index"]["document_id"]
 
-    🇧🇷 As duas rotas de mutação delegam direto ao fake e devolvem o índice dele sem mudar.
+    response = client.get(f"/v1/patients/{patient_id}", params={"include_draft": "false", "version_id": "v1"})
+
+    assert response.status_code == 200
+    assert response.json()["version_id"] == "v1"
+    assert fake_vault.patients.calls[-1] == ("get", {"version_id": "v1", "include_draft": False})
+
+
+def test_a_typo_in_the_record_is_422_naming_the_field(client: TestClient) -> None:
+    """🇺🇸 `birthdate` is refused with the real field name, before anything is encrypted.
+
+    🇧🇷 `birthdate` é recusado com o nome do campo real, antes de qualquer coisa ser cifrada.
     """
-    created = client.post("/v1/patients", json=_create_body())
-    patient_id = created.json()["index"]["document_id"]
+    body = {
+        "record": {"legal_name": "Jane Doe", "display_name": "Jane", "birthdate": "1990-01-01"},
+        "security_group": "sg1",
+    }
 
-    archived = client.post(f"/v1/patients/{patient_id}/archive")
-    assert archived.status_code == 200
-    assert archived.json()["document_id"] == patient_id
+    response = client.post("/v1/patients", json=body)
 
-    unarchived = client.post(f"/v1/patients/{patient_id}/unarchive")
-    assert unarchived.status_code == 200
-    assert unarchived.json()["document_id"] == patient_id
+    assert response.status_code == 422
+    assert "birth_date" in response.text
 
 
-def test_delete_removes_the_patient(client: TestClient) -> None:
-    """🇺🇸 After `DELETE`, the same id 404s on `GET`. 🇧🇷 Depois do `DELETE`, o mesmo id dá 404 no `GET`."""
-    created = client.post("/v1/patients", json=_create_body())
-    patient_id = created.json()["index"]["document_id"]
+def test_a_list_of_groups_is_422(client: TestClient) -> None:
+    """🇺🇸 One document, one group. 🇧🇷 Um documento, um grupo."""
+    response = client.post("/v1/patients", json={**_create_body(), "security_group": ["sg1", "sg2"]})
+    assert response.status_code == 422
 
-    deleted = client.delete(f"/v1/patients/{patient_id}")
-    assert deleted.status_code == 200
 
-    missing = client.get(f"/v1/patients/{patient_id}")
-    assert missing.status_code == 404
-    assert missing.json()["error"]["code"] == "PatientNotFound"
+def test_lifecycle_flags_round_trip(client: TestClient) -> None:
+    """🇺🇸 archive/unarchive/delete/restore flip the flags and return the index.
+
+    🇧🇷 archive/unarchive/delete/restore trocam as flags e devolvem o índice.
+    """
+    patient_id = client.post("/v1/patients", json=_create_body()).json()["index"]["document_id"]
+
+    assert client.post(f"/v1/patients/{patient_id}/archive").json()["is_archived"] is True
+    assert client.post(f"/v1/patients/{patient_id}/unarchive").json()["is_archived"] is False
+    assert client.delete(f"/v1/patients/{patient_id}").json()["is_deleted"] is True
+    restored = client.post(f"/v1/patients/{patient_id}/restore")
+    assert restored.status_code == 200
+    assert restored.json()["is_deleted"] is False
+
+
+def test_a_version_conflict_is_409(client: TestClient, fake_vault: FakeDiagnos) -> None:
+    """🇺🇸 `DocumentVersionMismatch` from the SDK becomes 409 with its code. 🇧🇷 `DocumentVersionMismatch` vira 409."""
+    fake_vault.patients.raise_on_create = ConflictError(
+        code="DocumentVersionMismatch", message="another version was committed", status=409
+    )
+
+    response = client.post("/v1/patients", json=_create_body())
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "DocumentVersionMismatch"
 
 
 def test_get_unknown_patient_is_404_with_the_uniform_envelope(client: TestClient) -> None:

@@ -20,7 +20,9 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
+from diagnos.dates import TIME_PRECISIONS, TimePrecision
 from diagnos.errors import ConfigError
 
 from .token import redact_api_token
@@ -88,6 +90,22 @@ def _openbao_token(source: Mapping[str, str]) -> str | None:
     return contents
 
 
+def _parse_time_precision(raw: str | None) -> TimePrecision | None:
+    """🇺🇸 `DIAGNOS_TIME_PRECISION`, validated; unset or empty means no truncation.
+
+    🇧🇷 `DIAGNOS_TIME_PRECISION`, validado; ausente ou vazio significa sem truncamento.
+    """
+    if not raw:
+        return None
+    value = raw.strip().lower()
+    if value not in TIME_PRECISIONS:
+        raise ConfigError(
+            f"🇺🇸 DIAGNOS_TIME_PRECISION={raw!r} must be one of {', '.join(TIME_PRECISIONS)}. "
+            f"🇧🇷 DIAGNOS_TIME_PRECISION={raw!r} precisa ser um de {', '.join(TIME_PRECISIONS)}."
+        )
+    return cast("TimePrecision", value)
+
+
 @dataclass(frozen=True)
 class Settings:
     """🇺🇸 Immutable SDK configuration, usually built by `from_env`.
@@ -111,6 +129,13 @@ class Settings:
     #    (`crypto/secure.py`). Ligado por padrão: o processo está prestes a
     #    segurar chaves clínicas. Desligue só para anexar um debugger.
     harden_process: bool = True
+    # 🇺🇸 The workspace's anonymization precision (`month`/`day`/`hour`/`minute`/`second`). The external
+    #    API does not expose it, so set it to the workspace's value and every date is truncated before
+    #    sealing, as the web app does (`diagnos/dates.py`). `None` writes dates as given.
+    # 🇧🇷 A precisão de anonimização do workspace (`month`/`day`/`hour`/`minute`/`second`). A API externa
+    #    não a expõe, então defina com o valor do workspace e toda data é truncada antes de selar, como o
+    #    app web faz (`diagnos/dates.py`). `None` grava as datas como vieram.
+    time_precision: TimePrecision | None = None
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> Settings:
@@ -155,6 +180,7 @@ class Settings:
             openbao_path_prefix=source.get("OPENBAO_PATH_PREFIX") or DEFAULT_OPENBAO_PATH_PREFIX,
             openbao_namespace=source.get("OPENBAO_NAMESPACE") or None,
             harden_process=_parse_bool(source.get("DIAGNOS_HARDEN_PROCESS", "1")),
+            time_precision=_parse_time_precision(source.get("DIAGNOS_TIME_PRECISION")),
         )
 
     def __repr__(self) -> str:
@@ -168,5 +194,6 @@ class Settings:
             f"timeout_seconds={self.timeout_seconds!r}, sse_c={self.sse_c!r}, "
             f"openbao_addr={self.openbao_addr!r}, openbao_token={openbao_token!r}, "
             f"openbao_mount={self.openbao_mount!r}, openbao_path_prefix={self.openbao_path_prefix!r}, "
-            f"openbao_namespace={self.openbao_namespace!r}, harden_process={self.harden_process!r})"
+            f"openbao_namespace={self.openbao_namespace!r}, harden_process={self.harden_process!r}, "
+            f"time_precision={self.time_precision!r})"
         )

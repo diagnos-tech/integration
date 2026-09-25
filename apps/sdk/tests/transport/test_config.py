@@ -109,3 +109,24 @@ def test_harden_process_can_be_turned_off() -> None:
     """
     settings = Settings.from_env({**_BASE_ENV, "DIAGNOS_HARDEN_PROCESS": "0"})
     assert settings.harden_process is False
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(None, None), ("", None), ("month", "month"), (" Day ", "day")])
+def test_time_precision_is_read_and_normalized(raw: str | None, expected: str | None) -> None:
+    """🇺🇸 `DIAGNOS_TIME_PRECISION` is optional, case-insensitive and trimmed.
+
+    🇧🇷 `DIAGNOS_TIME_PRECISION` é opcional, sem diferenciar maiúsculas e sem espaços nas pontas.
+    """
+    env = dict(_BASE_ENV) if raw is None else {**_BASE_ENV, "DIAGNOS_TIME_PRECISION": raw}
+    settings = Settings.from_env(env)
+    assert settings.time_precision == expected
+    assert f"time_precision={expected!r}" in repr(settings)
+
+
+def test_time_precision_rejects_an_unknown_value() -> None:
+    """🇺🇸 A typo in the precision is a `ConfigError`, never a silent default.
+
+    🇧🇷 Um erro de digitação na precisão é `ConfigError`, nunca um padrão silencioso.
+    """
+    with pytest.raises(ConfigError, match="DIAGNOS_TIME_PRECISION"):
+        Settings.from_env({**_BASE_ENV, "DIAGNOS_TIME_PRECISION": "year"})

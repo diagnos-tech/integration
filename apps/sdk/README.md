@@ -10,13 +10,13 @@ is the one place that complexity lives.
 
 > [!WARNING]
 > **Status: 0.1.0 preview.** Enrollment, session keys, request signing, the
-> clock and the lock are verified against the vault by the Pact contract
-> tests (`contracts/`). `vault.patients`, `vault.exams` and `vault.drives`
-> below still implement an **earlier revision** of the vault protocol and
-> are not compatible with `vault.diagnos.health` yet — read
+> clock, the lock, `vault.patients` and `vault.exams` are verified against
+> the vault by the Pact contract tests (`contracts/`). `vault.drives` below
+> still implements an **earlier revision** of the vault protocol and is not
+> compatible with `vault.diagnos.health` yet — read
 > [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md)
-> before building on them. They stay documented here, labelled **preview**,
-> so the API shape can be reviewed.
+> before building on it. It stays documented here, labelled **preview**, so
+> the API shape can be reviewed.
 
 The goal is for your code to read like this:
 
@@ -24,8 +24,8 @@ The goal is for your code to read like this:
 from diagnos import Diagnos
 
 with Diagnos() as vault:
-    for index in vault.patients.list():
-        patient = vault.patients.get(index.document_id)
+    for row in vault.patients.list():
+        patient = vault.patients.get(row.id)
         print(patient.record.legal_name)
 ```
 
@@ -39,7 +39,7 @@ export DIAGNOS_API_TOKEN="apikey-…"   # issued by a workspace admin
 > [!NOTE]
 > Not on PyPI yet. Until the first release, install from source (building
 > the enclave needs a [Rust toolchain](https://rustup.rs/)):
-> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=sdk"`
+> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"`
 
 `DIAGNOS_API_TOKEN` identifies *this* service account and its workspace; it
 does not, by itself, unlock anything — see [Enrollment](#enrollment-the-link-and-the-code) below.
@@ -52,8 +52,8 @@ from diagnos import Diagnos
 vault = Diagnos()  # reads DIAGNOS_API_TOKEN
 vault.unlock()  # prints a link + a 6-digit code, waits for approval
 
-for index in vault.patients.list():
-    print(index.document_id, index.updated_at)
+for row in vault.patients.list():
+    print(row.id, row.summary.display_name if row.summary else "—")
 ```
 
 You do not even have to call `unlock()` yourself: the first time you touch
@@ -142,46 +142,65 @@ run that way instead. To let a non-root container lock memory, grant
 [`native/README.md`](native/README.md) states exactly what is and is not
 guaranteed.
 
-## Patients (preview)
+## Patients
 
 ```python
+from datetime import date
+
 from diagnos import PatientRecord
 
 patient = vault.patients.create(
-    {
-        "legal_name": "Jane Doe",
-        "display_name": "Jane",
-    },  # a dict is validated for you
-    security_group="sg_oncology",
-    specialist_ids=["specialist_123"],
+    {"legal_name": "Jane Doe", "display_name": "Jane", "birth_date": date(1990, 1, 31)},  # a dict is validated
+    security_group="sg_oncology",  # exactly one group per document
+    tags=["diabetes"],  # sealed list/search labels, never sent in clear
+    specialist_ids=["specialist_123"],  # clear metadata the vault itself filters by
 )
 
-patient = vault.patients.get(patient.id)
-patient = vault.patients.update(patient.id, PatientRecord(legal_name="Jane R. Doe", display_name="Jane"))
+patient = vault.patients.get(patient.id)  # the newest content: a newer web-editor draft wins
+renamed = patient.record.model_copy(update={"display_name": "Jane R."})
+patient = vault.patients.update(
+    patient.id,
+    renamed,  # always the complete record: every version is a full snapshot
+    expected_latest_version_id=patient.index.latest_version_id,  # refused if someone saved meanwhile
+)
 
-vault.patients.archive(patient.id)
+vault.patients.archive(patient.id)  # a flag, no new version
 vault.patients.unarchive(patient.id)
-vault.patients.delete(patient.id)  # flags the index; the encrypted history stays
+vault.patients.delete(patient.id)  # to the trash; the encrypted history stays
+vault.patients.restore(patient.id)
 
-for index in vault.patients.iter_all(security_group="sg_oncology"):
-    ...
+for row in vault.patients.iter_all(security_group="sg_oncology"):
+    print(row.id, row.summary.display_name if row.summary else "—")  # decrypted locally, no download
 ```
 
-## Exams (preview)
+- **What you write is what the web app reads.** `PatientRecord` mirrors the web app's record field for field. A
+  misspelled field (`birthdate`) is refused with the field it resembles; any other unknown field is kept, so a
+  read-modify-write with `model_copy` never drops a field the web app added after this SDK was released.
+- **Dates** (`birth_date`, `exam_date`) accept a `date`, an aware `datetime` or an ISO string, and are stored as the
+  web app stores them: a UTC instant. Set `DIAGNOS_TIME_PRECISION` to the workspace's anonymization precision and
+  they are truncated before sealing, as the web app does.
+- **Identity documents** (`identifiers`, e.g. CPF) are sealed by the vault, not by the SDK: existing values survive a
+  round trip; a plain-text value is refused. Use `external_id` for an id from another system.
+- **Drafts**: `get()` returns the web editor's draft when it is newer than the latest version (`patient.from_draft`);
+  `include_draft=False` reads committed versions only. The SDK never writes drafts.
+
+## Exams
 
 ```python
 from diagnos import ExamRecord
 
 exam = vault.exams.create(
-    ExamRecord(title="Chest CT", report={"format": "text", "content": "unremarkable"}),
-    patient_id=patient.id,  # required, clear in the index — the vault routes by it
+    ExamRecord(title="Chest CT", modality="CT", exam_date="2026-09-01", report_html="<p>Unremarkable.</p>"),
+    patient_id=patient.id,  # required, clear in the index — the vault routes by it; the rest is sealed
     security_group="sg_oncology",
-    modality="CT",
 )
 
 exam = vault.exams.get(exam.id)
-print(exam.patient_id, exam.record.report.content)
+print(exam.patient_id, exam.report_status, exam.record.report_html)
 ```
+
+`report_lexical` is the web editor's state and the source of truth for the report; `report_html` is derived from it
+for readers that never open the editor. Write both when you produce a report the web editor should open.
 
 ## Drives — files (preview)
 
@@ -242,6 +261,7 @@ message
 | `DIAGNOS_API_TOKEN` | — (required) | The `apikey-<jwt>` a workspace admin issued. |
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | Where the vault lives. |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | Per-request HTTP timeout. |
+| `DIAGNOS_TIME_PRECISION` | unset | The workspace's anonymization precision (`month`, `day`, `hour`, `minute`, `second`); dates are truncated to it before sealing. |
 | `DIAGNOS_SSE_C` | off | Adds R2 SSE-C on top of end-to-end encryption for single PUT/GET ([`docs/PROTOCOL.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.md) §10). |
 | `OPENBAO_ADDR` | unset | Enables auto-unseal when set. |
 | `OPENBAO_TOKEN` | unset | Token scoped to this SDK's own OpenBao path. |

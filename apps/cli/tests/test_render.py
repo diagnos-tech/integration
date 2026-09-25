@@ -26,36 +26,101 @@ import io
 import json
 
 import pytest
-from diagnos import ExamRecord
-from diagnos_cli.render.documents import render_document_index, render_exam, render_index_table, render_patient
+from diagnos import DocumentListItem, DocumentStream, ExamRecord, ExamSummary, PatientRecord, PatientSummary
+from diagnos_cli.render.documents import (
+    render_document_index,
+    render_exam,
+    render_index_table,
+    render_patient,
+    report_text,
+)
 from diagnos_cli.render.drives import human_size, render_drive_node, render_drive_node_table
 from rich.console import Console
 
-from .conftest import DRIVE_NODE, EXAM, EXAM_INDEX, PATIENT
+from .conftest import DRIVE_NODE, EXAM, EXAM_INDEX, EXAM_ITEM, PATIENT, PATIENT_ITEM
 
 
-def _console() -> Console:
+def _console(width: int = 160) -> Console:
     """🇺🇸 A `rich.Console` writing to an in-memory buffer — no real terminal, no width guesswork.
 
     🇧🇷 Um `rich.Console` escrevendo num buffer em memória — sem terminal de verdade, sem adivinhar largura.
     """
-    return Console(file=io.StringIO(), width=120, no_color=True)
+    return Console(file=io.StringIO(), width=width, no_color=True)
 
 
-def test_render_index_table_shows_archived_deleted_and_pending_flags() -> None:
-    """🇺🇸 All three flag columns (`archived`/`deleted`/`pending`) render when the index carries them.
+def _text(console: Console) -> str:
+    """🇺🇸 Everything printed, with the table's own word-wrap collapsed.
 
-    🇧🇷 As três colunas de flag (`archived`/`deleted`/`pending`) aparecem quando o índice as carrega.
+    🇧🇷 Tudo o que foi impresso, sem a quebra da tabela.
     """
-    flagged = EXAM_INDEX.model_copy(update={"is_archived": True, "is_deleted": True, "pending_version_id": "v2"})
+    return " ".join(console.file.getvalue().split())  # type: ignore[attr-defined]
+
+
+def test_render_index_table_shows_every_flag() -> None:
+    """🇺🇸 `archived`/`deleted`/`pending`/`draft` render when the index carries them.
+
+    🇧🇷 `archived`/`deleted`/`pending`/`draft` aparecem quando o índice as carrega.
+    """
+    stream = EXAM_INDEX.stream().model_dump()
+    stream["pending_version_id"] = "v2"
+    stream["draft"] = {"rev": 1, "size": 9, "updated_at": "2099-01-01T00:00:00.000Z", "updated_by": "u"}
+    flagged = EXAM_INDEX.model_copy(
+        update={"is_archived": True, "is_deleted": True, "streams": {"data": DocumentStream.model_validate(stream)}}
+    )
     console = _console()
 
-    render_index_table(console, [flagged], json_output=False)
+    render_index_table(console, [DocumentListItem[ExamSummary](index=flagged)], json_output=False)
 
-    output = console.file.getvalue()
-    assert "archived" in output
-    assert "deleted" in output
-    assert "pending" in output
+    assert "archived, deleted, pending, draft" in _text(console)
+
+
+def test_render_index_table_hides_the_summary_unless_asked() -> None:
+    """🇺🇸 Names stay off the screen by default; `show_summary` adds them (with tags / title · modality).
+
+    🇧🇷 Nomes ficam fora da tela por padrão; `show_summary` os acrescenta (com tags / título · modalidade).
+    """
+    hidden, shown = _console(), _console()
+
+    render_index_table(hidden, [PATIENT_ITEM, EXAM_ITEM], json_output=False)
+    render_index_table(shown, [PATIENT_ITEM, EXAM_ITEM], json_output=False, show_summary=True)
+
+    assert "Jane" not in _text(hidden)
+    assert "Jane [oncology]" in _text(shown)
+    assert "Chest CT · CT" in _text(shown)
+    assert "sg_oncology" in _text(hidden)
+
+
+def test_render_index_table_summary_edge_cases() -> None:
+    """🇺🇸 A missing or empty summary prints `—`, and a legal name stands in for a missing display name.
+
+    🇧🇷 Um resumo ausente ou vazio imprime `—`, e o nome legal substitui um nome de exibição ausente.
+    """
+    console = _console()
+    rows = [
+        DocumentListItem[PatientSummary](index=EXAM_INDEX),
+        DocumentListItem[ExamSummary](index=EXAM_INDEX, summary=ExamSummary()),
+        DocumentListItem[PatientSummary](index=EXAM_INDEX, summary=PatientSummary(legal_name="Maria")),
+    ]
+
+    render_index_table(console, rows, json_output=False, show_summary=True)
+
+    assert _text(console).count("—") >= 2
+    assert "Maria" in _text(console)
+
+
+def test_render_index_table_json_adds_the_summary_only_when_asked(capsys: pytest.CaptureFixture[str]) -> None:
+    """🇺🇸 JSON rows are `{index, summary}` like the HTTP API; `summary` is filled only with `show_summary`.
+
+    🇧🇷 Linhas JSON são `{index, summary}` como na API HTTP; `summary` só é preenchido com `show_summary`.
+    """
+    render_index_table(_console(), [PATIENT_ITEM], json_output=True)
+    plain_rows = json.loads(capsys.readouterr().out)["items"]
+    render_index_table(_console(), [PATIENT_ITEM], json_output=True, show_summary=True)
+    rich_rows = json.loads(capsys.readouterr().out)["items"]
+
+    assert plain_rows[0]["index"]["document_id"] == PATIENT_ITEM.id
+    assert plain_rows[0]["summary"] is None
+    assert rich_rows[0]["summary"]["display_name"] == "Jane"
 
 
 def test_render_index_table_empty_shows_the_no_results_message() -> None:
@@ -67,7 +132,7 @@ def test_render_index_table_empty_shows_the_no_results_message() -> None:
 
     render_index_table(console, [], json_output=False)
 
-    assert "No results · Nenhum resultado" in console.file.getvalue()
+    assert "No results · Nenhum resultado" in console.file.getvalue()  # type: ignore[attr-defined]
 
 
 def test_render_index_table_shows_the_next_cursor_hint() -> None:
@@ -77,9 +142,9 @@ def test_render_index_table_shows_the_next_cursor_hint() -> None:
     """
     console = _console()
 
-    render_index_table(console, [EXAM_INDEX], json_output=False, next_cursor="cursor_abc123")
+    render_index_table(console, [EXAM_ITEM], json_output=False, next_cursor="cursor_abc123")
 
-    assert "cursor_abc123" in console.file.getvalue()
+    assert "cursor_abc123" in console.file.getvalue()  # type: ignore[attr-defined]
 
 
 def test_render_patient_json_bypasses_rich_and_writes_to_stdout(capsys: pytest.CaptureFixture[str]) -> None:
@@ -91,105 +156,122 @@ def test_render_patient_json_bypasses_rich_and_writes_to_stdout(capsys: pytest.C
 
     data = json.loads(capsys.readouterr().out)
     assert data["record"]["legal_name"] == "Jane Doe"
+    assert data["version_id"] == "v1"
 
 
-def test_render_exam_shows_the_report_content_when_present() -> None:
-    """🇺🇸 A present `report` reaches the panel's `report:` field with its `content` intact.
+def test_render_patient_panel_shows_address_tags_source_and_sealed_identifiers() -> None:
+    """🇺🇸 Identifiers show by name only; address in one line; where the content came from.
 
-    🇧🇷 Um `report` presente chega ao campo `report:` do painel com o `content` intacto.
+    🇧🇷 Identificadores só pelo nome; endereço numa linha; de onde veio o conteúdo.
     """
-    record_with_report = ExamRecord(title=EXAM.record.title, report={"format": "text", "content": "all clear"})
-    exam_with_report = EXAM.model_copy(update={"record": record_with_report})
+    record = PatientRecord.model_validate(
+        {
+            "legal_name": "Jane Doe",
+            "display_name": "Jane",
+            "identifiers": [{"name": "cpf", "value": "secret:v1:a:b:c"}],
+            "address": {"street": "Rua A", "number": "10", "city": "Recife", "postal_code": "50000", "country": "BR"},
+        }
+    )
     console = _console()
 
-    render_exam(console, exam_with_report, json_output=False)
+    render_patient(console, PATIENT.model_copy(update={"record": record, "draft_rev": 4}), json_output=False)
 
-    output = console.file.getvalue()
-    assert "report:" in output
-    assert "all clear" in output
+    text = _text(console)
+    assert "cpf (sealed · selado)" in text
+    assert "secret:v1" not in text
+    assert "Rua A, 10, Recife — 50000 BR" in text
+    assert "oncology" in text
+    assert "draft · rascunho (rev 4)" in text
 
 
-def test_decrypted_fields_are_printed_literally_not_as_rich_markup() -> None:
-    """🇺🇸 A `[...]`-shaped substring in decrypted content (the report format label) survives `rich` verbatim.
-
-    Regression test for the bug `_shared.plain`/`record_panel` now fix:
-    `render_exam`'s report line used to embed `f"[{format}] {content}"`
-    straight into a `rich`-markup panel, and `rich` read `[text]` as an
-    (unknown) style tag and silently dropped it. `record_panel` now escapes
-    every value through `plain()` before handing it to `Panel`, so the
-    bracketed label prints as literal text instead of vanishing.
-
-    🇧🇷 Um trecho no formato `[...]` em conteúdo decifrado (o rótulo de
-    formato do report) sobrevive ao `rich` ao pé da letra.
-
-    Teste de regressão para o bug que `_shared.plain`/`record_panel` agora
-    corrigem: a linha de report de `render_exam` embutia
-    `f"[{format}] {content}"` direto num painel de markup `rich`, e o `rich`
-    lia `[text]` como uma tag de estilo (desconhecida) e a descartava em
-    silêncio. `record_panel` agora escapa todo valor por `plain()` antes de
-    entregá-lo ao `Panel`, então o rótulo entre colchetes imprime como texto
-    literal em vez de sumir.
-    """
-    record_with_report = ExamRecord(title=EXAM.record.title, report={"format": "text", "content": "all clear"})
-    exam_with_report = EXAM.model_copy(update={"record": record_with_report})
+def test_render_patient_panel_without_optional_blocks() -> None:
+    """🇺🇸 No address, no identifiers, a committed version. 🇧🇷 Sem endereço, sem identificadores, versão confirmada."""
     console = _console()
 
-    render_exam(console, exam_with_report, json_output=False)
+    render_patient(console, PATIENT.model_copy(update={"summary": None}), json_output=False)
 
-    assert "[text] all clear" in console.file.getvalue()
+    assert "version · versão v1" in _text(console)
+
+
+def test_render_exam_shows_the_report_as_plain_text() -> None:
+    """🇺🇸 `report_html` is shown as text, one line per block — never as HTML or terminal markup.
+
+    🇧🇷 `report_html` aparece como texto, uma linha por bloco — nunca como HTML ou marcação de terminal.
+    """
+    html = "<h1>Impression</h1><p>No <b>acute</b> findings [bold]x[/bold].</p><ul><li>one</li><li>two</li></ul>"
+    exam = EXAM.model_copy(update={"record": ExamRecord(title="CT", report_html=html)})
+    console = _console()
+
+    render_exam(console, exam, json_output=False)
+
+    lines = [line.strip("│ ") for line in console.file.getvalue().splitlines()]  # type: ignore[attr-defined]
+    start = lines.index("report: Impression")
+    assert lines[start + 1 : start + 4] == ["No acute findings [bold]x[/bold].", "one", "two"]
+    assert not [line for line in lines if "<" in line]
+
+
+def test_report_text_edge_cases() -> None:
+    """🇺🇸 No HTML, or HTML with no text, is `None`. 🇧🇷 Sem HTML, ou HTML sem texto, é `None`."""
+    assert report_text(None) is None
+    assert report_text("<p> </p><br>") is None
+    assert report_text("plain") == "plain"
+
+
+def test_render_exam_panel_fields() -> None:
+    """🇺🇸 Title, modality, patient and report status from clear `meta`.
+
+    🇧🇷 Título, modalidade, paciente e status do laudo.
+    """
+    exam = EXAM.model_copy(
+        update={"index": EXAM_INDEX.model_copy(update={"meta": {"patient_id": "pat_1", "report_status": "published"}})}
+    )
+    console = _console()
+
+    render_exam(console, exam, json_output=False)
+
+    text = _text(console)
+    for expected in ("Chest CT", "CT", "pat_1", "published", "No acute findings."):
+        assert expected in text
 
 
 def test_table_cell_with_markup_like_content_is_printed_literally() -> None:
-    """🇺🇸 The same escaping applies to table cells: a document id shaped like `rich` markup prints as-is.
+    """🇺🇸 A table cell shaped like `rich` markup prints as-is — every cell goes through `plain()`.
 
-    A vault-issued id is not attacker-controlled, but a decrypted node name
-    used as a table cell elsewhere in this same module is exactly the kind
-    of value `plain()` exists to protect — this pins that every
-    `render_index_table` cell goes through it, not just panel fields.
-
-    🇧🇷 O mesmo escape vale para célula de tabela: um id de documento com
-    forma de markup `rich` imprime como está.
-
-    Um id emitido pelo cofre não é controlado por atacante, mas um nome de
-    nó decifrado usado como célula de tabela em outro lugar deste mesmo
-    módulo é exatamente o tipo de valor que `plain()` existe para proteger —
-    isto trava que toda célula de `render_index_table` passa por ele, não só
-    campo de painel.
+    🇧🇷 Uma célula de tabela com forma de markup `rich` imprime como está — toda célula passa por `plain()`.
     """
-    tricky_index = EXAM_INDEX.model_copy(update={"document_id": "[bold]exam_1[/bold]"})
-    console = Console(file=io.StringIO(), width=300, no_color=True)
+    tricky = EXAM_INDEX.model_copy(update={"document_id": "[bold]exam_1[/bold]"})
+    summary = ExamSummary(title="[red]CT[/red]")
+    console = _console(300)
 
-    render_index_table(console, [tricky_index], json_output=False)
+    render_index_table(
+        console, [DocumentListItem[ExamSummary](index=tricky, summary=summary)], json_output=False, show_summary=True
+    )
 
-    # 🇺🇸 collapse the table's own word-wrap 🇧🇷 junta a quebra de linha da própria tabela
-    output = " ".join(console.file.getvalue().split())
-    assert "[bold]exam_1[/bold]" in output
+    assert "[bold]exam_1[/bold]" in _text(console)
+    assert "[red]CT[/red]" in _text(console)
 
 
-def test_render_exam_omits_the_report_line_when_absent() -> None:
-    """🇺🇸 `EXAM.record.report` is `None` in the fixture — the ternary's other branch.
-
-    🇧🇷 `EXAM.record.report` é `None` na fixture — o outro ramo do ternário.
-    """
+def test_panel_title_with_markup_like_id_is_printed_literally() -> None:
+    """🇺🇸 Panel titles are escaped too. 🇧🇷 Títulos de painel também são escapados."""
     console = _console()
 
-    render_exam(console, EXAM, json_output=False)
+    render_document_index(console, EXAM_INDEX.model_copy(update={"document_id": "[red]x[/red]"}), json_output=False)
 
-    assert "report" in console.file.getvalue()
-    assert "—" in console.file.getvalue()
+    assert "exams [red]x[/red]" in _text(console)
 
 
 def test_render_document_index_non_json_shows_the_resource_and_flags() -> None:
-    """🇺🇸 The non-`--json` panel title is `f"{resource} {document_id}"`, with `archived`/`deleted` as fields.
+    """🇺🇸 The non-`--json` panel title is `f"{resource} {document_id}"`, with the group and flags as fields.
 
-    🇧🇷 O título do painel sem `--json` é `f"{resource} {document_id}"`, com `archived`/`deleted` como campos.
+    🇧🇷 O título do painel sem `--json` é `f"{resource} {document_id}"`, com grupo e flags como campos.
     """
     console = _console()
 
     render_document_index(console, EXAM_INDEX, json_output=False)
 
-    output = console.file.getvalue()
-    assert f"exams {EXAM_INDEX.document_id}" in output
+    text = _text(console)
+    assert f"exams {EXAM_INDEX.document_id}" in text
+    assert "sg_oncology" in text
 
 
 @pytest.mark.parametrize(

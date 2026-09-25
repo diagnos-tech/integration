@@ -4,6 +4,1827 @@
   },
   "interactions": [
     {
+      "description": "an SDK process archives a patient without a new version",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has one committed version",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "is_archived": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}/streams/data/versions",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+/streams/data/versions$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract/streams/data/versions"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "pat-contract",
+                "encrypted_index": {
+                  "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+                  "nonce": "6yFiG1Nuqx_xR0qk",
+                  "salt": "K5eMLVt5bZdXlOxIrphgNg"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": true,
+                "is_deleted": false,
+                "resource": "patients",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": null,
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 138,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process commits the first version of a patient",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has an uploaded version waiting to be committed",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}/streams/data/versions/${version_id}/commit",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+/streams/data/versions/[^/]+/commit$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract/streams/data/versions/ver-contract-1/commit"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "pat-contract",
+                "encrypted_index": {
+                  "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+                  "nonce": "6yFiG1Nuqx_xR0qk",
+                  "salt": "K5eMLVt5bZdXlOxIrphgNg"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": false,
+                "is_deleted": false,
+                "resource": "patients",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": null,
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 138,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process commits the first version of an exam",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an exam has an uploaded version waiting to be committed",
+          "params": {
+            "document_id": "exam-contract",
+            "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/exams/${document_id}/versions/${version_id}/commit",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/exams/[^/]+/versions/[^/]+/commit$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/exams/exam-contract/versions/ver-contract-1/commit"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "exam-contract",
+                "encrypted_index": {
+                  "ciphertext": "DcKkRE9gd1m0RL-AXvd_4myToBG1rp6bg2-lnj5LUHd1_qy1BSC-VM8uv0ewvWlkRZ8-k97vupckTgOpUGU6dbOePQ9LLnjlyyB7yURBiFqW9R0vsPqWR0BvY_vI2P5d",
+                  "nonce": "HtFH19O27ay9ECmS",
+                  "salt": "b_21rUqyZ5g7QIEaOckUew"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": false,
+                "is_deleted": false,
+                "meta": {
+                  "patient_id": "pat-contract"
+                },
+                "resource": "exams",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": null,
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 124,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.meta.patient_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process commits the next version of a patient",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has an uploaded version waiting to be committed",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "version_id": "ver-contract-2",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}/streams/data/versions/${version_id}/commit",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+/streams/data/versions/[^/]+/commit$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract/streams/data/versions/ver-contract-2/commit"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "pat-contract",
+                "encrypted_index": {
+                  "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+                  "nonce": "6yFiG1Nuqx_xR0qk",
+                  "salt": "K5eMLVt5bZdXlOxIrphgNg"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": false,
+                "is_deleted": false,
+                "resource": "patients",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": null,
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 141,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process creates a patient and reserves its first version",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "the SDK session holds the key of a security group",
+          "params": {
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "content_length": 138,
+            "encrypted_index": {
+              "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+              "nonce": "6yFiG1Nuqx_xR0qk",
+              "salt": "K5eMLVt5bZdXlOxIrphgNg"
+            },
+            "encrypted_keys": {
+              "sg-contract": {
+                "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                "nonce": "HZMbz07yk_wwVcXl",
+                "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+              }
+            },
+            "security_group_id": "sg-contract",
+            "stream": "data"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.content_length": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_keys['sg-contract'].ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_keys['sg-contract'].nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_keys['sg-contract'].salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.stream": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/patients"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "document_id": "pat-contract"
+              },
+              "security_context": {
+                "value": "E0m9v740TQmBSAoIxs_AHCvZ_t9O1evLGng7fDDFUeA"
+              },
+              "upload": {
+                "headers": {
+                  "content-length": "138"
+                },
+                "url": "https://objects.diagnos.test/upload?X-Amz-Signature=contract"
+              },
+              "version_id": "ver-contract-1"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.upload.headers['content-length']": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[1-9][0-9]*$"
+                }
+              ]
+            },
+            "$.result.upload.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process creates an exam and reserves its first version",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "the SDK session holds the key of a security group",
+          "params": {
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "content_length": 124,
+            "encrypted_index": {
+              "ciphertext": "DcKkRE9gd1m0RL-AXvd_4myToBG1rp6bg2-lnj5LUHd1_qy1BSC-VM8uv0ewvWlkRZ8-k97vupckTgOpUGU6dbOePQ9LLnjlyyB7yURBiFqW9R0vsPqWR0BvY_vI2P5d",
+              "nonce": "HtFH19O27ay9ECmS",
+              "salt": "b_21rUqyZ5g7QIEaOckUew"
+            },
+            "encrypted_keys": {
+              "sg-contract": {
+                "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                "nonce": "HZMbz07yk_wwVcXl",
+                "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+              }
+            },
+            "meta": {
+              "patient_id": "pat-contract"
+            },
+            "security_group_id": "sg-contract",
+            "stream": "data"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/exams",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.content_length": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_keys['sg-contract'].ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_keys['sg-contract'].nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_keys['sg-contract'].salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.meta.patient_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.stream": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/exams$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/exams"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "document_id": "exam-contract"
+              },
+              "security_context": {
+                "value": "E0m9v740TQmBSAoIxs_AHCvZ_t9O1evLGng7fDDFUeA"
+              },
+              "upload": {
+                "headers": {
+                  "content-length": "124"
+                },
+                "url": "https://objects.diagnos.test/upload?X-Amz-Signature=contract"
+              },
+              "version_id": "ver-contract-1"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.upload.headers['content-length']": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[1-9][0-9]*$"
+                }
+              ]
+            },
+            "$.result.upload.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
       "description": "an SDK process ends its session",
       "pending": false,
       "providerStates": [
@@ -106,6 +1927,1785 @@
                 {
                   "match": "regex",
                   "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process lists the patients of a workspace",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has one committed version",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/patients",
+        "query": {
+          "limit": [
+            "50"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "items": [
+                {
+                  "created_at": "2026-09-01T12:00:00.000Z",
+                  "created_by": "acc-contract",
+                  "document_id": "pat-contract",
+                  "encrypted_index": {
+                    "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+                    "nonce": "6yFiG1Nuqx_xR0qk",
+                    "salt": "K5eMLVt5bZdXlOxIrphgNg"
+                  },
+                  "encrypted_keys": {
+                    "sg-contract": {
+                      "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                      "nonce": "HZMbz07yk_wwVcXl",
+                      "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                    }
+                  },
+                  "is_archived": false,
+                  "is_deleted": false,
+                  "resource": "patients",
+                  "security_group_id": "sg-contract",
+                  "streams": {
+                    "data": {
+                      "latest_version_id": "ver-contract-1",
+                      "pending_version_id": null,
+                      "versions": [
+                        {
+                          "created_at": "2026-09-01T12:00:00.000Z",
+                          "created_by": "acc-contract",
+                          "size": 138,
+                          "version_id": "ver-contract-1"
+                        }
+                      ]
+                    }
+                  },
+                  "updated_at": "2026-09-01T12:00:00.000Z",
+                  "workspace_id": "ws-contract"
+                }
+              ],
+              "next_cursor": null
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.items[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.items[*].is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.items[*].is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.items[*].resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.items[*].security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.items[*].streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.items[*].streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.items[*].workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process opens a patient that has a version pending",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has a committed version and another one pending",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract",
+        "query": {
+          "stream": [
+            "data"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "pat-contract",
+                "encrypted_index": {
+                  "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+                  "nonce": "6yFiG1Nuqx_xR0qk",
+                  "salt": "K5eMLVt5bZdXlOxIrphgNg"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": false,
+                "is_deleted": false,
+                "resource": "patients",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": "ver-contract-2",
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 138,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              },
+              "download": {
+                "url": "https://objects.diagnos.test/download?X-Amz-Signature=contract"
+              },
+              "security_context": {
+                "value": "E0m9v740TQmBSAoIxs_AHCvZ_t9O1evLGng7fDDFUeA"
+              },
+              "version": {
+                "version_id": "ver-contract-1"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.pending_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.download.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.version.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process opens a patient whose draft is newer than its latest version",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has a draft newer than its latest version",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract",
+        "query": {
+          "stream": [
+            "data"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "pat-contract",
+                "encrypted_index": {
+                  "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+                  "nonce": "6yFiG1Nuqx_xR0qk",
+                  "salt": "K5eMLVt5bZdXlOxIrphgNg"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": false,
+                "is_deleted": false,
+                "resource": "patients",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "draft": {
+                      "rev": 1,
+                      "size": 149,
+                      "updated_at": "2026-09-01T12:05:00.000Z",
+                      "updated_by": "acc-contract"
+                    },
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": null,
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 138,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              },
+              "download": {
+                "url": "https://objects.diagnos.test/download?X-Amz-Signature=contract"
+              },
+              "security_context": {
+                "value": "E0m9v740TQmBSAoIxs_AHCvZ_t9O1evLGng7fDDFUeA"
+              },
+              "version": {
+                "version_id": "ver-contract-1"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.draft.rev": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.draft.size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.draft.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.draft.updated_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.download.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.version.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process opens the latest version of a patient",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has one committed version",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract",
+        "query": {
+          "stream": [
+            "data"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "pat-contract",
+                "encrypted_index": {
+                  "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+                  "nonce": "6yFiG1Nuqx_xR0qk",
+                  "salt": "K5eMLVt5bZdXlOxIrphgNg"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": false,
+                "is_deleted": false,
+                "resource": "patients",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": null,
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 138,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              },
+              "download": {
+                "url": "https://objects.diagnos.test/download?X-Amz-Signature=contract"
+              },
+              "security_context": {
+                "value": "E0m9v740TQmBSAoIxs_AHCvZ_t9O1evLGng7fDDFUeA"
+              },
+              "version": {
+                "version_id": "ver-contract-1"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.download.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.version.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process opens the latest version of an exam",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an exam has one committed version",
+          "params": {
+            "document_id": "exam-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/exams/${document_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/exams/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/exams/exam-contract"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "document": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "document_id": "exam-contract",
+                "encrypted_index": {
+                  "ciphertext": "DcKkRE9gd1m0RL-AXvd_4myToBG1rp6bg2-lnj5LUHd1_qy1BSC-VM8uv0ewvWlkRZ8-k97vupckTgOpUGU6dbOePQ9LLnjlyyB7yURBiFqW9R0vsPqWR0BvY_vI2P5d",
+                  "nonce": "HtFH19O27ay9ECmS",
+                  "salt": "b_21rUqyZ5g7QIEaOckUew"
+                },
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa",
+                    "nonce": "HZMbz07yk_wwVcXl",
+                    "salt": "_DgAYnJmyEeLNyMqo35-Fw"
+                  }
+                },
+                "is_archived": false,
+                "is_deleted": false,
+                "meta": {
+                  "patient_id": "pat-contract"
+                },
+                "resource": "exams",
+                "security_group_id": "sg-contract",
+                "streams": {
+                  "data": {
+                    "latest_version_id": "ver-contract-1",
+                    "pending_version_id": null,
+                    "versions": [
+                      {
+                        "created_at": "2026-09-01T12:00:00.000Z",
+                        "created_by": "acc-contract",
+                        "size": 124,
+                        "version_id": "ver-contract-1"
+                      }
+                    ]
+                  }
+                },
+                "updated_at": "2026-09-01T12:00:00.000Z",
+                "workspace_id": "ws-contract"
+              },
+              "download": {
+                "url": "https://objects.diagnos.test/download?X-Amz-Signature=contract"
+              },
+              "security_context": {
+                "value": "E0m9v740TQmBSAoIxs_AHCvZ_t9O1evLGng7fDDFUeA"
+              },
+              "version": {
+                "version_id": "ver-contract-1"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.document.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.document_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.document.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"WApXpQNetCdbeRUW51cP74eGLbbZdzh9dXZqfTs1jTWqSEhOz67C_BXDVynttMAa\",\"nonce\":\"HZMbz07yk_wwVcXl\",\"salt\":\"_DgAYnJmyEeLNyMqo35-Fw\"}}"
+                }
+              ]
+            },
+            "$.result.document.is_archived": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.document.meta.patient_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.resource": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.document.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.document.streams.data.versions[*].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.document.updated_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.document.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.download.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.version.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
                 }
               ]
             }
@@ -728,6 +4328,561 @@
           }
         },
         "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process reserves the next version of a patient's data stream",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has one committed version",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "content_length": 141,
+            "encrypted_index": {
+              "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5NrtkiweI5bVDe6VS1z9iupJobwKqdwCjFaQVteFcM66KzSXn788Mz3j0gVTyjWTOtXmI5CGwpRdtKADcahoMCK6Mivc-9kfc1YPUSNEkSi4xayMmzzUIplt92kjcOdqRplXJK2BWC_7A8Ab__A39Iw",
+              "nonce": "6yFiG1Nuqx_xR0qk",
+              "salt": "K5eMLVt5bZdXlOxIrphgNg"
+            },
+            "expected_latest_version_id": "ver-contract-1"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}/streams/data/versions",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.content_length": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.expected_latest_version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+/streams/data/versions$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract/streams/data/versions"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "security_context": {
+                "value": "E0m9v740TQmBSAoIxs_AHCvZ_t9O1evLGng7fDDFUeA"
+              },
+              "staged": true,
+              "upload": {
+                "headers": {
+                  "content-length": "141"
+                },
+                "url": "https://objects.diagnos.test/upload?X-Amz-Signature=contract"
+              },
+              "version_id": "ver-contract-2"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.staged": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.upload.headers['content-length']": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[1-9][0-9]*$"
+                }
+              ]
+            },
+            "$.result.upload.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process resolves the draft head of a patient's data stream",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has a draft newer than its latest version",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}/streams/data/draft",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+/streams/data/draft$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract/streams/data/draft"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "download": {
+                "url": "https://objects.diagnos.test/draft?X-Amz-Signature=contract"
+              },
+              "draft_rev": 1,
+              "security_context": {
+                "value": "Fk3-f-JGtGVv_j09JGjcMh9O76ATJJbAMOpa4qCdb1Y"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.download.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.draft_rev": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process tries to reserve a version while another is pending",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has a committed version and another one pending",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "content_length": 138,
+            "encrypted_index": {
+              "ciphertext": "hFD_M0YApxq83fESE0Qs4-qBbFL5Nrkbh0nBoLhKQ6pf5TQh7dUHNFKOd1KuFaQiva15O-DQjmWiv9kN4mj9qlWxwyPdtmON8Cm3pRdsUQDeBBoMCK6Mnvc-6C3OyfuCBZQjCXMZa30UjDMEs1xrjHDSDQBQ7bF34FQzQMLGHOmiug",
+              "nonce": "6yFiG1Nuqx_xR0qk",
+              "salt": "K5eMLVt5bZdXlOxIrphgNg"
+            }
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}/streams/data/versions",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.content_length": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.encrypted_index.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.encrypted_index.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/patients/[^/]+/streams/data/versions$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/patients/pat-contract/streams/data/versions"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "errors": [
+              {
+                "code": "DocumentVersionPending",
+                "message": "…"
+              }
+            ],
+            "success": false
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.errors": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.errors[*].code": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.errors[*].message": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 409
       },
       "type": "Synchronous/HTTP"
     },

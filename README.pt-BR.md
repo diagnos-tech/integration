@@ -33,9 +33,9 @@ Estes pacotes fazem disso o caminho *fácil*.
 
 > [!WARNING]
 > **Situação: prévia 0.1.0.** Enrollment, sessões e assinatura de requisições são verificados contra o cofre pelos
-> [testes de contrato](contracts/README.pt-BR.md). As APIs de pacientes, exames e arquivos ainda implementam uma
-> revisão anterior do protocolo do cofre e **ainda não são compatíveis com o vault.diagnos.health** — leia
-> [docs/COMPATIBILITY.pt-BR.md](docs/COMPATIBILITY.pt-BR.md) antes de construir em cima delas.
+> [testes de contrato](contracts/README.pt-BR.md), assim como pacientes e exames. A API de arquivos ainda implementa
+> uma revisão anterior do protocolo do cofre e **ainda não é compatível com o vault.diagnos.health** — leia
+> [docs/COMPATIBILITY.pt-BR.md](docs/COMPATIBILITY.pt-BR.md) antes de construir em cima dela.
 
 ## Escolha seu pacote
 
@@ -51,7 +51,7 @@ reimplementam um único byte de criptografia.
 > [!NOTE]
 > Ainda não está no PyPI. Até o primeiro release, instale do fonte (construir o SDK exige um
 > [toolchain Rust](https://rustup.rs/)):
-> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=sdk"`
+> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"`
 
 ## Começando
 

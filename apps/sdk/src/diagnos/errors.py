@@ -42,6 +42,19 @@ class CryptoError(DiagnosError):
     """
 
 
+class ProtocolError(DiagnosError):
+    """🇺🇸 The vault answered something the protocol does not allow (e.g. signed a size that is not the body's).
+
+    Not the caller's fault and not retryable: report it with the SDK
+    version, or upgrade if the vault moved on.
+
+    🇧🇷 O cofre respondeu algo que o protocolo não permite (ex.: assinou um tamanho que não é o do corpo).
+
+    Não é culpa de quem chama e não adianta retentar: reporte com a versão
+    do SDK, ou atualize se o cofre evoluiu.
+    """
+
+
 class VaultError(DiagnosError):
     """🇺🇸 The vault answered with an error envelope. 🇧🇷 O cofre respondeu com um envelope de erro."""
 
