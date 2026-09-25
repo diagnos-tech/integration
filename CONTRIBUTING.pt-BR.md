@@ -12,12 +12,12 @@ Para reportar uma vulnerabilidade, veja [`SECURITY.pt-BR.md`](SECURITY.pt-BR.md)
 
 | Você precisa | Por quê |
 |---|---|
-| [uv](https://docs.astral.sh/uv/) | um venv para o workspace inteiro (`sdk`, `cli`, `api`) |
+| [uv](https://docs.astral.sh/uv/) | um venv para o workspace inteiro (`apps/sdk`, `apps/cli`, `apps/api`) |
 | Python 3.11 – 3.13 | as três versões de CPython contra as quais a CI testa |
-| [Rust](https://rustup.rs/) stable | só para construir o `sdk/native` (o enclave de memória) a partir do fonte — os wheels do PyPI vêm prontos |
+| [Rust](https://rustup.rs/) stable | só para construir o `apps/sdk/native` (o enclave de memória) a partir do fonte — os wheels do PyPI vêm prontos |
 
 Você não precisa de Rust instalado para usar os pacotes a partir do PyPI; precisa dele para construir o `diagnos` a
-partir de um checkout, porque o `make sync` compila o `sdk/native` para você.
+partir de um checkout, porque o `make sync` compila o `apps/sdk/native` para você.
 
 ## Primeira preparação
 
@@ -87,13 +87,13 @@ substitui.
   reimplementam criptografia, assinatura ou lógica de retentativa.
 - **Decisão pendente é `TODO(gustavo): ...`.** Sem `FIXME`, sem `HACK`.
 - **Segredos nunca vivem em `bytearray` ou `bytes` Python.** Chaves de sessão, DEKs e chaves privadas vivem em
-  `diagnos._secure.SecretBox` — memória Rust travada em página (`sdk/native`), zerada ao descartar. A única saída é
+  `diagnos._secure.SecretBox` — memória Rust travada em página (`apps/sdk/native`), zerada ao descartar. A única saída é
   `reveal()`, reservada para a exportação do auto-unseal no OpenBao.
 - **`unsafe` em Rust fica confinado.** Vive só em `native/src/locked/` (memória e capabilities),
   `native/src/buffer.rs` e `native/src/process.rs` (rlimit/prctl) — os lugares que de fato tocam memória crua. Todo
   bloco `unsafe` carrega um comentário `SAFETY:` dizendo o invariante que o torna correto.
-- **Rótulos de fio congelados nunca são renomeados.** Os rótulos HKDF/AAD `imgexam-*-v1` (`sdk/src/diagnos/crypto/`)
-  e o id de chave de seal estático do OpenBao `imgexam-static-v1` (`api/deploy/`) são constantes criptográficas
+- **Rótulos de fio congelados nunca são renomeados.** Os rótulos HKDF/AAD `imgexam-*-v1` (`apps/sdk/src/diagnos/crypto/`)
+  e o id de chave de seal estático do OpenBao `imgexam-static-v1` (`apps/api/deploy/`) são constantes criptográficas
   persistidas. Renomear qualquer um tornaria todo ciphertext armazenado, ou uma instalação existente do OpenBao,
   ilegível. Veja [`MIGRATING.pt-BR.md`](MIGRATING.pt-BR.md) para a explicação completa.
 
@@ -134,8 +134,8 @@ acrescente `Signed-off-by: Seu Nome <voce@exemplo.com>` à mão) em todo commit;
 ## Lançamento de versões
 
 Fora do escopo deste documento por enquanto. Resumindo: ainda não há um processo de release separado a seguir — a
-versão de cada pacote vive no próprio `pyproject.toml` (`sdk/pyproject.toml`, `cli/pyproject.toml`,
-`api/pyproject.toml`), e em tempo de execução `__version__` é lido dos metadados do pacote instalado, em vez de
+versão de cada pacote vive no próprio `pyproject.toml` (`apps/sdk/pyproject.toml`, `apps/cli/pyproject.toml`,
+`apps/api/pyproject.toml`), e em tempo de execução `__version__` é lido dos metadados do pacote instalado, em vez de
 fixado no código.
 
 ## Checklist de pull request

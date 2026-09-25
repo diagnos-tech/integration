@@ -12,12 +12,12 @@ report a vulnerability, see [`SECURITY.md`](SECURITY.md) instead of opening an i
 
 | You need | Why |
 |---|---|
-| [uv](https://docs.astral.sh/uv/) | one venv for the whole workspace (`sdk`, `cli`, `api`) |
+| [uv](https://docs.astral.sh/uv/) | one venv for the whole workspace (`apps/sdk`, `apps/cli`, `apps/api`) |
 | Python 3.11 – 3.13 | the three CPython versions CI tests against |
-| [Rust](https://rustup.rs/) stable | only to build `sdk/native` (the memory enclave) from source — PyPI wheels ship prebuilt |
+| [Rust](https://rustup.rs/) stable | only to build `apps/sdk/native` (the memory enclave) from source — PyPI wheels ship prebuilt |
 
 You do not need Rust installed to use the packages from PyPI; you need it to build `diagnos` from a checkout, because
-`make sync` compiles `sdk/native` for you.
+`make sync` compiles `apps/sdk/native` for you.
 
 ## First setup
 
@@ -85,13 +85,13 @@ These rules govern code (`.py` and `.rs` files); they used to live in `CONVENTIO
   shells never reimplement cryptography, signing or retry logic.
 - **Pending decisions are `TODO(gustavo): ...`.** No `FIXME`, no `HACK`.
 - **Secrets never live in a Python `bytearray` or `bytes`.** Session keys, DEKs and private keys live in
-  `diagnos._secure.SecretBox` — page-locked Rust memory (`sdk/native`), zeroed on drop. The only exit is `reveal()`,
+  `diagnos._secure.SecretBox` — page-locked Rust memory (`apps/sdk/native`), zeroed on drop. The only exit is `reveal()`,
   reserved for the OpenBao auto-unseal export.
 - **`unsafe` Rust is confined.** It lives only in `native/src/locked/` (memory and capabilities),
   `native/src/buffer.rs` and `native/src/process.rs` (rlimit/prctl) — the places that actually touch raw memory.
   Every `unsafe` block carries a `SAFETY:` comment stating the invariant that makes it sound.
-- **Frozen wire labels never get renamed.** The `imgexam-*-v1` HKDF/AAD labels (`sdk/src/diagnos/crypto/`) and the
-  OpenBao static seal key id `imgexam-static-v1` (`api/deploy/`) are persisted cryptographic constants. Renaming one
+- **Frozen wire labels never get renamed.** The `imgexam-*-v1` HKDF/AAD labels (`apps/sdk/src/diagnos/crypto/`) and the
+  OpenBao static seal key id `imgexam-static-v1` (`apps/api/deploy/`) are persisted cryptographic constants. Renaming one
   would make every stored ciphertext, or an existing OpenBao install, unreadable. See
   [`MIGRATING.md`](MIGRATING.md) for the full explanation.
 
@@ -131,7 +131,7 @@ Every commit must carry a [DCO](https://developercertificate.org/) sign-off. Use
 ## Releasing
 
 Out of scope for this document. In short: there is no separate release process to follow yet — each package's
-version lives in its own `pyproject.toml` (`sdk/pyproject.toml`, `cli/pyproject.toml`, `api/pyproject.toml`), and at
+version lives in its own `pyproject.toml` (`apps/sdk/pyproject.toml`, `apps/cli/pyproject.toml`, `apps/api/pyproject.toml`), and at
 runtime `__version__` is read from the installed package's metadata rather than hard-coded.
 
 ## Pull request checklist

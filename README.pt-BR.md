@@ -18,9 +18,9 @@
 </p>
 
 <p align="center">
-  <a href="sdk/README.pt-BR.md"><b>SDK</b></a> ·
-  <a href="cli/README.pt-BR.md"><b>CLI</b></a> ·
-  <a href="api/README.pt-BR.md"><b>API</b></a> ·
+  <a href="apps/sdk/README.pt-BR.md"><b>SDK</b></a> ·
+  <a href="apps/cli/README.pt-BR.md"><b>CLI</b></a> ·
+  <a href="apps/api/README.pt-BR.md"><b>API</b></a> ·
   <a href="docs/PROTOCOL.pt-BR.md">Protocolo</a> ·
   <a href="contracts/README.pt-BR.md">Testes de contrato</a> ·
   <a href="CONTRIBUTING.pt-BR.md">Como contribuir</a> ·
@@ -41,9 +41,9 @@ Estes pacotes fazem disso o caminho *fácil*.
 
 | Pacote | Use quando | Instalação |
 |---|---|---|
-| [**`diagnos`**](sdk/README.pt-BR.md) — SDK | Seu código é Python. | `pip install diagnos` |
-| [**`diagnos-cli`**](cli/README.pt-BR.md) — CLI | Scripts, operação, uma olhada rápida. | `pipx install diagnos-cli` |
-| [**`diagnos-api`**](api/README.pt-BR.md) — API REST | Seu sistema fala HTTP, não Python. | [Docker / Kubernetes](api/deploy/README.pt-BR.md) |
+| [**`diagnos`**](apps/sdk/README.pt-BR.md) — SDK | Seu código é Python. | `pip install diagnos` |
+| [**`diagnos-cli`**](apps/cli/README.pt-BR.md) — CLI | Scripts, operação, uma olhada rápida. | `pipx install diagnos-cli` |
+| [**`diagnos-api`**](apps/api/README.pt-BR.md) — API REST | Seu sistema fala HTTP, não Python. | [Docker / Kubernetes](apps/api/deploy/README.pt-BR.md) |
 
 Mesmo token, mesmo fluxo de aprovação, mesmas garantias. A CLI e a API são cascas finas sobre o SDK — nunca
 reimplementam um único byte de criptografia.
@@ -78,7 +78,7 @@ diagnos status         # token, OpenBao e versão do SDK
 ```
 
 **3. Use.** Pacientes, exames e arquivos penduram no mesmo objeto — `vault.patients`, `vault.exams`,
-`vault.drives` — veja o [guia do SDK](sdk/README.pt-BR.md) (prévia, veja a situação acima).
+`vault.drives` — veja o [guia do SDK](apps/sdk/README.pt-BR.md) (prévia, veja a situação acima).
 
 ## Como nasce uma sessão
 
@@ -113,7 +113,7 @@ aprovação — isso é o desenho, não uma limitação. Para pods e cron jobs, 
   um adversário quântico futuro.
 - **🧱 Chaves num enclave Rust** — memória travada com `mlock`, guard pages, fora de core dumps, zerada no `fork()` e
   ao descartar, nunca devolvida ao Python como `bytes`. Modelo de ameaça:
-  [`sdk/native/README.pt-BR.md`](sdk/native/README.pt-BR.md).
+  [`apps/sdk/native/README.pt-BR.md`](apps/sdk/native/README.pt-BR.md).
 - **🔁 Retentativa e relógio resolvidos** — retentativas idempotentes, sincronia de relógio com o cofre, exceções
   estáveis.
 - **📐 Formatos de bytes travados** — [`docs/PROTOCOL.pt-BR.md`](docs/PROTOCOL.pt-BR.md) é normativo, e vetores de
@@ -133,9 +133,9 @@ export OPENBAO_TOKEN="…"   # restrito a um path, nada mais amplo
 
 > [!WARNING]
 > É uma troca deliberada: quem ler aquele path do OpenBao decifra exatamente o que este processo decifra. Leia
-> [o tradeoff completo](sdk/README.pt-BR.md#auto-unseal-com-openbao) antes de ligar.
+> [o tradeoff completo](apps/sdk/README.pt-BR.md#auto-unseal-com-openbao) antes de ligar.
 
-Manifestos prontos ficam em [`api/deploy/`](api/deploy/README.pt-BR.md): Docker Compose e Kubernetes, com auto-unseal
+Manifestos prontos ficam em [`apps/api/deploy/`](apps/api/deploy/README.pt-BR.md): Docker Compose e Kubernetes, com auto-unseal
 do OpenBao para AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir e chave estática.
 
 ## Portões de qualidade
@@ -163,14 +163,15 @@ flowchart LR
 
 ```
 integration/
-├── sdk/           diagnos          a biblioteca — tudo vive aqui
-│   └── native/    diagnos._secure  enclave de memória em Rust
-├── cli/           diagnos-cli      `diagnos …` no seu terminal
-├── api/           diagnos-api      fachada REST (FastAPI), só mTLS
-│   └── deploy/    compose · k8s    manifestos prontos para rodar
-├── contracts/     Pact             contrato do consumidor com o cofre + os testes dele
-├── docs/          PROTOCOL.md      formatos de bytes normativos · COMPATIBILITY.md
-└── scripts/                        as checagens por trás do `make lint` e da CI
+├── apps/
+│   ├── sdk/           diagnos          a biblioteca — tudo vive aqui
+│   │   └── native/    diagnos._secure  enclave de memória em Rust
+│   ├── cli/           diagnos-cli      `diagnos …` no seu terminal
+│   └── api/           diagnos-api      fachada REST (FastAPI), só mTLS
+│       └── deploy/    compose · k8s    manifestos prontos para rodar
+├── contracts/         Pact             contrato do consumidor com o cofre + os testes dele
+├── docs/              PROTOCOL.md      formatos de bytes normativos · COMPATIBILITY.md
+└── scripts/                            as checagens por trás do `make lint` e da CI
 ```
 
 ## Como contribuir

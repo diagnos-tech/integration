@@ -30,21 +30,21 @@ recent tag published across all three. Only the latest release receives security
 
 In scope:
 
-- **The SDK's cryptography** (`sdk/src/diagnos/crypto/`) — key derivation, hybrid sealing, content encryption,
+- **The SDK's cryptography** (`apps/sdk/src/diagnos/crypto/`) — key derivation, hybrid sealing, content encryption,
   request signing, and anywhere a wire format from `docs/PROTOCOL.md` is implemented.
-- **The Rust memory enclave** (`sdk/native`) — the code responsible for keeping session keys, DEKs and private keys
-  out of swap, core dumps and `fork()` children. See [`sdk/native/README.md`](sdk/native/README.md) for the enclave's
+- **The Rust memory enclave** (`apps/sdk/native`) — the code responsible for keeping session keys, DEKs and private keys
+  out of swap, core dumps and `fork()` children. See [`apps/sdk/native/README.md`](apps/sdk/native/README.md) for the enclave's
   threat model: what it guarantees, what it explicitly does not (root/`CAP_SYS_PTRACE`, code running in the same
   process, the OpenBao export window, Windows), and where the `unsafe` blocks live.
 - **The CLI** (`cli/`) — argument parsing, credential handling, anything that could leak a token or decrypted
   content to a log, a file, or the wrong file descriptor.
 - **The API** (`api/`), including its mutual TLS handling — certificate validation, allowed-CN enforcement, and the
-  deploy manifests under `api/deploy/` (Docker Compose, Kubernetes, OpenBao bootstrap and auto-unseal
+  deploy manifests under `apps/api/deploy/` (Docker Compose, Kubernetes, OpenBao bootstrap and auto-unseal
   configuration).
 
 Out of scope: vulnerabilities that require an attacker to already have root, `CAP_SYS_PTRACE`, or code execution in
 the same process as the SDK — the enclave's threat model documents these as accepted limits, not bugs. See
-[`sdk/native/README.md`](sdk/native/README.md) before reporting one of these.
+[`apps/sdk/native/README.md`](apps/sdk/native/README.md) before reporting one of these.
 
 ## What to include in a report
 

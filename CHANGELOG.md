@@ -37,9 +37,17 @@ monorepo.
 - Bilingual (🇺🇸/🇧🇷) documentation across the repository, enforced by `scripts/check_docs.py` (every document ships
   as `NAME.md` + `NAME.pt-BR.md`) and `scripts/check_bilingual.py` (every module, class and public function's
   docstring, Python and Rust).
+- Repository layout: the three packages live under `apps/` (`apps/sdk`, `apps/cli`, `apps/api`); `contracts/`,
+  `docs/` and `scripts/` stay at the root.
 
 ### Fixed
 
+- CLI: decrypted fields, file names, vault-issued ids and the approval URL are printed literally instead of being
+  parsed as `rich` markup (a `[html]` label disappeared; a record could restyle the terminal).
+- API: `404` on an unknown route and `405` on a wrong method now answer with the uniform
+  `{"error": {code, message, trace_id}}` envelope.
+- Docker image: the build context's ignore file is at the repository root (the one under `api/` was never read, so
+  local `.venv`/`target/` could reach the build), and uv is pinned to a version that reads the current `uv.lock`.
 - `GET /time`: the SDK previously sent a `POST` with an id body and read nothing back, so clock sync failed before
   the first signed request; it now sends the `GET` the vault actually serves and reads the raw `{"result": <ms>}`
   response.

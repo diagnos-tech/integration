@@ -2,7 +2,7 @@
 
 [English](PROTOCOL.md) · **Português (Brasil)**
 
-Normativo. Todo formato abaixo está travado por `sdk/tests/vectors/*.json`,
+Normativo. Todo formato abaixo está travado por `apps/sdk/tests/vectors/*.json`,
 gerados a partir da implementação de referência do cofre. Quando este
 documento e um vetor discordarem, o vetor vence e este documento tem um bug.
 
@@ -114,7 +114,7 @@ bloco  = SHA-256(os_random(32) ‖ estado ‖ contador)   # contador reinicia em
 degrada graciosamente para aleatoriedade pura do SO, nunca para algo mais
 fraco — a semente aumenta o `os.urandom`, nunca o substitui. O SDK de
 referência abre, lê e decodifica `random_seed` dentro do enclave de memória
-(`sdk/native/README.pt-BR.md`); ela nunca existe como objeto Python.
+(`apps/sdk/native/README.pt-BR.md`); ela nunca existe como objeto Python.
 
 O cofre também aceita um campo `random_seed` opcional, contribuído pelo
 cliente, no próprio corpo de uma requisição assinada, para o SDK devolver
@@ -212,7 +212,7 @@ de fio gravadas em todo ciphertext já armazenado — renomear uma tornaria
 dados existentes ilegíveis. Nunca reaproveite um rótulo para um significado
 novo; uma derivação que muda ganha uma string nova, versionada separadamente
 (`-v2`). Código que usa um destes aponta de volta para cá pelo nome — veja
-`sdk/src/diagnos/crypto/keys.py`, `hybrid.py` e `hkdf.py`.
+`apps/sdk/src/diagnos/crypto/keys.py`, `hybrid.py` e `hkdf.py`.
 
 | Rótulo | Propósito | Seção |
 |---|---|---|
@@ -234,7 +234,7 @@ novo; uma derivação que muda ganha uma string nova, versionada separadamente
 > modelos, anterior à revisão atual do protocolo do cofre — veja
 > [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md). Ela fica aqui como
 > registro do que `vault.patients`/`vault.exams` (rotulados **prévia** em
-> [`sdk/README.pt-BR.md`](../sdk/README.pt-BR.md)) mandam e esperam hoje, não
+> [`apps/sdk/README.pt-BR.md`](../apps/sdk/README.pt-BR.md)) mandam e esperam hoje, não
 > como descrição do que o `vault.diagnos.health` aceita atualmente.
 
 Pacientes, exames e modelos compartilham um modelo: um **índice** que a
@@ -290,7 +290,7 @@ Só quem reservou a versão pode confirmá-la.
 > anterior à revisão atual do protocolo do cofre — veja
 > [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md). Ela fica aqui como
 > registro do que `vault.drives` (rotulado **prévia** em
-> [`sdk/README.pt-BR.md`](../sdk/README.pt-BR.md)) manda e espera hoje, não
+> [`apps/sdk/README.pt-BR.md`](../apps/sdk/README.pt-BR.md)) manda e espera hoje, não
 > como descrição do que o `vault.diagnos.health` aceita atualmente.
 
 Um drive é um security group. Todo arquivo (DICOM, imagem, vídeo, PDF) é

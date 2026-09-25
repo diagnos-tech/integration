@@ -1,12 +1,12 @@
 # 🇺🇸 One entry point for everything a contributor or CI runs. `make` alone
 #    lists the targets. `make check` is exactly what CI runs — green here means
-#    green there. The Rust enclave (`sdk/native`) is built by `make sync` and
+#    green there. The Rust enclave (`apps/sdk/native`) is built by `make sync` and
 #    linted/tested alongside the Python packages; `PYO3_PYTHON` points cargo at
 #    the workspace interpreter so `cargo test` links the same CPython the wheel
 #    is built for.
 # 🇧🇷 Um ponto de entrada para tudo que quem contribui ou a CI roda. `make`
 #    sozinho lista os alvos. `make check` é exatamente o que a CI roda — verde
-#    aqui é verde lá. O enclave Rust (`sdk/native`) é construído pelo `make
+#    aqui é verde lá. O enclave Rust (`apps/sdk/native`) é construído pelo `make
 #    sync` e lintado/testado junto com os pacotes Python; `PYO3_PYTHON` aponta
 #    o cargo para o interpretador do workspace, para o `cargo test` linkar o
 #    mesmo CPython para o qual o wheel é construído.
@@ -14,8 +14,8 @@
 .DEFAULT_GOAL := help
 .PHONY: help sync fmt lint lint-py lint-rust lint-docs types test test-py test-rust cov contract contract-check check hooks clean
 
-NATIVE := sdk/native/Cargo.toml
-PYTHON_PACKAGES := sdk/src cli/src api/src
+NATIVE := apps/sdk/native/Cargo.toml
+PYTHON_PACKAGES := apps/sdk/src apps/cli/src apps/api/src
 CARGO_ENV = PYO3_PYTHON="$$(uv run python -c 'import sys; print(sys.executable)')"
 
 help: ## 🇺🇸 List the targets · 🇧🇷 Lista os alvos
@@ -36,7 +36,7 @@ lint: lint-py lint-rust lint-docs ## 🇺🇸 Every static check (no tests) · �
 lint-py:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run python scripts/check_bilingual.py sdk cli api contracts scripts
+	uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts
 
 lint-rust:
 	cargo fmt --manifest-path $(NATIVE) --check
@@ -51,18 +51,18 @@ types: ## 🇺🇸 mypy --strict: packages, contract tests, scripts · 🇧🇷 
 test: test-py test-rust ## 🇺🇸 Unit tests: Python (3 packages) and Rust · 🇧🇷 Testes unitários: Python (3 pacotes) e Rust
 
 test-py:
-	uv run --package diagnos pytest sdk/tests
-	uv run --package diagnos-cli pytest cli/tests
-	uv run --package diagnos-api pytest api/tests
+	uv run --package diagnos pytest apps/sdk/tests
+	uv run --package diagnos-cli pytest apps/cli/tests
+	uv run --package diagnos-api pytest apps/api/tests
 
 test-rust:
 	$(CARGO_ENV) cargo test --manifest-path $(NATIVE)
 
 cov: ## 🇺🇸 Unit tests with one combined coverage report (htmlcov/) · 🇧🇷 Testes com um relatório de cobertura combinado
 	rm -f .coverage coverage.xml coverage.json
-	uv run --package diagnos pytest sdk/tests --cov --cov-report= --cov-fail-under=0
-	uv run --package diagnos-cli pytest cli/tests --cov --cov-append --cov-report= --cov-fail-under=0
-	uv run --package diagnos-api pytest api/tests --cov --cov-append --cov-report= --cov-fail-under=0
+	uv run --package diagnos pytest apps/sdk/tests --cov --cov-report= --cov-fail-under=0
+	uv run --package diagnos-cli pytest apps/cli/tests --cov --cov-append --cov-report= --cov-fail-under=0
+	uv run --package diagnos-api pytest apps/api/tests --cov --cov-append --cov-report= --cov-fail-under=0
 	uv run coverage html --quiet --fail-under=0
 	uv run coverage xml --quiet --fail-under=0
 	uv run coverage json --quiet --fail-under=0

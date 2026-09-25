@@ -2,8 +2,13 @@
 #    `cli` and `api` are thin shells over it and never talk HTTP themselves.
 # 🇧🇷 Workspace uv dos três pacotes Python públicos. `sdk` é a base; `cli` e
 #    `api` são cascas finas sobre ele e nunca falam HTTP por conta própria.
+[tool.uv]
+# 🇺🇸 `uv.lock` uses lock revision 3; an older uv fails with an obscure error instead of this clear one.
+# 🇧🇷 O `uv.lock` usa a revisão 3 do lock; um uv mais antigo falha com um erro obscuro em vez deste, claro.
+required-version = ">=0.8"
+
 [tool.uv.workspace]
-members = ["sdk", "cli", "api"]
+members = ["apps/sdk", "apps/cli", "apps/api"]
 
 [tool.uv.sources]
 diagnos = { workspace = true }
@@ -18,17 +23,17 @@ ignore = ["D203", "D213", "ANN401", "S101"]
 
 [tool.ruff.lint.per-file-ignores]
 # 🇺🇸 B008 (function call in a default) is the documented `typer` pattern for
-# every option/argument in `cli/src/diagnos_cli/commands/`; there is no
+# every option/argument in `apps/cli/src/diagnos_cli/commands/`; there is no
 # alternative spelling. Tests get a docstring pass on trivial one-line fake
-# methods (`cli/tests/conftest.py`'s stand-ins) — the "why" they exist is on
+# methods (`apps/cli/tests/conftest.py`'s stand-ins) — the "why" they exist is on
 # the class, not worth repeating per accessor.
 # 🇧🇷 B008 (chamada de função num default) é o padrão documentado do `typer`
-# para toda option/argument em `cli/src/diagnos_cli/commands/`; não há outra
+# para toda option/argument em `apps/cli/src/diagnos_cli/commands/`; não há outra
 # forma de escrever isso. Testes ganham dispensa de docstring em métodos
-# falsos triviais de uma linha (os substitutos de `cli/tests/conftest.py`) —
+# falsos triviais de uma linha (os substitutos de `apps/cli/tests/conftest.py`) —
 # o "porquê" deles está na classe, não vale repetir por acessor.
-"cli/src/diagnos_cli/commands/*.py" = ["B008"]
-"cli/tests/*.py" = ["D102", "D103", "D107"]
+"apps/cli/src/diagnos_cli/commands/*.py" = ["B008"]
+"apps/cli/tests/*.py" = ["D102", "D103", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
