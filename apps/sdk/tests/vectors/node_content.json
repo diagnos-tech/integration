@@ -1,47 +1,47 @@
 {
   "description": "A drive node as the web app writes it: per-node DEK and encrypted name (keyEnvelope.ts), content and SSE-C sister keys, secretstream body (@repo/magic-files).",
-  "group_kek_b64url": "yH1eyXIel29spFbqnRGMOKiTVT_u1LbK8nbkFvHLKq8",
-  "node_dek_b64url": "2ltfyVdMlhOrLtEXKB4sdKE5h3FjnKKrmviWDIXAuVo",
+  "group_kek_b64url": "k5qhqK-2vcTL0tng5-71_AMKERgfJi00O0JJUFdeZWw",
+  "node_dek_b64url": "srnAx87V3OPq8fj_Bg0UGyIpMDc-RUxTWmFob3Z9hIs",
   "dek_info": "imgexam-node-dek-v1",
   "wrapped_dek": {
-    "salt": "uFliNxNC90JD3yx_2h6z5g",
-    "nonce": "1odSjXVj5_JwKTL4",
-    "ciphertext": "AVFk70uDsVWIQ3o5ZGlvBCXYZoLpn1FG2Q6t5sAudN6LqOSXskdi6W1nO3_lYmPg"
+    "salt": "U6mJ1drtRRYTzmn7N1NYzA",
+    "nonce": "NVZzZ1ADD_OKy8M7",
+    "ciphertext": "34y5fuH21DZZncmOI8M4WJPP9Vkptm-lhIl_yMy5q7eKalkR9_G8_9NBGvKsEu8x"
   },
   "name": "IM-0001-0001.dcm",
   "name_info": "imgexam-node-name-v1",
   "encrypted_name": {
-    "salt": "K6GyUAyTq92tdbmJFZRzdw",
-    "nonce": "pdyz8O_f0VO6OYku",
-    "ciphertext": "n1Tc41INsxMnKafyvhEcxHYYZ1-SRD6ee-_a3MsO2dA"
+    "salt": "nd81Un7b6SYKw5G-nYFstw",
+    "nonce": "M9annpQert9alCHb",
+    "ciphertext": "aJuKt1uPVEFxYDxBmoMN1b3SY_JUwUwNlJMYMWS5eNY"
   },
   "node_id": "node_01J9Z3Q4K5",
   "security_context": {
-    "value": "Ne1AIxR_OsCt15S60tKEBgnvPJTm24ILUNjdW_reZJM",
+    "value": "0djf5u30-wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6o",
     "kid": "ctx_k1"
   },
-  "content_key_b64url": "KaBg_oEkXEaQwLtACZBvTOdyzNdwVT-KA5whMuTd7wc",
-  "sse_c_key_b64url": "naEbcXXYTGkY6VtBxCKN3dBNkmdCAEveH4Phj4Q7ti4",
+  "content_key_b64url": "Gg2GbLmbY8XqSi1wEpfyhUC_wY49bxR7M5jL2m0uy_8",
+  "sse_c_key_b64url": "KxijGU1jXjDsxunRoRSM2U1Zhz-3VtuoCZYvctWZqwE",
   "sse_c_headers": {
     "x-amz-server-side-encryption-customer-algorithm": "AES256",
-    "x-amz-server-side-encryption-customer-key": "naEbcXXYTGkY6VtBxCKN3dBNkmdCAEveH4Phj4Q7ti4=",
-    "x-amz-server-side-encryption-customer-key-md5": "Vpp1r3wKEuIUX7Ssay9j8Q=="
+    "x-amz-server-side-encryption-customer-key": "KxijGU1jXjDsxunRoRSM2U1Zhz+3VtuoCZYvctWZqwE=",
+    "x-amz-server-side-encryption-customer-key-md5": "K/K0Fz65gXgX5atG7RB03A=="
   },
   "chunk_size": 16,
   "bodies": [
     {
       "plaintext_utf8": "fatia de um arquivo DICOM de verdade!!!!",
-      "framed_b64url": "Lru7zfdOtT5XqFR3jq3_9WLCruGYlepuAAAAIXky8GKdNXWmiRg7aNJaxG5j_G7haPUfcysUsEOKYjZpyAAAACFKjba16YpcWhSBYHmVaxZRNedjgwF49HxxoSBHFEkRVVQAAAAZ77_Le-GC4RU-rrJAT-IJ1hgvgaNf8m41Ig",
+      "framed_b64url": "2FDkpKqIDSuJ_29eg2sOahXUTuWuKrvuAAAAIeVQUPvPJQkl4mcmbwfbkkGa4k2G2ZbdJ_0mKLMk4g4ntwAAACGzdBEtzI-n3S27qRkasbmdp_SO7c-4wdgGXYXFAo7vRw0AAAAZlsm1l4_AEVksvPlM50LTz5lWbeceuOEiJQ",
       "encrypted_length": 127
     },
     {
       "plaintext_utf8": "fatia de um arquivo DICOM de ver",
-      "framed_b64url": "z6wPx5Q0Z42WYz3LOrBou_1VaWV7Cp6HAAAAIeAbX0DiLmX4y4UcsOG_-86978mUrF87E0UhqNqqvbDwrwAAACG1TUZltSAb_Aa0GoSia9p5Fft6aIutcvQHnsx3Q2rtdKIAAAAR9QVDx7rzn4MmUfjM10DmaMM",
+      "framed_b64url": "CfuWKaXuRlHKNGgIqCPw3Ayrs9tPIZBAAAAAIboog4Cv7SuIozwM9es8wG5-XtLMqPFPo0MrPK0JHK_3wQAAACGixleAUCewVMvc3GA70gvPLjgUfsQgT4oHRtVd8kmyQvgAAAARWF4C4Z7Opo0xRd-h8Z4FSW8",
       "encrypted_length": 119
     },
     {
       "plaintext_utf8": "",
-      "framed_b64url": "RhfDnDXFcbNWyrXzSp6admoYHEEd52dxAAAAEQ7owmiQ3k2ztdU3nLnPMgVb",
+      "framed_b64url": "85ayckUnRVlP7FbO-eRcfw683uUVYH31AAAAERhJXkTgov5Km-ylyfoEx4Zh",
       "encrypted_length": 45
     }
   ],

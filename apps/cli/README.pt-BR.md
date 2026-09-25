@@ -135,7 +135,7 @@ então um campo longo nunca quebra uma linha no meio do jeito que um renderizado
 poderia:
 
 ```sh
-diagnos --json patients list --group sg_oncology | jq '.items[].document_id'
+diagnos --json patients list --group sg_oncology | jq '.items[].index.document_id'
 ```
 
 ## Códigos de saída
