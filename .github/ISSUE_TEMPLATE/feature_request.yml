@@ -1,0 +1,85 @@
+name: "Feature request · Pedido de funcionalidade"
+description: "🇺🇸 Suggest an addition or a change. · 🇧🇷 Sugira uma adição ou uma mudança."
+title: "[feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        🇺🇸 Thanks for the suggestion. Note that `cli` and `api` only ever wrap what `diagnos` (the SDK) exposes —
+        a feature that needs new capability usually belongs in the SDK first.
+        🇧🇷 Obrigado pela sugestão. Note que `cli` e `api` só envolvem o que `diagnos` (o SDK) expõe — uma
+        funcionalidade que precisa de capacidade nova geralmente entra primeiro no SDK.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: "Package · Pacote"
+      description: "🇺🇸 Which package would this affect? · 🇧🇷 Qual pacote isso afetaria?"
+      options:
+        - diagnos
+        - diagnos-cli
+        - diagnos-api
+        - docs
+        - other · outro
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "Package version(s) · Versão(ões) do pacote"
+      description: "🇺🇸 The version you're using today, if relevant. · 🇧🇷 A versão que você usa hoje, se relevante."
+      placeholder: "e.g. diagnos 0.1.0 · ex.: diagnos 0.1.0"
+    validations:
+      required: false
+
+  - type: input
+    id: python-version
+    attributes:
+      label: "Python version · Versão do Python"
+      description: "🇺🇸 If the request is Python-version-specific. · 🇧🇷 Se o pedido for específico de uma versão do Python."
+      placeholder: "e.g. 3.12.4"
+    validations:
+      required: false
+
+  - type: input
+    id: os
+    attributes:
+      label: "Operating system · Sistema operacional"
+      description: "🇺🇸 If the request is platform-specific. · 🇧🇷 Se o pedido for específico de uma plataforma."
+      placeholder: "e.g. Ubuntu 22.04, Kubernetes"
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "What problem does this solve · Que problema isso resolve"
+      description: "🇺🇸 What are you trying to do today that this would make possible or easier? · 🇧🇷 O que você tenta fazer hoje que isso tornaria possível ou mais fácil?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed solution · Solução proposta"
+      description: "🇺🇸 What you'd like to see — an API sketch, a CLI flag, a route. · 🇧🇷 O que você gostaria de ver — um esboço de API, uma flag de CLI, uma rota."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives considered · Alternativas consideradas"
+      description: "🇺🇸 Other approaches you thought about, and why you prefer this one — optional. · 🇧🇷 Outras abordagens que você pensou, e por que prefere esta — opcional."
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Anything else · Mais alguma coisa"
+      description: "🇺🇸 Links, references, related issues — optional. · 🇧🇷 Links, referências, issues relacionadas — opcional."
+    validations:
+      required: false
