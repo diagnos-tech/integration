@@ -94,10 +94,12 @@ adivinhar os fixos do consumidor (`ws-contract`, `enr-contract`, `pat-contract`)
   `/api/external/v1/workspaces/{workspace_id}/session/registry/{enrollment_id}`.
 - `${document_id}` — todo path sob `…/patients/{document_id}` e `…/exams/{document_id}`.
 - `${version_id}` — o path de commit, `…/versions/{version_id}/commit`.
+- `${node_id}` — `…/nodes/{node_id}`, e o único valor de **corpo** de requisição que um state fornece:
+  `node_ids[0]` na confirmação de um upload (`_from_state()` em `test_drives.py`).
 
-Os states de documento também levam `security_group_id` (`sg-contract`): ele é a chave de `encrypted_keys` na
-requisição de criação, que nenhum gerador consegue reescrever, então o cofre concede à service account esse grupo
-literal.
+Os states de documento e de arquivo também levam `security_group_id` (`sg-contract`): ele é a chave de
+`encrypted_keys` em toda reserva, que nenhum gerador consegue reescrever, então o cofre concede à service account
+esse grupo literal.
 
 Todo nome de provider state no contrato atual, e o que o cofre precisa semear para cada um:
 
@@ -109,13 +111,15 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
 | `an admin denied the enrollment` | `workspace_id`, `enrollment_id` | Um enrollment que um admin negou explicitamente — `GET` nele devolve `"status": "denied"`. |
 | `the vault no longer knows the enrollment` | `workspace_id`, `enrollment_id` | Nenhum enrollment naquele id (expirado e varrido, ou nunca existiu) — `GET` nele devolve `404`. |
 | `an SDK session is active` | `workspace_id` | Uma sessão ativa e assinada, para a qual o cofre aceitará uma requisição `session/lock`. |
-| `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | Uma sessão ativa cuja service account pertence a `security_group_id` e pode criar pacientes e exames nele. |
+| `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | Uma sessão ativa cuja service account pertence a `security_group_id` e pode criar pacientes, exames e arquivos nele, com orçamento de armazenamento. |
 | `a patient has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Um paciente nesse grupo com `version_id` reservada no fluxo `data` e o objeto já enviado, para o commit encontrá-lo. |
 | `an exam has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | O mesmo para um exame (sem segmento de fluxo nas rotas); `meta.patient_id` definido. |
 | `a patient has one committed version` | `workspace_id`, `security_group_id`, `document_id` | Um paciente nesse grupo com uma versão `data` confirmada, um `encrypted_index`, sem versão pendente e sem rascunho; o único paciente do workspace (a interação de lista lê uma linha). |
 | `a patient has a draft newer than its latest version` | `workspace_id`, `security_group_id`, `document_id` | Como acima, mais uma cabeça de rascunho em `data` cujo `updated_at` é posterior ao `created_at` da versão corrente. |
 | `a patient has a committed version and another one pending` | `workspace_id`, `security_group_id`, `document_id` | Uma versão `data` confirmada mais uma reserva pendente não expirada, para uma reserva nova responder `409 DocumentVersionPending`. |
 | `an exam has one committed version` | `workspace_id`, `security_group_id`, `document_id` | Um exame nesse grupo com uma versão confirmada, um `encrypted_index` e `meta.patient_id`. |
+| `a file was uploaded and awaits confirmation` | `workspace_id`, `security_group_id`, `node_id` | Um nó de arquivo em modo single, reservado pela service account nesse grupo com um `mime_type`, ainda `pending`, cujo objeto já está no R2 — para `uploads/complete` reportá-lo `ready`. |
+| `a security group holds one ready file` | `workspace_id`, `security_group_id`, `node_id` | Um arquivo pronto em modo single nesse grupo, com `mime_type` e `size`. A interação de listagem lê uma página dos arquivos prontos do grupo, então eles precisam ser menos de 50 (`next_cursor: null`). |
 
 ## Como adicionar uma interação, passo a passo
 
@@ -157,14 +161,17 @@ O arquivo é ordenado e normalizado, então um diff é significativo, não ruíd
   `metadata.pactRust` especificamente para evitar isso. Se você ver um, algo passou por cima de
   `normalize()`/`render()`.
 
-## Escopo atual, e por que drives ainda não estão aqui
+## Escopo atual, e o que não está aqui
 
-O contrato cobre: o relógio do cofre (`GET /time`), enrollment (registro, e poll através de
-pending/approved/denied/forgotten), lock (`POST session/lock`) e documentos versionados — criar paciente ou exame
+O contrato cobre: o relógio do cofre (`GET /time`); enrollment (registro, e poll através de
+pending/approved/denied/forgotten); lock (`POST session/lock`); documentos versionados — criar paciente ou exame
 (reservar, confirmar), abrir a versão corrente, preferir um rascunho mais novo, reservar a próxima versão sob a trava
-de conflito, arquivar sem versão nova, listar, e recuar diante de uma versão pendente. Esta é a superfície que casa
-com o cofre de hoje.
+de conflito, arquivar sem versão nova, listar, e recuar diante de uma versão pendente; e arquivos — reservar um
+arquivo, confirmá-lo, ler um arquivo pronto (o nome selado, o corpo e a chave de SSE-C que o armazenamento exige),
+listar os arquivos de um grupo e criar uma pasta.
 
-A camada de drive/arquivo (`vault.drives`) ainda não está no contrato porque o código do SDK para ela mira uma
-revisão anterior do protocolo do cofre — veja [`../docs/COMPATIBILITY.pt-BR.md`](../docs/COMPATIBILITY.pt-BR.md) para
-exatamente o que mudou e o plano para trazê-la ao contrato, com os próprios provider states.
+**Uploads multipart não estão aqui.** O cofre os abre, conclui e aborta pelo endpoint S3 do R2, e a verificação do
+provider roda um `wrangler dev` local sem esse endpoint, então essas interações não poderiam ser verificadas lá. Os
+testes unitários do SDK as cobrem contra um dublê das rotas do cofre (`apps/sdk/tests/resources/vault_double.py`);
+elas entram no contrato quando o provider tiver um dublê de S3. Veja
+[`../docs/COMPATIBILITY.pt-BR.md`](../docs/COMPATIBILITY.pt-BR.md).

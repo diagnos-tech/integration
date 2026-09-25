@@ -44,6 +44,7 @@ sob o mesmo nome de topo na mesma rodada de teste.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import re
 import secrets
@@ -148,6 +149,26 @@ class _VaultRefusal(Exception):  # noqa: N818 — a control-flow signal inside t
 _NotFoundError = _VaultRefusal
 
 
+_INVALID_SSE_C = object()
+
+
+def _sse_c_key_of(request: httpx.Request) -> object:
+    """🇺🇸 The request's SSE-C key (`None` without one); `_INVALID_SSE_C` when the trio is incomplete or wrong.
+
+    🇧🇷 A chave de SSE-C da requisição (`None` sem ela); `_INVALID_SSE_C` quando o trio está incompleto ou errado.
+    """
+    algorithm = request.headers.get("x-amz-server-side-encryption-customer-algorithm")
+    key = request.headers.get("x-amz-server-side-encryption-customer-key")
+    md5 = request.headers.get("x-amz-server-side-encryption-customer-key-md5")
+    if algorithm is None and key is None and md5 is None:
+        return None
+    if algorithm != "AES256" or key is None or md5 is None:
+        return _INVALID_SSE_C
+    raw = base64.b64decode(key)
+    expected = base64.b64encode(hashlib.md5(raw, usedforsecurity=False).digest()).decode("ascii")
+    return key if len(raw) == 32 and md5 == expected else _INVALID_SSE_C
+
+
 @dataclass
 class _Pending:
     """🇺🇸 A reserved version of one stream, not yet committed, plus the patch that rides with it.
@@ -173,14 +194,24 @@ class FakeVault:
         """
         self._documents: dict[tuple[str, str], dict[str, Any]] = {}
         self._pending: dict[tuple[str, str, str], _Pending] = {}
-        self._nodes: dict[tuple[str, str], dict[str, Any]] = {}
+        self._nodes: dict[str, dict[str, Any]] = {}
+        self._refs: dict[str, str] = {}
+        self._multipart: dict[str, dict[str, Any]] = {}
+        # 🇺🇸 The SSE-C key each stored object was written with (`None` = none), as R2 remembers its MD5.
+        # 🇧🇷 A chave de SSE-C com que cada objeto foi gravado (`None` = nenhuma), como o R2 lembra o MD5.
+        self._sse_keys: dict[str, str | None] = {}
         self._objects: dict[str, bytes] = {}
         self._signed_sizes: dict[str, int] = {}
-        self._parts: dict[tuple[str, int], bytes] = {}
         self._counter = 0
         self._clock = datetime(2026, 9, 1, tzinfo=UTC)
         self.single_threshold = _DEFAULT_SINGLE_THRESHOLD
         self.part_size = 32 * 1024 * 1024
+        # 🇺🇸 Whether the batch reservation opens multipart uploads itself (the vault does; older ones did not).
+        # 🇧🇷 Se a reserva do lote abre o multipart sozinha (o cofre abre; versões antigas não abriam).
+        self.inline_multipart = True
+        self.stage_calls = 0
+        self.signed_part_batches: list[list[int]] = []
+        self.aborted: list[str] = []
         # 🇺🇸 A test sets this to make the next N commits fail with a 503, as a flaky network would.
         # 🇧🇷 Um teste define isto para os próximos N commits falharem com 503, como uma rede instável.
         self.fail_next_commits = 0
@@ -236,17 +267,30 @@ class FakeVault:
         raise AssertionError(f"FakeVault: no route for {method} {path}")
 
     def handle_storage(self, request: httpx.Request) -> httpx.Response:
-        """🇺🇸 A `PUT`/`GET` against a presigned R2 URL; a `PUT` must match the size the URL was signed for.
+        """🇺🇸 A `PUT`/`GET` against a presigned R2 URL, with R2's rules for size and SSE-C.
 
-        🇧🇷 Um `PUT`/`GET` contra uma URL presigned do R2; um `PUT` precisa bater com o tamanho assinado.
+        A `PUT` must match the size the URL was signed for; an SSE-C key must
+        match its MD5; a `GET` must present the same SSE-C key the object was
+        written with (or none, if none) — R2 answers `400` otherwise.
+
+        🇧🇷 Um `PUT`/`GET` contra uma URL pré-assinada do R2, com as regras do R2 para tamanho e SSE-C.
+
+        Um `PUT` precisa bater com o tamanho assinado; uma chave de SSE-C
+        precisa bater com o MD5 dela; um `GET` precisa apresentar a mesma
+        chave de SSE-C com que o objeto foi gravado (ou nenhuma, se nenhuma)
+        — o R2 responde `400` do contrário.
         """
         url = str(request.url)
+        sse_key = _sse_c_key_of(request)
+        if sse_key is _INVALID_SSE_C:
+            return httpx.Response(400)
         if request.method == "PUT":
             self.put_requests.append(request)
             signed = self._signed_sizes.get(url)
             if signed is not None and signed != len(request.content):
                 return httpx.Response(403)
             self._objects[url] = request.content
+            self._sse_keys[url] = sse_key  # type: ignore[assignment]
             etag = f'"{secrets.token_hex(8)}"'
             return httpx.Response(200, headers={"ETag": etag})
         if request.method == "GET":
@@ -254,6 +298,8 @@ class FakeVault:
             data = self._objects.get(url)
             if data is None:
                 return httpx.Response(404)
+            if self._sse_keys.get(url) != sse_key:
+                return httpx.Response(400)
             return httpx.Response(200, content=data)
         raise AssertionError(f"FakeVault: unexpected storage method {request.method}")
 
@@ -539,159 +585,215 @@ class FakeVault:
         reservation = self.put_draft(resource, document_id, stream, {"content_length": len(sealed)})
         self._objects[reservation["upload"]["url"]] = sealed
 
-    # -- drives ---------------------------------------------------------------
+    # -- nodes (drive files and folders) ---------------------------------------
 
-    def stage_uploads(self, security_group_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `POST {base}/uploads` — reserves one node per file, single or multipart by size.
+    def _node_view(self, node_id: str) -> dict[str, Any]:
+        """🇺🇸 `NodeResponse`: the stored node, as JSON. 🇧🇷 `NodeResponse`: o nó guardado, como JSON."""
+        return json.loads(json.dumps(self._nodes[node_id]))
 
-        🇧🇷 `POST {base}/uploads` — reserva um nó por arquivo, single ou multipart pelo tamanho.
+    def _node(self, node_id: str) -> dict[str, Any]:
+        """🇺🇸 The stored node, or `DriveNodeNotFound`. 🇧🇷 O nó guardado, ou `DriveNodeNotFound`."""
+        node = self._nodes.get(node_id)
+        if node is None:
+            raise _VaultRefusal("DriveNodeNotFound", node_id)
+        return node
+
+    def node_url(self, node_id: str) -> str:
+        """🇺🇸 Where a node's object lives. 🇧🇷 Onde mora o objeto de um nó."""
+        return self._object_url(f"workspaces/{WORKSPACE_ID}/nodes/{node_id}")
+
+    def stage_nodes(self, body: dict[str, Any]) -> dict[str, Any]:
+        """🇺🇸 `POST /nodes/uploads` — validates like `StageUploadsRequest`, idempotent per `client_ref`.
+
+        🇧🇷 `POST /nodes/uploads` — valida como `StageUploadsRequest`, idempotente por `client_ref`.
         """
-        exam_id = body.get("exam_id")
-        nodes = []
-        for file in body["files"]:
-            node_id = self._next_id("node")
-            size = file["size"]
-            mode = "single" if size <= self.single_threshold else "multipart"
-            storage_key = f"drive/{security_group_id}/{node_id}"
-            node = {
-                "node_id": node_id,
-                "workspace_id": WORKSPACE_ID,
-                "security_group_id": security_group_id,
-                "exam_id": exam_id,
-                "parent_id": None,
-                "status": "pending",
-                "mode": mode,
-                "declared_size": size,
-                "size": None,
-                "mime_type": file.get("mime_type"),
-                "media_kind": "other",
-                "encrypted_name": file.get("encrypted_name"),
-                "part_size": None,
-                "part_count": None,
-                "storage_path": storage_key,
-                "created_by": "test-actor",
-                "created_at": "2024-01-01T00:00:00Z",
-                "completed_at": None,
-            }
-            self._nodes[(security_group_id, node_id)] = node
-            if mode == "single":
-                nodes.append(
-                    {
-                        "client_ref": file["client_ref"],
-                        "node_id": node_id,
-                        "mode": "single",
-                        "upload": {
-                            "url": self._object_url(storage_key),
-                            "method": "PUT",
-                            "headers": {"content-length": str(size)},
-                            "expires_at": 9_999_999_999,
-                        },
-                    }
-                )
-            else:
-                part_count = -(-size // self.part_size)  # 🇺🇸/🇧🇷 ceil division
-                node["part_size"] = self.part_size
-                node["part_count"] = part_count
-                nodes.append(
-                    {
-                        "client_ref": file["client_ref"],
-                        "node_id": node_id,
-                        "mode": "multipart",
-                        "part_size": self.part_size,
-                        "part_count": part_count,
-                    }
-                )
-        return {"nodes": nodes}
+        group = body.get("security_group_id")
+        files = body.get("files") or []
+        if not isinstance(group, str) or not group or not 1 <= len(files) <= 100:
+            raise _VaultRefusal("ValidationError", "security_group_id and 1..100 files are required", status=400)
+        parent_id = body.get("parent_id")
+        if parent_id is not None:
+            parent = self._nodes.get(parent_id)
+            if parent is None or parent["kind"] != "folder" or parent["security_group_id"] != group:
+                raise _VaultRefusal("DriveInvalidParent", str(parent_id), status=400)
+        self.stage_calls += 1
+        items = []
+        for entry in files:
+            kind = entry.get("kind", "file")
+            keys = {"kind", "client_ref", "encrypted_name", "encrypted_keys"} | (
+                {"size", "mime_type"} if kind == "file" else set()
+            )
+            if set(entry) - keys or group not in entry.get("encrypted_keys", {}) or "encrypted_name" not in entry:
+                raise _VaultRefusal("ValidationError", f"bad entry {sorted(entry)}", status=400)
+            ref = entry["client_ref"]
+            node_id = self._refs.get(ref)
+            if node_id is None:
+                node_id = self._refs[ref] = self._next_id("node")
+                self._nodes[node_id] = self._new_node(node_id, group, entry, body, kind)
+            items.append(self._staged_item(ref, node_id))
+        return {"items": items}
 
-    def complete_single(self, security_group_id: str, node_ids: list[str]) -> dict[str, Any]:
-        """🇺🇸 `POST {base}/uploads/complete` — 'ready' every node whose object actually landed.
+    def _new_node(
+        self, node_id: str, group: str, entry: dict[str, Any], body: dict[str, Any], kind: str
+    ) -> dict[str, Any]:
+        """🇺🇸 A freshly reserved node (a folder is ready at once). 🇧🇷 Um nó recém-reservado (pasta já pronta)."""
+        node: dict[str, Any] = {
+            "node_id": node_id,
+            "workspace_id": WORKSPACE_ID,
+            "security_group_id": group,
+            "kind": kind,
+            "status": "ready" if kind == "folder" else "pending",
+            "encrypted_name": entry["encrypted_name"],
+            "encrypted_keys": entry["encrypted_keys"],
+            "optimized_variants": [],
+            "created_by": ACTOR,
+            "created_at": self.now(),
+            "is_deleted": False,
+        }
+        for field_name in ("exam_id", "parent_id"):
+            if body.get(field_name) is not None:
+                node[field_name] = body[field_name]
+        if kind == "file":
+            size = entry["size"]
+            node.update(
+                mode="single" if size <= self.single_threshold else "multipart",
+                declared_size=size,
+                media_kind="dicom" if entry.get("mime_type") == "application/dicom" else "other",
+                storage_path=f"workspaces/{WORKSPACE_ID}/nodes/{node_id}",
+            )
+            if "mime_type" in entry:
+                node["mime_type"] = entry["mime_type"]
+            if node["mode"] == "multipart":
+                self._multipart[node_id] = {"upload_id": self._next_id("mpu") if self.inline_multipart else None}
+        return node
 
-        🇧🇷 `POST {base}/uploads/complete` — marca 'ready' todo nó cujo objeto de fato chegou.
+    def _staged_item(self, ref: str, node_id: str) -> dict[str, Any]:
+        """🇺🇸 One `StagedNodeResponse`. 🇧🇷 Um `StagedNodeResponse`."""
+        node = self._nodes[node_id]
+        item: dict[str, Any] = {
+            "client_ref": ref,
+            "node_id": node_id,
+            "version_id": node_id,
+            "security_context": self.security_context("nodes", node_id, node_id),
+            "kind": node["kind"],
+        }
+        if node["kind"] == "folder":
+            return item
+        item["mode"] = node["mode"]
+        if node["mode"] == "single":
+            item["upload"] = self._signed_upload(self.node_url(node_id), node["declared_size"])
+        else:
+            item["part_size"] = self.part_size
+            item["part_count"] = -(-node["declared_size"] // self.part_size)
+            upload_id = self._multipart[node_id]["upload_id"]
+            if upload_id is not None:
+                item["upload_id"] = upload_id
+        return item
+
+    def complete_single(self, node_ids: list[str]) -> dict[str, Any]:
+        """🇺🇸 `POST /nodes/uploads/complete` — `ready` for every object that landed, `missing` for the rest.
+
+        🇧🇷 `POST /nodes/uploads/complete` — `ready` para todo objeto que chegou, `missing` para o resto.
         """
-        ready = []
-        missing = []
+        ready, missing = [], []
         for node_id in node_ids:
-            node = self._nodes[(security_group_id, node_id)]
-            data = self._objects.get(self._object_url(node["storage_path"]))
-            if data is None:
+            node = self._node(node_id)
+            stored = self._objects.get(self.node_url(node_id))
+            if stored is None:
                 missing.append(node_id)
                 continue
-            node["status"] = "ready"
-            node["size"] = len(data)
-            node["completed_at"] = "2024-01-01T00:01:00Z"
-            ready.append(dict(node))
+            node.update(status="ready", size=len(stored), total_size=len(stored), completed_at=self.now())
+            ready.append(self._node_view(node_id))
         return {"ready": ready, "missing": missing}
 
-    def start_multipart(self, security_group_id: str, node_id: str) -> dict[str, Any]:
-        """🇺🇸 `POST {base}/uploads/{id}/multipart` — hands back the part plan `stage_uploads` already decided.
+    def start_multipart(self, node_id: str) -> dict[str, Any]:
+        """🇺🇸 `POST /nodes/{id}/multipart` — the recovery route when the batch did not open the upload.
 
-        🇧🇷 `POST {base}/uploads/{id}/multipart` — devolve o plano de partes que `stage_uploads` já decidiu.
+        🇧🇷 `POST /nodes/{id}/multipart` — a rota de recuperação quando o lote não abriu o upload.
         """
-        node = self._nodes[(security_group_id, node_id)]
-        return {"upload_id": self._next_id("mpu"), "part_size": node["part_size"], "part_count": node["part_count"]}
+        node = self._node(node_id)
+        state = self._multipart[node_id]
+        state["upload_id"] = state["upload_id"] or self._next_id("mpu")
+        return {
+            "upload_id": state["upload_id"],
+            "part_size": self.part_size,
+            "part_count": -(-node["declared_size"] // self.part_size),
+        }
 
-    def sign_parts(self, security_group_id: str, node_id: str, part_numbers: list[int]) -> dict[str, Any]:
-        """🇺🇸 `POST {base}/uploads/{id}/multipart/parts` — one presigned `PUT` URL per requested part number.
+    def sign_parts(self, node_id: str, part_numbers: list[int]) -> dict[str, Any]:
+        """🇺🇸 `POST /nodes/{id}/multipart/parts` — at most 200 URLs per call.
 
-        🇧🇷 `POST {base}/uploads/{id}/multipart/parts` — uma URL de `PUT` presigned por número de parte pedido.
+        🇧🇷 `POST /nodes/{id}/multipart/parts` — no máximo 200 URLs por chamada.
         """
+        self._node(node_id)
+        if not 1 <= len(part_numbers) <= 200 or self._multipart[node_id]["upload_id"] is None:
+            raise _VaultRefusal("ValidationError", "1..200 part numbers on an open upload", status=400)
+        self.signed_part_batches.append(list(part_numbers))
         parts = [
-            {
-                "part_number": number,
-                "url": f"https://r2.example.test/parts/{node_id}/{number}",
-                "expires_at": 9_999_999_999,
-            }
-            for number in part_numbers
+            {"part_number": n, "url": self._part_url(node_id, n), "expires_at": 9_999_999_999} for n in part_numbers
         ]
         return {"parts": parts}
 
-    def complete_multipart(self, security_group_id: str, node_id: str, parts: list[dict[str, Any]]) -> dict[str, Any]:
-        """🇺🇸 `POST {base}/uploads/{id}/multipart/complete` — concatenates every part, in order, into the final object.
+    @staticmethod
+    def _part_url(node_id: str, number: int) -> str:
+        """🇺🇸 A part's presigned URL. 🇧🇷 A URL pré-assinada de uma parte."""
+        return f"https://r2.example.test/parts/{node_id}/{number}"
 
-        🇧🇷 `POST {base}/uploads/{id}/multipart/complete` — concatena toda parte, em ordem, no objeto final.
+    def complete_multipart(self, node_id: str, parts: list[dict[str, Any]]) -> dict[str, Any]:
+        """🇺🇸 `POST /nodes/{id}/multipart/complete` — assembles the parts in order; the node becomes ready.
+
+        🇧🇷 `POST /nodes/{id}/multipart/complete` — monta as partes em ordem; o nó fica pronto.
         """
-        node = self._nodes[(security_group_id, node_id)]
-        ordered = sorted(parts, key=lambda p: p["part_number"])
-        assembled = b"".join(
-            self._objects[f"https://r2.example.test/parts/{node_id}/{part['part_number']}"] for part in ordered
+        node = self._node(node_id)
+        ordered = sorted(parts, key=lambda part: part["part_number"])
+        urls = [self._part_url(node_id, part["part_number"]) for part in ordered]
+        keys = {self._sse_keys.get(url) for url in urls}
+        if len(keys) != 1:
+            raise _VaultRefusal("ValidationError", "every part must carry the same SSE-C key", status=400)
+        assembled = b"".join(self._objects[url] for url in urls)
+        self._objects[self.node_url(node_id)] = assembled
+        self._sse_keys[self.node_url(node_id)] = keys.pop()
+        node.update(status="ready", size=len(assembled), total_size=len(assembled), completed_at=self.now())
+        return {"node": self._node_view(node_id)}
+
+    def abort_multipart(self, node_id: str) -> dict[str, Any]:
+        """🇺🇸 `POST /nodes/{id}/multipart/abort` — the node becomes `failed`. 🇧🇷 O nó vira `failed`."""
+        self._node(node_id)["status"] = "failed"
+        self.aborted.append(node_id)
+        return {"aborted": True}
+
+    def list_nodes(self, query: dict[str, str]) -> dict[str, Any]:
+        """🇺🇸 `GET /nodes` — ready nodes (unless `include_pending`), filtered and paginated.
+
+        🇧🇷 `GET /nodes` — nós prontos (salvo `include_pending`), filtrados e paginados.
+        """
+        include_pending = query.get("include_pending") == "true"
+        ids = sorted(
+            node_id
+            for node_id, node in self._nodes.items()
+            if include_pending or node["status"] == "ready"
+            if all(query.get(name) in (None, node.get(name)) for name in ("security_group_id", "exam_id", "parent_id"))
         )
-        self._objects[self._object_url(node["storage_path"])] = assembled
-        node["status"] = "ready"
-        node["size"] = len(assembled)
-        node["completed_at"] = "2024-01-01T00:01:00Z"
-        return {"node": dict(node)}
+        limit = int(query.get("limit", 50))
+        cursor = query.get("cursor")
+        start = ids.index(cursor) + 1 if cursor else 0
+        page = ids[start : start + limit]
+        next_cursor = page[-1] if start + limit < len(ids) else None
+        return {"items": [self._node_view(node_id) for node_id in page], "next_cursor": next_cursor}
 
-    def list_nodes(
-        self, security_group_id: str, *, exam_id: str | None, include_pending: bool, limit: int, cursor: str | None
-    ) -> dict[str, Any]:
-        """🇺🇸 `GET {base}/nodes` — every node of the drive, filtered and paginated.
+    def get_node(self, node_id: str) -> dict[str, Any]:
+        """🇺🇸 `GET /nodes/{id}` — a ready file only (pending and folders are `404`), with its download.
 
-        🇧🇷 `GET {base}/nodes` — todo nó do drive, filtrado e paginado.
+        🇧🇷 `GET /nodes/{id}` — só arquivo pronto (pendente e pasta são `404`), com o download.
         """
-        items = [
-            node
-            for (sg, _node_id), node in self._nodes.items()
-            if sg == security_group_id and (include_pending or node["status"] == "ready")
-            if exam_id is None or node["exam_id"] == exam_id
-        ]
-        items.sort(key=lambda node: node["node_id"])
-        start = 0
-        if cursor is not None:
-            start = next(i for i, node in enumerate(items) if node["node_id"] == cursor) + 1
-        page = items[start : start + limit]
-        next_cursor = page[-1]["node_id"] if start + limit < len(items) else None
-        return {"items": page, "next_cursor": next_cursor}
-
-    def get_node(self, security_group_id: str, node_id: str) -> dict[str, Any]:
-        """🇺🇸 `GET {base}/nodes/{id}` — the node plus a download URL for its assembled object.
-
-        🇧🇷 `GET {base}/nodes/{id}` — o nó mais uma URL de download do objeto montado.
-        """
-        node = self._nodes.get((security_group_id, node_id))
-        if node is None:
-            raise _NotFoundError("DriveNodeNotFound", node_id)
-        download = {"url": self._object_url(node["storage_path"]), "method": "GET", "expires_at": 9_999_999_999}
-        return {"node": dict(node), "download": download}
+        node = self._node(node_id)
+        if node["status"] != "ready" or node["kind"] != "file":
+            raise _VaultRefusal("DriveNodeNotFound", node_id)
+        return {
+            "node": self._node_view(node_id),
+            "security_context": self.security_context("nodes", node_id, node_id),
+            "download": self._signed_download(self.node_url(node_id)),
+        }
 
 
 _RouteHandler = Callable[[FakeVault, dict[str, str], dict[str, str], dict[str, Any]], httpx.Response]
@@ -766,67 +868,65 @@ def _put_draft_route(
     return _envelope_success(vault.put_draft(groups["resource"], groups["document_id"], _stream_of(groups), body))
 
 
-def _stage_uploads_route(
-    vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
+def _stage_nodes_route(
+    vault: FakeVault, _groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}/uploads`. 🇧🇷 `POST {base}/uploads`."""
-    return _envelope_success(vault.stage_uploads(groups["security_group_id"], body), status=201)
+    """🇺🇸 `POST /nodes/uploads`. 🇧🇷 `POST /nodes/uploads`."""
+    return _envelope_success(vault.stage_nodes(body), status=201)
 
 
 def _complete_single_route(
-    vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
+    vault: FakeVault, _groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}/uploads/complete`. 🇧🇷 `POST {base}/uploads/complete`."""
-    return _envelope_success(vault.complete_single(groups["security_group_id"], body["node_ids"]))
+    """🇺🇸 `POST /nodes/uploads/complete`. 🇧🇷 `POST /nodes/uploads/complete`."""
+    return _envelope_success(vault.complete_single(body["node_ids"]))
 
 
 def _start_multipart_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}/uploads/{node_id}/multipart`. 🇧🇷 `POST {base}/uploads/{node_id}/multipart`."""
-    return _envelope_success(vault.start_multipart(groups["security_group_id"], groups["node_id"]))
+    """🇺🇸 `POST /nodes/{id}/multipart`. 🇧🇷 `POST /nodes/{id}/multipart`."""
+    return _envelope_success(vault.start_multipart(groups["node_id"]))
 
 
 def _sign_parts_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}/uploads/{node_id}/multipart/parts`. 🇧🇷 `POST {base}/uploads/{node_id}/multipart/parts`."""
-    result = vault.sign_parts(groups["security_group_id"], groups["node_id"], body["part_numbers"])
-    return _envelope_success(result)
+    """🇺🇸 `POST /nodes/{id}/multipart/parts`. 🇧🇷 `POST /nodes/{id}/multipart/parts`."""
+    return _envelope_success(vault.sign_parts(groups["node_id"], body["part_numbers"]))
 
 
 def _complete_multipart_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}/uploads/{node_id}/multipart/complete`. 🇧🇷 `POST {base}/uploads/{node_id}/multipart/complete`."""
-    result = vault.complete_multipart(groups["security_group_id"], groups["node_id"], body["parts"])
-    return _envelope_success(result)
+    """🇺🇸 `POST /nodes/{id}/multipart/complete`. 🇧🇷 `POST /nodes/{id}/multipart/complete`."""
+    return _envelope_success(vault.complete_multipart(groups["node_id"], body["parts"]))
+
+
+def _abort_multipart_route(
+    vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
+) -> httpx.Response:
+    """🇺🇸 `POST /nodes/{id}/multipart/abort`. 🇧🇷 `POST /nodes/{id}/multipart/abort`."""
+    return _envelope_success(vault.abort_multipart(groups["node_id"]))
 
 
 def _list_nodes_route(
-    vault: FakeVault, groups: dict[str, str], query: dict[str, str], _body: dict[str, Any]
+    vault: FakeVault, _groups: dict[str, str], query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET {base}/nodes`. 🇧🇷 `GET {base}/nodes`."""
-    result = vault.list_nodes(
-        groups["security_group_id"],
-        exam_id=query.get("exam_id"),
-        include_pending=query.get("include_pending") == "true",
-        limit=int(query.get("limit", 50)),
-        cursor=query.get("cursor"),
-    )
-    return _envelope_success(result)
+    """🇺🇸 `GET /nodes`. 🇧🇷 `GET /nodes`."""
+    return _envelope_success(vault.list_nodes(query))
 
 
 def _get_node_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET {base}/nodes/{node_id}`. 🇧🇷 `GET {base}/nodes/{node_id}`."""
-    result = vault.get_node(groups["security_group_id"], groups["node_id"])
-    return _envelope_success(result)
+    """🇺🇸 `GET /nodes/{id}`. 🇧🇷 `GET /nodes/{id}`."""
+    return _envelope_success(vault.get_node(groups["node_id"]))
 
 
 _WS = WORKSPACE_ID
 _DOCS = rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams|templates)"
+_NODES = rf"^/api/external/v1/workspaces/{_WS}/nodes"
 # 🇺🇸 Version and draft routes carry `/streams/{stream}` on patients only — the same table the vault
 #    builds its routes from, so `/patients/{id}/versions` has no route here, exactly as in production.
 # 🇧🇷 Rotas de versão e rascunho carregam `/streams/{fluxo}` só em pacientes — a mesma tabela de que
@@ -855,51 +955,14 @@ _ROUTES: list[tuple[re.Pattern[str], str, _RouteHandler]] = [
         )
     ),
     (re.compile(rf"{_DOCS}/(?P<document_id>[^/]+)$"), "GET", _get_document_route),
-    (
-        re.compile(rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)/uploads$"),
-        "POST",
-        _stage_uploads_route,
-    ),
-    (
-        re.compile(rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)/uploads/complete$"),
-        "POST",
-        _complete_single_route,
-    ),
-    (
-        re.compile(
-            rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)/uploads/(?P<node_id>[^/]+)/multipart$"
-        ),
-        "POST",
-        _start_multipart_route,
-    ),
-    (
-        re.compile(
-            rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)"
-            r"/uploads/(?P<node_id>[^/]+)/multipart/parts$"
-        ),
-        "POST",
-        _sign_parts_route,
-    ),
-    (
-        re.compile(
-            rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)"
-            r"/uploads/(?P<node_id>[^/]+)/multipart/complete$"
-        ),
-        "POST",
-        _complete_multipart_route,
-    ),
-    (
-        re.compile(rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)/nodes$"),
-        "GET",
-        _list_nodes_route,
-    ),
-    (
-        re.compile(
-            rf"^/api/external/v1/workspaces/{_WS}/drives/(?P<security_group_id>[^/]+)/nodes/(?P<node_id>[^/]+)$"
-        ),
-        "GET",
-        _get_node_route,
-    ),
+    (re.compile(rf"{_NODES}/uploads$"), "POST", _stage_nodes_route),
+    (re.compile(rf"{_NODES}/uploads/complete$"), "POST", _complete_single_route),
+    (re.compile(rf"{_NODES}/(?P<node_id>[^/]+)/multipart$"), "POST", _start_multipart_route),
+    (re.compile(rf"{_NODES}/(?P<node_id>[^/]+)/multipart/parts$"), "POST", _sign_parts_route),
+    (re.compile(rf"{_NODES}/(?P<node_id>[^/]+)/multipart/complete$"), "POST", _complete_multipart_route),
+    (re.compile(rf"{_NODES}/(?P<node_id>[^/]+)/multipart/abort$"), "POST", _abort_multipart_route),
+    (re.compile(rf"{_NODES}$"), "GET", _list_nodes_route),
+    (re.compile(rf"{_NODES}/(?P<node_id>[^/]+)$"), "GET", _get_node_route),
 ]
 
 
@@ -971,49 +1034,37 @@ class Harness:
 def _default_group_deks() -> dict[str, bytes]:
     """🇺🇸 Two named security groups with fresh, independent DEKs.
 
-    A plain function, not a fixture: `harness`/`sse_c_harness` are the only
-    fixtures a test file needs to import (`docs/README.md`'s bare-import
-    convention — see the module docstring), and each calls this on its own
-    rather than depending on a `group_deks` fixture that a test module
-    importing only `harness` would never register.
+    A plain function, not a fixture: `harness` is the only fixture a test
+    file needs to import (the bare-import convention — see the module
+    docstring), and it calls this on its own rather than depending on a
+    `group_deks` fixture that a test module importing only `harness` would
+    never register.
 
     🇧🇷 Dois security groups nomeados com DEKs novas e independentes.
 
-    Uma função simples, não uma fixture: `harness`/`sse_c_harness` são as
-    únicas fixtures que um arquivo de teste precisa importar (convenção de
-    import direto — ver a docstring do módulo), e cada uma chama isto por
-    conta própria em vez de depender de uma fixture `group_deks` que um
-    módulo de teste importando só `harness` nunca registraria.
+    Uma função simples, não uma fixture: `harness` é a única fixture que um
+    arquivo de teste precisa importar (convenção de import direto — ver a
+    docstring do módulo), e ela chama isto por conta própria em vez de
+    depender de uma fixture `group_deks` que um módulo de teste importando
+    só `harness` nunca registraria.
     """
     return {"sg1": secrets.token_bytes(32), "sg2": secrets.token_bytes(32)}
 
 
 @pytest.fixture
 def harness() -> Harness:
-    """🇺🇸 A ready-to-use `Harness`, `sse_c` off by default.
-
-    🇧🇷 Um `Harness` pronto para uso, `sse_c` desligado por padrão.
-    """
-    return _build_harness(_default_group_deks(), sse_c=False)
+    """🇺🇸 A ready-to-use `Harness`. 🇧🇷 Um `Harness` pronto para uso."""
+    return _build_harness(_default_group_deks())
 
 
-@pytest.fixture
-def sse_c_harness() -> Harness:
-    """🇺🇸 The same harness with `sse_c` on, for the SSE-C header assertions.
-
-    🇧🇷 O mesmo harness com `sse_c` ligado, para as asserções de headers de SSE-C.
-    """
-    return _build_harness(_default_group_deks(), sse_c=True)
-
-
-def _build_harness(group_deks: dict[str, bytes], *, sse_c: bool) -> Harness:
+def _build_harness(group_deks: dict[str, bytes]) -> Harness:
     """🇺🇸 Wires a fresh `FakeVault` to a real `VaultTransport` over `httpx.MockTransport`.
 
     🇧🇷 Conecta um `FakeVault` novo a um `VaultTransport` de verdade sobre `httpx.MockTransport`.
     """
     vault = FakeVault()
     keyring = make_keyring(group_deks)
-    settings = Settings(api_token="apikey-test", vault_url=VAULT_URL, sse_c=sse_c)  # noqa: S106 — test fixture, not a real secret
+    settings = Settings(api_token="apikey-test", vault_url=VAULT_URL)  # noqa: S106 — test fixture, not a real secret
     api_client = httpx.Client(transport=httpx.MockTransport(vault.handle_api), base_url=VAULT_URL)
     storage_client = httpx.Client(transport=httpx.MockTransport(vault.handle_storage))
     entropy = EntropyMixer()

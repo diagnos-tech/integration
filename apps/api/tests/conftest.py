@@ -36,6 +36,7 @@ from diagnos import (
     Exam,
     ExamRecord,
     ExamSummary,
+    GroupKeyUnavailable,
     NotFoundError,
     Page,
     Patient,
@@ -267,41 +268,101 @@ class FakeExams:
         return self._flag(exam_id, is_deleted=False)
 
 
-class FakeDrive:
-    """🇺🇸 Enough of `Drive` (`apps/sdk/src/diagnos/resources/drives.py`) for the routes in `routers/files.py`.
+class _NodeStore:
+    """🇺🇸 The one in-memory store every `FakeDrive` shares: the vault addresses a node by id across groups.
 
-    🇧🇷 O suficiente de `Drive` (`apps/sdk/src/diagnos/resources/drives.py`) para as rotas de `routers/files.py`.
+    🇧🇷 O único armazenamento em memória que todo `FakeDrive` compartilha: o cofre endereça um nó pelo id entre grupos.
     """
 
-    def __init__(self, security_group_id: str) -> None:
-        """🇺🇸 Starts empty. `last_upload` records what `upload` last received, for `test_files.py` to assert on.
+    def __init__(self) -> None:
+        """🇺🇸 Starts empty. 🇧🇷 Começa vazio."""
+        self.nodes: dict[str, DriveNode] = {}
+        self.data: dict[str, bytes] = {}
+        self.names: dict[str, str] = {}
+        self.counter = 0
 
-        🇧🇷 Começa vazio. `last_upload` guarda o que `upload` recebeu por último, para `test_files.py` assertar.
+    def add(self, security_group_id: str, name: str, *, kind: str = "file", data: bytes = b"", **fields: Any) -> str:
+        """🇺🇸 Stores one node and returns its id. 🇧🇷 Guarda um nó e devolve o id."""
+        self.counter += 1
+        node_id = f"node_{self.counter}"
+        self.nodes[node_id] = DriveNode.model_validate(
+            {
+                "node_id": node_id,
+                "workspace_id": WORKSPACE_ID,
+                "security_group_id": security_group_id,
+                "kind": kind,
+                "status": "ready",
+                "encrypted_name": {"salt": "s", "nonce": "n", "ciphertext": "c"},
+                "encrypted_keys": {},
+                "created_by": "tester",
+                "created_at": "2024-01-01T00:00:00Z",
+                **fields,
+            }
+        )
+        self.data[node_id] = data
+        self.names[node_id] = name
+        return node_id
+
+
+class _FakeReading:
+    """🇺🇸 The read half both `Drive` and `Drives` expose (`resources/drives/_drive.py`'s `_Reading`).
+
+    🇧🇷 A metade de leitura que `Drive` e `Drives` expõem (o `_Reading` de `resources/drives/_drive.py`).
+    """
+
+    def __init__(self, store: _NodeStore) -> None:
+        """🇺🇸 Reads from `store`; `locked` acts like a session holding no key for any group.
+
+        🇧🇷 Lê de `store`; `locked` age como uma sessão sem chave para grupo nenhum.
         """
-        self._security_group_id = security_group_id
-        self._nodes: dict[str, DriveNode] = {}
-        self._data: dict[str, bytes] = {}
-        self._names: dict[str, str | None] = {}
-        self._counter = 0
-        self.last_upload: dict[str, Any] | None = None
-
-    def list(
-        self,
-        *,
-        exam_id: str | None = None,
-        include_pending: bool = False,
-        limit: int = 50,
-        cursor: str | None = None,
-    ) -> Page[DriveNode]:
-        """🇺🇸 Every stored node. 🇧🇷 Todo nó guardado."""
-        return Page(items=list(self._nodes.values()), next_cursor=None)
+        self._store = store
+        self.locked = False
 
     def get(self, node_id: str) -> DriveNode:
         """🇺🇸 The stored `DriveNode`, or `NotFoundError`. 🇧🇷 O `DriveNode` guardado, ou `NotFoundError`."""
         try:
-            return self._nodes[node_id]
+            return self._store.nodes[node_id]
         except KeyError:
             raise NotFoundError(code="DriveNodeNotFound", message=f"no node {node_id!r}", status=404) from None
+
+    def name_of(self, node: DriveNode) -> str:
+        """🇺🇸 The plaintext name stored for this node. 🇧🇷 O nome em claro guardado para este nó."""
+        if self.locked:
+            raise GroupKeyUnavailable(f"no key for {node.security_group_id!r}")
+        return self._store.names[node.node_id]
+
+    def iter_download(self, node_id: str) -> Iterator[bytes]:
+        """🇺🇸 Yields the stored bytes in two chunks, like the SDK's lazy decryptor.
+
+        🇧🇷 Entrega os bytes em dois pedaços, como o decifrador preguiçoso do SDK.
+        """
+        data = self._store.data[self.get(node_id).node_id]
+        half = len(data) // 2
+        yield data[:half]
+        yield data[half:]
+
+
+class FakeDrive(_FakeReading):
+    """🇺🇸 Enough of `Drive` (`apps/sdk/src/diagnos/resources/drives/`) for the routes in `routers/files.py`.
+
+    🇧🇷 O suficiente de `Drive` (`apps/sdk/src/diagnos/resources/drives/`) para as rotas de `routers/files.py`.
+    """
+
+    def __init__(self, store: _NodeStore, security_group_id: str) -> None:
+        """🇺🇸 `calls` records every keyword the routes forwarded, so a test can assert the HTTP → SDK mapping.
+
+        🇧🇷 `calls` registra todo argumento nomeado que as rotas repassaram, para um teste assertar o mapeamento
+        HTTP → SDK.
+        """
+        super().__init__(store)
+        self.security_group_id = security_group_id
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def list(self, **kwargs: Any) -> Page[DriveNode]:
+        """🇺🇸 Every stored node of this group. 🇧🇷 Todo nó guardado deste grupo."""
+        self.calls.append(("list", kwargs))
+        items = [node for node in self._store.nodes.values() if node.security_group_id == self.security_group_id]
+        return Page(items=items, next_cursor="cursor_2" if kwargs.get("limit") == 1 else None)
 
     def upload(
         self,
@@ -310,6 +371,7 @@ class FakeDrive:
         name: str | None = None,
         mime_type: str | None = None,
         exam_id: str | None = None,
+        parent_id: str | None = None,
     ) -> DriveNode:
         """🇺🇸 Reads `source` fully (mirroring `Drive.upload`'s accepted input shapes) and stores it as a node.
 
@@ -321,63 +383,35 @@ class FakeDrive:
             data = Path(source).read_bytes()
         else:
             data = source.read()
-        self._counter += 1
-        node_id = f"node_{self._counter}"
-        node = DriveNode(
-            node_id=node_id,
-            workspace_id=WORKSPACE_ID,
-            security_group_id=self._security_group_id,
-            exam_id=exam_id,
-            status="ready",
-            mode="single",
-            declared_size=len(data),
-            size=len(data),
-            mime_type=mime_type,
-            media_kind="other",
-            storage_path=f"drive/{self._security_group_id}/{node_id}",
-            created_by="tester",
-            created_at="2024-01-01T00:00:00Z",
+        self.calls.append(
+            ("upload", {"data": data, "name": name, "mime_type": mime_type, "exam_id": exam_id, "parent_id": parent_id})
         )
-        self._nodes[node_id] = node
-        self._data[node_id] = data
-        self._names[node_id] = name
-        self.last_upload = {"data": data, "name": name, "mime_type": mime_type, "exam_id": exam_id}
-        return node
+        node_id = self._store.add(
+            self.security_group_id,
+            name or "",
+            data=data,
+            exam_id=exam_id,
+            parent_id=parent_id,
+            mode="single",
+            size=len(data),
+            declared_size=len(data),
+            mime_type=mime_type,
+        )
+        return self._store.nodes[node_id]
 
-    def iter_download(self, node_id: str) -> Iterator[bytes]:
-        """🇺🇸 Yields the stored bytes in two chunks, like the SDK's lazy decryptor.
+    def create_folder(self, name: str, *, parent_id: str | None = None) -> str:
+        """🇺🇸 Stores a folder node and returns its id, like `Drive.create_folder`.
 
-        🇧🇷 Entrega os bytes em dois pedaços, como o decifrador preguiçoso do SDK.
+        🇧🇷 Guarda um nó de pasta e devolve o id, como `Drive.create_folder`.
         """
-        data = self.download(node_id)
-        assert data is not None
-        half = len(data) // 2
-        yield data[:half]
-        yield data[half:]
-
-    def download(self, node_id: str, destination: str | os.PathLike[str] | BinaryIO | None = None) -> bytes | None:
-        """🇺🇸 Mirrors `Drive.download`'s three destination shapes.
-
-        🇧🇷 Espelha as três formas de destino de `Drive.download`.
-        """
-        data = self._data[node_id]
-        if destination is None:
-            return data
-        if isinstance(destination, (str, os.PathLike)):
-            Path(destination).write_bytes(data)
-            return None
-        destination.write(data)
-        return None
-
-    def name_of(self, node: DriveNode) -> str | None:
-        """🇺🇸 The plaintext name `upload` stored for this node. 🇧🇷 O nome em claro que `upload` guardou para este nó."""
-        return self._names.get(node.node_id)
+        self.calls.append(("create_folder", {"name": name, "parent_id": parent_id}))
+        return self._store.add(self.security_group_id, name, kind="folder", parent_id=parent_id)
 
 
-class FakeDrives:
-    """🇺🇸 Enough of `Drives` (`apps/sdk/src/diagnos/resources/drives.py`) to hand out one `FakeDrive` per group.
+class FakeDrives(_FakeReading):
+    """🇺🇸 Enough of `Drives` to read any node by id and hand out one `FakeDrive` per group.
 
-    🇧🇷 O suficiente de `Drives` (`apps/sdk/src/diagnos/resources/drives.py`) para entregar um `FakeDrive` por grupo.
+    🇧🇷 O suficiente de `Drives` para ler qualquer nó pelo id e entregar um `FakeDrive` por grupo.
     """
 
     def __init__(self) -> None:
@@ -385,6 +419,8 @@ class FakeDrives:
 
         🇧🇷 Começa vazio; um `FakeDrive` é criado na primeira solicitação por security group.
         """
+        self.store = _NodeStore()
+        super().__init__(self.store)
         self._drives: dict[str, FakeDrive] = {}
 
     def drive(self, security_group_id: str) -> FakeDrive:
@@ -393,7 +429,7 @@ class FakeDrives:
         🇧🇷 A mesma instância de `FakeDrive` para um dado `security_group_id`, entre chamadas.
         """
         if security_group_id not in self._drives:
-            self._drives[security_group_id] = FakeDrive(security_group_id)
+            self._drives[security_group_id] = FakeDrive(self.store, security_group_id)
         return self._drives[security_group_id]
 
 

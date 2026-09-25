@@ -51,29 +51,26 @@ StreamSource = Iterable[bytes] | BinaryIO
 
 
 def encrypted_size(plaintext_size: int, chunk_size: int = CHUNK_SIZE) -> int:
-    """🇺🇸 The exact encrypted+framed size, computed *before* uploading.
+    """🇺🇸 The exact encrypted+framed size, computed *before* uploading — the web app's `encryptedLength`.
 
-    The vault charges the workspace by this number (PROTOCOL §9), so it must
-    match the byte count `encrypt_stream` actually produces, including the
-    empty-file case: one final chunk of zero plaintext bytes still costs a
-    header, a length prefix and an authentication tag.
+    One frame per full chunk plus one final frame for the remainder (empty
+    when the plaintext is an exact multiple of the chunk, and for an empty
+    file): `24 + (n // chunk + 1) × (4 + 17) + n`. The vault locks a single
+    `PUT` to this number and charges the workspace by it, so it must match
+    what `encrypt_stream` produces byte for byte.
 
-    🇧🇷 O tamanho exato cifrado e framed, calculado *antes* de subir.
+    🇧🇷 O tamanho exato cifrado e framed, calculado *antes* de subir — o `encryptedLength` do app web.
 
-    O cofre cobra o workspace por este número (PROTOCOL §9), então precisa
-    bater com o que `encrypt_stream` produz de fato, incluindo o caso de
-    arquivo vazio: um chunk final de zero bytes de texto claro ainda custa um
-    header, um prefixo de tamanho e uma tag de autenticação.
+    Um frame por chunk cheio mais um frame final com o resto (vazio quando o
+    texto claro é múltiplo exato do chunk, e para arquivo vazio):
+    `24 + (n // chunk + 1) × (4 + 17) + n`. O cofre trava um `PUT` único
+    neste número e cobra o workspace por ele, então precisa bater byte a
+    byte com o que `encrypt_stream` produz.
     """
     if plaintext_size < 0:
         raise CryptoError("encrypted_size: plaintext_size não pode ser negativo")
-    if plaintext_size == 0:
-        return HEADER_BYTES + _LENGTH_PREFIX_BYTES + ABYTES
-    full_chunks, remainder = divmod(plaintext_size, chunk_size)
-    chunk_lengths = [chunk_size] * full_chunks
-    if remainder:
-        chunk_lengths.append(remainder)
-    return HEADER_BYTES + sum(_LENGTH_PREFIX_BYTES + length + ABYTES for length in chunk_lengths)
+    frames = plaintext_size // chunk_size + 1
+    return HEADER_BYTES + frames * (_LENGTH_PREFIX_BYTES + ABYTES) + plaintext_size
 
 
 def _iter_fixed_chunks(source: StreamSource, chunk_size: int) -> Iterator[bytes]:
@@ -118,34 +115,33 @@ def _encode_frame(cipher_chunk: bytes) -> bytes:
 
 
 def encrypt_stream(key: SecretLike, source: StreamSource, chunk_size: int = CHUNK_SIZE) -> Iterator[bytes]:
-    """🇺🇸 Yields the 24-byte header, then one framed ciphertext chunk at a time.
+    """🇺🇸 Yields the 24-byte header, then one framed ciphertext chunk at a time, framed like the web app.
 
-    The last chunk always carries `TAG_FINAL`, even for an empty source —
-    that tag is what lets the reader (`decrypt_stream`) reject a stream that
-    was cut short by a failed upload from one that legitimately ended.
+    Every full chunk is pushed as a regular message; the remainder — empty
+    when the plaintext is an exact multiple of `chunk_size`, and for an empty
+    source — always closes the stream as its own `TAG_FINAL` frame. That tag
+    is what lets the reader (`decrypt_stream`) tell a stream cut short by a
+    failed upload from one that legitimately ended.
 
-    🇧🇷 Entrega o header de 24 bytes, depois um chunk cifrado framed por vez.
+    🇧🇷 Entrega o header de 24 bytes, depois um chunk cifrado framed por vez, enquadrado como no app web.
 
-    O último chunk sempre carrega `TAG_FINAL`, mesmo para uma fonte vazia —
-    essa tag é o que permite ao leitor (`decrypt_stream`) rejeitar um stream
-    cortado por um upload que falhou, distinguindo-o de um que terminou de
-    verdade.
+    Todo chunk cheio vai como mensagem comum; o resto — vazio quando o texto
+    claro é múltiplo exato de `chunk_size`, e para fonte vazia — sempre fecha
+    o stream como o próprio frame `TAG_FINAL`. Essa tag é o que permite ao
+    leitor (`decrypt_stream`) distinguir um stream cortado por um upload que
+    falhou de um que terminou de verdade.
     """
     push = _secure.SecretStreamPush(as_secret(key))
     yield push.header
 
-    # 🇺🇸 One-chunk lookahead: we only know a chunk is the *last* one once the
-    #    source is exhausted, and only the last one may carry `TAG_FINAL`.
-    # 🇧🇷 Um chunk de antecedência: só sabemos que um chunk é o *último*
-    #    quando a fonte se esgota, e só o último pode levar `TAG_FINAL`.
-    pending: bytes | None = None
+    tail = b""
     for chunk in _iter_fixed_chunks(source, chunk_size):
-        if pending is not None:
-            yield _encode_frame(push.push(pending))
-        pending = chunk
-
-    final_plaintext = pending if pending is not None else b""
-    yield _encode_frame(push.push(final_plaintext, final=True))
+        if len(chunk) == chunk_size:
+            yield _encode_frame(push.push(chunk))
+        else:
+            # 🇺🇸 Only the last piece can be short. 🇧🇷 Só o último pedaço pode ser curto.
+            tail = chunk
+    yield _encode_frame(push.push(tail, final=True))
 
 
 def decrypt_stream(key: SecretLike, source: Iterable[bytes]) -> Iterator[bytes]:

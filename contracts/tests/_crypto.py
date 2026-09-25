@@ -40,6 +40,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import struct
 
 import nacl.bindings as nb
 from cryptography.hazmat.primitives import hashes
@@ -150,3 +151,75 @@ def seal_body(key: bytes, plaintext: bytes, info: str, *, label: str) -> bytes:
     derived = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=info.encode("utf-8")).derive(key)
     nonce = fixed_bytes(f"{label}/nonce", 12)
     return salt + nonce + AESGCM(derived).encrypt(nonce, plaintext, None)
+
+
+# 🇺🇸 Frozen wire constants of files (`docs/PROTOCOL.md §9`), repeated for the same reason as above.
+# 🇧🇷 Constantes de fio congeladas de arquivos (`docs/PROTOCOL.md §9`), repetidas pelo mesmo motivo acima.
+NODE_DEK_INFO = "imgexam-node-dek-v1"
+NODE_NAME_INFO = "imgexam-node-name-v1"
+SSE_C_INFO_SUFFIX = "|sse-c-v1"
+STREAM_CHUNK_BYTES = 1024 * 1024
+
+_TAG_MESSAGE = nb.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE
+_TAG_FINAL = nb.crypto_secretstream_xchacha20poly1305_TAG_FINAL
+
+
+def sse_c_headers(dek: bytes, node_id: str, security_context: str) -> dict[str, str]:
+    """🇺🇸 The three SSE-C headers `@repo/magic-files` sends: the content key's sister, in standard base64.
+
+    🇧🇷 Os três headers de SSE-C que o `@repo/magic-files` manda: a irmã da chave de conteúdo, em base64 padrão.
+    """
+    key = content_key(dek, node_id, security_context + SSE_C_INFO_SUFFIX)
+    # 🇺🇸 MD5 here is R2's integrity check of the key, not a security primitive.
+    # 🇧🇷 O MD5 aqui é a checagem de integridade da chave pelo R2, não uma primitiva de segurança.
+    digest = hashlib.md5(key, usedforsecurity=False).digest()
+    return {
+        "x-amz-server-side-encryption-customer-algorithm": "AES256",
+        "x-amz-server-side-encryption-customer-key": base64.b64encode(key).decode("ascii"),
+        "x-amz-server-side-encryption-customer-key-md5": base64.b64encode(digest).decode("ascii"),
+    }
+
+
+def seal_stream(key: bytes, plaintext: bytes, chunk: int = STREAM_CHUNK_BYTES) -> bytes:
+    """🇺🇸 A file body as the web app writes it: `header(24) ‖ (len_u32_be ‖ frame)*`, the last frame `FINAL`.
+
+    Full chunks go out as plain messages and the tail — empty on an exact
+    multiple — as a separate `FINAL` frame. libsodium draws the header
+    itself, so this body is not deterministic; it never enters the contract.
+
+    🇧🇷 O corpo de um arquivo como o app web grava: `header(24) ‖ (len_u32_be ‖ frame)*`, o último frame `FINAL`.
+
+    Chunks cheios saem como mensagens comuns e o resto — vazio num múltiplo
+    exato — como um frame `FINAL` separado. A libsodium sorteia o header
+    sozinha, então este corpo não é determinístico; ele nunca entra no
+    contrato.
+    """
+    state = nb.crypto_secretstream_xchacha20poly1305_state()
+    out = bytearray(nb.crypto_secretstream_xchacha20poly1305_init_push(state, key))
+    full = len(plaintext) - len(plaintext) % chunk
+    for start in range(0, full, chunk):
+        frame = nb.crypto_secretstream_xchacha20poly1305_push(state, plaintext[start : start + chunk], tag=_TAG_MESSAGE)
+        out += struct.pack(">I", len(frame)) + frame
+    frame = nb.crypto_secretstream_xchacha20poly1305_push(state, plaintext[full:], tag=_TAG_FINAL)
+    out += struct.pack(">I", len(frame)) + frame
+    return bytes(out)
+
+
+def open_stream(key: bytes, body: bytes) -> bytes:
+    """🇺🇸 The inverse of `seal_stream`; fails unless the last frame is `FINAL` and nothing follows it.
+
+    🇧🇷 O inverso de `seal_stream`; falha a menos que o último frame seja `FINAL` e nada venha depois dele.
+    """
+    header_bytes = nb.crypto_secretstream_xchacha20poly1305_HEADERBYTES
+    state = nb.crypto_secretstream_xchacha20poly1305_state()
+    nb.crypto_secretstream_xchacha20poly1305_init_pull(state, body[:header_bytes], key)
+    offset, plaintext = header_bytes, bytearray()
+    while True:
+        (length,) = struct.unpack(">I", body[offset : offset + 4])
+        message, tag = nb.crypto_secretstream_xchacha20poly1305_pull(state, body[offset + 4 : offset + 4 + length])
+        plaintext += message
+        offset += 4 + length
+        if tag == _TAG_FINAL:
+            if offset != len(body):
+                raise ValueError("bytes after the FINAL frame")
+            return bytes(plaintext)

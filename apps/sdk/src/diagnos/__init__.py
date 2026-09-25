@@ -64,7 +64,7 @@ from .models import (
     PatientSummary,
     PersonalIdentifier,
 )
-from .resources.drives import Drive, Drives
+from .resources.drives import Drive, Drives, UploadSource
 from .session.enrollment import EnrollmentPrompt
 from .session.keyring import GroupKeyUnavailable
 from .transport.config import Settings
@@ -74,6 +74,9 @@ __all__ = [
     "ConfigError",
     "ConflictError",
     "CryptoError",
+    "Diagnos",
+    "DiagnosError",
+    "DiagnosPermissionError",
     "DocumentDraft",
     "DocumentIndex",
     "DocumentListItem",
@@ -90,9 +93,6 @@ __all__ = [
     "ExamRecord",
     "ExamSummary",
     "GroupKeyUnavailable",
-    "Diagnos",
-    "DiagnosError",
-    "DiagnosPermissionError",
     "MemoryLockWarning",
     "NotFoundError",
     "Page",
@@ -108,10 +108,11 @@ __all__ = [
     "SessionExpiredError",
     "Settings",
     "TimePrecision",
+    "UploadSource",
     "ValidationError",
     "VaultError",
-    "__version__",
     "memory_status",
     "to_iso_instant",
     "truncate_timestamp",
+    "__version__",
 ]

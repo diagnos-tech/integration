@@ -8,13 +8,6 @@ HTTP than import Python. It never adds capability the SDK does not already have 
 `vault.patients`/`vault.exams`/`vault.drives`
 ([`CONTRIBUTING.md`](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.md)).
 
-> [!WARNING]
-> The `/v1/drives` routes wrap an SDK layer that still speaks an **earlier revision** of the vault protocol and is
-> not compatible with today's vault (`https://vault.diagnos.health`) yet — they fail before writing anything.
-> `/v1/session`, `/v1/patients`, `/v1/exams` and `/healthz` work today. See
-> [Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md) for
-> the full picture and the plan to close the gap.
-
 > [!NOTE]
 > **Not on PyPI yet** — `diagnos-api` (and the `diagnos` SDK it depends on) has no published wheel. The Docker image
 > built from `apps/api/Dockerfile` (below) is the supported way to run it today: it builds the SDK, CLI and API from
@@ -129,15 +122,18 @@ Every route requires a client certificate; `{sg}` is a security group id.
 | `POST` | `/v1/exams/{id}/unarchive` | Unarchive | ✅ works today |
 | `DELETE` | `/v1/exams/{id}` | Move to the trash (soft) | ✅ works today |
 | `POST` | `/v1/exams/{id}/restore` | Take out of the trash | ✅ works today |
-| `GET` | `/v1/drives/{sg}/nodes` | List drive nodes, names decrypted | ⚠️ see warning |
-| `GET` | `/v1/drives/{sg}/nodes/{id}` | Get one node | ⚠️ see warning |
-| `POST` | `/v1/drives/{sg}/nodes` | Upload a file (multipart) | ⚠️ see warning |
-| `GET` | `/v1/drives/{sg}/nodes/{id}/content` | Download decrypted content | ⚠️ see warning |
+| `GET` | `/v1/drives/{sg}/nodes` | List files and folders, names decrypted (`?parent_id=`, `?exam_id=`, `?include_pending=`, `?limit=` 1–200, `?cursor=`) | ✅ works today |
+| `GET` | `/v1/drives/{sg}/nodes/{id}` | One file's metadata and decrypted name | ✅ works today |
+| `POST` | `/v1/drives/{sg}/nodes` | Upload a file (`multipart/form-data`: `file`, optional `exam_id`, `parent_id`, `mime_type`) | ✅ works today |
+| `POST` | `/v1/drives/{sg}/folders` | Create a folder (`name`, `parent_id`) → `{node_id}` | ✅ works today |
+| `GET` | `/v1/drives/{sg}/nodes/{id}/content` | Stream the decrypted content, named by its last path segment | ✅ works today |
 | `GET` | `/v1/session` | This process's identity and the caller's mTLS identity | ✅ works today |
 | `POST` | `/v1/session/lock` | Ends the SDK session | ✅ works today |
 | `GET` | `/healthz` | Trivial 200 (still mTLS-gated) | ✅ works today |
 
-Rows marked ⚠️ fail against today's production vault — see the warning at the top of this document.
+A node read under the wrong `{sg}` answers `404`, exactly like one that does not exist. Known limits and the
+questions still open on the vault side:
+[Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
 
 Full request/response schemas, generated from the code, are at `/docs` (Swagger UI) and `/openapi.json` once the
 process is running — reachable only with a valid client certificate, like everything else.
@@ -155,12 +151,14 @@ is what a support ticket needs to find the event server-side.
 | 401 | `AuthenticationError`, `SessionExpiredError` | Token/session/signature rejected |
 | 402 | `QuotaError` | No credit for this in the workspace |
 | 403 | `DiagnosPermissionError` | Not allowed here |
+| 403 | `GroupKeyUnavailable` (`code: group_key_unavailable`) | This process was never handed the key of the data's security group — an admin approves an enrollment covering it |
 | 404 | `NotFoundError` | Not found |
-| 409 | `ConflictError` | Pending version or replay |
+| 409 | `ConflictError` | Pending or newer version, replay, or an upload that never reached storage |
 | 422 | — | Request body/query failed validation |
 | 429 | `RateLimitError` | Slow down |
 | 500 | `CryptoError` | An envelope did not open (no further detail) |
 | 502 | `VaultError` | The vault itself failed (any other code) |
+| 502 | `ProtocolError` (`code: protocol_error`) | The vault answered something the protocol does not allow |
 
 ## Calling it with `curl`
 

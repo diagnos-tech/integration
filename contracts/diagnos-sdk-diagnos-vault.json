@@ -1278,6 +1278,578 @@
       "type": "Synchronous/HTTP"
     },
     {
+      "description": "an SDK process confirms the files it uploaded",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a file was uploaded and awaits confirmation",
+          "params": {
+            "node_id": "node-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "node_ids": [
+              "node-contract"
+            ]
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "body": {
+            "$.node_ids[0]": {
+              "expression": "${node_id}",
+              "type": "ProviderState"
+            }
+          },
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/nodes/uploads/complete",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.node_ids[0]": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/nodes/uploads/complete$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/nodes/uploads/complete"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "missing": [],
+              "ready": [
+                {
+                  "created_at": "2026-09-01T12:00:00.000Z",
+                  "created_by": "acc-contract",
+                  "encrypted_keys": {
+                    "sg-contract": {
+                      "ciphertext": "W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg",
+                      "nonce": "E5bRPPwmNibULIVu",
+                      "salt": "jUvBJcMsp9KzfoTyB4wR7Q"
+                    }
+                  },
+                  "encrypted_name": {
+                    "ciphertext": "xYwJve-PlJkv3IGLL0QDkj4QEbgiMq29m7uIvDph5Ls",
+                    "nonce": "ztk6uH80e_rbH_hp",
+                    "salt": "Y67nX4PouMdwJK3latCo8A"
+                  },
+                  "is_deleted": false,
+                  "kind": "file",
+                  "mime_type": "application/dicom",
+                  "mode": "single",
+                  "node_id": "node-contract",
+                  "security_group_id": "sg-contract",
+                  "size": 189,
+                  "status": "ready",
+                  "workspace_id": "ws-contract"
+                }
+              ]
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.ready": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.ready[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.ready[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.ready[*].encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg\",\"nonce\":\"E5bRPPwmNibULIVu\",\"salt\":\"jUvBJcMsp9KzfoTyB4wR7Q\"}}"
+                }
+              ]
+            },
+            "$.result.ready[*].encrypted_name.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.ready[*].encrypted_name.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.ready[*].encrypted_name.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.ready[*].is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.ready[*].kind": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.ready[*].mime_type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.ready[*].mode": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.ready[*].node_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.ready[*].security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.ready[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.ready[*].status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.ready[*].workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process creates a folder",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "the SDK session holds the key of a security group",
+          "params": {
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "files": [
+              {
+                "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg",
+                    "nonce": "E5bRPPwmNibULIVu",
+                    "salt": "jUvBJcMsp9KzfoTyB4wR7Q"
+                  }
+                },
+                "encrypted_name": {
+                  "ciphertext": "xYwJve-PlJkv3IGLL0QDkj4QEbgiMq29m7uIvDph5Ls",
+                  "nonce": "ztk6uH80e_rbH_hp",
+                  "salt": "Y67nX4PouMdwJK3latCo8A"
+                },
+                "kind": "folder"
+              }
+            ],
+            "security_group_id": "sg-contract"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/nodes/uploads",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.files[0].client_ref": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{1,64}$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_keys['sg-contract'].ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_keys['sg-contract'].nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_keys['sg-contract'].salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_name.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_name.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_name.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].kind": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/nodes/uploads$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/nodes/uploads"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "items": [
+                {
+                  "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                  "kind": "folder",
+                  "node_id": "folder-contract",
+                  "security_context": {
+                    "value": "tooiBhsfM9zA77sZVwo0rayolM1J0gJIiGTVYf2Dbug"
+                  },
+                  "version_id": "folder-contract"
+                }
+              ]
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.items[0].client_ref": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[0].kind": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.items[0].node_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[0].security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[0].version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
       "description": "an SDK process creates a patient and reserves its first version",
       "pending": false,
       "providerStates": [
@@ -1927,6 +2499,289 @@
                 {
                   "match": "regex",
                   "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process lists the files of a security group",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a security group holds one ready file",
+          "params": {
+            "node_id": "node-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/nodes",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/nodes$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/nodes",
+        "query": {
+          "limit": [
+            "50"
+          ],
+          "security_group_id": [
+            "sg-contract"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "items": [
+                {
+                  "created_at": "2026-09-01T12:00:00.000Z",
+                  "created_by": "acc-contract",
+                  "encrypted_keys": {
+                    "sg-contract": {
+                      "ciphertext": "W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg",
+                      "nonce": "E5bRPPwmNibULIVu",
+                      "salt": "jUvBJcMsp9KzfoTyB4wR7Q"
+                    }
+                  },
+                  "encrypted_name": {
+                    "ciphertext": "xYwJve-PlJkv3IGLL0QDkj4QEbgiMq29m7uIvDph5Ls",
+                    "nonce": "ztk6uH80e_rbH_hp",
+                    "salt": "Y67nX4PouMdwJK3latCo8A"
+                  },
+                  "is_deleted": false,
+                  "kind": "file",
+                  "mime_type": "application/dicom",
+                  "mode": "single",
+                  "node_id": "node-contract",
+                  "security_group_id": "sg-contract",
+                  "size": 189,
+                  "status": "ready",
+                  "workspace_id": "ws-contract"
+                }
+              ],
+              "next_cursor": null
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.items[*].created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg\",\"nonce\":\"E5bRPPwmNibULIVu\",\"salt\":\"jUvBJcMsp9KzfoTyB4wR7Q\"}}"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_name.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_name.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[*].encrypted_name.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[*].is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.items[*].kind": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.items[*].mime_type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].mode": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.items[*].node_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[*].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.items[*].status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.items[*].workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
                 }
               ]
             }
@@ -4114,6 +4969,294 @@
       "type": "Synchronous/HTTP"
     },
     {
+      "description": "an SDK process reads a ready file and its download URL",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a security group holds one ready file",
+          "params": {
+            "node_id": "node-contract",
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/nodes/${node_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/nodes/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/nodes/node-contract"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "download": {
+                "url": "https://objects.diagnos.test/node-download?X-Amz-Signature=contract"
+              },
+              "node": {
+                "created_at": "2026-09-01T12:00:00.000Z",
+                "created_by": "acc-contract",
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg",
+                    "nonce": "E5bRPPwmNibULIVu",
+                    "salt": "jUvBJcMsp9KzfoTyB4wR7Q"
+                  }
+                },
+                "encrypted_name": {
+                  "ciphertext": "xYwJve-PlJkv3IGLL0QDkj4QEbgiMq29m7uIvDph5Ls",
+                  "nonce": "ztk6uH80e_rbH_hp",
+                  "salt": "Y67nX4PouMdwJK3latCo8A"
+                },
+                "is_deleted": false,
+                "kind": "file",
+                "mime_type": "application/dicom",
+                "mode": "single",
+                "node_id": "node-contract",
+                "security_group_id": "sg-contract",
+                "size": 189,
+                "status": "ready",
+                "workspace_id": "ws-contract"
+              },
+              "security_context": {
+                "value": "tooiBhsfM9zA77sZVwo0rayolM1J0gJIiGTVYf2Dbug"
+              }
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.download.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.node.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+                }
+              ]
+            },
+            "$.result.node.created_by": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.node.encrypted_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg\",\"nonce\":\"E5bRPPwmNibULIVu\",\"salt\":\"jUvBJcMsp9KzfoTyB4wR7Q\"}}"
+                }
+              ]
+            },
+            "$.result.node.encrypted_name.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.node.encrypted_name.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.node.encrypted_name.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.node.is_deleted": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.result.node.kind": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.node.mime_type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.node.mode": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.node.node_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.node.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.node.size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.node.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.node.workspace_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
       "description": "an SDK process registers its hybrid public keys to request a session",
       "pending": false,
       "providerStates": [
@@ -4542,6 +5685,326 @@
               ]
             },
             "$.result.version_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process reserves the upload of one file",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "the SDK session holds the key of a security group",
+          "params": {
+            "security_group_id": "sg-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "exam_id": "exam-contract",
+            "files": [
+              {
+                "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                "encrypted_keys": {
+                  "sg-contract": {
+                    "ciphertext": "W3R4Fx-L037sPcZfiVz6QDvZfCAMJcDZIfcXLNAq3pS_EWqvfEoLkLtqm_lAJKMg",
+                    "nonce": "E5bRPPwmNibULIVu",
+                    "salt": "jUvBJcMsp9KzfoTyB4wR7Q"
+                  }
+                },
+                "encrypted_name": {
+                  "ciphertext": "xYwJve-PlJkv3IGLL0QDkj4QEbgiMq29m7uIvDph5Ls",
+                  "nonce": "ztk6uH80e_rbH_hp",
+                  "salt": "Y67nX4PouMdwJK3latCo8A"
+                },
+                "mime_type": "application/dicom",
+                "size": 189
+              }
+            ],
+            "security_group_id": "sg-contract"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/nodes/uploads",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.exam_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.files[0].client_ref": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{1,64}$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_keys['sg-contract'].ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_keys['sg-contract'].nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_keys['sg-contract'].salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_name.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_name.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].encrypted_name.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.files[0].mime_type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.files[0].size": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.security_group_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/nodes/uploads$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/nodes/uploads"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "items": [
+                {
+                  "client_ref": "a8fa8dd25680bd271bbe0d2b21074ead",
+                  "kind": "file",
+                  "mode": "single",
+                  "node_id": "node-contract",
+                  "security_context": {
+                    "value": "tooiBhsfM9zA77sZVwo0rayolM1J0gJIiGTVYf2Dbug"
+                  },
+                  "upload": {
+                    "headers": {
+                      "content-length": "189"
+                    },
+                    "url": "https://objects.diagnos.test/node-upload?X-Amz-Signature=contract"
+                  },
+                  "version_id": "node-contract"
+                }
+              ]
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.items[0].client_ref": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[0].kind": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.items[0].mode": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.result.items[0].node_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.items[0].security_context.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.items[0].upload.headers['content-length']": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[1-9][0-9]*$"
+                }
+              ]
+            },
+            "$.result.items[0].upload.url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https://.+$"
+                }
+              ]
+            },
+            "$.result.items[0].version_id": {
               "combine": "AND",
               "matchers": [
                 {

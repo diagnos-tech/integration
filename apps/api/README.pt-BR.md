@@ -8,13 +8,6 @@ a importar Python. Nunca soma capacidade que o SDK já não tenha — toda rota 
 `vault.patients`/`vault.exams`/`vault.drives`
 ([`CONTRIBUTING.pt-BR.md`](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.pt-BR.md)).
 
-> [!WARNING]
-> As rotas `/v1/drives` envolvem uma camada do SDK que ainda fala uma **revisão anterior** do protocolo do cofre e
-> não é compatível com o cofre atual (`https://vault.diagnos.health`) — elas falham antes de gravar qualquer coisa.
-> `/v1/session`, `/v1/patients`, `/v1/exams` e `/healthz` funcionam hoje. Veja
-> [Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md)
-> para o panorama completo e o plano para fechar essa lacuna.
-
 > [!NOTE]
 > **Ainda não está no PyPI** — `diagnos-api` (e o SDK `diagnos` do qual depende) não tem wheel publicado. A imagem
 > Docker construída a partir de `apps/api/Dockerfile` (abaixo) é o jeito suportado de rodar hoje: ela constrói o SDK, a
@@ -134,15 +127,18 @@ Toda rota exige certificado de cliente; `{sg}` é um id de security group.
 | `POST` | `/v1/exams/{id}/unarchive` | Desarquiva | ✅ funciona hoje |
 | `DELETE` | `/v1/exams/{id}` | Manda para a lixeira (soft) | ✅ funciona hoje |
 | `POST` | `/v1/exams/{id}/restore` | Tira da lixeira | ✅ funciona hoje |
-| `GET` | `/v1/drives/{sg}/nodes` | Lista nós, nomes decifrados | ⚠️ veja o aviso |
-| `GET` | `/v1/drives/{sg}/nodes/{id}` | Busca um nó | ⚠️ veja o aviso |
-| `POST` | `/v1/drives/{sg}/nodes` | Sobe um arquivo (multipart) | ⚠️ veja o aviso |
-| `GET` | `/v1/drives/{sg}/nodes/{id}/content` | Baixa o conteúdo decifrado | ⚠️ veja o aviso |
+| `GET` | `/v1/drives/{sg}/nodes` | Lista arquivos e pastas, nomes decifrados (`?parent_id=`, `?exam_id=`, `?include_pending=`, `?limit=` 1–200, `?cursor=`) | ✅ funciona hoje |
+| `GET` | `/v1/drives/{sg}/nodes/{id}` | Metadado e nome decifrado de um arquivo | ✅ funciona hoje |
+| `POST` | `/v1/drives/{sg}/nodes` | Sobe um arquivo (`multipart/form-data`: `file`, opcionais `exam_id`, `parent_id`, `mime_type`) | ✅ funciona hoje |
+| `POST` | `/v1/drives/{sg}/folders` | Cria uma pasta (`name`, `parent_id`) → `{node_id}` | ✅ funciona hoje |
+| `GET` | `/v1/drives/{sg}/nodes/{id}/content` | Transmite o conteúdo decifrado, nomeado pelo último segmento do caminho | ✅ funciona hoje |
 | `GET` | `/v1/session` | Identidade deste processo e a identidade mTLS de quem chamou | ✅ funciona hoje |
 | `POST` | `/v1/session/lock` | Encerra a sessão do SDK | ✅ funciona hoje |
 | `GET` | `/healthz` | 200 trivial (ainda travado por mTLS) | ✅ funciona hoje |
 
-Linhas marcadas com ⚠️ falham contra o cofre de produção de hoje — veja o aviso no topo deste documento.
+Um nó lido sob o `{sg}` errado responde `404`, igual a um que não existe. Limites conhecidos e as questões ainda em
+aberto do lado do cofre:
+[Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
 
 Os esquemas completos de requisição/resposta, gerados do código, ficam em `/docs` (Swagger UI) e `/openapi.json` com
 o processo rodando — alcançáveis só com um certificado de cliente válido, como tudo mais.
@@ -160,12 +156,14 @@ direto do envelope de erro do próprio cofre quando a falha se originou lá
 | 401 | `AuthenticationError`, `SessionExpiredError` | Token/sessão/assinatura recusados |
 | 402 | `QuotaError` | Sem crédito no workspace |
 | 403 | `DiagnosPermissionError` | Não permitido aqui |
+| 403 | `GroupKeyUnavailable` (`code: group_key_unavailable`) | Este processo nunca recebeu a chave do security group do dado — um admin aprova um enrollment que o cubra |
 | 404 | `NotFoundError` | Não encontrado |
-| 409 | `ConflictError` | Versão pendente ou replay |
+| 409 | `ConflictError` | Versão pendente ou mais nova, replay, ou um upload que nunca chegou ao armazenamento |
 | 422 | — | Corpo/query da requisição falhou validação |
 | 429 | `RateLimitError` | Devagar |
 | 500 | `CryptoError` | Um envelope não abriu (sem mais detalhe) |
 | 502 | `VaultError` | O próprio cofre falhou (qualquer outro código) |
+| 502 | `ProtocolError` (`code: protocol_error`) | O cofre respondeu algo que o protocolo não permite |
 
 ## Chamando com `curl`
 

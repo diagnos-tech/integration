@@ -9,7 +9,16 @@ import json
 from typing import Any
 
 import pytest
-from diagnos.crypto import DOCUMENT_DEK_INFO, INDEX_INFO
+from diagnos.crypto import (
+    DOCUMENT_DEK_INFO,
+    INDEX_INFO,
+    NODE_DEK_INFO,
+    NODE_NAME_INFO,
+    derive_sse_c_key,
+    encrypt_stream,
+    encrypted_size,
+    sse_c_headers,
+)
 from diagnos.crypto.content import (
     DRAFT_CONTENT_INFO,
     SEALED_OVERHEAD_BYTES,
@@ -245,3 +254,51 @@ def test_seal_version_content_round_trips_with_fresh_salt() -> None:
     second = seal_version_content(dek, "v1", "ctx", b"{}")
     assert first != second
     assert open_version_content(dek, "v1", "ctx", first) == open_version_content(dek, "v1", "ctx", second) == b"{}"
+
+
+def test_node_dek_and_name_match_the_web_app() -> None:
+    """🇺🇸 A node DEK unwraps with `imgexam-node-dek-v1`; its name opens under it with `imgexam-node-name-v1`.
+
+    🇧🇷 A DEK de um nó abre com `imgexam-node-dek-v1`; o nome abre sob ela com `imgexam-node-name-v1`.
+    """
+    vector = load_vector("node_content")
+    assert (vector["dek_info"], vector["name_info"]) == (NODE_DEK_INFO, NODE_NAME_INFO)
+    dek = unwrap_key(
+        b64url_decode(vector["group_kek_b64url"]), EncryptedPayload.from_dict(vector["wrapped_dek"]), NODE_DEK_INFO
+    )
+    assert bytes(dek.reveal()) == b64url_decode(vector["node_dek_b64url"])
+    name = decrypt_content(dek, EncryptedPayload.from_dict(vector["encrypted_name"]), NODE_NAME_INFO)
+    assert name.decode("utf-8") == vector["name"]
+
+
+def test_node_content_and_sse_c_keys_match_the_web_app() -> None:
+    """🇺🇸 Content key and its SSE-C sister (and headers) byte for byte with `@repo/magic-files`.
+
+    🇧🇷 Chave de conteúdo e a irmã de SSE-C (e os headers) byte a byte com `@repo/magic-files`.
+    """
+    vector = load_vector("node_content")
+    dek = b64url_decode(vector["node_dek_b64url"])
+    context = vector["security_context"]["value"]
+    content_key = derive_content_key(dek, vector["node_id"], context)
+    assert bytes(content_key.reveal()) == b64url_decode(vector["content_key_b64url"])
+    sister = derive_sse_c_key(dek, vector["node_id"], context)
+    assert sister == b64url_decode(vector["sse_c_key_b64url"])
+    assert sse_c_headers(sister) == vector["sse_c_headers"]
+
+
+@pytest.mark.parametrize("index", [0, 1, 2], ids=["remainder", "exact_multiple", "empty"])
+def test_node_bodies_match_the_web_app_framing(index: int) -> None:
+    """🇺🇸 Web-app bodies decrypt, and the SDK's own sealing has exactly the web app's length.
+
+    🇧🇷 Corpos do app web decifram, e a selagem do próprio SDK tem exatamente o tamanho do app web.
+    """
+    vector = load_vector("node_content")
+    body = vector["bodies"][index]
+    key = b64url_decode(vector["content_key_b64url"])
+    framed = b64url_decode(body["framed_b64url"])
+    plaintext = body["plaintext_utf8"].encode("utf-8")
+    assert b"".join(decrypt_stream(key, [framed])) == plaintext
+    own = b"".join(encrypt_stream(key, [plaintext], chunk_size=vector["chunk_size"]))
+    assert len(own) == len(framed) == body["encrypted_length"] == encrypted_size(len(plaintext), vector["chunk_size"])
+    for size, expected in vector["encrypted_length_default_chunk"].items():
+        assert encrypted_size(int(size)) == expected

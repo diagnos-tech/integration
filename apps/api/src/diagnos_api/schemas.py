@@ -78,16 +78,35 @@ class ExamUpdateRequest(BaseModel):
 
 
 class NodeView(BaseModel):
-    """🇺🇸 One drive node plus its decrypted name — `DriveNode` alone keeps the name sealed (`resources/drives.py`).
+    """🇺🇸 One drive node plus its decrypted name — `DriveNode` alone keeps the name sealed.
 
-    🇧🇷 Um nó de drive mais seu nome decifrado — `DriveNode` sozinho mantém o nome selado
-    (`resources/drives.py`).
+    🇧🇷 Um nó de drive mais seu nome decifrado — `DriveNode` sozinho mantém o nome selado.
     """
 
     model_config = ConfigDict(frozen=True)
 
     node: DriveNode
     name: str | None = None
+
+
+class FolderCreateRequest(BaseModel):
+    """🇺🇸 Body of `POST /v1/drives/{sg}/folders`. 🇧🇷 Corpo de `POST /v1/drives/{sg}/folders`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, description="🇺🇸 Sealed before it leaves. 🇧🇷 Selado antes de sair.")
+    parent_id: str | None = Field(default=None, description="🇺🇸 Parent folder node id. 🇧🇷 Id da pasta-mãe.")
+
+
+class FolderCreated(BaseModel):
+    """🇺🇸 A new folder's node id — folders have no content, so there is nothing else to report.
+
+    🇧🇷 O id do nó da pasta nova — pastas não têm conteúdo, então não há mais nada a reportar.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    node_id: str
 
 
 class ClientIdentityView(BaseModel):

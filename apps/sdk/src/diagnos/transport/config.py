@@ -116,7 +116,6 @@ class Settings:
     api_token: str
     vault_url: str = DEFAULT_VAULT_URL
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
-    sse_c: bool = False
     openbao_addr: str | None = None
     openbao_token: str | None = None
     openbao_mount: str = DEFAULT_OPENBAO_MOUNT
@@ -173,7 +172,6 @@ class Settings:
             api_token=api_token,
             vault_url=source.get("DIAGNOS_VAULT_URL") or DEFAULT_VAULT_URL,
             timeout_seconds=timeout_seconds,
-            sse_c=_parse_bool(source.get("DIAGNOS_SSE_C", "")),
             openbao_addr=source.get("OPENBAO_ADDR") or None,
             openbao_token=_openbao_token(source),
             openbao_mount=source.get("OPENBAO_MOUNT") or DEFAULT_OPENBAO_MOUNT,
@@ -191,7 +189,7 @@ class Settings:
         openbao_token = _redact_opaque(self.openbao_token) if self.openbao_token else None
         return (
             f"Settings(api_token={redact_api_token(self.api_token)!r}, vault_url={self.vault_url!r}, "
-            f"timeout_seconds={self.timeout_seconds!r}, sse_c={self.sse_c!r}, "
+            f"timeout_seconds={self.timeout_seconds!r}, "
             f"openbao_addr={self.openbao_addr!r}, openbao_token={openbao_token!r}, "
             f"openbao_mount={self.openbao_mount!r}, openbao_path_prefix={self.openbao_path_prefix!r}, "
             f"openbao_namespace={self.openbao_namespace!r}, harden_process={self.harden_process!r}, "

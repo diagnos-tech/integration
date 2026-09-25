@@ -148,7 +148,7 @@ def _is_partial_run(session: pytest.Session) -> bool:
     """
     option = session.config.option
     narrowed_by_path = any("::" in arg or not Path(arg).is_dir() for arg in session.config.args)
-    return bool(option.keyword or option.markexpr or option.lf or narrowed_by_path)
+    return bool(option.keyword or option.markexpr or getattr(option, "lf", False) or narrowed_by_path)
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:

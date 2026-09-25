@@ -3,20 +3,17 @@
 **English** · [Português (Brasil)](README.pt-BR.md)
 
 The official zero-knowledge Python SDK for the diagnos vault
-(`vault.diagnos.health`). Patients, exams and drive files are encrypted in
+(`vault.diagnos.health`). Patients, exams and files are encrypted in
 this process, in RAM, before a single byte reaches the network — the vault
 only ever sees ciphertext, signed requests and presigned URLs. This package
 is the one place that complexity lives.
 
-> [!WARNING]
+> [!NOTE]
 > **Status: 0.1.0 preview.** Enrollment, session keys, request signing, the
-> clock, the lock, `vault.patients` and `vault.exams` are verified against
-> the vault by the Pact contract tests (`contracts/`). `vault.drives` below
-> still implements an **earlier revision** of the vault protocol and is not
-> compatible with `vault.diagnos.health` yet — read
-> [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md)
-> before building on it. It stays documented here, labelled **preview**, so
-> the API shape can be reviewed.
+> clock, the lock, `vault.patients`, `vault.exams` and `vault.drives` speak
+> the vault's current protocol and are verified against it by the Pact
+> contract tests (`contracts/`). Known limits:
+> [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
 
 The goal is for your code to read like this:
 
@@ -202,36 +199,46 @@ print(exam.patient_id, exam.report_status, exam.record.report_html)
 `report_lexical` is the web editor's state and the source of truth for the report; `report_html` is derived from it
 for readers that never open the editor. Write both when you produce a report the web editor should open.
 
-## Drives — files (preview)
+## Files and folders
 
-A drive is a security group; every file inside it (DICOM, image, video,
-PDF, report) is a *node*. Small files go straight up in one `PUT`; large
-ones are split into encrypted parts automatically — you never choose which.
+Every file (DICOM, image, video, PDF) and every folder of the workspace is a
+*node*. A node belongs to one security group — `vault.drives.drive(group)`
+writes into one — and reading needs only its id. Each file gets its own key;
+its name, its content and R2's SSE-C layer are all sealed the way the web
+app seals them. Small files go up in one `PUT`, large ones in encrypted
+parts, 100 files per reservation — you never choose.
 
 ```python
-from diagnos.resources import UploadSource
+from diagnos import UploadSource
 
 drive = vault.drives.drive("sg_oncology")
 
-node = drive.upload("chest_ct.dcm", name="chest_ct.dcm", mime_type="application/dicom", exam_id=exam.id)
+folder_id = drive.create_folder("CT 2026-09-01")
+node = drive.upload("scans/IM-0001.dcm", exam_id=exam.id, parent_id=folder_id)  # name and MIME from the path
 node = drive.upload(b"raw bytes work too", name="note.txt")
 
 nodes = drive.upload_many(
-    [UploadSource("slide_1.jpg", name="slide_1.jpg"), UploadSource("slide_2.jpg", name="slide_2.jpg")],
+    [UploadSource("slide_1.jpg"), UploadSource(jpeg_bytes, name="slide_2.jpg")],
     exam_id=exam.id,
-)  # one reservation call for the whole batch
+)  # one reservation for up to 100 files; returned in input order, ready
 
-data = drive.download(node.node_id)  # bytes in RAM
-drive.download(node.node_id, "downloaded_ct.dcm")  # straight to a file
+for child in drive.iter_all(parent_id=folder_id):  # or drive.list(...) for one page
+    print(drive.name_of(child), child.size, child.mime_type)
 
-for node in drive.list(exam_id=exam.id):
-    print(drive.name_of(node), node.size)
+data = vault.drives.download(node.node_id)  # bytes in RAM
+vault.drives.download(node.node_id, "IM-0001.dcm")  # straight to a file, one chunk in RAM
+for chunk in vault.drives.iter_download(node.node_id):  # or stream it yourself
+    ...
 ```
 
-`upload`/`upload_many` decide single vs. multipart for you, from the
-file's size
-([`docs/PROTOCOL.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.md)
-§9) — nothing to choose.
+`vault.drives.list()` / `iter_all()` walk the whole workspace (every group
+this session may list) and filter by `security_group`, `exam_id`,
+`parent_id` and `include_pending`. A `.dcm` file is typed
+`application/dicom`, so the vault classifies it; pass `mime_type=` to
+override. `name_of()` returns what the uploader sealed — the web app stores
+a relative path there, so never write to it as a local path without taking
+its last segment. Wire details:
+[`docs/PROTOCOL.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.md) §9–§10.
 
 ## Errors
 
@@ -247,11 +254,12 @@ message
 | `QuotaError` | the workspace has no credit for this |
 | `DiagnosPermissionError` | this service account may not do this here |
 | `NotFoundError` | 404 |
-| `ConflictError` | a pending version or a replay — the SDK already retried what is safe to retry |
+| `ConflictError` | a pending or newer version, a replay, or an upload that never reached storage (`UploadIncomplete`) — the SDK already retried what is safe to retry |
 | `RateLimitError` | raised only after the SDK's own backoff gave up |
 | `GroupKeyUnavailable` | this enrollment was never handed the DEK of a group the document needs |
 | `EnrollmentDeniedError` / `EnrollmentExpiredError` | nobody approved, or approved too late |
 | `SessionExpiredError` | no live local session — call `unlock()` (again) before a signed call |
+| `ProtocolError` | the vault answered something the protocol does not allow — not retryable; report it with the SDK version |
 | `VaultError` | base class; carries `code`, `status`, `trace_id` for a support ticket |
 
 ## Configuration
@@ -262,7 +270,6 @@ message
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | Where the vault lives. |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | Per-request HTTP timeout. |
 | `DIAGNOS_TIME_PRECISION` | unset | The workspace's anonymization precision (`month`, `day`, `hour`, `minute`, `second`); dates are truncated to it before sealing. |
-| `DIAGNOS_SSE_C` | off | Adds R2 SSE-C on top of end-to-end encryption for single PUT/GET ([`docs/PROTOCOL.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.md) §10). |
 | `OPENBAO_ADDR` | unset | Enables auto-unseal when set. |
 | `OPENBAO_TOKEN` | unset | Token scoped to this SDK's own OpenBao path. |
 | `OPENBAO_MOUNT` | `secret` | KV v2 mount point. |
@@ -273,7 +280,7 @@ message
 | `DIAGNOS_HARDEN_PROCESS` | `1` | `0` skips disabling core dumps / `ptrace` at unlock (debugging only). |
 
 Everything above can also be set explicitly, bypassing the environment
-entirely: `Diagnos(settings=Settings(api_token="apikey-…", vault_url=..., sse_c=True))`.
+entirely: `Diagnos(settings=Settings(api_token="apikey-…", vault_url=..., time_precision="day"))`.
 
 ## What this SDK never does
 

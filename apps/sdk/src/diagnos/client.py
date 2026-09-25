@@ -50,7 +50,7 @@ def _resolve_settings(settings: Settings | None, token: str | None) -> Settings:
     """🇺🇸 `settings` wins outright; `token` overrides only `DIAGNOS_API_TOKEN` on top of the real environment.
 
     Routing an explicit `token` through `Settings.from_env` (instead of
-    hand-building a `Settings`) means `vault_url`/`sse_c`/OpenBao config
+    hand-building a `Settings`) means `vault_url`/`time_precision`/OpenBao config
     still come from the environment exactly as they would without `token` —
     a caller passing a token is choosing *which credential* to use, not
     opting out of every other env var.
@@ -58,7 +58,7 @@ def _resolve_settings(settings: Settings | None, token: str | None) -> Settings:
     🇧🇷 `settings` vence direto; `token` sobrescreve só `DIAGNOS_API_TOKEN` em cima do ambiente de verdade.
 
     Rotear um `token` explícito por `Settings.from_env` (em vez de montar um
-    `Settings` à mão) faz `vault_url`/`sse_c`/config do OpenBao continuarem
+    `Settings` à mão) faz `vault_url`/`time_precision`/config do OpenBao continuarem
     vindo do ambiente exatamente como viriam sem `token` — quem chama
     passando um token está escolhendo *qual credencial* usar, não saindo de
     toda outra variável de ambiente.
@@ -281,7 +281,6 @@ class Diagnos:
                 self._keyring_provider,
                 self._entropy,
                 workspace_id=self.workspace_id,
-                settings=self._settings,
             )
         return self._drives
 

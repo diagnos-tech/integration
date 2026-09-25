@@ -31,11 +31,10 @@ Three open-source Python packages for talking to the diagnos vault without ever 
 key envelope yourself. Everything clinical is encrypted **inside your process** before it touches the network — the
 vault only ever sees ciphertext. These packages make that the *easy* path.
 
-> [!WARNING]
-> **Status: 0.1.0 preview.** Enrollment, sessions and request signing are verified against the vault by the
-> [contract tests](contracts/README.md), and so are patients and exams. The files API still implements an earlier
-> revision of the vault protocol and is **not compatible with vault.diagnos.health yet** — read
-> [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) before building on it.
+> [!NOTE]
+> **Status: 0.1.0 preview.** Every surface — enrollment, sessions, request signing, patients, exams, files and
+> folders — speaks the vault's current protocol and is verified against it by the [contract tests](contracts/README.md).
+> Known limits, and the questions still open on the vault side, are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 ## Pick your package
 
@@ -78,7 +77,7 @@ diagnos status         # token, OpenBao and SDK version
 ```
 
 **3. Use it.** Patients, exams and files hang off the same object — `vault.patients`, `vault.exams`,
-`vault.drives` — see the [SDK guide](apps/sdk/README.md) (preview, see the status above).
+`vault.drives` — see the [SDK guide](apps/sdk/README.md).
 
 ## How a session is born
 

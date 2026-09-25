@@ -32,6 +32,7 @@ from diagnos import (
     Exam,
     ExamRecord,
     ExamSummary,
+    GroupKeyUnavailable,
     NotFoundError,
     Page,
     Patient,
@@ -82,20 +83,25 @@ EXAM_SUMMARY = ExamSummary.of(EXAM_RECORD)
 EXAM = Exam(index=EXAM_INDEX, record=EXAM_RECORD, summary=EXAM_SUMMARY, version_id="v1")
 EXAM_ITEM = DocumentListItem[ExamSummary](index=EXAM_INDEX, summary=EXAM_SUMMARY)
 
-DRIVE_NODE = DriveNode(
-    node_id="node_1",
-    workspace_id="ws_1",
-    security_group_id="sg_oncology",
-    exam_id="exam_1",
-    status="ready",
-    mode="single",
-    declared_size=1234,
-    size=1234,
-    mime_type="application/dicom",
-    media_kind="dicom",
-    storage_path="ws_1/sg_oncology/node_1",
-    created_by="svc_1",
-    created_at=FIXED_NOW,
+DRIVE_NODE = DriveNode.model_validate(
+    {
+        "node_id": "node_1",
+        "workspace_id": "ws_1",
+        "security_group_id": "sg_oncology",
+        "kind": "file",
+        "exam_id": "exam_1",
+        "status": "ready",
+        "mode": "single",
+        "declared_size": 1234,
+        "size": 1234,
+        "mime_type": "application/dicom",
+        "media_kind": "dicom",
+        "encrypted_name": {"salt": "s", "nonce": "n", "ciphertext": "c"},
+        "encrypted_keys": {},
+        "storage_path": "workspaces/ws_1/nodes/node_1",
+        "created_by": "svc_1",
+        "created_at": FIXED_NOW,
+    }
 )
 
 _DECRYPTED_NAMES = {"node_1": "chest_ct.dcm"}
@@ -192,21 +198,40 @@ class FakeExams:
 
 
 class FakeDrive:
-    """🇺🇸 Fixed-data stand-in for one `diagnos.resources.drives.Drive`. 🇧🇷 Substituto de dado fixo de uma `Drive`."""
+    """🇺🇸 Fixed-data stand-in for `diagnos.Drive` / `diagnos.Drives`; `calls` records every keyword.
 
-    def list(self, **_: Any) -> Page[DriveNode]:
+    🇧🇷 Substituto de dado fixo de `diagnos.Drive` / `diagnos.Drives`; `calls` registra todo argumento nomeado.
+    """
+
+    def __init__(self, security_group_id: str | None = None) -> None:
+        """🇺🇸 No calls yet. 🇧🇷 Nenhuma chamada ainda."""
+        self.security_group_id = security_group_id
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.names = dict(_DECRYPTED_NAMES)
+        # 🇺🇸 Set to `True` to act like a session holding no key for the node's group.
+        # 🇧🇷 Ligue para agir como uma sessão sem chave para o grupo do nó.
+        self.locked = False
+
+    def list(self, **kwargs: Any) -> Page[DriveNode]:
+        self.calls.append(("list", kwargs))
         return Page(items=[DRIVE_NODE], next_cursor=None)
 
-    def iter_all(self, **_: Any) -> Any:
+    def iter_all(self, **kwargs: Any) -> Any:
+        self.calls.append(("iter_all", kwargs))
         yield DRIVE_NODE
 
     def get(self, node_id: str) -> DriveNode:
         if node_id != DRIVE_NODE.node_id:
-            raise NotFoundError(code="NodeNotFound", message=f"no such node {node_id!r}", status=404)
+            raise NotFoundError(code="DriveNodeNotFound", message=f"no such node {node_id!r}", status=404)
         return DRIVE_NODE
 
-    def upload_many(self, sources: Any, *, exam_id: str | None = None) -> list[DriveNode]:
-        return [DRIVE_NODE for _ in sources]
+    def upload_many(self, sources: Any, **kwargs: Any) -> list[DriveNode]:
+        self.calls.append(("upload_many", {"sources": list(sources), **kwargs}))
+        return [DRIVE_NODE for _ in self.calls[-1][1]["sources"]]
+
+    def create_folder(self, name: str, **kwargs: Any) -> str:
+        self.calls.append(("create_folder", {"name": name, **kwargs}))
+        return "folder_1"
 
     def download(self, node_id: str, destination: str | Path | Any | None = None) -> bytes | None:
         data = b"fake-encrypted-then-decrypted-bytes"
@@ -219,14 +244,24 @@ class FakeDrive:
         return None
 
     def name_of(self, node: DriveNode) -> str | None:
-        return _DECRYPTED_NAMES.get(node.node_id)
+        if self.locked:
+            raise GroupKeyUnavailable(f"no key for {node.security_group_id!r}")
+        return self.names.get(node.node_id)
 
 
-class FakeDrives:
-    """🇺🇸 Fixed-data stand-in for `diagnos.resources.drives.Drives`. 🇧🇷 Substituto de dado fixo de `Drives`."""
+class FakeDrives(FakeDrive):
+    """🇺🇸 `vault.drives`: workspace-level reads plus `drive(group)`.
+
+    🇧🇷 `vault.drives`: leituras do workspace mais `drive(grupo)`.
+    """
+
+    def __init__(self) -> None:
+        """🇺🇸 Remembers the drives it handed out. 🇧🇷 Lembra os drives que entregou."""
+        super().__init__()
+        self.handed_out: dict[str, FakeDrive] = {}
 
     def drive(self, security_group_id: str) -> FakeDrive:
-        return FakeDrive()
+        return self.handed_out.setdefault(security_group_id, FakeDrive(security_group_id))
 
 
 class FakeDiagnos:

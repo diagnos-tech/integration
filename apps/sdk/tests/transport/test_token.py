@@ -139,7 +139,7 @@ def test_settings_from_env_reads_all_variables() -> None:
             "DIAGNOS_API_TOKEN": "apikey-abc.def.ghi",
             "DIAGNOS_VAULT_URL": "https://vault.example.test",
             "DIAGNOS_TIMEOUT_SECONDS": "5.5",
-            "DIAGNOS_SSE_C": "YES",
+            "DIAGNOS_TIME_PRECISION": "day",
             "OPENBAO_ADDR": "https://bao.example.test",
             "OPENBAO_TOKEN": "s.supersecrettoken",
             "OPENBAO_MOUNT": "custom-mount",
@@ -149,7 +149,7 @@ def test_settings_from_env_reads_all_variables() -> None:
     )
     assert settings.vault_url == "https://vault.example.test"
     assert settings.timeout_seconds == 5.5
-    assert settings.sse_c is True
+    assert settings.time_precision == "day"
     assert settings.openbao_addr == "https://bao.example.test"
     assert settings.openbao_mount == "custom-mount"
     assert settings.openbao_path_prefix == "custom-prefix"

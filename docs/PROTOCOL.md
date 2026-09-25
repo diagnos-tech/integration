@@ -6,13 +6,9 @@ Normative. Every format below is pinned by `apps/sdk/tests/vectors/*.json`,
 generated from the vault's reference implementation. When this document and
 a vector disagree, the vector wins and this document has a bug.
 
-> [!NOTE]
-> Sections [9](#9-drives-files) and [10](#10-sse-c-opt-in) describe the
-> `diagnos` SDK's 0.1 implementation of drive files, which predates the
-> vault's current protocol revision. See [COMPATIBILITY.md](COMPATIBILITY.md)
-> for exactly what is and is not compatible with `vault.diagnos.health`
-> today. Everything else in this document is accurate to the vault and the
-> web app as they run today.
+The whole document matches `vault.diagnos.health` and the web app as they run
+today. Questions still open on the vault side — none of which change a byte
+the SDK sends — are tracked in [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## 0. Conventions
 
@@ -242,9 +238,9 @@ Code that uses one of these points back here by name — see
 | `imgexam-template-index-v1` | seals a report template's `encrypted_index` | §8 |
 | `imgexam-document-version-v1` | seals a committed version's body under its content key | §7, §8 |
 | `imgexam-document-draft-v1` | seals a draft head's body under its content key | §7, §8 |
-| `imgexam-drive-node-key-v1` | SDK 0.1 drives only — derives a node's content key | §9 |
-| `imgexam-drive-node-name-v1` | SDK 0.1 drives only — wraps a node's file name | §9 |
-| `imgexam-sse-c-v1` | SDK 0.1 drives only — derives the optional SSE-C customer key | §10 |
+| `imgexam-node-dek-v1` | wraps a node's own DEK under its security group's key | §9 |
+| `imgexam-node-name-v1` | seals a node's name under its DEK | §9 |
+| `\|sse-c-v1` | suffix appended to `security_context.value` to derive a node's SSE-C key | §10 |
 
 ## 8. Versioned documents
 
@@ -349,68 +345,97 @@ Rules:
   `GET`. A second layer only one side sent would make the object unreadable
   to the other.
 
-## 9. Drives (files)
+## 9. Files and folders (nodes)
 
-> [!WARNING]
-> This section describes the SDK 0.1 implementation of drive files, which
-> predates the vault's current protocol revision — see
-> [COMPATIBILITY.md](COMPATIBILITY.md). It is kept here as a record of what
-> `vault.drives` (labelled **preview** in
-> [`apps/sdk/README.md`](../apps/sdk/README.md)) sends and expects today, not as a
-> description of what `vault.diagnos.health` currently accepts.
+Every file (DICOM, image, video, PDF) and every folder of a workspace is a
+**node** under `{base}` = `/api/external/v1/workspaces/{workspace_id}/nodes`.
+A node belongs to one security group; reading one needs only its id — the
+vault authorizes against the group the node itself declares.
 
-A drive is a security group. Any file (DICOM, image, video, PDF) is a
-**node** in `{base}` = `/api/external/v1/workspaces/{workspace_id}/drives/{security_group_id}`.
-
-Keys:
+Keys, as the web app's upload pipeline (`@repo/magic-files`) builds them:
 ```
-node_key       = HKDF-SHA256(ikm = group_dek, salt = utf8(node_id), info = utf8("imgexam-drive-node-key-v1"), L = 32)
-encrypted_name = wrapKey(group_dek, utf8(original_file_name), "imgexam-drive-node-name-v1")
+node_dek       = random(32)                                          (one per node, file or folder)
+encrypted_keys = { <security_group_id>: wrapKey(group_key, node_dek, "imgexam-node-dek-v1") }
+encrypted_name = encryptContent(node_dek, utf8(name), "imgexam-node-name-v1")
+content_key    = HKDF-SHA256(ikm = node_dek, salt = utf8(node_id), info = utf8(security_context.value), L = 32)
 ```
-Deriving the content key from the group DEK means a node needs no wrapped
-key of its own and revocation happens at the group. The name is wrapped with
-the **group DEK** (not the node key) because it travels in the staging
-request, before the vault has assigned a `node_id` — the node key's own
-derivation needs that id as salt, which does not exist yet at that point.
+The content key is the documents' derivation (§7) with `key_id = node_id` —
+the vault also returns that id as `version_id`, since nodes are not
+versioned. `security_context` comes back at staging, before the first byte
+is sealed, and again next to every download URL. The name is whatever the
+uploader chose: the web app seals a relative path (`exams/2024/IM-0001.dcm`),
+so a reader must never use it as a local path as-is.
 
-Body (`secretstream.json`): libsodium `crypto_secretstream_xchacha20poly1305` with `node_key`,
-framed as `[header 24 B][len uint32 BE][cipher chunk]*`; plaintext chunks of
-1 MiB (`1048576`), last chunk pushed with `TAG_FINAL` (an empty file still has one final chunk).
-The reader re-assembles frames by length before pulling; parts of a multipart
-upload split the framed byte stream at arbitrary offsets.
+Body (`secretstream.json`, `node_content.json`): libsodium
+`crypto_secretstream_xchacha20poly1305` under `content_key`, framed as
+`header(24) ‖ (len_u32_be ‖ frame)*`. The plaintext goes in 1 MiB
+(`1048576`) chunks, every full chunk as a plain message; the tail —
+**empty when the size is an exact multiple** — always goes last, as its own
+`TAG_FINAL` frame. So, for `n` plaintext bytes:
+
+```
+size = 24 + (⌊n / 1048576⌋ + 1) × (4 + 17) + n
+```
+
+`size` is declared at staging and the vault signs the `PUT` for exactly that
+many bytes, so it is computed before encrypting; the vault also charges the
+workspace by it. A multipart upload cuts the framed byte stream at fixed
+offsets (`part_size`), never at frame boundaries.
 
 Routes:
 ```
-POST {base}/uploads   { exam_id?, files: [{ client_ref, size (encrypted bytes), mime_type?, encrypted_name? }] (≤1000) }
-   → 201 { nodes: [ { client_ref, node_id, mode: "single", upload } | { client_ref, node_id, mode: "multipart", part_size, part_count } ] }
-PUT  upload.url                                   (single: ≤ 64 MiB, content-length exact)
-POST {base}/uploads/complete   { node_ids }       → { ready: [node…], missing: [node_id…] }
-POST {base}/uploads/{node_id}/multipart           → { upload_id, part_size (32 MiB), part_count }
-POST {base}/uploads/{node_id}/multipart/parts   { part_numbers (≤200) } → { parts: [{ part_number, url, expires_at }] }
-PUT  part.url  (ETag from response header)  …  POST {base}/uploads/{node_id}/multipart/complete { parts: [{ part_number, etag }] } → { node }
-POST {base}/uploads/{node_id}/multipart/abort     → { aborted: true }
-GET  {base}/nodes?limit=&cursor=&exam_id=&include_pending=          → { items: [node…], next_cursor }
-GET  {base}/nodes/{node_id}                        → { node, download }
+POST {base}/uploads   { security_group_id, exam_id?, parent_id?, files: [entry] (≤ 100) }
+     entry = { client_ref (≤ 64 chars), encrypted_name, encrypted_keys, size, mime_type? }      a file
+           | { kind: "folder", client_ref, encrypted_name, encrypted_keys }                     a folder
+  → 201 { items: [{ client_ref, node_id, version_id, security_context, kind,
+                    mode?: "single" | "multipart", upload?, part_size?, part_count?, upload_id? }] }
+PUT  upload.url   with upload.headers + SSE-C (§10)                           single: size ≤ 64 MiB
+POST {base}/uploads/complete             { node_ids (≤ 200) } → { ready: [node…], missing: [node_id…] }
+POST {base}/{node_id}/multipart                               → { upload_id, part_size (32 MiB), part_count }
+POST {base}/{node_id}/multipart/parts    { part_numbers (≤ 200) } → { parts: [{ part_number, url, expires_at }] }
+PUT  part.url     with SSE-C (§10); the ETag comes back as a response header
+POST {base}/{node_id}/multipart/complete { parts: [{ part_number, etag }] } → { node }
+POST {base}/{node_id}/multipart/abort                         → { aborted: true }
+GET  {base}?security_group_id=&exam_id=&parent_id=&include_pending=&limit=&cursor=   → { items: [node…], next_cursor }
+GET  {base}/{node_id}                                         → { node, security_context, download }
 ```
 
-`size` is the size of the **encrypted, framed** body — compute it before
-uploading (`24 + Σ(4 + chunk + 17)`, from the header, the length prefix and
-the 17-byte secretstream tag per chunk). The vault charges the workspace by
-it.
+- **Idempotent staging.** The vault deduplicates a reservation by
+  `(workspace, client_ref)`: re-sending the same ref (same caller, same
+  group, still pending) returns the same node and charges once. A client
+  draws one ref per file and reuses it when it retries.
+- **Folders** are ready at once — there is no content to upload. `parent_id`
+  must be a ready folder of the same group.
+- **Small files** (≤ 64 MiB) go up in one signed `PUT` each and are
+  confirmed together; `missing` names the nodes whose object never arrived.
+- **Large files** go up in parts. Staging usually opens the multipart
+  upload already (`upload_id`); only when it did not does the client call
+  `{node_id}/multipart`. An aborted upload leaves the node `failed`; an
+  abandoned reservation expires after 6 h.
+- **Reads.** `GET {base}/{node_id}` answers `404` for a folder or an
+  unfinished upload — there is nothing to download. A list shows only ready
+  nodes unless `include_pending=true`.
 
-## 10. SSE-C (opt-in)
+## 10. SSE-C
 
-Objects are already end-to-end encrypted. Additionally, single PUT/GET
-may use R2's SSE-C with a key the vault never sees. Disabled by default until
-the web client adopts it (`DIAGNOS_SSE_C=1` enables); never used for multipart
-(the vault creates that upload and must not hold the key).
+R2's server-side encryption with a customer key is a second layer on top of
+the end-to-end encryption of §9; the vault never sees the key. The web app
+derives it as the content key's sister and sends it on the single `PUT`, on
+every multipart part and on the `GET` — an object written with SSE-C can
+only be read with the same key:
 
 ```
-sse_key = HKDF-SHA256(ikm = doc_dek | node_key, salt = ∅, info = utf8("imgexam-sse-c-v1"), L = 32)
+sse_c_key = HKDF-SHA256(ikm = node_dek, salt = utf8(node_id), info = utf8(security_context.value ‖ "|sse-c-v1"), L = 32)
 x-amz-server-side-encryption-customer-algorithm: AES256
-x-amz-server-side-encryption-customer-key:       base64(sse_key)         (standard base64, with padding)
-x-amz-server-side-encryption-customer-key-MD5:   base64(MD5(sse_key))
+x-amz-server-side-encryption-customer-key:       base64(sse_c_key)            (standard base64, with padding)
+x-amz-server-side-encryption-customer-key-md5:   base64(MD5(sse_c_key))
 ```
+
+`upload.headers` and `download.headers` carry the values the vault fixes
+(`content-length`, `content-type`, the algorithm) and must be sent as they
+came; `client_headers` names the two whose values only the client knows.
+Versioned documents (§8) do not use SSE-C. The vault-side questions still
+open about this layer are listed in [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## 11. OpenBao auto-unseal
 
@@ -436,16 +461,16 @@ buffers that are zeroed right after the request is built.
 
 | `code` | HTTP | SDK exception |
 |---|---|---|
-| `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound` | 400 | `ValidationError` |
+| `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound`, `DriveBatchTooLarge`, `DriveDuplicateClientRef`, `DriveFileTooLarge`, `DriveInvalidParent`, `DriveObjectNotFound` | 400 | `ValidationError` |
 | `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (session gone → re-enroll) |
 | `SignatureTimestampSkew` | 401 | resync clock, retry once, then `AuthenticationError` |
 | `QuotaExceeded`, `BudgetNotProvisioned` | 402 | `QuotaError` |
-| `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember` | 403 | `DiagnosPermissionError` |
+| `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember`, `DriveUploadNotOwned` | 403 | `DiagnosPermissionError` |
 | `DocumentNotFound`, `DocumentVersionNotFound`, `DriveNodeNotFound`, `SdkEnrollmentNotFound`, `NotFound` | 404 | `NotFoundError` |
-| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending` | 409 | `ConflictError` (`ReplayDetected` is retried once with a new nonce; `DocumentVersionPending` on a reservation is retried after 1.5 s and 3 s) |
+| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending`, `UploadIncomplete` | 409 | `ConflictError` (`ReplayDetected` is retried once with a new nonce; `DocumentVersionPending` on a reservation is retried after 1.5 s and 3 s) |
 | `RateLimitExceeded` | 429 | `RateLimitError` (honour `Retry-After` if present; else a jittered backoff, up to 3 retries) |
 | `RequestBodyTooLarge` | 413 | `ValidationError` |
-| 5xx / `InternalServerError` | 5xx | `VaultError` (carries `trace_id`; one retry after a fixed backoff) |
+| 5xx / `InternalServerError`, `MultipartUploadFailed` | 5xx | `VaultError` (carries `trace_id`; one retry after a fixed backoff) |
 
 A response that is not valid JSON at all (a proxy's error page, a truncated
 body) never carries a `code`; the SDK raises `VaultError` with the synthetic
@@ -453,10 +478,13 @@ code `InvalidResponse` instead of leaking a bare parse error. `SessionExpiredErr
 is a purely local error — the SDK has no live session to sign with — and
 never comes from a vault response. `ProtocolError` is raised when a
 well-formed answer breaks the protocol (a signed size that is not the
-sealed body's, a version reservation answered as patch-only). A commit that
-fails on the network or with a 5xx is replayed with backoff (0.5 s, 1 s):
-commits are idempotent.
+sealed body's, a version reservation answered as patch-only, a storage part
+without an ETag). `UploadIncomplete` is raised by the SDK, not the vault:
+`uploads/complete` listed a node as `missing`, so its `PUT` never landed —
+upload that file again. A commit that fails on the network or with a 5xx is
+replayed with backoff (0.5 s, 1 s): commits are idempotent. A multipart
+upload that fails midway is aborted before the error is raised.
 
 ## 13. Limits
 
-API body 1 MiB · document version ≤ 64 MiB · batch ≤ 1000 files · single file ≤ 64 MiB · multipart part 32 MiB, ≤ 200 part URLs per call · list page ≤ 200.
+API body 1 MiB · document version ≤ 64 MiB · file ≤ 50 GiB · ≤ 100 files per reservation · ≤ 200 node ids per confirmation · single `PUT` ≤ 64 MiB · multipart part 32 MiB, ≤ 200 part URLs per call · list page ≤ 200 · a pending upload expires after 6 h, its signed URLs after 1 h.
