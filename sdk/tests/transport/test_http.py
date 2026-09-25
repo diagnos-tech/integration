@@ -52,9 +52,9 @@ def _fresh_session_keys() -> SessionKeys:
 
 
 def _time_response(request: httpx.Request) -> httpx.Response:
-    """🇺🇸 The raw (unenveloped) shape `/time` answers with. 🇧🇷 A forma crua (sem envelope) com que `/time` responde."""
-    body = json.loads(request.content or b"{}")
-    return httpx.Response(200, json={"id": body.get("id"), "result": 1_700_000_000_000})
+    """🇺🇸 The raw (unenveloped) shape `GET /time` answers with. 🇧🇷 A forma crua (sem envelope) de `GET /time`."""
+    assert request.method == "GET"
+    return httpx.Response(200, json={"result": 1_700_000_000_000})
 
 
 def _envelope_success(result: object, status: int = 200) -> httpx.Response:
@@ -307,10 +307,10 @@ def test_server_error_retries_once_then_raises() -> None:
     assert excinfo.value.trace_id == "trace-5xx"
 
 
-def test_session_seed_header_opens_and_reaches_on_seed() -> None:
-    """🇺🇸 A valid `X-Session-Seed`, sealed with the session's `enc_key`, reaches `on_seed` as a 32-byte `SecretBox`.
+def test_random_seed_in_the_envelope_opens_and_reaches_on_seed() -> None:
+    """🇺🇸 A valid `random_seed`, sealed with the session's `enc_key`, reaches `on_seed` as a 32-byte `SecretBox`.
 
-    🇧🇷 Um `X-Session-Seed` válido, selado com o `enc_key` da sessão, chega a `on_seed` como um `SecretBox` de 32 bytes.
+    🇧🇷 Um `random_seed` válido, selado com o `enc_key` da sessão, chega a `on_seed` como um `SecretBox` de 32 bytes.
     """
     enc_key = secrets.token_bytes(32)
     session_id = "sess_1"
@@ -318,7 +318,7 @@ def test_session_seed_header_opens_and_reaches_on_seed() -> None:
     nonce = secrets.token_bytes(12)
     plaintext = json.dumps({"seed": b64url_encode(seed)}).encode("utf-8")
     ciphertext = AESGCM(enc_key).encrypt(nonce, plaintext, session_id.encode("utf-8"))
-    header_value = f"{b64url_encode(nonce)}.{b64url_encode(ciphertext)}"
+    envelope = {"nonce": b64url_encode(nonce), "ciphertext": b64url_encode(ciphertext)}
 
     keys = SessionKeys(
         session_id=session_id,
@@ -330,9 +330,7 @@ def test_session_seed_header_opens_and_reaches_on_seed() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/time":
             return _time_response(request)
-        response = _envelope_success({"ok": True})
-        response.headers["X-Session-Seed"] = header_value
-        return response
+        return httpx.Response(200, json={"success": True, "result": {"ok": True}, "random_seed": envelope})
 
     received: list[SecretBox] = []
     transport = _make_transport(client=_client(handler), session_keys=lambda: keys, on_seed=received.append)

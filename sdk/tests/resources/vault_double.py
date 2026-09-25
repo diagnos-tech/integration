@@ -77,12 +77,11 @@ _DEFAULT_SINGLE_THRESHOLD = 1_000_000
 
 
 def _time_response(request: httpx.Request) -> httpx.Response:
-    """🇺🇸 The raw (unenveloped) shape `/time` answers with — same as `tests/transport/test_http.py`.
+    """🇺🇸 The raw (unenveloped) shape `GET /time` answers with — same as `tests/transport/test_http.py`.
 
-    🇧🇷 A forma crua (sem envelope) que `/time` responde — igual a `tests/transport/test_http.py`.
+    🇧🇷 A forma crua (sem envelope) que `GET /time` responde — igual a `tests/transport/test_http.py`.
     """
-    body = json.loads(request.content or b"{}")
-    return httpx.Response(200, json={"id": body.get("id"), "result": 1_700_000_000_000})
+    return httpx.Response(200, json={"result": 1_700_000_000_000})
 
 
 def _envelope_success(result: object, status: int = 200) -> httpx.Response:

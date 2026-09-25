@@ -233,13 +233,13 @@ impl SecretBox {
 
     /// 🇺🇸 Opens `ciphertext`, parses the plaintext as a JSON object and moves one base64url field straight into a locked box.
     ///
-    /// This is how `X-Session-Seed` (`docs/PROTOCOL.md §4`, `{"seed": "<b64url>"}`)
+    /// This is how `random_seed` (`docs/PROTOCOL.md §4`, `{"seed": "<b64url>"}`)
     /// is consumed: the JSON and the encoded seed exist only in zeroizing Rust
     /// memory, never in the Python heap.
     ///
     /// 🇧🇷 Abre `ciphertext`, interpreta o texto claro como objeto JSON e move um campo base64url direto para uma caixa travada.
     ///
-    /// É assim que `X-Session-Seed` (`docs/PROTOCOL.md §4`, `{"seed": "<b64url>"}`)
+    /// É assim que `random_seed` (`docs/PROTOCOL.md §4`, `{"seed": "<b64url>"}`)
     /// é consumido: o JSON e a semente codificada existem só em memória Rust
     /// que se zera, nunca no heap do Python.
     #[pyo3(signature = (nonce, ciphertext, aad, field))]

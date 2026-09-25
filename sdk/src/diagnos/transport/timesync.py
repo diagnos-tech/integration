@@ -2,7 +2,7 @@
 
 `X-Signature-Timestamp` must land within ±120 s of the vault's clock (`docs/PROTOCOL.md
 §2`); a laptop with an off system clock or a container with no NTP would
-otherwise sign every request into a `401 SignatureTimestampSkew`. `POST /time`
+otherwise sign every request into a `401 SignatureTimestampSkew`. `GET /time`
 is the one endpoint the vault answers before any session exists, so the SDK
 uses it — three times, taking the median round-trip offset — to correct for
 that before signing anything.
@@ -12,7 +12,7 @@ depende.
 
 `X-Signature-Timestamp` precisa cair dentro de ±120 s do relógio do cofre
 (`docs/PROTOCOL.md §2`); um notebook com relógio errado ou um container sem
-NTP assinaria toda requisição rumo a um `401 SignatureTimestampSkew`. `POST
+NTP assinaria toda requisição rumo a um `401 SignatureTimestampSkew`. `GET
 /time` é o único endpoint que o cofre responde antes de qualquer sessão
 existir, então o SDK o usa — três vezes, tomando a mediana do offset de ida
 e volta — para corrigir isso antes de assinar qualquer coisa.
@@ -68,24 +68,24 @@ class ClockSync:
         return self._offset_ms
 
     def sync(self, client: httpx.Client) -> None:
-        """🇺🇸 `POST /time` three times against `client`'s `base_url` and take the median offset.
+        """🇺🇸 `GET /time` three times against `client`'s `base_url` and take the median offset.
 
         The median, not the mean, throws out a single round-trip that hit a
         slow network hop instead of letting it drag the whole estimate off.
-        The response is the timesync library's raw `{"id","result"}`, not the
-        envelope — `/time` predates having a session to sign with.
+        The response is a raw `{"result": <server_ms>}`, not the envelope —
+        `/time` predates having a session to sign with.
 
-        🇧🇷 `POST /time` três vezes contra o `base_url` do `client` e usa a mediana do offset.
+        🇧🇷 `GET /time` três vezes contra o `base_url` do `client` e usa a mediana do offset.
 
         A mediana, não a média, descarta uma ida e volta que pegou um salto de
         rede lento em vez de deixar isso puxar a estimativa toda. A resposta é
-        o `{"id","result"}` cru da lib timesync, não o envelope — `/time` é
+        um `{"result": <ms_do_servidor>}` cru, não o envelope — `/time` é
         anterior a existir sessão para assinar.
         """
         offsets: list[float] = []
-        for request_id in range(1, ROUND_TRIPS + 1):
+        for _ in range(ROUND_TRIPS):
             t0 = self._now_ms()
-            response = client.post("/time", json={"id": request_id})
+            response = client.get("/time")
             t1 = self._now_ms()
             response.raise_for_status()
             server_ms = float(response.json()["result"])

@@ -4,7 +4,7 @@ Threat model: a VM cloned or restored from a snapshot (a container image, a
 forked sandbox, a resumed suspend-to-disk) can boot with an OS RNG that
 hasn't re-seeded from fresh hardware entropy yet, so two clones can draw the
 same "random" bytes from `os.urandom` in their first moments. The vault's
-`X-Session-Seed` (itself derived from the vault's own entropy, unique per
+`random_seed` (itself derived from the vault's own entropy, unique per
 response) gives every SDK instance something a sibling clone does not share.
 Mixing it in can only add entropy, never remove it — `os.urandom` output
 always dominates each block, so a seed of all zeros degrades gracefully to
@@ -16,7 +16,7 @@ Modelo de ameaça: uma VM clonada ou restaurada de um snapshot (uma imagem de
 container, um sandbox bifurcado, um suspend-to-disk retomado) pode subir com
 um RNG do SO que ainda não se re-semeou com entropia de hardware fresca,
 então dois clones podem sortear os mesmos bytes "aleatórios" de
-`os.urandom` nos primeiros instantes. O `X-Session-Seed` do cofre (ele
+`os.urandom` nos primeiros instantes. O `random_seed` do cofre (ele
 próprio derivado da entropia do cofre, único por resposta) dá a cada
 instância de SDK algo que um clone irmão não compartilha. Misturá-lo só pode
 somar entropia, nunca remover — a saída de `os.urandom` sempre domina cada
@@ -59,12 +59,12 @@ class EntropyMixer:
         self._pool = _secure.EntropyPool()
 
     def mix(self, seed: SecretLike) -> None:
-        """🇺🇸 Replaces the mixed-in seed (a freshly-opened `X-Session-Seed`, already a `SecretBox`).
+        """🇺🇸 Replaces the mixed-in seed (a freshly-opened `random_seed`, already a `SecretBox`).
 
         Resets the block counter too: a new seed starts its own sequence, it
         doesn't continue the old one.
 
-        🇧🇷 Substitui a semente misturada (um `X-Session-Seed` recém-aberto, já um `SecretBox`).
+        🇧🇷 Substitui a semente misturada (um `random_seed` recém-aberto, já um `SecretBox`).
 
         Também reinicia o contador de blocos: uma semente nova começa a
         própria sequência, não continua a antiga.

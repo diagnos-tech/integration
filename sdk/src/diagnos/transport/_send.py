@@ -1,4 +1,4 @@
-"""🇺🇸 `_SendMixin`: build one signed request and send it, and opportunistically open `X-Session-Seed`.
+"""🇺🇸 `_SendMixin`: build one signed request and send it, and opportunistically open `random_seed`.
 
 `VaultTransport.request` calls `_send_once` once per loop iteration and
 `_maybe_deliver_seed` after every response; neither needs the retry loop
@@ -10,7 +10,7 @@ explicit self-type to be a *supertype* of the defining class, and
 `VaultTransport` (which inherits this mixin) is the other way round: a
 subtype of it.
 
-🇧🇷 `_SendMixin`: monta uma requisição assinada e envia, e abre `X-Session-Seed` de forma oportunista.
+🇧🇷 `_SendMixin`: monta uma requisição assinada e envia, e abre `random_seed` de forma oportunista.
 
 `VaultTransport.request` chama `_send_once` uma vez por volta do laço e
 `_maybe_deliver_seed` depois de toda resposta; nenhum dos dois precisa do
@@ -35,7 +35,7 @@ from diagnos.crypto.secure import SecretBox
 from diagnos.errors import SessionExpiredError
 from diagnos.session.keyring import SessionKeys
 
-from .seed import open_session_seed
+from .seed import open_random_seed
 from .signing import new_nonce, signature_headers
 from .timesync import ClockSync
 
@@ -98,29 +98,35 @@ class _SendMixin:
         return self._client.send(request)
 
     def _maybe_deliver_seed(self: _SendHost, response: httpx.Response) -> None:
-        """🇺🇸 Open `X-Session-Seed` and hand it to `on_seed` as a `SecretBox`; never let this fail the call.
+        """🇺🇸 Open the envelope's `random_seed` and hand it to `on_seed` as a `SecretBox`; never fail the call.
 
-        A seed that does not open (stale `enc_key` mid-rotation, a proxy that
-        stripped the header) is a lost contribution to future entropy, not a
-        reason to fail a response the vault otherwise answered correctly —
-        the SDK still has the OS RNG on its own.
+        A seed that is absent or does not open (a body that is not JSON,
+        a stale `enc_key` mid-rotation) is a lost contribution to future
+        entropy, not a reason to fail a response the vault otherwise answered
+        correctly — the SDK still has the OS RNG on its own.
 
-        🇧🇷 Abre `X-Session-Seed` e entrega a `on_seed` como `SecretBox`; nunca deixa isso derrubar a chamada.
+        🇧🇷 Abre o `random_seed` do envelope e entrega a `on_seed` como `SecretBox`; nunca derruba a chamada.
 
-        Uma semente que não abre (`enc_key` velho no meio de uma rotação, um
-        proxy que removeu o header) é uma contribuição perdida para entropia
-        futura, não motivo para falhar uma resposta que o cofre respondeu
-        certo — o SDK ainda tem o RNG do SO por conta própria.
+        Uma semente ausente ou que não abre (um corpo que não é JSON, um
+        `enc_key` velho no meio de uma rotação) é uma contribuição perdida
+        para entropia futura, não motivo para falhar uma resposta que o cofre
+        respondeu certo — o SDK ainda tem o RNG do SO por conta própria.
         """
-        header_value = response.headers.get("X-Session-Seed")
-        if header_value is None or self._on_seed is None:
+        if self._on_seed is None:
             return
         keys = self._session_keys()
         if keys is None:
             return
         try:
-            seed = open_session_seed(keys.enc_key, keys.session_id, header_value)
+            body = response.json()
+        except ValueError:
+            return
+        envelope = body.get("random_seed") if isinstance(body, dict) else None
+        if not isinstance(envelope, dict):
+            return
+        try:
+            seed = open_random_seed(keys.enc_key, keys.session_id, envelope)
         except Exception:
-            logger.debug("X-Session-Seed did not open", exc_info=True)
+            logger.debug("random_seed did not open", exc_info=True)
             return
         self._on_seed(seed)
