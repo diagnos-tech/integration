@@ -34,7 +34,7 @@ No escopo:
 - **A criptografia do SDK** (`sdk/src/diagnos/crypto/`) — derivação de chave, selagem híbrida, cifragem de
   conteúdo, assinatura de requisição, e qualquer lugar onde um formato de fio de `docs/PROTOCOL.md` é implementado.
 - **O enclave de memória em Rust** (`sdk/native`) — o código responsável por manter chaves de sessão, DEKs e chaves
-  privadas fora do swap, de core dumps e de filhos de `fork()`. Veja [`sdk/native/README.md`](sdk/native/README.md)
+  privadas fora do swap, de core dumps e de filhos de `fork()`. Veja [`sdk/native/README.md`](sdk/native/README.pt-BR.md)
   para o modelo de ameaça do enclave: o que ele garante, o que explicitamente não garante (root/`CAP_SYS_PTRACE`,
   código rodando no mesmo processo, a janela de exportação do OpenBao, Windows), e onde ficam os blocos `unsafe`.
 - **A CLI** (`cli/`) — interpretação de argumentos, tratamento de credenciais, qualquer coisa que possa vazar um
@@ -45,7 +45,7 @@ No escopo:
 
 Fora do escopo: vulnerabilidades que exigem que um atacante já tenha root, `CAP_SYS_PTRACE`, ou execução de código
 no mesmo processo do SDK — o modelo de ameaça do enclave documenta isso como limite aceito, não como bug. Veja
-[`sdk/native/README.md`](sdk/native/README.md) antes de reportar algo assim.
+[`sdk/native/README.md`](sdk/native/README.pt-BR.md) antes de reportar algo assim.
 
 ## O que incluir em um relato
 

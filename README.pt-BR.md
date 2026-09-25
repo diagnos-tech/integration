@@ -133,7 +133,7 @@ export OPENBAO_TOKEN="…"   # restrito a um path, nada mais amplo
 
 > [!WARNING]
 > É uma troca deliberada: quem ler aquele path do OpenBao decifra exatamente o que este processo decifra. Leia
-> [o tradeoff completo](sdk/README.pt-BR.md) antes de ligar.
+> [o tradeoff completo](sdk/README.pt-BR.md#auto-unseal-com-openbao) antes de ligar.
 
 Manifestos prontos ficam em [`api/deploy/`](api/deploy/README.pt-BR.md): Docker Compose e Kubernetes, com auto-unseal
 do OpenBao para AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir e chave estática.

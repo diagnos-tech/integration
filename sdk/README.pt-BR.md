@@ -141,7 +141,7 @@ Quando o kernel recusa, o SDK mantém toda outra proteção, registra em log e
 emite um `MemoryLockWarning`; defina `DIAGNOS_MEMORY_LOCK=require` para se
 recusar a rodar assim. Para um container sem root travar memória, conceda
 `CAP_IPC_LOCK` (veja
-[`api/deploy/README.md`](https://github.com/diagnos-tech/integration/blob/develop/api/deploy/README.md)).
+[`api/deploy/README.md`](https://github.com/diagnos-tech/integration/blob/develop/api/deploy/README.pt-BR.md)).
 [`native/README.pt-BR.md`](native/README.pt-BR.md) diz exatamente o que é e
 o que não é garantido.
 
