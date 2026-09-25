@@ -131,7 +131,7 @@ export OPENBAO_TOKEN="…"   # scoped to one path, nothing wider
 
 > [!WARNING]
 > This is a deliberate trade: whoever can read that OpenBao path can decrypt exactly what this process can. Read
-> [the full trade-off](sdk/README.md) before turning it on.
+> [the full trade-off](sdk/README.md#auto-unseal-with-openbao) before turning it on.
 
 Ready-made manifests live in [`api/deploy/`](api/deploy/README.md): Docker Compose and Kubernetes, with OpenBao
 auto-unseal for AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir and static keys.

@@ -1,16 +1,12 @@
 # OpenBao auto-unseal · AWS KMS
 
-🇺🇸 Wraps OpenBao's master key with a customer-managed AWS KMS key instead of
-Shamir shares. Verified against
-[openbao.org/docs/configuration/seal/awskms](https://openbao.org/docs/configuration/seal/awskms)
-(v2.6.x docs) — see `seal.hcl` for the exact stanza this overlay ships.
+**English** · [Português (Brasil)](README.pt-BR.md)
 
-🇧🇷 Envolve a master key do OpenBao com uma chave gerenciada pelo cliente no
-AWS KMS em vez de shares Shamir. Verificado contra
-[openbao.org/docs/configuration/seal/awskms](https://openbao.org/docs/configuration/seal/awskms)
-(docs da v2.6.x) — veja `seal.hcl` para o stanza exato que este overlay traz.
+Wraps OpenBao's master key with a customer-managed AWS KMS key instead of Shamir shares. Verified against
+[openbao.org/docs/configuration/seal/awskms](https://openbao.org/docs/configuration/seal/awskms) (v2.6.x docs) —
+see `seal.hcl` for the exact stanza this overlay ships.
 
-## 1. Create the KMS key · Criar a chave no KMS
+## 1. Create the KMS key
 
 ```sh
 aws kms create-key --description "diagnos OpenBao auto-unseal" \
@@ -18,15 +14,10 @@ aws kms create-key --description "diagnos OpenBao auto-unseal" \
 aws kms create-alias --alias-name alias/diagnos-openbao-unseal --target-key-id <KeyId>
 ```
 
-## 2. Minimal IAM permissions · Permissões IAM mínimas
+## 2. Minimal IAM permissions
 
-🇺🇸 Attach this to the role `eks.amazonaws.com/role-arn` (below) assumes —
-nothing wider; OpenBao only ever encrypts/decrypts the master key blob and
-reads the key's metadata to validate it on startup.
-
-🇧🇷 Anexe isto ao role que `eks.amazonaws.com/role-arn` (abaixo) assume —
-nada mais amplo; o OpenBao só cifra/decifra o blob da master key e lê os
-metadados da chave para validar na subida.
+Attach this to the role `eks.amazonaws.com/role-arn` (below) assumes — nothing wider; OpenBao only ever
+encrypts/decrypts the master key blob and reads the key's metadata to validate it on startup.
 
 ```json
 {
@@ -39,15 +30,10 @@ metadados da chave para validar na subida.
 }
 ```
 
-## 3. IRSA trust policy · Trust policy do IRSA
+## 3. IRSA trust policy
 
-🇺🇸 The role above needs a trust policy scoped to this one ServiceAccount
-(`openbao` in namespace `openbao`) so no other workload in the cluster can
-assume it:
-
-🇧🇷 O role acima precisa de uma trust policy restrita a este único
-ServiceAccount (`openbao` no namespace `openbao`) para nenhum outro
-workload do cluster conseguir assumi-lo:
+The role above needs a trust policy scoped to this one ServiceAccount (`openbao` in namespace `openbao`) so no
+other workload in the cluster can assume it:
 
 ```json
 {
@@ -65,26 +51,16 @@ workload do cluster conseguir assumi-lo:
 }
 ```
 
-## 4. Apply · Aplicar
+## 4. Apply
 
 ```sh
-# 🇺🇸 fill in seal.hcl's kms_key_id and the two REPLACE_ME values this
-#    overlay patches (role ARN, region) before applying
-# 🇧🇷 preencha o kms_key_id de seal.hcl e os dois REPLACE_ME que este
-#    overlay aplica por patch (role ARN, region) antes de aplicar
+# fill in seal.hcl's kms_key_id and the two REPLACE_ME values this
+# overlay patches (role ARN, region) before applying
 kubectl apply -k deploy/k8s/autounseal/aws
 ```
 
-## Reused by Compose · Reaproveitado pelo Compose
+## Reused by Compose
 
-🇺🇸 Set `OPENBAO_SEAL=aws` in `deploy/compose/.env` and this exact `seal.hcl`
-is bind-mounted into the Compose `openbao` service too — fill in the same
-`AWS_REGION`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` variables in that
-`.env` (no IRSA outside Kubernetes, so credentials go through the
-environment instead).
-
-🇧🇷 Defina `OPENBAO_SEAL=aws` no `deploy/compose/.env` e este mesmo
-`seal.hcl` é montado no serviço `openbao` do Compose também — preencha as
-mesmas variáveis `AWS_REGION`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
-naquele `.env` (sem IRSA fora do Kubernetes, então a credencial passa pelo
-ambiente).
+Set `OPENBAO_SEAL=aws` in `deploy/compose/.env` and this exact `seal.hcl` is bind-mounted into the Compose `openbao`
+service too — fill in the same `AWS_REGION`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` variables in that `.env` (no
+IRSA outside Kubernetes, so credentials go through the environment instead).
