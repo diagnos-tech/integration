@@ -1,10 +1,12 @@
 """🇺🇸 `errors.py`'s handlers that `test_patients.py`/`test_exams.py`'s happy paths never reach on their own.
 
-`register_exception_handlers` wires nine handlers; the "vault answered with
+`register_exception_handlers` wires eleven handlers; the "vault answered with
 an envelope" ones (`ValidationError`/`AuthenticationError`/.../`VaultError`)
 share one factory and get exercised plenty via `QuotaError` elsewhere. The
-five left over — `SessionExpiredError` (no `code`/`trace_id` to carry),
-`CryptoError` (deliberately opaque), a route FastAPI itself rejects
+seven left over — `SessionExpiredError` (no `code`/`trace_id` to carry),
+`CryptoError` (deliberately opaque), `ProtocolError` (the vault's fault, a
+502), `GroupKeyUnavailable` (a permission gap, a 403), a route FastAPI
+itself rejects
 (`RequestValidationError`), a route that does not exist at all
 (`HTTPException`'s plain-string fallback), and any `DiagnosError` this
 module never named (`_unexpected_error_handler`) — are this file's whole
@@ -13,12 +15,13 @@ job.
 🇧🇷 Os handlers de `errors.py` que os caminhos felizes de
 `test_patients.py`/`test_exams.py` nunca alcançam sozinhos.
 
-`register_exception_handlers` conecta nove handlers; os que "o cofre
+`register_exception_handlers` conecta onze handlers; os que "o cofre
 respondeu com um envelope" (`ValidationError`/`AuthenticationError`/.../
 `VaultError`) compartilham uma fábrica e já são exercitados bastante via
-`QuotaError` em outro lugar. Os cinco que sobram — `SessionExpiredError`
+`QuotaError` em outro lugar. Os sete que sobram — `SessionExpiredError`
 (sem `code`/`trace_id` para carregar), `CryptoError` (opaco de propósito),
-uma rota que o próprio FastAPI rejeita (`RequestValidationError`), uma rota
+`ProtocolError` (culpa do cofre, um 502), `GroupKeyUnavailable` (lacuna de
+permissão, um 403), uma rota que o próprio FastAPI rejeita (`RequestValidationError`), uma rota
 que não existe (o fallback de string pura do `HTTPException`), e qualquer
 `DiagnosError` que este módulo nunca nomeou (`_unexpected_error_handler`) —
 são o trabalho inteiro deste arquivo.
@@ -29,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from diagnos import ConfigError, CryptoError, SessionExpiredError
+from diagnos import ConfigError, CryptoError, GroupKeyUnavailable, ProtocolError, SessionExpiredError
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -78,6 +81,36 @@ def test_crypto_error_is_500_with_no_detail_leaked(client: TestClient, fake_vaul
     assert body["error"]["code"] == "crypto_error"
     assert "AEAD" not in body["error"]["message"]
     assert body["error"]["message"] == "internal cryptographic error"
+
+
+def test_protocol_error_is_502_naming_the_violation(client: TestClient, fake_vault: FakeDiagnos) -> None:
+    """🇺🇸 A vault answer outside the protocol is the upstream's fault: 502, with the SDK's description.
+
+    🇧🇷 Uma resposta do cofre fora do protocolo é culpa de quem está acima: 502, com a descrição do SDK.
+    """
+    fake_vault.patients.raise_on_create = ProtocolError("the vault signed 10 bytes for a 12-byte body")
+
+    response = client.post("/v1/patients", json=_create_body())
+
+    assert response.status_code == 502
+    assert response.json()["error"] == {
+        "code": "protocol_error",
+        "message": "the vault signed 10 bytes for a 12-byte body",
+        "trace_id": None,
+    }
+
+
+def test_missing_group_key_is_403(client: TestClient, fake_vault: FakeDiagnos) -> None:
+    """🇺🇸 No key for the data's group is a permission gap an admin can close — a 403, not a 500.
+
+    🇧🇷 Sem chave para o grupo do dado é uma lacuna de permissão que um admin fecha — um 403, não um 500.
+    """
+    fake_vault.patients.raise_on_create = GroupKeyUnavailable("no key for 'sg1'")
+
+    response = client.post("/v1/patients", json=_create_body())
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "group_key_unavailable"
 
 
 def test_unmapped_diagnos_error_is_500_with_the_generic_envelope(client: TestClient, fake_vault: FakeDiagnos) -> None:

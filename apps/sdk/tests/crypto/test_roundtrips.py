@@ -16,11 +16,13 @@ import hashlib
 import secrets
 
 import pytest
+from diagnos.crypto.content import derive_content_key
 from diagnos.crypto.entropy import EntropyMixer
 from diagnos.crypto.envelope import EncryptedPayload, decrypt_content, encrypt_content, unwrap_key, wrap_key
 from diagnos.crypto.hybrid import HybridKeyPair, open_hybrid, seal_hybrid
-from diagnos.crypto.keys import derive_node_key, sse_c_headers
+from diagnos.crypto.keys import derive_sse_c_key, sse_c_headers
 from diagnos.crypto.secretstream import (
+    ABYTES,
     CHUNK_SIZE,
     decrypt_bytes,
     decrypt_stream,
@@ -191,6 +193,17 @@ def test_encrypted_size_matches_actual_output_length() -> None:
         assert len(encrypted) == encrypted_size(size)
 
 
+def test_an_exact_multiple_of_the_chunk_ends_with_an_empty_final_frame() -> None:
+    """🇺🇸 Like the web app: full chunks are regular frames and `TAG_FINAL` rides an empty last frame.
+
+    🇧🇷 Como no app web: chunks cheios são frames comuns e o `TAG_FINAL` vai num último frame vazio.
+    """
+    key = secrets.token_bytes(32)
+    frames = list(encrypt_stream(key, [secrets.token_bytes(_SMALL_CHUNK * 2)], chunk_size=_SMALL_CHUNK))
+    assert len(frames) == 4  # 🇺🇸/🇧🇷 header + 2 full + empty final
+    assert len(frames[-1]) == 4 + ABYTES
+
+
 def test_decrypt_stream_rejects_tampered_byte() -> None:
     """🇺🇸 Flipping one ciphertext byte must fail the AEAD, not silently corrupt the plaintext.
 
@@ -228,19 +241,16 @@ def test_decrypt_stream_rejects_truncated_stream() -> None:
 # --- keys.py ---
 
 
-def test_derive_node_key_is_deterministic() -> None:
-    """🇺🇸 The same group DEK and node id always derive the same node key.
+def test_sse_c_key_is_a_sister_of_the_content_key() -> None:
+    """🇺🇸 Same DEK, id and context, different `info`: the SSE-C key never equals the content key.
 
-    🇧🇷 A mesma DEK de grupo e o mesmo node id sempre derivam a mesma chave de nó.
+    🇧🇷 Mesma DEK, id e contexto, `info` diferente: a chave de SSE-C nunca é igual à chave de conteúdo.
     """
-    group_dek = secrets.token_bytes(32)
-    assert derive_node_key(group_dek, "node-1") == derive_node_key(group_dek, "node-1")
-
-
-def test_derive_node_key_differs_per_node_id() -> None:
-    """🇺🇸 Two nodes in the same drive must not share a key. 🇧🇷 Dois nós do mesmo drive não podem compartilhar chave."""
-    group_dek = secrets.token_bytes(32)
-    assert derive_node_key(group_dek, "node-1") != derive_node_key(group_dek, "node-2")
+    dek = secrets.token_bytes(32)
+    sister = derive_sse_c_key(dek, "node-1", "ctx")
+    assert sister == derive_sse_c_key(dek, "node-1", "ctx")
+    assert sister != derive_sse_c_key(dek, "node-2", "ctx")
+    assert sister != bytes(derive_content_key(dek, "node-1", "ctx").reveal())
 
 
 def test_sse_c_headers_shape_and_md5() -> None:
@@ -253,7 +263,7 @@ def test_sse_c_headers_shape_and_md5() -> None:
     assert headers["x-amz-server-side-encryption-customer-algorithm"] == "AES256"
     assert base64.b64decode(headers["x-amz-server-side-encryption-customer-key"]) == key
     expected_md5 = hashlib.md5(key, usedforsecurity=False).digest()
-    assert base64.b64decode(headers["x-amz-server-side-encryption-customer-key-MD5"]) == expected_md5
+    assert base64.b64decode(headers["x-amz-server-side-encryption-customer-key-md5"]) == expected_md5
 
 
 # --- entropy.py ---

@@ -57,7 +57,7 @@ values:
 | `IMGEXAM_API_TOKEN` | `DIAGNOS_API_TOKEN` | SDK (`transport/config.py`, `transport/token.py`), CLI, API |
 | `IMGEXAM_VAULT_URL` | `DIAGNOS_VAULT_URL` | SDK (`transport/config.py`), CLI (`--vault-url` override) |
 | `IMGEXAM_TIMEOUT_SECONDS` | `DIAGNOS_TIMEOUT_SECONDS` | SDK (`transport/config.py`) |
-| `IMGEXAM_SSE_C` | `DIAGNOS_SSE_C` | SDK (`transport/config.py`) |
+| `IMGEXAM_SSE_C` | — (removed: files always use SSE-C, like the web app; documents never do) | — |
 | `IMGEXAM_HARDEN_PROCESS` | `DIAGNOS_HARDEN_PROCESS` | SDK (`transport/config.py`), Rust enclave (`apps/sdk/native`) |
 | `IMGEXAM_MEMORY_LOCK` | `DIAGNOS_MEMORY_LOCK` | Rust enclave (`apps/sdk/native/src/locked/mod.rs`, `error.rs`) |
 | `IMGEXAM_API_MTLS_CA_FILE` | `DIAGNOS_API_MTLS_CA_FILE` | API (`diagnos_api/settings.py`), deploy manifests |

@@ -6,13 +6,9 @@ Normativo. Todo formato abaixo está travado por `apps/sdk/tests/vectors/*.json`
 gerados a partir da implementação de referência do cofre. Quando este
 documento e um vetor discordarem, o vetor vence e este documento tem um bug.
 
-> [!NOTE]
-> As seções [9](#9-drives-arquivos) e [10](#10-sse-c-opcional) descrevem a
-> implementação 0.1 do SDK `diagnos` para arquivos de drive, anterior à
-> revisão atual do protocolo do cofre. Veja
-> [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md) para o que é e o que não
-> é compatível com `vault.diagnos.health` hoje. O resto deste documento é
-> fiel ao cofre e ao app web como eles rodam hoje.
+O documento inteiro corresponde a `vault.diagnos.health` e ao app web como
+eles rodam hoje. Questões ainda em aberto do lado do cofre — nenhuma muda um
+byte do que o SDK manda — ficam em [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md).
 
 ## 0. Convenções
 
@@ -244,9 +240,9 @@ Código que usa um destes aponta de volta para cá pelo nome — ver
 | `imgexam-template-index-v1` | sela o `encrypted_index` de um modelo de laudo | §8 |
 | `imgexam-document-version-v1` | sela o corpo de uma versão confirmada sob a chave de conteúdo dela | §7, §8 |
 | `imgexam-document-draft-v1` | sela o corpo de uma cabeça de rascunho sob a chave de conteúdo dela | §7, §8 |
-| `imgexam-drive-node-key-v1` | só drives do SDK 0.1 — deriva a chave de conteúdo de um nó | §9 |
-| `imgexam-drive-node-name-v1` | só drives do SDK 0.1 — embrulha o nome de arquivo de um nó | §9 |
-| `imgexam-sse-c-v1` | só drives do SDK 0.1 — deriva a chave opcional de SSE-C | §10 |
+| `imgexam-node-dek-v1` | embrulha a DEK do próprio nó sob a chave do security group dele | §9 |
+| `imgexam-node-name-v1` | sela o nome de um nó sob a DEK dele | §9 |
+| `\|sse-c-v1` | sufixo somado a `security_context.value` para derivar a chave de SSE-C de um nó | §10 |
 
 ## 8. Documentos versionados
 
@@ -349,68 +345,99 @@ Regras:
   só o `content-length` assinado e lê com um `GET` simples. Uma segunda
   camada que só um lado mandasse tornaria o objeto ilegível para o outro.
 
-## 9. Drives (arquivos)
+## 9. Arquivos e pastas (nós)
 
-> [!WARNING]
-> Esta seção descreve a implementação 0.1 do SDK para arquivos de drive,
-> anterior à revisão atual do protocolo do cofre — veja
-> [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md). Ela fica aqui como
-> registro do que `vault.drives` (rotulado **prévia** em
-> [`apps/sdk/README.pt-BR.md`](../apps/sdk/README.pt-BR.md)) manda e espera hoje, não
-> como descrição do que o `vault.diagnos.health` aceita atualmente.
+Todo arquivo (DICOM, imagem, vídeo, PDF) e toda pasta de um workspace é um
+**nó** em `{base}` = `/api/external/v1/workspaces/{workspace_id}/nodes`.
+Um nó pertence a um security group; ler um precisa só do id — o cofre
+autoriza contra o grupo que o próprio nó declara.
 
-Um drive é um security group. Todo arquivo (DICOM, imagem, vídeo, PDF) é
-um **nó** em `{base}` = `/api/external/v1/workspaces/{workspace_id}/drives/{security_group_id}`.
-
-Chaves:
+Chaves, como o pipeline de upload do app web (`@repo/magic-files`) as monta:
 ```
-node_key       = HKDF-SHA256(ikm = group_dek, salt = utf8(node_id), info = utf8("imgexam-drive-node-key-v1"), L = 32)
-encrypted_name = wrapKey(group_dek, utf8(original_file_name), "imgexam-drive-node-name-v1")
+node_dek       = random(32)                                          (uma por nó, arquivo ou pasta)
+encrypted_keys = { <security_group_id>: wrapKey(group_key, node_dek, "imgexam-node-dek-v1") }
+encrypted_name = encryptContent(node_dek, utf8(nome), "imgexam-node-name-v1")
+content_key    = HKDF-SHA256(ikm = node_dek, salt = utf8(node_id), info = utf8(security_context.value), L = 32)
 ```
-Derivar a chave de conteúdo da DEK do grupo dispensa chave embrulhada por
-nó; a revogação acontece no grupo. O nome é embrulhado com a **DEK do
-grupo** (não com a chave do nó) porque viaja no pedido de reserva, antes de
-o cofre atribuir um `node_id` — a própria derivação da chave do nó precisa
-desse id como salt, que ainda não existe naquele momento.
+A chave de conteúdo é a derivação dos documentos (§7) com
+`key_id = node_id` — o cofre também devolve esse id como `version_id`, já
+que nós não são versionados. O `security_context` volta na reserva, antes
+de o primeiro byte ser selado, e de novo junto de toda URL de download. O
+nome é o que quem subiu escolheu: o app web sela um caminho relativo
+(`exames/2024/IM-0001.dcm`), então quem lê nunca deve usá-lo como caminho
+local sem tratar.
 
-Corpo (`secretstream.json`): `crypto_secretstream_xchacha20poly1305` do libsodium com `node_key`,
-framed como `[header 24 B][len uint32 BE][pedaço cifrado]*`; pedaços de texto
-claro de 1 MiB (`1048576`), o último pedaço enviado com `TAG_FINAL` (um
-arquivo vazio ainda tem um pedaço final). O leitor remonta os frames pelo
-comprimento antes de abrir; as partes de um multipart cortam o stream
-framed em offsets arbitrários.
+Corpo (`secretstream.json`, `node_content.json`): libsodium
+`crypto_secretstream_xchacha20poly1305` sob `content_key`, enquadrado como
+`header(24) ‖ (len_u32_be ‖ frame)*`. O texto claro vai em pedaços de
+1 MiB (`1048576`), todo pedaço cheio como mensagem comum; o resto —
+**vazio quando o tamanho é múltiplo exato** — sempre vai por último, como um
+frame `TAG_FINAL` próprio. Então, para `n` bytes de texto claro:
+
+```
+size = 24 + (⌊n / 1048576⌋ + 1) × (4 + 17) + n
+```
+
+`size` é declarado na reserva e o cofre assina o `PUT` para exatamente essa
+quantidade de bytes, então ele é calculado antes de cifrar; o cofre também
+cobra o workspace por ele. Um upload multipart corta o fluxo de bytes
+enquadrado em offsets fixos (`part_size`), nunca nas bordas dos frames.
 
 Rotas:
 ```
-POST {base}/uploads   { exam_id?, files: [{ client_ref, size (bytes cifrados), mime_type?, encrypted_name? }] (≤1000) }
-   → 201 { nodes: [ { client_ref, node_id, mode: "single", upload } | { client_ref, node_id, mode: "multipart", part_size, part_count } ] }
-PUT  upload.url                                   (single: ≤ 64 MiB, content-length exato)
-POST {base}/uploads/complete   { node_ids }       → { ready: [node…], missing: [node_id…] }
-POST {base}/uploads/{node_id}/multipart           → { upload_id, part_size (32 MiB), part_count }
-POST {base}/uploads/{node_id}/multipart/parts   { part_numbers (≤200) } → { parts: [{ part_number, url, expires_at }] }
-PUT  part.url  (ETag do header de resposta)  …  POST {base}/uploads/{node_id}/multipart/complete { parts: [{ part_number, etag }] } → { node }
-POST {base}/uploads/{node_id}/multipart/abort     → { aborted: true }
-GET  {base}/nodes?limit=&cursor=&exam_id=&include_pending=          → { items: [node…], next_cursor }
-GET  {base}/nodes/{node_id}                        → { node, download }
+POST {base}/uploads   { security_group_id, exam_id?, parent_id?, files: [entrada] (≤ 100) }
+     entrada = { client_ref (≤ 64 caracteres), encrypted_name, encrypted_keys, size, mime_type? }   um arquivo
+             | { kind: "folder", client_ref, encrypted_name, encrypted_keys }                       uma pasta
+  → 201 { items: [{ client_ref, node_id, version_id, security_context, kind,
+                    mode?: "single" | "multipart", upload?, part_size?, part_count?, upload_id? }] }
+PUT  upload.url   com upload.headers + SSE-C (§10)                            single: size ≤ 64 MiB
+POST {base}/uploads/complete             { node_ids (≤ 200) } → { ready: [nó…], missing: [node_id…] }
+POST {base}/{node_id}/multipart                               → { upload_id, part_size (32 MiB), part_count }
+POST {base}/{node_id}/multipart/parts    { part_numbers (≤ 200) } → { parts: [{ part_number, url, expires_at }] }
+PUT  part.url     com SSE-C (§10); o ETag volta como header da resposta
+POST {base}/{node_id}/multipart/complete { parts: [{ part_number, etag }] } → { node }
+POST {base}/{node_id}/multipart/abort                         → { aborted: true }
+GET  {base}?security_group_id=&exam_id=&parent_id=&include_pending=&limit=&cursor=   → { items: [nó…], next_cursor }
+GET  {base}/{node_id}                                         → { node, security_context, download }
 ```
 
-`size` é o tamanho do corpo **cifrado e framed** — calcule antes de subir
-(`24 + Σ(4 + pedaço + 17)`, do header, do prefixo de comprimento e da tag de
-17 bytes do secretstream por pedaço). O cofre cobra o workspace por ele.
+- **Reserva idempotente.** O cofre deduplica uma reserva por
+  `(workspace, client_ref)`: reenviar a mesma ref (mesmo chamador, mesmo
+  grupo, ainda pendente) devolve o mesmo nó e cobra uma vez só. Um client
+  sorteia uma ref por arquivo e a reusa quando tenta de novo.
+- **Pastas** ficam prontas na hora — não há conteúdo a subir. `parent_id`
+  precisa ser uma pasta pronta do mesmo grupo.
+- **Arquivos pequenos** (≤ 64 MiB) sobem cada um num `PUT` assinado e são
+  confirmados juntos; `missing` nomeia os nós cujo objeto nunca chegou.
+- **Arquivos grandes** sobem por partes. A reserva em geral já abre o
+  upload multipart (`upload_id`); só quando não abriu o client chama
+  `{node_id}/multipart`. Um upload abortado deixa o nó `failed`; uma
+  reserva abandonada expira depois de 6 h.
+- **Leituras.** `GET {base}/{node_id}` responde `404` para uma pasta ou um
+  upload inacabado — não há o que baixar. Uma listagem mostra só nós
+  prontos, a menos que `include_pending=true`.
 
-## 10. SSE-C (opcional)
+## 10. SSE-C
 
-Os objetos já são cifrados de ponta a ponta. Adicionalmente, PUT/GET
-único pode usar o SSE-C do R2 com uma chave que o cofre nunca vê. Desligado
-por padrão até o client web adotar (`DIAGNOS_SSE_C=1` liga); nunca usado em
-multipart (o cofre cria aquele upload e não pode ficar com a chave).
+A criptografia do lado do servidor do R2 com chave do cliente é uma segunda
+camada em cima da cifragem ponta a ponta da §9; o cofre nunca vê a chave. O
+app web a deriva como irmã da chave de conteúdo e a manda no `PUT` único, em
+toda parte de multipart e no `GET` — um objeto gravado com SSE-C só pode ser
+lido com a mesma chave:
 
 ```
-sse_key = HKDF-SHA256(ikm = doc_dek | node_key, salt = ∅, info = utf8("imgexam-sse-c-v1"), L = 32)
+sse_c_key = HKDF-SHA256(ikm = node_dek, salt = utf8(node_id), info = utf8(security_context.value ‖ "|sse-c-v1"), L = 32)
 x-amz-server-side-encryption-customer-algorithm: AES256
-x-amz-server-side-encryption-customer-key:       base64(sse_key)         (base64 padrão, com padding)
-x-amz-server-side-encryption-customer-key-MD5:   base64(MD5(sse_key))
+x-amz-server-side-encryption-customer-key:       base64(sse_c_key)            (base64 padrão, com padding)
+x-amz-server-side-encryption-customer-key-md5:   base64(MD5(sse_c_key))
 ```
+
+`upload.headers` e `download.headers` levam os valores que o cofre fixa
+(`content-length`, `content-type`, o algoritmo) e precisam ser mandados como
+vieram; `client_headers` nomeia os dois cujos valores só o client conhece.
+Documentos versionados (§8) não usam SSE-C. As questões ainda em aberto do
+lado do cofre sobre esta camada estão em
+[COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md).
 
 ## 11. Auto-unseal com OpenBao
 
@@ -438,16 +465,16 @@ requisição ser montada.
 
 | `code` | HTTP | Exceção do SDK |
 |---|---|---|
-| `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound` | 400 | `ValidationError` |
+| `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound`, `DriveBatchTooLarge`, `DriveDuplicateClientRef`, `DriveFileTooLarge`, `DriveInvalidParent`, `DriveObjectNotFound` | 400 | `ValidationError` |
 | `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (sessão sumiu → refaça o enrollment) |
 | `SignatureTimestampSkew` | 401 | ressincroniza o relógio, tenta uma vez, depois `AuthenticationError` |
 | `QuotaExceeded`, `BudgetNotProvisioned` | 402 | `QuotaError` |
-| `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember` | 403 | `DiagnosPermissionError` |
+| `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember`, `DriveUploadNotOwned` | 403 | `DiagnosPermissionError` |
 | `DocumentNotFound`, `DocumentVersionNotFound`, `DriveNodeNotFound`, `SdkEnrollmentNotFound`, `NotFound` | 404 | `NotFoundError` |
-| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending` | 409 | `ConflictError` (`ReplayDetected` é retentado uma vez, com nonce novo; `DocumentVersionPending` numa reserva é retentado depois de 1,5 s e 3 s) |
+| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending`, `UploadIncomplete` | 409 | `ConflictError` (`ReplayDetected` é retentado uma vez, com nonce novo; `DocumentVersionPending` numa reserva é retentado depois de 1,5 s e 3 s) |
 | `RateLimitExceeded` | 429 | `RateLimitError` (respeita `Retry-After` se vier; senão backoff com jitter, até 3 tentativas) |
 | `RequestBodyTooLarge` | 413 | `ValidationError` |
-| 5xx / `InternalServerError` | 5xx | `VaultError` (carrega `trace_id`; uma retentativa depois de um backoff fixo) |
+| 5xx / `InternalServerError`, `MultipartUploadFailed` | 5xx | `VaultError` (carrega `trace_id`; uma retentativa depois de um backoff fixo) |
 
 Uma resposta que não é JSON válido (uma página de erro de proxy, um corpo
 truncado) não carrega `code` nenhum; o SDK lança `VaultError` com o código
@@ -456,9 +483,13 @@ sintético `InvalidResponse` em vez de deixar vazar um erro de parse cru.
 para assinar com — e nunca vem de uma resposta do cofre. `ProtocolError` é
 lançado quando uma resposta bem formada quebra o protocolo (um tamanho
 assinado que não é o do corpo selado, uma reserva de versão respondida como
-só-patch). Um commit que falha na rede ou com 5xx é reenviado com backoff
-(0,5 s, 1 s): commits são idempotentes.
+só-patch, uma parte no armazenamento sem ETag). `UploadIncomplete` é lançado
+pelo SDK, não pelo cofre: `uploads/complete` listou um nó em `missing`,
+então o `PUT` dele nunca chegou — suba aquele arquivo de novo. Um commit que
+falha na rede ou com 5xx é reenviado com backoff (0,5 s, 1 s): commits são
+idempotentes. Um upload multipart que falha no meio é abortado antes de o
+erro ser lançado.
 
 ## 13. Limites
 
-Corpo de API 1 MiB · versão de documento ≤ 64 MiB · lote ≤ 1000 arquivos · arquivo único ≤ 64 MiB · parte de multipart 32 MiB, ≤ 200 URLs de parte por chamada · página de lista ≤ 200.
+Corpo de API 1 MiB · versão de documento ≤ 64 MiB · arquivo ≤ 50 GiB · ≤ 100 arquivos por reserva · ≤ 200 ids de nó por confirmação · `PUT` único ≤ 64 MiB · parte de multipart 32 MiB, ≤ 200 URLs de parte por chamada · página de lista ≤ 200 · um upload pendente expira depois de 6 h, as URLs assinadas dele depois de 1 h.

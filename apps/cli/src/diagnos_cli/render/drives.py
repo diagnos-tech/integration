@@ -5,28 +5,44 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from diagnos import GroupKeyUnavailable
 from rich.table import Table
 
 from diagnos_cli.render._shared import plain, record_panel
 from diagnos_cli.render.json import print_json
 
 if TYPE_CHECKING:
-    from diagnos import DriveNode
+    from diagnos import Drive, DriveNode, Drives
     from rich.console import Console
 
-# 🇺🇸 `vault.drives.drive(...)` returns an `diagnos.resources.drives.Drive` —
-# the type every `README.md` example actually holds — but that class is not
-# re-exported from top-level `diagnos` (SDK gap, reported separately).
-# `CONVENTIONS.md` forbids reaching into `diagnos.resources` even just for a
-# type hint, so `Drive` is annotated `Any` here instead of imported.
-# 🇧🇷 `vault.drives.drive(...)` devolve uma `diagnos.resources.drives.Drive`
-# — o tipo que todo exemplo do `README.md` de fato segura — mas essa classe
-# não é reexportada por `diagnos` no topo (lacuna do SDK, relatada à parte).
-# `CONVENTIONS.md` proíbe alcançar `diagnos.resources` mesmo só para um type
-# hint, então `Drive` é anotado como `Any` aqui em vez de importado.
-Drive = Any
+LOCKED_NAME = "🔒"
+
+
+def readable_name(reader: Drive | Drives, node: DriveNode) -> str | None:
+    """🇺🇸 The node's decrypted name, or `None` when this session holds no key for its group.
+
+    A workspace-wide listing can include groups the service account may list
+    but whose key its enrollment was never handed; one such row must not
+    take the whole table down — the same rule as document summaries.
+
+    🇧🇷 O nome decifrado do nó, ou `None` quando esta sessão não tem chave para o grupo dele.
+
+    Uma listagem do workspace inteiro pode incluir grupos que a service
+    account pode listar mas cuja chave o enrollment dela nunca recebeu; uma
+    linha dessas não pode derrubar a tabela inteira — a mesma regra dos
+    resumos de documento.
+    """
+    try:
+        return reader.name_of(node)
+    except GroupKeyUnavailable:
+        return None
+
+
+def _as_json(node: DriveNode, name: str | None) -> dict[str, object]:
+    """🇺🇸 `{node, name}` — the same shape the API answers. 🇧🇷 `{node, name}` — a mesma forma que a API responde."""
+    return {"node": node, "name": name}
 
 
 def human_size(num_bytes: int | None) -> str:
@@ -46,57 +62,75 @@ def human_size(num_bytes: int | None) -> str:
 
 def render_drive_node_table(
     console: Console,
-    drive: Drive,
+    drive: Drive | Drives,
     nodes: list[DriveNode],
     *,
     json_output: bool,
+    next_cursor: str | None = None,
 ) -> None:
-    """🇺🇸 A table of drive nodes — `Drive.name_of` decrypts each name on demand, once per row.
+    """🇺🇸 A table of files and folders (a folder's name ends in `/`) — names decrypted once per row.
 
-    🇧🇷 Uma tabela de nós de drive — `Drive.name_of` decifra cada nome sob demanda, uma vez por linha.
+    Deliberately five columns, so it stays readable in an 80-column
+    terminal; `files get` and `--json` carry the rest (group, MIME, folder).
+
+    🇧🇷 Uma tabela de arquivos e pastas (o nome de uma pasta termina em `/`) — nomes decifrados uma vez por linha.
+
+    Cinco colunas de propósito, para continuar legível num terminal de 80
+    colunas; `files get` e `--json` trazem o resto (grupo, MIME, pasta).
     """
+    names = [readable_name(drive, node) for node in nodes]
     if json_output:
-        print_json({"items": nodes})
+        print_json(
+            {
+                "items": [_as_json(node, name) for node, name in zip(nodes, names, strict=True)],
+                "next_cursor": next_cursor,
+            }
+        )
         return
     table = Table()
     table.add_column("Node ID")
     table.add_column("Name · Nome")
-    table.add_column("Size · Tamanho")
-    table.add_column("MIME")
+    table.add_column("Size · Tamanho", justify="right")
     table.add_column("Status")
     table.add_column("Exam · Exame")
-    for node in nodes:
+    for node, name in zip(nodes, names, strict=True):
+        shown = LOCKED_NAME if name is None else f"{name}/" if node.kind == "folder" else name
         table.add_row(
             plain(node.node_id),
-            plain(drive.name_of(node) or None),
-            human_size(node.size),
-            plain(node.mime_type),
+            plain(shown),
+            "—" if node.kind == "folder" else human_size(node.size),
             plain(node.status),
             plain(node.exam_id),
         )
     console.print(table)
     if not nodes:
         console.print("[dim]No results · Nenhum resultado[/dim]")
+    if next_cursor:
+        console.print(f"[dim]next cursor · próximo cursor: {plain(next_cursor)}[/dim]")
 
 
-def render_drive_node(console: Console, drive: Drive, node: DriveNode, *, json_output: bool) -> None:
-    """🇺🇸 One drive node's details, in a panel — `files get`.
+def render_drive_node(console: Console, drive: Drive | Drives, node: DriveNode, *, json_output: bool) -> None:
+    """🇺🇸 One file's details, in a panel — `files get`.
 
-    🇧🇷 Detalhes de um nó de drive, num painel — `files get`.
+    🇧🇷 Detalhes de um arquivo, num painel — `files get`.
     """
+    name = readable_name(drive, node)
     if json_output:
-        print_json(node)
+        print_json(_as_json(node, name))
         return
     record_panel(
         console,
         f"File · Arquivo {node.node_id}",
         [
-            ("name · nome", drive.name_of(node)),
+            ("name · nome", LOCKED_NAME if name is None else name),
             ("size · tamanho", human_size(node.size)),
             ("mime_type", node.mime_type),
-            ("status", node.status),
             ("media_kind", node.media_kind),
+            ("status", node.status),
+            ("processing", node.processing_status),
+            ("group · grupo", node.security_group_id),
             ("exam_id", node.exam_id),
+            ("folder · pasta", node.parent_id),
             ("created_at", node.created_at),
         ],
     )

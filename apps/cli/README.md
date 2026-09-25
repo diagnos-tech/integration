@@ -6,13 +6,6 @@ The `diagnos` command line — the zero-knowledge diagnos vault, from your termi
 [`diagnos`](https://github.com/diagnos-tech/integration/blob/develop/apps/sdk/README.md) SDK. Every byte of cryptography,
 signing and retry logic lives in the SDK; this package only parses arguments and renders what the SDK returns.
 
-> [!WARNING]
-> `files` in this CLI wraps an SDK layer that still speaks an **earlier revision** of the vault protocol and is not
-> compatible with today's vault (`https://vault.diagnos.health`) yet — those commands fail before anything is
-> written. `login`, `status`, `groups`, `session lock`, `patients` and `exams` work today. See
-> [Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md)
-> for the full picture and the plan to close the gap.
-
 > [!NOTE]
 > **Not on PyPI yet.** `pipx install diagnos-cli` below is the intended, permanent install command — but until the
 > first release, install from source instead (building the SDK needs a [Rust toolchain](https://rustup.rs/); `cli`
@@ -111,12 +104,15 @@ session itself expires. `login --auto-unseal`/`--no-auto-unseal` overrides the a
 | `diagnos exams archive\|unarchive EXAM_ID` | ✅ works today | Flips the archived flag (no new version). |
 | `diagnos exams delete EXAM_ID [--yes]` | ✅ works today | Moves the exam to the trash (`--yes` skips the confirmation prompt). |
 | `diagnos exams restore EXAM_ID` | ✅ works today | Takes the exam out of the trash. |
-| `diagnos files list --group G [--exam E] [--include-pending] [--limit N] [--cursor C] [--all]` | ⚠️ see warning | Lists drive nodes, name decrypted. |
-| `diagnos files upload --group G PATH... [--exam E]` | ⚠️ see warning | Uploads one batch. |
-| `diagnos files download --group G NODE_ID [-o DEST]` | ⚠️ see warning | Downloads and decrypts. |
-| `diagnos files get --group G NODE_ID` | ⚠️ see warning | One node's metadata. |
+| `diagnos files list [--group G] [--folder F] [--exam E] [--include-pending] [--limit N] [--cursor C] [--all]` | ✅ works today | Lists files and folders, names decrypted — the whole workspace unless filtered. |
+| `diagnos files upload --group G PATH... [--exam E] [--folder F]` | ✅ works today | Encrypts and uploads, 100 files per reservation; large files go up in parts. |
+| `diagnos files mkdir NAME --group G [--parent F]` | ✅ works today | Creates a folder and prints its node id (pass it to `--folder`). |
+| `diagnos files download NODE_ID [-o DEST]` | ✅ works today | Downloads and decrypts, by default to the file's own name (its last path segment only). |
+| `diagnos files get NODE_ID` | ✅ works today | One file's metadata and decrypted name. |
 
-Rows marked ⚠️ fail against today's production vault — see the warning at the top of this document.
+Reading a file needs only its node id; the vault knows which group it belongs to.
+Known limits and the questions still open on the vault side:
+[Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
 
 Global options, on the root command, before the subcommand:
 
@@ -147,11 +143,11 @@ Stable and documented, for `if`/`case` in a script — never grep the error text
 | `0` | Success |
 | `1` | Other error (includes invalid input, e.g. `ValidationError`). |
 | `2` | Configuration error (missing/malformed token, env var). |
-| `3` | Authentication/permission/session (`AuthenticationError`, `DiagnosPermissionError`, `SessionExpiredError`, enrollment denied/expired). |
+| `3` | Authentication/permission/session (`AuthenticationError`, `DiagnosPermissionError`, `GroupKeyUnavailable`, `SessionExpiredError`, enrollment denied/expired). |
 | `4` | Not found. |
 | `5` | Quota exceeded. |
 | `6` | Rate limited. |
-| `7` | Conflict (pending version, replay). |
+| `7` | Conflict (pending or newer version, replay, an upload that never reached storage). |
 
 ## Development
 

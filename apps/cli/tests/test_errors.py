@@ -22,9 +22,9 @@ from __future__ import annotations
 import sys
 
 import pytest
-from diagnos import DiagnosError
+from diagnos import DiagnosError, GroupKeyUnavailable
 from diagnos_cli import main as main_module
-from diagnos_cli.exit_codes import EXIT_GENERAL, classify
+from diagnos_cli.exit_codes import EXIT_AUTH, EXIT_GENERAL, classify
 
 from .conftest import FakeDiagnos
 
@@ -57,3 +57,14 @@ def test_classify_falls_back_to_exit_general_for_an_unmapped_diagnos_error() -> 
     code, label = classify(DiagnosError("an unmapped, unforeseen failure"))
     assert code == EXIT_GENERAL
     assert label == "Error · Erro"
+
+
+def test_a_missing_group_key_is_a_permission_exit() -> None:
+    """🇺🇸 `GroupKeyUnavailable` is a permission gap: exit 3, with a label that names the group key.
+
+    🇧🇷 `GroupKeyUnavailable` é uma lacuna de permissão: saída 3, com um rótulo que nomeia a chave do grupo.
+    """
+    code, label = classify(GroupKeyUnavailable("no key for 'sg_x'"))
+
+    assert code == EXIT_AUTH
+    assert "security group" in label

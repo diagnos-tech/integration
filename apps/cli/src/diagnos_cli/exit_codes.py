@@ -26,6 +26,7 @@ from diagnos import (
     DiagnosPermissionError,
     EnrollmentDeniedError,
     EnrollmentExpiredError,
+    GroupKeyUnavailable,
     NotFoundError,
     QuotaError,
     RateLimitError,
@@ -44,20 +45,20 @@ EXIT_CONFLICT = 7
 
 # 🇺🇸 Checked in order with `isinstance`, most specific first — every entry
 # here is a leaf of `DiagnosError` (`docs/PROTOCOL.md §12`); anything that
-# does not match falls through to `EXIT_GENERAL` in `classify` below,
-# which is also where `diagnos.session.keyring.GroupKeyUnavailable` lands:
-# that class is not re-exported from top-level `diagnos` (a gap reported
-# separately), so it can only ever be matched by its `DiagnosError` base.
+# does not match falls through to `EXIT_GENERAL` in `classify` below.
+# `GroupKeyUnavailable` is a permission gap (the enrollment was never handed
+# that group's key), so it shares the permission exit code.
 # 🇧🇷 Conferido em ordem com `isinstance`, mais específico primeiro — toda
 # entrada aqui é uma folha de `DiagnosError` (`docs/PROTOCOL.md §12`);
-# o que não bater cai em `EXIT_GENERAL` em `classify` abaixo, que é também
-# onde `diagnos.session.keyring.GroupKeyUnavailable` acaba: essa classe não
-# é reexportada por `diagnos` no topo (uma lacuna relatada à parte), então
-# só pode ser pega pela base `DiagnosError`.
+# o que não bater cai em `EXIT_GENERAL` em `classify` abaixo.
+# `GroupKeyUnavailable` é uma lacuna de permissão (o enrollment nunca
+# recebeu a chave daquele grupo), então divide o código de saída de
+# permissão.
 _RULES: tuple[tuple[type[Exception], int, str], ...] = (
     (ConfigError, EXIT_CONFIG, "Configuration error · Erro de configuração"),
     (AuthenticationError, EXIT_AUTH, "Authentication failed · Falha de autenticação"),
     (DiagnosPermissionError, EXIT_AUTH, "Permission denied · Permissão negada"),
+    (GroupKeyUnavailable, EXIT_AUTH, "No key for this security group · Sem chave para este security group"),
     (SessionExpiredError, EXIT_AUTH, "Session expired · Sessão expirada"),
     (EnrollmentDeniedError, EXIT_AUTH, "Enrollment denied · Enrollment negado"),
     (EnrollmentExpiredError, EXIT_AUTH, "Enrollment expired · Enrollment expirado"),

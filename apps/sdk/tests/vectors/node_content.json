@@ -1,0 +1,54 @@
+{
+  "description": "A drive node as the web app writes it: per-node DEK and encrypted name (keyEnvelope.ts), content and SSE-C sister keys, secretstream body (@repo/magic-files).",
+  "group_kek_b64url": "yH1eyXIel29spFbqnRGMOKiTVT_u1LbK8nbkFvHLKq8",
+  "node_dek_b64url": "2ltfyVdMlhOrLtEXKB4sdKE5h3FjnKKrmviWDIXAuVo",
+  "dek_info": "imgexam-node-dek-v1",
+  "wrapped_dek": {
+    "salt": "uFliNxNC90JD3yx_2h6z5g",
+    "nonce": "1odSjXVj5_JwKTL4",
+    "ciphertext": "AVFk70uDsVWIQ3o5ZGlvBCXYZoLpn1FG2Q6t5sAudN6LqOSXskdi6W1nO3_lYmPg"
+  },
+  "name": "IM-0001-0001.dcm",
+  "name_info": "imgexam-node-name-v1",
+  "encrypted_name": {
+    "salt": "K6GyUAyTq92tdbmJFZRzdw",
+    "nonce": "pdyz8O_f0VO6OYku",
+    "ciphertext": "n1Tc41INsxMnKafyvhEcxHYYZ1-SRD6ee-_a3MsO2dA"
+  },
+  "node_id": "node_01J9Z3Q4K5",
+  "security_context": {
+    "value": "Ne1AIxR_OsCt15S60tKEBgnvPJTm24ILUNjdW_reZJM",
+    "kid": "ctx_k1"
+  },
+  "content_key_b64url": "KaBg_oEkXEaQwLtACZBvTOdyzNdwVT-KA5whMuTd7wc",
+  "sse_c_key_b64url": "naEbcXXYTGkY6VtBxCKN3dBNkmdCAEveH4Phj4Q7ti4",
+  "sse_c_headers": {
+    "x-amz-server-side-encryption-customer-algorithm": "AES256",
+    "x-amz-server-side-encryption-customer-key": "naEbcXXYTGkY6VtBxCKN3dBNkmdCAEveH4Phj4Q7ti4=",
+    "x-amz-server-side-encryption-customer-key-md5": "Vpp1r3wKEuIUX7Ssay9j8Q=="
+  },
+  "chunk_size": 16,
+  "bodies": [
+    {
+      "plaintext_utf8": "fatia de um arquivo DICOM de verdade!!!!",
+      "framed_b64url": "Lru7zfdOtT5XqFR3jq3_9WLCruGYlepuAAAAIXky8GKdNXWmiRg7aNJaxG5j_G7haPUfcysUsEOKYjZpyAAAACFKjba16YpcWhSBYHmVaxZRNedjgwF49HxxoSBHFEkRVVQAAAAZ77_Le-GC4RU-rrJAT-IJ1hgvgaNf8m41Ig",
+      "encrypted_length": 127
+    },
+    {
+      "plaintext_utf8": "fatia de um arquivo DICOM de ver",
+      "framed_b64url": "z6wPx5Q0Z42WYz3LOrBou_1VaWV7Cp6HAAAAIeAbX0DiLmX4y4UcsOG_-86978mUrF87E0UhqNqqvbDwrwAAACG1TUZltSAb_Aa0GoSia9p5Fft6aIutcvQHnsx3Q2rtdKIAAAAR9QVDx7rzn4MmUfjM10DmaMM",
+      "encrypted_length": 119
+    },
+    {
+      "plaintext_utf8": "",
+      "framed_b64url": "RhfDnDXFcbNWyrXzSp6admoYHEEd52dxAAAAEQ7owmiQ3k2ztdU3nLnPMgVb",
+      "encrypted_length": 45
+    }
+  ],
+  "encrypted_length_default_chunk": {
+    "0": 45,
+    "1": 46,
+    "1048576": 1048642,
+    "5000000": 5000129
+  }
+}

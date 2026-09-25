@@ -26,7 +26,7 @@ monorepo.
   seal key id).
 - Consumer-driven Pact contract test suite (`contracts/`) between the SDK and the vault: `make contract` /
   `make contract-check`, a deterministic, normalized `contracts/diagnos-sdk-diagnos-vault.json`, and provider states
-  covering the clock, enrollment (pending, approved, denied, forgotten) and lock surface. See
+  covering the clock, enrollment (pending, approved, denied, forgotten), lock, patients, exams and files. See
   [`contracts/README.md`](contracts/README.md).
 - `Makefile` as the single entry point for every check a contributor or CI runs (`sync`, `fmt`, `lint`, `types`,
   `test`, `cov`, `contract`, `contract-check`, `check`).
@@ -46,7 +46,15 @@ monorepo.
   `--tag`.
 - `DIAGNOS_TIME_PRECISION` / `Settings.time_precision`: truncate dates to the workspace's anonymization precision
   before sealing, as the web app does; `diagnos.truncate_timestamp` and `diagnos.to_iso_instant` for your own dates.
-- `ProtocolError` for a vault answer the protocol does not allow (e.g. a signed size that is not the body's).
+- `ProtocolError` for a vault answer the protocol does not allow (e.g. a signed size that is not the body's); the API
+  answers it with `502` and `code: protocol_error`.
+- Folders: `Drive.create_folder()`, and `parent_id=` on `upload`, `upload_many`, `list` and `iter_all` (CLI
+  `files mkdir` and `--folder`; API `POST /v1/drives/{sg}/folders` and `parent_id`).
+- Workspace-wide files: `vault.drives.list()`/`iter_all()` across every group the session may list, filtered by
+  `security_group`, `exam_id`, `parent_id` and `include_pending`; `vault.drives.get()`, `name_of()`, `download()` and
+  `iter_download()` read any file by node id alone (CLI `files list` without `--group`, `files get`/`download` by id).
+- `diagnos.UploadSource`, exported at the top level. A `.dcm` file is typed `application/dicom`, so the vault
+  classifies it.
 
 ### Changed
 
@@ -69,6 +77,28 @@ monorepo.
 - Archive and delete no longer re-upload the record: they are flag changes without a new version. New `restore()`
   (CLI `restore`, API `POST …/restore`) takes a document out of the trash.
 - `Exams.create` no longer takes `modality=`: modality is a sealed record field; only `patient_id` is sent in clear.
+- **Files speak the vault's current protocol** (`vault.drives`, CLI `files`, API `/v1/drives`): the `/nodes` routes;
+  a DEK per file or folder, wrapped for its group (`imgexam-node-dek-v1`); the name sealed under it
+  (`imgexam-node-name-v1`); a content key derived from the vault's `security_context`; the web app's SSE-C key (the
+  content key's sister) on the `PUT`, on every multipart part and on the `GET`; up to 100 files per reservation, with
+  an idempotency `client_ref` each; multipart parts signed in waves of up to 200 and aborted on failure. Pinned by
+  vectors generated with the web app's upload code and by 5 new contract interactions.
+- The secretstream framing now always ends with its own `FINAL` frame (empty when the size is an exact multiple of
+  1 MiB), as the web app writes it; `encrypted_size()` follows.
+- `DriveNode` mirrors the vault's node (`kind`, `parent_id`, `encrypted_name`, `encrypted_keys`, `media_kind`,
+  `optimized_variants`, …); `StagedNode` replaces `UploadedNode`.
+- `upload()` of `bytes` or an anonymous stream requires `name=`: every node carries a sealed name.
+- An upload confirmed as `missing` raises `ConflictError` with code `UploadIncomplete`.
+- API: a node read under another group's `{sg}` answers `404`; `limit` is bounded to 1–200.
+- A missing group key (`GroupKeyUnavailable`) is a permission error: API `403` with `code: group_key_unavailable`
+  (was a generic `500`), CLI exit code `3`. Listings degrade instead of failing: a file whose group key the session
+  lacks is listed with `name: null` (CLI: 🔒), like document summaries.
+- CLI `files … --json` prints `{node, name}` per file, the same shape as the API.
+
+### Removed
+
+- `DIAGNOS_SSE_C` and `Settings.sse_c`: files always use SSE-C exactly as the web app does, and documents never do,
+  so there is nothing left to choose.
 
 ### Fixed
 
@@ -85,9 +115,13 @@ monorepo.
   is now read from `random_seed` in the JSON envelope of every signed response, where the vault actually puts it.
 - `__version__` is now read from the installed package's metadata instead of being hard-coded, so the SDK reports
   its real version to the vault during enrollment.
+- CLI `files download` without `-o` writes to the last segment of the decrypted name only: the web app stores a
+  relative path there, and a name such as `../../.bashrc` could otherwise write outside the working directory. The
+  API's `Content-Disposition` offers the same base name.
+- Contract harness: running with `-p no:cacheprovider` no longer crashes the partial-run check.
 
 ### Known issues
 
-- The drive/file layer (`vault.drives`) targets an earlier revision of the vault's protocol and does not yet work
-  against the current vault. See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) for exactly what changed and the
-  plan to close the gap.
+- Multipart uploads (files above 64 MiB) are covered by unit tests, not by the contract: the vault's provider
+  verification has no S3 endpoint for R2. Whether R2 accepts SSE-C on those parts is one of the questions still open
+  on the vault side — see [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).

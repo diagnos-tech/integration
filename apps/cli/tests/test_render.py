@@ -294,14 +294,24 @@ def test_human_size_picks_the_smallest_fitting_unit(num_bytes: int | None, expec
 
 
 def test_render_drive_node_table_json_bypasses_rich(capsys: pytest.CaptureFixture[str]) -> None:
-    """🇺🇸 `json_output=True` prints `{"items": [...]}` straight to `stdout`.
+    """🇺🇸 `json_output=True` prints `{"items": [{node, name}], "next_cursor"}` straight to `stdout`.
 
-    🇧🇷 `json_output=True` imprime `{"items": [...]}` direto na `stdout`.
+    🇧🇷 `json_output=True` imprime `{"items": [{node, name}], "next_cursor"}` direto na `stdout`.
     """
-    render_drive_node_table(_console(), drive=None, nodes=[DRIVE_NODE], json_output=True)
+
+    class _FixedNameDrive:
+        """🇺🇸 Decrypts every name to the same value. 🇧🇷 Decifra todo nome para o mesmo valor."""
+
+        def name_of(self, node: object) -> str:
+            """🇺🇸 Always `scan.dcm`. 🇧🇷 Sempre `scan.dcm`."""
+            return "scan.dcm"
+
+    render_drive_node_table(_console(), drive=_FixedNameDrive(), nodes=[DRIVE_NODE], json_output=True, next_cursor="c2")
 
     data = json.loads(capsys.readouterr().out)
-    assert data["items"][0]["node_id"] == DRIVE_NODE.node_id
+    assert data["items"][0]["node"]["node_id"] == DRIVE_NODE.node_id
+    assert data["items"][0]["name"] == "scan.dcm"
+    assert data["next_cursor"] == "c2"
 
 
 def test_render_drive_node_table_empty_shows_no_results() -> None:

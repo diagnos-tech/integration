@@ -6,13 +6,6 @@ A linha de comando `diagnos` — o cofre zero-knowledge diagnos, direto do seu t
 [`diagnos`](https://github.com/diagnos-tech/integration/blob/develop/apps/sdk/README.pt-BR.md). Todo byte de criptografia,
 assinatura e retentativa mora no SDK; este pacote só interpreta argumentos e renderiza o que o SDK devolve.
 
-> [!WARNING]
-> `files` nesta CLI envolve uma camada do SDK que ainda fala uma **revisão anterior** do protocolo do cofre e não é
-> compatível com o cofre atual (`https://vault.diagnos.health`) — esses comandos falham antes de gravar qualquer
-> coisa. `login`, `status`, `groups`, `session lock`, `patients` e `exams` funcionam hoje. Veja
-> [Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md)
-> para o panorama completo e o plano para fechar essa lacuna.
-
 > [!NOTE]
 > **Ainda não está no PyPI.** O `pipx install diagnos-cli` abaixo é o comando de instalação definitivo, mas até o
 > primeiro release, instale a partir do fonte (construir o SDK precisa de um
@@ -114,12 +107,15 @@ definida) só para aquela invocação.
 | `diagnos exams archive\|unarchive EXAM_ID` | ✅ funciona hoje | Vira a flag de arquivado (sem versão nova). |
 | `diagnos exams delete EXAM_ID [--yes]` | ✅ funciona hoje | Manda o exame para a lixeira (`--yes` pula a confirmação). |
 | `diagnos exams restore EXAM_ID` | ✅ funciona hoje | Tira o exame da lixeira. |
-| `diagnos files list --group G [--exam E] [--include-pending] [--limit N] [--cursor C] [--all]` | ⚠️ veja o aviso | Lista nós de drive, nome decifrado. |
-| `diagnos files upload --group G PATH... [--exam E]` | ⚠️ veja o aviso | Sobe um lote. |
-| `diagnos files download --group G NODE_ID [-o DEST]` | ⚠️ veja o aviso | Baixa e decifra. |
-| `diagnos files get --group G NODE_ID` | ⚠️ veja o aviso | Metadado de um nó. |
+| `diagnos files list [--group G] [--folder F] [--exam E] [--include-pending] [--limit N] [--cursor C] [--all]` | ✅ funciona hoje | Lista arquivos e pastas, nomes decifrados — o workspace inteiro, salvo filtro. |
+| `diagnos files upload --group G PATH... [--exam E] [--folder F]` | ✅ funciona hoje | Cifra e sobe, 100 arquivos por reserva; arquivos grandes sobem por partes. |
+| `diagnos files mkdir NOME --group G [--parent F]` | ✅ funciona hoje | Cria uma pasta e imprime o id do nó (passe-o para `--folder`). |
+| `diagnos files download NODE_ID [-o DEST]` | ✅ funciona hoje | Baixa e decifra, por padrão com o nome do próprio arquivo (só o último segmento do caminho). |
+| `diagnos files get NODE_ID` | ✅ funciona hoje | Metadado e nome decifrado de um arquivo. |
 
-Linhas marcadas com ⚠️ falham contra o cofre de produção de hoje — veja o aviso no topo deste documento.
+Ler um arquivo precisa só do id do nó; o cofre sabe a que grupo ele pertence.
+Limites conhecidos e as questões ainda em aberto do lado do cofre:
+[Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
 
 Opções globais, no comando raiz, antes do subcomando:
 
@@ -151,11 +147,11 @@ Estáveis e documentados, para `if`/`case` num script — nunca faça grep do te
 | `0` | Sucesso |
 | `1` | Outro erro (inclui entrada inválida, ex.: `ValidationError`). |
 | `2` | Erro de configuração (token ausente/malformado, variável de ambiente). |
-| `3` | Autenticação/permissão/sessão (`AuthenticationError`, `DiagnosPermissionError`, `SessionExpiredError`, enrollment negado/expirado). |
+| `3` | Autenticação/permissão/sessão (`AuthenticationError`, `DiagnosPermissionError`, `GroupKeyUnavailable`, `SessionExpiredError`, enrollment negado/expirado). |
 | `4` | Não encontrado. |
 | `5` | Cota excedida. |
 | `6` | Limite de taxa. |
-| `7` | Conflito (versão pendente, replay). |
+| `7` | Conflito (versão pendente ou mais nova, replay, um upload que nunca chegou ao armazenamento). |
 
 ## Desenvolvimento
 

@@ -31,11 +31,11 @@ Três pacotes Python de código aberto para falar com o cofre diagnos sem nunca 
 de chave. Tudo que é clínico é cifrado **dentro do seu processo** antes de tocar a rede — o cofre só vê ciphertext.
 Estes pacotes fazem disso o caminho *fácil*.
 
-> [!WARNING]
-> **Situação: prévia 0.1.0.** Enrollment, sessões e assinatura de requisições são verificados contra o cofre pelos
-> [testes de contrato](contracts/README.pt-BR.md), assim como pacientes e exames. A API de arquivos ainda implementa
-> uma revisão anterior do protocolo do cofre e **ainda não é compatível com o vault.diagnos.health** — leia
-> [docs/COMPATIBILITY.pt-BR.md](docs/COMPATIBILITY.pt-BR.md) antes de construir em cima dela.
+> [!NOTE]
+> **Situação: prévia 0.1.0.** Toda superfície — enrollment, sessões, assinatura de requisições, pacientes, exames,
+> arquivos e pastas — fala o protocolo atual do cofre e é verificada contra ele pelos
+> [testes de contrato](contracts/README.pt-BR.md). Limites conhecidos, e as questões ainda em aberto do lado do cofre,
+> estão em [docs/COMPATIBILITY.pt-BR.md](docs/COMPATIBILITY.pt-BR.md).
 
 ## Escolha seu pacote
 
@@ -78,7 +78,7 @@ diagnos status         # token, OpenBao e versão do SDK
 ```
 
 **3. Use.** Pacientes, exames e arquivos penduram no mesmo objeto — `vault.patients`, `vault.exams`,
-`vault.drives` — veja o [guia do SDK](apps/sdk/README.pt-BR.md) (prévia, veja a situação acima).
+`vault.drives` — veja o [guia do SDK](apps/sdk/README.pt-BR.md).
 
 ## Como nasce uma sessão
 

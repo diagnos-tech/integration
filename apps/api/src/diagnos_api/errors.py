@@ -30,7 +30,9 @@ from diagnos import (
     CryptoError,
     DiagnosError,
     DiagnosPermissionError,
+    GroupKeyUnavailable,
     NotFoundError,
+    ProtocolError,
     QuotaError,
     RateLimitError,
     SessionExpiredError,
@@ -96,6 +98,31 @@ async def _crypto_error_handler(request: Request, exc: Exception) -> JSONRespons
     assert isinstance(exc, CryptoError)
     logger.error("crypto error handling %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content=_body("crypto_error", "internal cryptographic error", None))
+
+
+async def _group_key_unavailable_handler(request: Request, exc: Exception) -> JSONResponse:
+    """🇺🇸 403: this process's enrollment was never handed the key of the group the data belongs to.
+
+    A permission gap, not a crypto failure: an admin approves a new
+    enrollment covering that group, and the same request then succeeds.
+
+    🇧🇷 403: o enrollment deste processo nunca recebeu a chave do grupo a que o dado pertence.
+
+    Uma lacuna de permissão, não uma falha de cripto: um admin aprova um
+    enrollment novo cobrindo esse grupo, e a mesma requisição passa.
+    """
+    assert isinstance(exc, GroupKeyUnavailable)
+    return JSONResponse(status_code=403, content=_body("group_key_unavailable", str(exc), None))
+
+
+async def _protocol_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """🇺🇸 502: the vault answered outside the protocol — an upstream fault, not this caller's and not retryable.
+
+    🇧🇷 502: o cofre respondeu fora do protocolo — falha de quem está acima, não de quem chama, e sem retentativa.
+    """
+    assert isinstance(exc, ProtocolError)
+    logger.error("vault protocol violation handling %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(status_code=502, content=_body("protocol_error", str(exc), None))
 
 
 async def _http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -181,6 +208,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RateLimitError, _vault_error_handler(429))
     app.add_exception_handler(VaultError, _vault_error_handler(502))
     app.add_exception_handler(CryptoError, _crypto_error_handler)
+    app.add_exception_handler(ProtocolError, _protocol_error_handler)
+    app.add_exception_handler(GroupKeyUnavailable, _group_key_unavailable_handler)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)
     app.add_exception_handler(DiagnosError, _unexpected_error_handler)

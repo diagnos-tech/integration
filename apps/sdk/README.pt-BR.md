@@ -3,21 +3,17 @@
 [English](README.md) · **Português (Brasil)**
 
 O SDK Python oficial, zero-knowledge, do cofre diagnos (`vault.diagnos.health`).
-Pacientes, exames e arquivos de drive são cifrados neste processo, na RAM,
+Pacientes, exames e arquivos são cifrados neste processo, na RAM,
 antes de um único byte chegar à rede — o cofre só vê ciphertext, requisições
 assinadas e URLs pré-assinadas. Este pacote é o único lugar onde essa
 complexidade mora.
 
-> [!WARNING]
+> [!NOTE]
 > **Situação: prévia 0.1.0.** Enrollment, chaves de sessão, assinatura de
-> requisição, relógio e lock são verificados contra o cofre pelos testes de
-> contrato Pact (`contracts/`), assim como `vault.patients` e
-> `vault.exams`. `vault.drives`, logo abaixo, ainda implementa uma **revisão
-> anterior** do protocolo do cofre e ainda não é compatível com o
-> `vault.diagnos.health` — leia
-> [COMPATIBILITY.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md)
-> antes de construir em cima dele. Ele continua documentado aqui, rotulado
-> **prévia**, para o formato da API poder ser revisado.
+> requisição, relógio, lock, `vault.patients`, `vault.exams` e
+> `vault.drives` falam o protocolo atual do cofre e são verificados contra
+> ele pelos testes de contrato Pact (`contracts/`). Limites conhecidos:
+> [COMPATIBILITY.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
 
 A meta é o seu código poder ler assim:
 
@@ -207,36 +203,46 @@ print(exam.patient_id, exam.report_status, exam.record.report_html)
 `report_lexical` é o estado do editor web e a fonte da verdade do laudo; `report_html` é derivado dele para quem lê
 sem abrir o editor. Grave os dois ao produzir um laudo que o editor web deva abrir.
 
-## Drives — arquivos (prévia)
+## Arquivos e pastas
 
-Um drive é um security group; todo arquivo dentro dele (DICOM, imagem,
-vídeo, PDF, laudo) é um *nó*. Arquivo pequeno sobe direto num `PUT`; grande é
-partido em pedaços cifrados automaticamente — você nunca escolhe qual.
+Todo arquivo (DICOM, imagem, vídeo, PDF) e toda pasta do workspace é um
+*nó*. Um nó pertence a um security group — `vault.drives.drive(grupo)`
+grava em um — e ler precisa só do id. Cada arquivo ganha a própria chave; o
+nome, o conteúdo e a camada SSE-C do R2 são selados do jeito que o app web
+sela. Arquivo pequeno sobe num `PUT`, grande em partes cifradas, 100
+arquivos por reserva — você nunca escolhe.
 
 ```python
-from diagnos.resources import UploadSource
+from diagnos import UploadSource
 
-drive = vault.drives.drive("sg_oncology")
+drive = vault.drives.drive("sg_oncologia")
 
-node = drive.upload("chest_ct.dcm", name="chest_ct.dcm", mime_type="application/dicom", exam_id=exam.id)
-node = drive.upload(b"raw bytes work too", name="note.txt")
+folder_id = drive.create_folder("TC 2026-09-01")
+node = drive.upload("exames/IM-0001.dcm", exam_id=exam.id, parent_id=folder_id)  # nome e MIME vêm do path
+node = drive.upload(b"bytes crus funcionam", name="nota.txt")
 
 nodes = drive.upload_many(
-    [UploadSource("slide_1.jpg", name="slide_1.jpg"), UploadSource("slide_2.jpg", name="slide_2.jpg")],
+    [UploadSource("lamina_1.jpg"), UploadSource(jpeg_bytes, name="lamina_2.jpg")],
     exam_id=exam.id,
-)  # uma única chamada de reserva para o lote inteiro
+)  # uma reserva para até 100 arquivos; devolvidos na ordem de entrada, prontos
 
-data = drive.download(node.node_id)  # bytes na RAM
-drive.download(node.node_id, "downloaded_ct.dcm")  # direto para um arquivo
+for child in drive.iter_all(parent_id=folder_id):  # ou drive.list(...) para uma página
+    print(drive.name_of(child), child.size, child.mime_type)
 
-for node in drive.list(exam_id=exam.id):
-    print(drive.name_of(node), node.size)
+data = vault.drives.download(node.node_id)  # bytes na RAM
+vault.drives.download(node.node_id, "IM-0001.dcm")  # direto para um arquivo, um pedaço na RAM
+for chunk in vault.drives.iter_download(node.node_id):  # ou transmita você mesmo
+    ...
 ```
 
-`upload`/`upload_many` decidem single ou multipart por você, a partir do
-tamanho do arquivo
-([`docs/PROTOCOL.pt-BR.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.pt-BR.md)
-§9) — nada para escolher.
+`vault.drives.list()` / `iter_all()` percorrem o workspace inteiro (todo
+grupo que esta sessão pode listar) e filtram por `security_group`,
+`exam_id`, `parent_id` e `include_pending`. Um arquivo `.dcm` é tipado
+`application/dicom`, para o cofre classificá-lo; passe `mime_type=` para
+sobrescrever. `name_of()` devolve o que quem subiu selou — o app web guarda
+ali um caminho relativo, então nunca grave nele como caminho local sem
+pegar o último segmento. Detalhes de fio:
+[`docs/PROTOCOL.pt-BR.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.pt-BR.md) §9–§10.
 
 ## Erros
 
@@ -252,11 +258,12 @@ por mensagem
 | `QuotaError` | o workspace não tem crédito para isto |
 | `DiagnosPermissionError` | esta service account não pode fazer isto aqui |
 | `NotFoundError` | 404 |
-| `ConflictError` | uma versão pendente ou um replay — o SDK já retentou o que é seguro retentar |
+| `ConflictError` | uma versão pendente ou mais nova, um replay, ou um upload que nunca chegou ao armazenamento (`UploadIncomplete`) — o SDK já retentou o que é seguro retentar |
 | `RateLimitError` | lançado só depois de o próprio backoff do SDK desistir |
 | `GroupKeyUnavailable` | este enrollment nunca recebeu a DEK de um grupo que o documento precisa |
 | `EnrollmentDeniedError` / `EnrollmentExpiredError` | ninguém aprovou, ou aprovou tarde demais |
 | `SessionExpiredError` | nenhuma sessão local viva — chame `unlock()` (de novo) antes de uma chamada assinada |
+| `ProtocolError` | o cofre respondeu algo que o protocolo não permite — não adianta retentar; reporte com a versão do SDK |
 | `VaultError` | classe base; carrega `code`, `status`, `trace_id` para um chamado de suporte |
 
 ## Configuração
@@ -267,7 +274,6 @@ por mensagem
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | Onde o cofre mora. |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | Timeout HTTP por requisição. |
 | `DIAGNOS_TIME_PRECISION` | não definida | A precisão de anonimização do workspace (`month`, `day`, `hour`, `minute`, `second`); as datas são truncadas nela antes de selar. |
-| `DIAGNOS_SSE_C` | desligado | Soma SSE-C do R2 em cima da cifragem ponta a ponta em PUT/GET único ([`docs/PROTOCOL.pt-BR.md`](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.pt-BR.md) §10). |
 | `OPENBAO_ADDR` | não definida | Liga o auto-unseal quando definida. |
 | `OPENBAO_TOKEN` | não definida | Token restrito ao path deste SDK no OpenBao. |
 | `OPENBAO_MOUNT` | `secret` | Ponto de montagem do KV v2. |
@@ -278,7 +284,7 @@ por mensagem
 | `DIAGNOS_HARDEN_PROCESS` | `1` | `0` pula desligar core dumps / `ptrace` no unlock (só para depurar). |
 
 Tudo acima também pode ser definido de forma explícita, sem passar pelo
-ambiente: `Diagnos(settings=Settings(api_token="apikey-…", vault_url=..., sse_c=True))`.
+ambiente: `Diagnos(settings=Settings(api_token="apikey-…", vault_url=..., time_precision="day"))`.
 
 ## O que este SDK nunca faz
 
