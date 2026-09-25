@@ -62,6 +62,8 @@ dev = [
   "pynacl>=1.5",
   "cryptography>=43",
   "kyber-py>=1.0",
+  "pact-python>=3.4,<4",
+  "pytest-cov>=6.0",
 ]
 
 [tool.maturin]

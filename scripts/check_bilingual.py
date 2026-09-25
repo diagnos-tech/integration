@@ -5,7 +5,7 @@ Every module, class and public function must carry a docstring with both the
 enforces that they speak both languages. The same rule applies to `native/`'s
 Rust doc comments (`//!` module docs, `///` item docs) — `rustdoc`/clippy have
 no equivalent of this check, so it lives here too.
-Run: `uv run python scripts/check_bilingual.py sdk cli api`.
+Run: `uv run python scripts/check_bilingual.py sdk cli api contracts scripts`.
 
 🇧🇷 Guarda da regra de docstring bilíngue de `CONVENTIONS.md`.
 
@@ -99,7 +99,10 @@ def main(argv: list[str]) -> int:
     roots = [Path(arg) for arg in argv] or [Path("sdk"), Path("cli"), Path("api")]
     problems: list[str] = []
     for root in roots:
-        for path in sorted((root / "src").rglob("*.py")):
+        # 🇺🇸 A package root is checked through its `src/`; any other folder (`contracts`, `scripts`) as a whole.
+        # 🇧🇷 A raiz de um pacote é checada pelo `src/`; qualquer outra pasta (`contracts`, `scripts`) por inteiro.
+        python_root = root / "src" if (root / "src").is_dir() else root
+        for path in sorted(python_root.rglob("*.py")):
             problems.extend(check(path))
         native = root / "native"
         if native.is_dir():

@@ -11,6 +11,7 @@ import pytest
 from diagnos.crypto import DEK_INFO, RECORD_INFO, EncryptedPayload, decrypt_content, unwrap_key
 from diagnos.models import PatientRecord
 from diagnos.session.keyring import GroupKeyUnavailable
+
 from vault_double import (  # noqa: F401 — `harness`/`sse_c_harness` are fixtures, used by name as parameters
     Harness,
     harness,

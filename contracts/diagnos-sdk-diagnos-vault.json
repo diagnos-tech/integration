@@ -1,0 +1,779 @@
+{
+  "consumer": {
+    "name": "diagnos-sdk"
+  },
+  "interactions": [
+    {
+      "description": "an SDK process ends its session",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an SDK session is active",
+          "params": {
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/session/lock"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "random_seed": {
+              "ciphertext": "2D93pWzghNj9XV0EcPL-nf3pG9iI_WaYwFqB5AwrW5sXQfp3MVOWt429v38wo7JP5vi3dBpkW6BpmdgKbKLYNpHE62l1Kw",
+              "nonce": "6yTa3QhXk0268hTV"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.random_seed.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.random_seed.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process polls an enrollment an admin approved",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an admin approved the enrollment for one security group",
+          "params": {
+            "enrollment_id": "enr-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry/${enrollment_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry/enr-contract"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "approval": {
+                "sealed_group_keys": {
+                  "sg-contract": {
+                    "ciphertext": "sPn-cVo47iUJKBFhy0GBYd-O20GavE0K8zCHDi5aaGgsyWflBZMAji0pGJg9Slpq",
+                    "nonce": "HtF6XJTSgymbRFbg",
+                    "salt": "kb2sWWkT5L7lqBTnEFr1nx2lU_azSQVc2RBQO6rqsG0ibRArkHqI12xTTjJGRJ7ybsB0pSfH5oT7ilazLnrEEtle1pH4n-ZQmGiEsoDfx5dCDgp3oqSs4_X7M1sdm_CYHVl207xCESer3xDARZq2zxxmHkheYtj3MmDmWKyUM9ipxdqjKV8mdNeCm_BFTf3CuQOMMdUy_zJWQzshMtHNxQMq2A9xJcDZADUbxXBa6ohsY8y6VhUa0M6Q6TRGxkUCVIEhJgymnRr7IXlN7vbIMaI6jL9pszS7DiS7uPBSFuU0g-cYGI2rkouUd0xAdsx1KmWOaDlIlBUALqSoovPmxq2M2vizBEHyT9OaisBDysDOu68QDcYF-zHHl6Fbg9SbAtOwZvL-gcn9N9zgXlEgnPBzDJv0zEdAvxA-W18HYliU9K_jjf0DfzuIoItss264vXvUYaDnh4V3JOomTHvLD-PqN6xKs7KYsvOrs3-HZrbNj7uPMwG8KFZIpk4ZLo1Uc5ubbIpUFUjRte6yphCqwfB33jXvhYK15QP9htYKn9K09K28LRBmCWcogACQniTf4J4rHKGwNQyP-zb9mbnLbqY4wc97FINcnJYV8oylT_hWKP4LCNTZCEZCh3tn6Np8cCivbnzetCAgbwJbw7lTpBAeFVE0HPwi7hQUso101Kb49waAGQyUENDfyBi-u65DbXPuxydLbD8su6rSyOGnMnmp88BbW4eHOSlOqVzWele0e1ElhXmdHtobT7hfAsO21vdndbbPEu23Id6o-Zz8h4DFPpBiN0j1n-F7jUDwbCuf2cp_PXY0U4Cai89nSAfwVjFWeWA-E4YxEYyio11ix1Nvf_OdRyQmxPFbjRSM7Ffn9WAG0vvFpJjPQ9DyEZqX3xH_JnSn5ft40v8_aYPvl0As1PqXEFY07sJCC51tvionPDZUPAql_lvkH2CiurUJwu-XejwVRCBgWY8tDmrbyUBv8Z4PGgS2bY7AuoeETNE_8i-9iQGI5YpZPd1treAPKvrhKkhLS1m-DqlQiMctWa-CwocGH4S8GQIIX4dBq4TKtX2SBFkL-487thySp_KdthIQ-O5nOcDHghs6mnuqK4ej6_nQUIN0gh4KxM8szhqwSOBYc1Gu76DyilsNPT4Rj_mDb7H1fN-FfDzhwmqZwFZnJOVJck5XayiICPdeAmldDtsoo0gqLoRCyFEyPYVP2uTVfXnT5s7EWrPyZhJryvjVuE4C-UFbXlwfUbQlAlPi_WoXIngy3MdM-v8QojbhTqNnM9DzwmjQBN0GsrJg-0Ky2Qmk87lKgKM8nlsB1Nwu-ckR9rQgx9NodiJqKXp1ivkAtZVzLb6bBMsRUlmxZ3jufe7kPcmbvHBEA78_UHdW2lmhV40HixnExvDtZzP5r80ZJWuklQIFV0-GfZEk3aoBX78x04MISi-QQ_3V-_MtLBNWb_oleN1oGddSWr4VgSWzMwk1CM4TdWjkIkr7fw"
+                  }
+                },
+                "sealed_session": {
+                  "ciphertext": "kj2e1YdxRJho-JWevYThlBYVYCTOzlXqzWVWv9-RmD5jFk5aztsEhoNyefeP2dqi7ZCWWlGlkzuxV0a5VP5fIrXhIC1i686ZobNbRm_IMtAhSH9ZJg9rTd8AeubzEpks2xH4NgOJflHjwarA5-Yvm1cepUdhltEzW-CrNZwFzIs2T2fnTeA_4kEwNfVehSXS253_MIlKsPm1Icgw1mUKO653II8oaFkIyWNZiQQ8qe39EjoCZygK",
+                  "nonce": "7JaQSbTdQ6LYHjtv",
+                  "salt": "AE8ONI8cgPtFG1-p1XfGEp2PE8-X-zAII7Lo7p5pByAOVgqB6Wti5UpiALaGYLo-mb8DQZBY5FhkhosJXb0ovdqKqqxoxBhiqFLmIidmT_Ny1zXSr3UGwT2--Mlbe4iOkHEw-F1qZJTJr8ZOWBPXhyIochBwyl6lluDurIhBJYVxVYf0JQxN7_gJcrs-iwOKrulg2-GYaIb54GV3Ars3g39dmh_JmyQ0dvTUCC0KPC1wFGWT42yVTx7JQmzoNJxqUs2HbD6P6iFKeOfITi6eII4weai43MYxrktwyWUNYlNOl--J18so-B4iOjQUPlJIOHFd1gJbLF65o5Zk34UDnVtyfhrjn3P0LzPQxwemYqgqIKbp2vOdidpF8jMQqnvyt45Qe1Zauo5MTnTOtStiHixdWVIuCg9TBqRdvZuXGep8nzQZFc8vD1e4GMkq-k3jvNKowZ9CGM89RD5r2mkRHGf4T6H1506G1x9t-3dduQ6-LLTDiyP5LbzcHi9Cnm5fivxqBepgwss1LArzUkfuLV-mP5TiCtjSIfd2eIcI8dapaaXcJCjgDH7A_fYZU6bfAiHIVqd7TKMioVm1c7QfdYL6tMmKYWjCnWxJnU_QXRjsIvVKXBx0pxX1J733LgL-ibv5jNdbKyMYoyme9Jt9Woa-k3aGsraAxR1se_PvsUY2E34RGrG1pZs3ZBEc6q8F2Jrf047HiWttp6q2z8eKXwq2xj-PFEoupZ0pTI6OKuZHdXcfVy_COC6mQaqgfA2XgigWue1BwnrRuBDh7IR3f-oQB42FiJICidnjNL8bLwiaJlxDoxI_3EyQIYKEACWwmEAp6Vy4G6lsu4revDeAyGWLL6Ya0zv7Yu3j3YVmaoTp08FHZHNy2H9odRL09pyIZ_HsvHpxxIxcTVvTDPLffj23MSSpPv2_rPsN34ue5lgzksFXlKiIzeDkkFVfzI3AviqghSKdD22bZH2GeYNTJ_Vu1ZiA7FNK1tjB7ETvsrF4hSvl3EPEwV4t-rvR0To-yzRQOIq4LvDsLrrP84kY-SKRI9cujQoKv0YXXtjEtBiM3ZStqgO8hosYzq_yeibM476su_khDm-3SprbyMh6MUcbD4lfP2NMwmaZ70w4nKU5OWpNwN6XfLGpivSuywo2GqPo_aSxFpF9S-mFu8GnV8C7SWuCh8UI2R21WGTQfZB307RfbMR8ScKCgDT62cfRUJBBzEwftgue_Ctyytdc5f7DS_JZxOWjCNmNd2SfgMYvabxyp73dPaL12qXpqPaCf2itUrx2uz-IRjfA0YYqi_8MfttfuHoYFmpIiUaJKe4Dm5u9K6OCggXM2n8kOQclrYoDOXoNFt0bcHuvnSzNgtuDLKKJC8pnEN9UnuMCgcrzfQHldHLkfEMDMwbGPGJQqWatu0Mc_UU9SDuA4omaAuyTR_aAlOKULpRvvGuy2CPGkzpLyA8fVjizJKL737o2pWtocABWQ6A93AO1EsTQcA"
+                }
+              },
+              "status": "approved"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.approval.sealed_group_keys": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "eachValue",
+                  "rules": [
+                    {
+                      "match": "type"
+                    }
+                  ],
+                  "value": "{\"sg-contract\":{\"ciphertext\":\"sPn-cVo47iUJKBFhy0GBYd-O20GavE0K8zCHDi5aaGgsyWflBZMAji0pGJg9Slpq\",\"nonce\":\"HtF6XJTSgymbRFbg\",\"salt\":\"kb2sWWkT5L7lqBTnEFr1nx2lU_azSQVc2RBQO6rqsG0ibRArkHqI12xTTjJGRJ7ybsB0pSfH5oT7ilazLnrEEtle1pH4n-ZQmGiEsoDfx5dCDgp3oqSs4_X7M1sdm_CYHVl207xCESer3xDARZq2zxxmHkheYtj3MmDmWKyUM9ipxdqjKV8mdNeCm_BFTf3CuQOMMdUy_zJWQzshMtHNxQMq2A9xJcDZADUbxXBa6ohsY8y6VhUa0M6Q6TRGxkUCVIEhJgymnRr7IXlN7vbIMaI6jL9pszS7DiS7uPBSFuU0g-cYGI2rkouUd0xAdsx1KmWOaDlIlBUALqSoovPmxq2M2vizBEHyT9OaisBDysDOu68QDcYF-zHHl6Fbg9SbAtOwZvL-gcn9N9zgXlEgnPBzDJv0zEdAvxA-W18HYliU9K_jjf0DfzuIoItss264vXvUYaDnh4V3JOomTHvLD-PqN6xKs7KYsvOrs3-HZrbNj7uPMwG8KFZIpk4ZLo1Uc5ubbIpUFUjRte6yphCqwfB33jXvhYK15QP9htYKn9K09K28LRBmCWcogACQniTf4J4rHKGwNQyP-zb9mbnLbqY4wc97FINcnJYV8oylT_hWKP4LCNTZCEZCh3tn6Np8cCivbnzetCAgbwJbw7lTpBAeFVE0HPwi7hQUso101Kb49waAGQyUENDfyBi-u65DbXPuxydLbD8su6rSyOGnMnmp88BbW4eHOSlOqVzWele0e1ElhXmdHtobT7hfAsO21vdndbbPEu23Id6o-Zz8h4DFPpBiN0j1n-F7jUDwbCuf2cp_PXY0U4Cai89nSAfwVjFWeWA-E4YxEYyio11ix1Nvf_OdRyQmxPFbjRSM7Ffn9WAG0vvFpJjPQ9DyEZqX3xH_JnSn5ft40v8_aYPvl0As1PqXEFY07sJCC51tvionPDZUPAql_lvkH2CiurUJwu-XejwVRCBgWY8tDmrbyUBv8Z4PGgS2bY7AuoeETNE_8i-9iQGI5YpZPd1treAPKvrhKkhLS1m-DqlQiMctWa-CwocGH4S8GQIIX4dBq4TKtX2SBFkL-487thySp_KdthIQ-O5nOcDHghs6mnuqK4ej6_nQUIN0gh4KxM8szhqwSOBYc1Gu76DyilsNPT4Rj_mDb7H1fN-FfDzhwmqZwFZnJOVJck5XayiICPdeAmldDtsoo0gqLoRCyFEyPYVP2uTVfXnT5s7EWrPyZhJryvjVuE4C-UFbXlwfUbQlAlPi_WoXIngy3MdM-v8QojbhTqNnM9DzwmjQBN0GsrJg-0Ky2Qmk87lKgKM8nlsB1Nwu-ckR9rQgx9NodiJqKXp1ivkAtZVzLb6bBMsRUlmxZ3jufe7kPcmbvHBEA78_UHdW2lmhV40HixnExvDtZzP5r80ZJWuklQIFV0-GfZEk3aoBX78x04MISi-QQ_3V-_MtLBNWb_oleN1oGddSWr4VgSWzMwk1CM4TdWjkIkr7fw\"}}"
+                }
+              ]
+            },
+            "$.result.approval.sealed_session.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.approval.sealed_session.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.approval.sealed_session.salt": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.result.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process polls an enrollment an admin denied",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an admin denied the enrollment",
+          "params": {
+            "enrollment_id": "enr-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry/${enrollment_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry/enr-contract"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "status": "denied"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process polls an enrollment nobody has approved yet",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an enrollment is waiting for an admin",
+          "params": {
+            "enrollment_id": "enr-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry/${enrollment_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry/enr-contract"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "status": "pending"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process polls an enrollment that no longer exists",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "the vault no longer knows the enrollment",
+          "params": {
+            "enrollment_id": "enr-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry/${enrollment_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry/enr-contract"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "errors": [
+              {
+                "code": "SdkEnrollmentNotFound",
+                "message": "…"
+              }
+            ],
+            "success": false
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.errors": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.errors[*].code": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.errors[*].message": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 404
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process registers its hybrid public keys to request a session",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a service account can enroll an SDK session",
+          "params": {
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "public_keys": {
+              "mlkem768": "7eGgpvkkbIyNrJV-k_goYQSrLkINFspS2oQ9YHBrf1BFn-TGVdKnGDOe8GQ-rJAvFlYXdiFy2TCoCvC7DNu4rEMRs6qdisYeJXG_RYysjjA6IQDJm9la4fVVKzcAzFOatCLF-AiRwglThuk5aPenEIuT6XE325lPxmuxZNPE5DmuzzOt81Odg1CpMqsNaCeSFXYsLqYdoLtgQGqFzQCY1yQVtEcZ1pewGzWjH4M856bIViR-HymY_oNYlfpqi_C8Y0Vt8_sULkfB53W4G1cg9RlNOvqnx3RFKrFkIEe2QPZ1haw0J4x6zaM1ADgqfnOrrkVCVwaBA3GuXYpJ3MqPZxmh3PwKBWmtYVQbhlAUUANbKgwocceTqUIVorGHgGsMuRNQKdtkt2YUYJBuuNesDDE613ukPiczwkk8nHUWLee6byIuJrd7zjFHETS5TvlDDfij6YG6LKUh09eekqZk-xRdtXnBztAwi-auG9W9q0qnvtkwsaxkgZdfJsNcUNeMkQFJUMAC9ac1CuIR1ddobYsZ55kD_oAg3dO4pop9mvmWzNOX9hgqmSG1ktDJarmqw2qIO3CTieCHtmEQynENbFJ9-uLBehU_tMN_K2iQl9ZsBtNEk8SdHEtrrnaAE_N40Gons3aqg0wKUCgd1SohyaicWFWTXpKUoDJWJFqUvjYYVBFN15FjK_CjHlLFadJENDTAbwZ4qJIMpUx44qYu74lhLrPJbGlPI5ZFfjEISEsIB6yooglqHEhAjqYvpeOjtrkvHudUETiKAbJpF0rBVim5sMG0QZZ8Odx0uoBYg4xkXOC1qPpELrpcw_UKKgbPA2V_2ha3Exmt5Ptrd2MkK2mdaDq0b4Ay0HZnjjKtoKE17VQChVtRK9YX9Zu_oZw2O0coTeUQUZzBvJUEzXm19HoYdqNP_1IB49YPiEhE1DCKyzjAJmktB-yn61tBs1QYzgPH20q59soqprpvNNhk9jk_4tEij9hc0ujI8wVZWkNP1sVf_crBiJAvVTAOPdCOwpgGJHuip0N3J3GGsioi3nhkxeB2BlPJA0M4LROlvCh3_7tRFepqlYTAsXRbXnDCavYTujSmgRQkndzH9fsq0IcAOqwYAWrNpcJdHuV3kexBw7EDq2O_JszCjsJ7z9irqxwFIXpJe2rGlcp8aIpi8kjNpiCAJ_KXbJW0ZvmqJFc5sJW3ekzHAhiPG_WvVJA3UOoUbWAqHEBBR8Cd96gEP9GdgfwQY6gVE0J5jaBlrutU-xY4ySUw_qPIX8wjcoSlj9BEuRh7msEmfwdmW7RV71KmAjQ3-MDOfyyT8HcuW4iIQdi02usIJ8ynV_EQFbo893QJ8ktDYwoEmqhJ0QWTa5h-BuWiNDyZAhwPuOYFxRxhK9em4eTPcgRfgwBA8-ss_xBBhQnLsDAEFhGzF_DK3Um6xhYC3_SebboEXdOqafZkVQEdErbJTLtusxcxvAkvA7WZy0pwG2o15Mwy9cMfvkGndzAzCDg-PsgK3ueFnCOB_ik6F5SnaaQ5cGdd-fOx5AfabqHWRo4zuaomJb4ZodivQfqUltQcMsSRIa4RlS8",
+              "x25519": "8_hmo9QvBabOVchVT90fpct-UwbkFcy-KuKzwqd6GQQ"
+            },
+            "runtime": {
+              "arch": "x86_64",
+              "container": false,
+              "hostname": "contract-host",
+              "language": "python 3.12",
+              "os": "linux",
+              "sdk_name": "diagnos-python",
+              "sdk_version": "0.1.0",
+              "user": "contract"
+            }
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.public_keys.mlkem768": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{1579}$"
+                }
+              ]
+            },
+            "$.public_keys.x25519": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{43}$"
+                }
+              ]
+            },
+            "$.runtime.arch": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.container": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.runtime.hostname": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.language": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^python 3\\.[0-9]+$"
+                }
+              ]
+            },
+            "$.runtime.os": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.sdk_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.user": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "approval_url": "https://app.diagnos.health/sdk/approve/enr-contract",
+              "code": "482915",
+              "enrollment_id": "enr-contract",
+              "expires_at": 1780000600,
+              "poll_interval_seconds": 2
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.approval_url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https?://.+$"
+                }
+              ]
+            },
+            "$.result.code": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{6}$"
+                }
+              ]
+            },
+            "$.result.enrollment_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.expires_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.poll_interval_seconds": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "the vault's clock, to correct request signatures for skew",
+      "pending": false,
+      "request": {
+        "method": "GET",
+        "path": "/time"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": 1780000000000
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "4.0"
+    }
+  },
+  "provider": {
+    "name": "diagnos-vault"
+  }
+}

@@ -8,6 +8,7 @@ from __future__ import annotations
 from diagnos.crypto import decrypt_bytes, derive_node_key, encrypted_size
 from diagnos.models import DriveNode
 from diagnos.resources.drives import Drive, Drives, UploadSource
+
 from vault_double import Harness, harness  # noqa: F401 — `harness` is a fixture, used by name as a parameter
 
 
