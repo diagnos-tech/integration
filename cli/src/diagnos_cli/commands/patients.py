@@ -17,7 +17,9 @@ from diagnos_cli.render import get_console, get_err_console, render_document_ind
 app = typer.Typer(help="Patients · Pacientes")
 
 
-@app.command("list")
+@app.command(
+    "list", help="List patients (one page, or all with --all) · Lista pacientes (uma página, ou todas com --all)"
+)
 def list_patients(
     ctx: typer.Context,
     group: str | None = typer.Option(None, "--group", "-g", help="Security group filter · Filtro de security group"),
@@ -46,7 +48,7 @@ def list_patients(
     render_index_table(console, items, json_output=opts.json_output, next_cursor=next_cursor)
 
 
-@app.command("get")
+@app.command("get", help="Fetch and decrypt one patient · Busca e decifra um paciente")
 def get_patient(
     ctx: typer.Context,
     patient_id: str = typer.Argument(..., help="Patient document id · Id do documento de paciente"),
@@ -65,7 +67,7 @@ def get_patient(
     render_patient(console, patient, json_output=opts.json_output)
 
 
-@app.command("create")
+@app.command("create", help="Encrypt and create a patient · Cifra e cria um paciente")
 def create_patient(
     ctx: typer.Context,
     group: str = typer.Option(..., "--group", "-g", help="Security group to encrypt under · Grupo sob o qual cifrar"),
@@ -100,7 +102,7 @@ def create_patient(
     render_patient(console, patient, json_output=opts.json_output)
 
 
-@app.command("update")
+@app.command("update", help="Write a new version of a patient · Grava uma versão nova de um paciente")
 def update_patient(
     ctx: typer.Context,
     patient_id: str = typer.Argument(...),
@@ -120,7 +122,7 @@ def update_patient(
     render_patient(console, patient, json_output=opts.json_output)
 
 
-@app.command("archive")
+@app.command("archive", help="Archive a patient (new version) · Arquiva um paciente (versão nova)")
 def archive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Marks the patient archived, in a new version. 🇧🇷 Marca o paciente arquivado, numa versão nova."""
     opts: CliOptions = ctx.obj
@@ -132,7 +134,7 @@ def archive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("unarchive")
+@app.command("unarchive", help="Unarchive a patient (new version) · Desarquiva um paciente (versão nova)")
 def unarchive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Clears the archived flag, in a new version. 🇧🇷 Tira a flag de arquivado, numa versão nova."""
     opts: CliOptions = ctx.obj
@@ -144,7 +146,7 @@ def unarchive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...))
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("delete")
+@app.command("delete", help="Flag a patient as deleted (new version) · Marca um paciente como apagado (versão nova)")
 def delete_patient(
     ctx: typer.Context,
     patient_id: str = typer.Argument(...),

@@ -16,7 +16,7 @@ description = "🇺🇸 Official zero-knowledge SDK for the diagnos vault · �
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11,<3.14"
-authors = [{ name = "diagnos", email = "opensource@diagnos.health" }]
+authors = [{ name = "diagnos" }]
 keywords = ["diagnos", "medical", "zero-knowledge", "e2ee", "dicom"]
 classifiers = [
   "Development Status :: 4 - Beta",
