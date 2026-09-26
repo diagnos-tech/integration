@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI
 from diagnos_api._version import __version__
 from diagnos_api.errors import register_exception_handlers
 from diagnos_api.mtls import ClientIdentity, require_client_certificate
-from diagnos_api.routers import exams, files, patients, session
+from diagnos_api.routers import docs, exams, files, patients, session
 from diagnos_api.settings import ApiSettings
 
 logger = logging.getLogger("diagnos_api")
@@ -110,6 +110,12 @@ def create_app(
         summary="🇺🇸 REST facade over the diagnos SDK, authenticated by mutual TLS. "
         "🇧🇷 Fachada REST sobre o SDK diagnos, autenticada por mTLS mútuo.",
         lifespan=_lifespan(resolved_vault),  # type: ignore[arg-type]
+        # 🇺🇸 FastAPI's own schema/Swagger routes skip every dependency; `routers/docs.py` serves both behind mTLS.
+        # 🇧🇷 As rotas de schema/Swagger do próprio FastAPI pulam toda dependência; `routers/docs.py` serve as duas
+        #    atrás do mTLS.
+        openapi_url=None,
+        docs_url=None,
+        redoc_url=None,
     )
     app.state.settings = settings
     app.state.vault = resolved_vault
@@ -121,6 +127,7 @@ def create_app(
     app.include_router(exams.router)
     app.include_router(files.router)
     app.include_router(session.router)
+    app.include_router(docs.router)
 
     @app.get(
         "/healthz",
