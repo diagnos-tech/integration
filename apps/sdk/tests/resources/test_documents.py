@@ -1,11 +1,17 @@
-"""🇺🇸 `VersionedDocuments`: the generic engine, exercised directly against the vault double.
+"""🇺🇸 `VersionedDocuments`: create, path shape, and read — exercised directly against the vault double.
+
+List/update/flags live in `test_documents_mutations.py`; both share `_documents_common.py`'s engine
+builders and request-inspection helpers.
 
 Every assertion about bytes goes through the SDK's own crypto *and* the
 double's independent bookkeeping (the object it stored, the size it signed,
 the `security_context` it handed out), so a test passes only when the SDK
 wrote exactly what the web app would open.
 
-🇧🇷 `VersionedDocuments`: o motor genérico, exercitado direto contra o duplo do cofre.
+🇧🇷 `VersionedDocuments`: criação, forma do path, e leitura — exercitados direto contra o duplo do cofre.
+
+Listagem/atualização/flags moram em `test_documents_mutations.py`; os dois compartilham os
+construtores de motor e os auxiliares de inspeção de requisição de `_documents_common.py`.
 
 Toda asserção sobre bytes passa pela cripto do próprio SDK *e* pela
 contabilidade independente do duplo (o objeto que guardou, o tamanho que
@@ -17,67 +23,20 @@ from __future__ import annotations
 
 import json
 
-import httpx
 import pytest
-from diagnos.crypto import (
-    DOCUMENT_DEK_INFO,
-    INDEX_INFO,
-    SEALED_OVERHEAD_BYTES,
-    SecretBox,
-    decrypt_content,
-    derive_content_key,
-    open_version_content,
-    unwrap_key,
-)
-from diagnos.crypto.content import DRAFT_CONTENT_INFO, seal_bytes
-from diagnos.errors import ConflictError, ProtocolError, VaultError
-from diagnos.models import DocumentIndex, ExamRecord, ExamSummary, PatientRecord, PatientSummary
-from diagnos.resources._documents import VersionedDocuments
+from diagnos.crypto import INDEX_INFO, SEALED_OVERHEAD_BYTES, decrypt_content, open_version_content
+from diagnos.errors import ProtocolError
+from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary
 from diagnos.session.keyring import GroupKeyUnavailable
 
+from _documents_common import _JANE, _dek, _exams, _json_bodies, _paths, _patients, _seed_patient_draft
 from vault_double import (  # noqa: F401 — `harness` is a fixture, used by name as a parameter
     WORKSPACE_ID,
     Harness,
     harness,
-    make_documents,
 )
 
 _BASE = f"/api/external/v1/workspaces/{WORKSPACE_ID}"
-_JANE = PatientRecord(legal_name="Jane Doe", display_name="Jane", external_id="mrn-1")
-
-
-def _patients(h: Harness) -> VersionedDocuments[PatientRecord, PatientSummary]:
-    """🇺🇸 The engine for `patients` (two streams). 🇧🇷 O motor de `patients` (dois fluxos)."""
-    return make_documents(h, resource="patients", record_model=PatientRecord, summary_model=PatientSummary)
-
-
-def _exams(h: Harness) -> VersionedDocuments[ExamRecord, ExamSummary]:
-    """🇺🇸 The engine for `exams` (one stream). 🇧🇷 O motor de `exams` (um fluxo)."""
-    return make_documents(h, resource="exams", record_model=ExamRecord, summary_model=ExamSummary)
-
-
-def _dek(h: Harness, index: DocumentIndex) -> SecretBox:
-    """🇺🇸 The document DEK, unwrapped independently of the engine. 🇧🇷 A DEK do documento, aberta sem o motor."""
-    group_key = h.keyring.group_key(index.security_group_id)
-    return unwrap_key(group_key, index.encrypted_keys[index.security_group_id], DOCUMENT_DEK_INFO)
-
-
-def _json_bodies(h: Harness, method: str, suffix: str) -> list[dict[str, object]]:
-    """🇺🇸 The JSON bodies of every API call whose path ends with `suffix`.
-
-    🇧🇷 Os corpos JSON das chamadas com esse sufixo.
-    """
-    return [
-        json.loads(request.content)
-        for request in h.vault.api_requests
-        if request.method == method and request.url.path.endswith(suffix)
-    ]
-
-
-def _paths(h: Harness) -> list[str]:
-    """🇺🇸 `METHOD path` of every API call, in order. 🇧🇷 `MÉTODO path` de toda chamada, em ordem."""
-    return [f"{request.method} {request.url.path}" for request in h.vault.api_requests]
-
 
 # -- create ------------------------------------------------------------------
 
@@ -164,6 +123,10 @@ def test_a_signed_size_that_does_not_match_is_a_protocol_error(
     real = harness.vault._signed_upload  # noqa: SLF001
 
     def lying(url: str, size: int) -> dict[str, object]:
+        """🇺🇸 Signs the upload for one byte more than asked, as a lying vault would.
+
+        🇧🇷 Assina o upload para um byte a mais do que o pedido, como um cofre mentiroso faria.
+        """
         return real(url, size + 1)
 
     monkeypatch.setattr(harness.vault, "_signed_upload", lying)
@@ -241,17 +204,6 @@ def test_read_pins_an_older_version(harness: Harness) -> None:  # noqa: F811
     assert old.version_id == first
 
 
-def _seed_patient_draft(h: Harness, index: DocumentIndex, record: PatientRecord) -> None:
-    """🇺🇸 Seals `record` as the web editor's autosave would, and stores it as the `data` draft.
-
-    🇧🇷 Sela `record` como o autosave do editor web faria, e o guarda como rascunho de `data`.
-    """
-    context = h.vault.security_context("patients", index.document_id, "draft:data")["value"]
-    key = derive_content_key(_dek(h, index), "draft:data", context)
-    sealed = seal_bytes(key, record.model_dump_json(exclude_none=True).encode(), DRAFT_CONTENT_INFO)
-    h.vault.seed_draft("patients", index.document_id, sealed)
-
-
 def test_read_prefers_a_newer_draft_like_the_web_app(harness: Harness) -> None:  # noqa: F811
     """🇺🇸 A draft newer than the latest version wins; `include_draft=False` reads the committed one.
 
@@ -322,222 +274,3 @@ def test_read_fails_closed_without_the_group_key(harness: Harness) -> None:  # n
 
     with pytest.raises(GroupKeyUnavailable):
         documents.read(created.index.document_id)
-
-
-# -- list --------------------------------------------------------------------
-
-
-def test_list_decrypts_summaries_and_paginates(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Every row carries its summary; `iter_all` walks every page once.
-
-    🇧🇷 Toda linha traz o resumo; `iter_all` passa uma vez.
-    """
-    documents = _patients(harness)
-    for i in range(5):
-        record = PatientRecord(legal_name=f"Patient {i}", display_name=f"P{i}")
-        documents.create(record, security_group="sg1", summary=PatientSummary.of(record, []))
-
-    first = documents.list(limit=2)
-    names = [item.summary.display_name for item in documents.iter_all(limit=2) if item.summary is not None]
-
-    assert len(first.items) == 2
-    assert first.next_cursor is not None
-    assert sorted(names) == [f"P{i}" for i in range(5)]
-    assert not harness.vault.get_requests  # 🇺🇸/🇧🇷 no version downloaded · nenhuma versão baixada
-
-
-def test_list_leaves_summary_empty_when_the_group_key_is_missing(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A row from a group without a key keeps `summary=None` instead of failing the page.
-
-    🇧🇷 Uma linha de um grupo sem chave fica com `summary=None` em vez de derrubar a página.
-    """
-    documents = _patients(harness)
-    documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    documents.create(_JANE, security_group="sg2", summary=PatientSummary.of(_JANE, []))
-    del harness.keyring.group_keys["sg2"]
-
-    by_group = {item.index.security_group_id: item.summary for item in documents.list()}
-
-    assert by_group["sg1"] is not None
-    assert by_group["sg2"] is None
-
-
-def test_list_sends_the_filters(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `security_group`/`include_deleted` become the vault's query. 🇧🇷 Os filtros viram a query do cofre."""
-    documents = _patients(harness)
-    documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-
-    page = documents.list(security_group="sg2", include_deleted=True)
-
-    query = harness.vault.api_requests[-1].url.params
-    assert query["security_group_id"] == "sg2"
-    assert query["include_deleted"] == "true"
-    assert page.items == []
-
-
-# -- update ------------------------------------------------------------------
-
-
-def test_update_reuses_the_dek_and_carries_the_summary_forward(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Same DEK, a second version, and the summary callback sees the current summary.
-
-    🇧🇷 Mesma DEK, uma segunda versão, e o callback de resumo vê o resumo atual.
-    """
-    documents = _patients(harness)
-    created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, ["vip"]))
-    seen: list[PatientSummary | None] = []
-    renamed = _JANE.model_copy(update={"display_name": "Jane D."})
-
-    def summary(current: PatientSummary | None) -> PatientSummary:
-        seen.append(current)
-        return PatientSummary.of(renamed, current.tags if current else [])
-
-    updated = documents.update(created.index.document_id, renamed, summary=summary)
-
-    assert seen[0] is not None
-    assert seen[0].tags == ["vip"]
-    assert len(updated.index.versions) == 2
-    assert _dek(harness, updated.index) == _dek(harness, created.index)
-    assert documents.read(created.index.document_id).summary == PatientSummary.of(renamed, ["vip"])
-
-
-def test_update_sends_the_conflict_guard_and_surfaces_a_mismatch(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `expected_latest_version_id` reaches the vault; a stale one is a `ConflictError`.
-
-    🇧🇷 `expected_latest_version_id` chega ao cofre; um desatualizado vira `ConflictError`.
-    """
-    documents = _patients(harness)
-    created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    stale = created.index.latest_version_id
-    documents.update(created.index.document_id, _JANE, summary=lambda c: c or PatientSummary())
-
-    with pytest.raises(ConflictError) as raised:
-        documents.update(
-            created.index.document_id,
-            _JANE,
-            summary=lambda c: c or PatientSummary(),
-            expected_latest_version_id=stale,
-        )
-
-    assert raised.value.code == "DocumentVersionMismatch"
-    assert _json_bodies(harness, "POST", "/streams/data/versions")[-1]["expected_latest_version_id"] == stale
-
-
-def test_update_retries_briefly_while_another_writer_holds_the_pending_slot(
-    harness: Harness,  # noqa: F811
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """🇺🇸 `DocumentVersionPending` is retried (1.5 s, 3 s) like the web app, then surfaced.
-
-    🇧🇷 `DocumentVersionPending` é retentado (1,5 s, 3 s) como o app web, depois exposto.
-    """
-    documents = _patients(harness)
-    created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    document_id = created.index.document_id
-    harness.vault.stage_version("patients", document_id, "data", {"content_length": 100})  # 🇺🇸/🇧🇷 another writer
-
-    with pytest.raises(ConflictError) as raised:
-        documents.update(document_id, _JANE, summary=lambda c: c or PatientSummary())
-    assert raised.value.code == "DocumentVersionPending"
-    assert harness.sleeps == [1.5, 3.0]
-
-    harness.sleeps.clear()
-    real = harness.vault.stage_version
-    calls = {"n": 0}
-
-    def clears_after_one_refusal(*args: object) -> dict[str, object]:
-        calls["n"] += 1
-        if calls["n"] == 1:
-            return real(*args)  # type: ignore[arg-type]
-        harness.vault._pending.clear()  # noqa: SLF001 — the other writer's slot expired
-        return real(*args)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(harness.vault, "stage_version", clears_after_one_refusal)
-    documents.update(document_id, _JANE, summary=lambda c: c or PatientSummary())
-    assert harness.sleeps == [1.5]
-
-
-def test_commit_is_retried_across_server_failures(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A commit lost to 5xx is replayed with backoff; after three attempts the error surfaces.
-
-    🇧🇷 Um commit perdido em 5xx é reenviado com backoff; depois de três tentativas o erro aparece.
-    """
-    documents = _patients(harness)
-    # 🇺🇸 The transport itself retries a 5xx once, so each engine attempt consumes two failures.
-    # 🇧🇷 O transporte já retenta um 5xx uma vez, então cada tentativa do motor consome duas falhas.
-    harness.vault.fail_next_commits = 4
-    documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    assert harness.sleeps == [0.5, 1.0]
-
-    harness.sleeps.clear()
-    harness.vault.fail_next_commits = 6
-    with pytest.raises(VaultError) as raised:
-        documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    assert raised.value.status == 503
-    assert harness.sleeps == [0.5, 1.0]
-
-
-def test_commit_is_retried_after_a_network_error(
-    harness: Harness,  # noqa: F811
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """🇺🇸 A dropped connection on commit is replayed; a 4xx is not. 🇧🇷 Conexão caída no commit é reenviada; 4xx não."""
-    documents = _patients(harness)
-    real = harness.vault.commit_version
-    drops = {"left": 1}
-
-    def flaky(*args: object) -> dict[str, object]:
-        if drops["left"]:
-            drops["left"] -= 1
-            raise httpx.ConnectError("connection reset")
-        return real(*args)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(harness.vault, "commit_version", flaky)
-    documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    assert harness.sleeps == [0.5]
-
-
-def test_update_refuses_a_patch_only_answer(harness: Harness, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
-    """🇺🇸 A version reservation answered as patch-only breaks the contract.
-
-    🇧🇷 Reserva respondida só-patch quebra o contrato.
-    """
-    documents = _patients(harness)
-    created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    monkeypatch.setattr(
-        harness.vault,
-        "stage_version",
-        lambda resource, document_id, _stream, _body: {"staged": False, "document": {}},
-    )
-
-    with pytest.raises(ProtocolError):
-        documents.update(created.index.document_id, _JANE, summary=lambda c: c or PatientSummary())
-
-
-# -- flags -------------------------------------------------------------------
-
-
-def test_flags_are_patch_only(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Archive/delete send only the flag: no `content_length`, no new version, no upload.
-
-    🇧🇷 Arquivar/apagar mandam só a flag: sem `content_length`, sem versão nova, sem upload.
-    """
-    documents = _patients(harness)
-    created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
-    document_id = created.index.document_id
-    uploads = len(harness.vault.put_requests)
-
-    archived = documents.set_flags(document_id, is_archived=True)
-    deleted = documents.set_flags(document_id, is_deleted=True)
-    restored = documents.set_flags(document_id, is_archived=False, is_deleted=False)
-
-    assert archived.is_archived is True
-    assert deleted.is_deleted is True
-    assert (restored.is_archived, restored.is_deleted) == (False, False)
-    assert len(restored.versions) == 1
-    assert len(harness.vault.put_requests) == uploads
-    assert _json_bodies(harness, "POST", "/streams/data/versions") == [
-        {"is_archived": True},
-        {"is_deleted": True},
-        {"is_archived": False, "is_deleted": False},
-    ]

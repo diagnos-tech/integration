@@ -108,6 +108,10 @@ class _FakeTransport:
         self._ssl_object = ssl_object
 
     def get_extra_info(self, name: str) -> Any:
+        """🇺🇸 The ASGI transport's `extra_info`; only `"ssl_object"` is ever asked for.
+
+        🇧🇷 O `extra_info` do transporte ASGI; só `"ssl_object"` é pedido.
+        """
         assert name == "ssl_object"
         return self._ssl_object
 
@@ -122,6 +126,10 @@ class _FakeSslObject:
         self._cert = cert
 
     def getpeercert(self) -> dict[str, Any] | None:
+        """🇺🇸 The fixed certificate dict this fake was built with.
+
+        🇧🇷 O dict de certificado fixo com que este fake foi criado.
+        """
         return self._cert
 
 

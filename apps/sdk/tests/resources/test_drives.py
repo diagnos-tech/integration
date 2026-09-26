@@ -178,6 +178,10 @@ def test_a_put_that_never_landed_is_reported(harness: Harness, monkeypatch: pyte
     real = harness.vault.handle_storage
 
     def drop(request: httpx.Request) -> httpx.Response:
+        """🇺🇸 Answers a `PUT` with an `ETag` but never actually stores the bytes.
+
+        🇧🇷 Responde um `PUT` com `ETag` mas nunca guarda os bytes de fato.
+        """
         if request.method == "PUT":
             return httpx.Response(200, headers={"ETag": '"x"'})
         return real(request)
@@ -270,6 +274,10 @@ def test_a_failed_multipart_is_aborted(harness: Harness, monkeypatch: pytest.Mon
     real = harness.vault.handle_storage
 
     def fail_second_part(request: httpx.Request) -> httpx.Response:
+        """🇺🇸 Fails only the second part's `PUT`, so the upload must abort mid-flight.
+
+        🇧🇷 Falha só o `PUT` da segunda parte, então o upload precisa abortar em pleno voo.
+        """
         return httpx.Response(500) if str(request.url).endswith("/2") else real(request)
 
     harness.transport._storage_client = httpx.Client(transport=httpx.MockTransport(fail_second_part))  # noqa: SLF001
