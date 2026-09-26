@@ -46,6 +46,8 @@ from . import cli_check, generate, openapi, sdk, site, snippets, urls
 from .markdown import anchors, raw_html, structure
 from .output import REPO_ROOT
 
+_RAW_HTML = "raw HTML is not rendered by the site · HTML cru não é renderizado pelo site"
+
 
 def _repo_link(target: str, repo: str) -> str | None:
     """🇺🇸 The repository path of an absolute `…/blob|tree/<ref>/<path>` link to this repo, else `None`.
@@ -92,9 +94,7 @@ def page_problems(manifest: dict[str, Any], root: Path) -> tuple[list[str], int]
         for path in (page.source, page.translation):
             problems += link_problems(path, root, repo)
             for line, tag in raw_html((root / path).read_text(encoding="utf-8")):
-                problems.append(
-                    f"{path}:{line}: raw HTML is not rendered by the site · HTML cru não é renderizado pelo site → {tag}"
-                )
+                problems.append(f"{path}:{line}: {_RAW_HTML} → {tag}")
             outcome = snippets.run_file(root / path, root)
             ran += outcome.ran
             problems += outcome.problems
