@@ -16,12 +16,10 @@ um pod retoma a sessão do SDK sem nova aprovação humana.
 | `DIAGNOS_API_TLS_CERT_FILE` / `DIAGNOS_API_TLS_KEY_FILE` | sim | Certificado e chave do servidor (PEM). |
 | `DIAGNOS_API_HOST` / `DIAGNOS_API_PORT` | não | Padrão `0.0.0.0` / `8443`. |
 | `DIAGNOS_API_ALLOWED_CLIENT_CN` | não | CNs separados por vírgula; quando definida, só esses certificados de cliente passam. |
-| `OPENBAO_ADDR` / `OPENBAO_TOKEN` / `OPENBAO_MOUNT` / `OPENBAO_PATH_PREFIX` | não | Auto-unseal (veja [`docs/PROTOCOL.pt-BR.md` §11](../../../docs/PROTOCOL.pt-BR.md)). |
-| `OPENBAO_TOKEN_FILE` | não | Um arquivo de onde ler o token do OpenBao quando `OPENBAO_TOKEN` não está definida — como o Compose (`deploy/compose`) e Secrets do Kubernetes montados como arquivo o entregam sem valor de ambiente. |
-| `DIAGNOS_VAULT_URL` | não | Padrão `https://vault.diagnos.health`. |
+| `OPENBAO_*`, `DIAGNOS_VAULT_URL`, `DIAGNOS_MEMORY_LOCK`, … | não | Toda variável do SDK vale também — veja [Configuração](../../../docs/guides/configuration.pt-BR.md). `OPENBAO_TOKEN_FILE` é como o Compose (`deploy/compose`) e Secrets do Kubernetes montados como arquivo entregam o token do OpenBao sem valor de ambiente. |
 
 Sem OpenBao, o primeiro start imprime o link e o código de aprovação no log do container; um admin do workspace
-aprova uma vez por vida do processo.
+aprova uma vez por vida do processo. Gerar os certificados e chamar a API: o [guia da API REST](../../../docs/guides/api.pt-BR.md).
 
 ## Kubernetes
 

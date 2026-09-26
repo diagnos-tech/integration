@@ -27,7 +27,7 @@ de versão internos do `imgexam`.
 | exceção `ImgexamError` | exceção `DiagnosError` |
 | exceção `ImgexamPermissionError` | exceção `DiagnosPermissionError` |
 
-```python
+```python no-run
 # antes
 from imgexam import Imgexam, ImgexamError
 

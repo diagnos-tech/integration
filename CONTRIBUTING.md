@@ -64,7 +64,7 @@ These rules govern code (`.py` and `.rs` files); they used to live in `CONVENTIO
   code. Rust doc comments (`//!` for modules, `///` for items) follow the identical rule. `scripts/check_bilingual.py`
   (part of `make lint`) fails the build when a docstring or doc comment is missing either flag.
 
-  ```python
+  ```python no-run
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
       """🇺🇸 HMAC-SHA512 over the canonical string, hex-encoded.
 

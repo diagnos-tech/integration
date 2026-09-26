@@ -12,7 +12,7 @@
 #    mesmo CPython para o qual o wheel é construído.
 
 .DEFAULT_GOAL := help
-.PHONY: help sync fmt lint lint-py lint-rust lint-docs types test test-py test-rust cov contract contract-check check hooks clean
+.PHONY: help sync fmt lint lint-py lint-rust lint-docs types test test-py test-rust cov contract contract-check docs docs-check check hooks clean
 
 NATIVE := apps/sdk/native/Cargo.toml
 PYTHON_PACKAGES := apps/sdk/src apps/cli/src apps/api/src
@@ -54,6 +54,7 @@ test-py:
 	uv run --package diagnos pytest apps/sdk/tests
 	uv run --package diagnos-cli pytest apps/cli/tests
 	uv run --package diagnos-api pytest apps/api/tests
+	uv run pytest scripts/docs/tests
 
 test-rust:
 	$(CARGO_ENV) cargo test --manifest-path $(NATIVE)
@@ -63,6 +64,7 @@ cov: ## 🇺🇸 Unit tests with one combined coverage report (htmlcov/) · 🇧
 	uv run --package diagnos pytest apps/sdk/tests --cov --cov-report= --cov-fail-under=0
 	uv run --package diagnos-cli pytest apps/cli/tests --cov --cov-append --cov-report= --cov-fail-under=0
 	uv run --package diagnos-api pytest apps/api/tests --cov --cov-append --cov-report= --cov-fail-under=0
+	uv run pytest scripts/docs/tests
 	uv run coverage html --quiet --fail-under=0
 	uv run coverage xml --quiet --fail-under=0
 	uv run coverage json --quiet --fail-under=0
@@ -74,7 +76,13 @@ contract: ## 🇺🇸 Pact consumer tests; regenerates contracts/*.json · 🇧�
 contract-check: ## 🇺🇸 Fail if the committed contract is stale (CI) · 🇧🇷 Falha se o contrato commitado estiver velho (CI)
 	uv run --package diagnos pytest contracts/tests --contract-check
 
-check: lint types test contract-check ## 🇺🇸 Everything CI runs · 🇧🇷 Tudo que a CI roda
+docs: ## 🇺🇸 Regenerate docs/reference/*.json from the code · 🇧🇷 Regera docs/reference/*.json a partir do código
+	uv run python -m scripts.docs.generate
+
+docs-check: ## 🇺🇸 Fail if the docs drifted from the code (CI) · 🇧🇷 Falha se a doc divergiu do código (CI)
+	uv run python -m scripts.docs.check
+
+check: lint types test contract-check docs-check ## 🇺🇸 Everything CI runs · 🇧🇷 Tudo que a CI roda
 
 hooks: ## 🇺🇸 Run `make lint` before every commit · 🇧🇷 Roda `make lint` antes de todo commit
 	uvx pre-commit install

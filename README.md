@@ -48,20 +48,19 @@ Same token, same approval flow, same guarantees. The CLI and the API are thin sh
 reimplement a single byte of cryptography.
 
 > [!NOTE]
-> Not on PyPI yet. Until the first release, install from source (building the SDK needs a
-> [Rust toolchain](https://rustup.rs/)):
-> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"`
+> Not on PyPI yet. Until the first release, install from source — [Install](docs/guides/install.md) has the commands,
+> and the [Rust toolchain](https://rustup.rs/) the build needs.
 
 ## Quick start
 
-**1. Get a token.** Ask a workspace admin for a service-account token:
+**1. Get a token.** A workspace admin issues a service-account token in the diagnos web app:
 
 ```sh
 export DIAGNOS_API_TOKEN="apikey-…"
 ```
 
-**2. Enroll.** The first run prints a link and a 6-digit code; an admin approves it in the diagnos web app and picks
-which security groups this process may read.
+**2. Enroll.** The first run prints a link and a 6-digit code; an admin approves it in the web app and picks which
+security groups this process may read.
 
 ```python
 from diagnos import Diagnos
@@ -77,63 +76,43 @@ diagnos status         # token, OpenBao and SDK version
 ```
 
 **3. Use it.** Patients, exams and files hang off the same object — `vault.patients`, `vault.exams`,
-`vault.drives` — see the [SDK guide](apps/sdk/README.md).
+`vault.drives`. The [quickstart](docs/guides/quickstart.md) goes from here to your first encrypted patient and file.
 
-## How a session is born
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant P as Your process (SDK)
-    participant V as vault.diagnos.health
-    actor A as Workspace admin
-    participant W as diagnos web app
-
-    P->>P: generate X25519 + ML-KEM-768 key pair, in RAM
-    P->>V: register public keys + runtime description
-    V-->>P: approval link + 6-digit code
-    P-->>A: prints link + code
-    A->>W: opens link, checks the runtime, types the code, picks groups
-    W->>V: group keys sealed to the SDK's public keys
-    P->>V: poll
-    V-->>P: sealed group keys + sealed session keys
-    Note over P: opens both with private keys<br/>that never left the process → unlocked
-```
-
-Private keys never leave the process, and nothing is written to disk. Stop the process and the next one needs a new
-approval — that is the design, not a limitation. For pods and cron jobs, see
-[servers without a human](#servers-without-a-human).
+Private keys never leave the process and nothing is written to disk, so the next process needs a new approval — that
+is the design, not a limitation. [Authentication](docs/guides/authentication.md) shows the whole enrollment, and
+[Sessions](docs/guides/sessions.md#auto-unseal-with-openbao) how servers restart without a human.
 
 ## What you get for free
 
 - **🔐 End-to-end by default** — records and files are encrypted in your process; the vault sees ciphertext, signed
-  requests and presigned URLs.
+  requests and presigned URLs. [Exactly what it sees](docs/guides/security.md#what-the-vault-sees).
 - **🛡️ Post-quantum hybrid** — enrollment uses X25519 + ML-KEM-768, so a recorded session stays safe against a future
   quantum adversary.
 - **🧱 Keys in a Rust enclave** — `mlock`ed memory, guard pages, excluded from core dumps, zeroed on `fork()` and on
   drop, never handed back to Python as `bytes`. Threat model: [`apps/sdk/native/README.md`](apps/sdk/native/README.md).
-- **🔁 Retries and clock skew handled** — idempotent retries, clock sync with the vault, stable exceptions.
+- **🔁 Retries and clock skew handled** — idempotent retries, clock sync with the vault, stable exceptions:
+  [Errors](docs/guides/errors.md).
 - **📐 Pinned byte formats** — [`docs/PROTOCOL.md`](docs/PROTOCOL.md) is normative, and test vectors generated from
   the vault's reference implementation pin every byte.
 
 ## Servers without a human
 
-A human approval on every restart is fine for a laptop; it is not fine for a Kubernetes pod. Set two variables and the
-SDK saves its unlocked session to [OpenBao](https://openbao.org/)'s encrypted KV right after enrollment, then restores
-from there on every start — no human, until the saved session expires.
+A human approval on every restart is fine for a laptop; it is not fine for a Kubernetes pod. Point the SDK at
+[OpenBao](https://openbao.org/) and it saves its unlocked session right after enrollment and restores it on every
+start — a deliberate trade, [explained in full](docs/guides/sessions.md#auto-unseal-with-openbao) before you turn it
+on. Ready-made manifests live in [`apps/api/deploy/`](apps/api/deploy/README.md): Docker Compose and Kubernetes, with
+OpenBao auto-unseal for AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir and static keys.
 
-```sh
-pip install "diagnos[openbao]"
-export OPENBAO_ADDR="https://openbao.internal:8200"
-export OPENBAO_TOKEN="…"   # scoped to one path, nothing wider
-```
+## Documentation
 
-> [!WARNING]
-> This is a deliberate trade: whoever can read that OpenBao path can decrypt exactly what this process can. Read
-> [the full trade-off](apps/sdk/README.md#auto-unseal-with-openbao) before turning it on.
+| Start here | Then |
+|---|---|
+| [Quickstart](docs/guides/quickstart.md) · [Install](docs/guides/install.md) · [Concepts](docs/guides/concepts.md) | [Authentication](docs/guides/authentication.md) · [Sessions](docs/guides/sessions.md) · [Configuration](docs/guides/configuration.md) |
+| [Patients](docs/guides/patients.md) · [Exams](docs/guides/exams.md) · [Files](docs/guides/files.md) | [Errors](docs/guides/errors.md) · [Security model](docs/guides/security.md) |
+| [CLI guide](docs/guides/cli.md) · [REST API guide](docs/guides/api.md) | [Deploying](apps/api/deploy/README.md) · [Protocol](docs/PROTOCOL.md) · [Compatibility](docs/COMPATIBILITY.md) |
 
-Ready-made manifests live in [`apps/api/deploy/`](apps/api/deploy/README.md): Docker Compose and Kubernetes, with OpenBao
-auto-unseal for AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir and static keys.
+The developer site publishes these same pages at `/dev/docs`, plus a reference generated from the code — every
+command, route and class. [How the docs are built and checked](docs/README.md).
 
 ## Quality gates
 
@@ -144,7 +123,7 @@ Every badge above is a workflow you can run locally with one command.
 | **Unit tests** | the three packages on CPython 3.11–3.13, plus the Rust enclave | `make test` |
 | **Coverage** | combined branch coverage of `diagnos`, `diagnos-cli` and `diagnos-api`, with a floor that only goes up | `make cov` |
 | **Contract tests** | the SDK sends and reads exactly what the committed [Pact](https://pact.io) contract says (Rust `pact_ffi` engine) | `make contract` |
-| **CI** | lint (Python, Rust, bilingual docstrings, docs), `mypy --strict`, lockfile | `make lint types` |
+| **CI** | lint (Python, Rust, bilingual docstrings, docs), `mypy --strict`, lockfile, and the docs: every example runs, the reference is fresh | `make lint types docs-check` |
 
 The contract is consumer-driven: the SDK's tests write
 [`contracts/diagnos-sdk-diagnos-vault.json`](contracts/diagnos-sdk-diagnos-vault.json), and the vault verifies that
@@ -167,8 +146,9 @@ integration/
 │   └── api/           diagnos-api      REST facade (FastAPI), mTLS only
 │       └── deploy/    compose · k8s    ready-to-run manifests
 ├── contracts/         Pact             consumer contract with the vault + its tests
-├── docs/              PROTOCOL.md      normative byte formats · COMPATIBILITY.md
-└── scripts/                            the checks behind `make lint` and CI
+├── docs/              guides/          the documentation · reference/ generated from the code
+│                      PROTOCOL.md      normative byte formats · COMPATIBILITY.md · site.json
+└── scripts/           docs/            the checks behind `make lint`, `make docs-check` and CI
 ```
 
 ## Contributing
@@ -179,7 +159,7 @@ You need [uv](https://docs.astral.sh/uv/), Python 3.11–3.13 and, to build the 
 ```sh
 git clone https://github.com/diagnos-tech/integration && cd integration
 make sync    # installs everything and builds the Rust enclave
-make check   # exactly what CI runs: lint, types, unit and contract tests
+make check   # exactly what CI runs: lint, types, unit and contract tests, docs
 make         # lists every other target
 ```
 

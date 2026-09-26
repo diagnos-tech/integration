@@ -1,0 +1,2319 @@
+{
+  "generatedFrom": {
+    "commit": "28bb22f",
+    "package": "diagnos",
+    "version": "0.1.0"
+  },
+  "modules": [
+    {
+      "doc": {
+        "en": "diagnos — zero-knowledge SDK for the diagnos vault.\n\nEverything an application needs is reachable from this top-level package:\n`Diagnos` is the entry point, `Settings` configures it, the record/model\ntypes shape what `patients`/`exams` read and write, and the exceptions are\nwhat a caller catches. Anything not exported here — `diagnos.resources`,\n`diagnos.session`, `diagnos.transport`, `diagnos.crypto` — is internal\nplumbing `cli`/`api` and application code are not meant to import directly\n(`CONTRIBUTING.md`): if something in there is missing from this list, that is\na gap in the SDK's public surface, not a signal to reach past it.",
+        "pt-br": "diagnos — SDK zero-knowledge do cofre diagnos.\n\nTudo que uma aplicação precisa é alcançável a partir deste pacote de\nprimeiro nível: `Diagnos` é o ponto de entrada, `Settings` o configura, os\ntipos de registro/modelo dão forma ao que `patients`/`exams` leem e\nescrevem, e as exceções são o que quem chama captura. Qualquer coisa não\nexportada aqui — `diagnos.resources`, `diagnos.session`,\n`diagnos.transport`, `diagnos.crypto` — é encanamento interno que `cli`/`api`\ne código de aplicação não devem importar direto (`CONTRIBUTING.md`): se algo\nlá dentro está faltando nesta lista, é uma lacuna na superfície pública do\nSDK, não um sinal para alcançar por cima dela."
+      },
+      "members": [
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "401 — token, session or signature rejected; usually re-enroll.",
+            "pt-br": "401 — token, sessão ou assinatura recusados; em geral, refaça o enrollment."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "AuthenticationError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "Missing or malformed configuration (env vars, token).",
+            "pt-br": "Configuração ausente ou malformada (variáveis de ambiente, token)."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "ConfigError"
+        },
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "409 — state disagrees (pending version, replay).",
+            "pt-br": "409 — o estado discorda (versão pendente, replay)."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "ConflictError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "An envelope did not open or a format did not match the protocol.\n\nDeliberately one class: distinguishing \"wrong key\" from \"tampered\nciphertext\" would hand an oracle to whoever is probing.",
+            "pt-br": "Um envelope não abriu ou um formato não bateu com o protocolo.\n\nUma classe só, de propósito: distinguir \"chave errada\" de \"ciphertext\nadulterado\" daria um oráculo a quem estiver sondando."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "CryptoError"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "The SDK's entry point: one service account's live connection to one workspace.",
+            "pt-br": "O ponto de entrada do SDK: a conexão viva de uma service account com um workspace."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "This service account's workspace, read from its token.",
+                "pt-br": "O workspace desta service account, lido do token dela."
+              },
+              "kind": "property",
+              "name": "workspace_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "This service account's owning account, read from its token.",
+                "pt-br": "A conta dona desta service account, lida do token dela."
+              },
+              "kind": "property",
+              "name": "account_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The service account's human-readable name (`slug@<workspace_id>.diagnos.health`).",
+                "pt-br": "O nome legível da service account (`slug@<workspace_id>.diagnos.health`)."
+              },
+              "kind": "property",
+              "name": "name",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Id of the token's key pair — what an admin rotates or revokes.",
+                "pt-br": "Id do par de chaves do token — o que um admin rotaciona ou revoga."
+              },
+              "kind": "property",
+              "name": "key_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Ids of every security group this session holds a DEK for; `[]` before `unlock()`.",
+                "pt-br": "Ids de todo security group para o qual esta sessão tem uma DEK; `[]` antes de `unlock()`."
+              },
+              "kind": "property",
+              "name": "security_groups",
+              "signature": ": list[str]"
+            },
+            {
+              "doc": {
+                "en": "`vault.patients` — built once, on first access.",
+                "pt-br": "`vault.patients` — construído uma vez, no primeiro acesso."
+              },
+              "kind": "property",
+              "name": "patients",
+              "signature": ": Patients"
+            },
+            {
+              "doc": {
+                "en": "`vault.exams` — built once, on first access.",
+                "pt-br": "`vault.exams` — construído uma vez, no primeiro acesso."
+              },
+              "kind": "property",
+              "name": "exams",
+              "signature": ": Exams"
+            },
+            {
+              "doc": {
+                "en": "`vault.drives` — built once, on first access.",
+                "pt-br": "`vault.drives` — construído uma vez, no primeiro acesso."
+              },
+              "kind": "property",
+              "name": "drives",
+              "signature": ": Drives"
+            },
+            {
+              "doc": {
+                "en": "Enrolls (or restores from OpenBao) and returns the live `Keyring`; idempotent.",
+                "pt-br": "Faz enrollment (ou restaura do OpenBao) e devolve o `Keyring` vivo; idempotente."
+              },
+              "kind": "method",
+              "name": "unlock",
+              "signature": "() -> Keyring"
+            },
+            {
+              "doc": {
+                "en": "Ends the session, best-effort server-side, and always wipes local key material.\n\nUnlike `close()`, this is never called automatically — see the\n`__exit__` docstring for why.",
+                "pt-br": "Encerra a sessão, best-effort do lado do servidor, e sempre apaga o material de chave local.\n\nDiferente de `close()`, isto nunca é chamado automaticamente — veja\na docstring de `__exit__` para o porquê."
+              },
+              "kind": "method",
+              "name": "lock",
+              "signature": "() -> None"
+            },
+            {
+              "doc": {
+                "en": "Closes the underlying HTTP clients. Does not `lock()` — see `__exit__`.",
+                "pt-br": "Fecha os clients HTTP internos. Não faz `lock()` — veja `__exit__`."
+              },
+              "kind": "method",
+              "name": "close",
+              "signature": "() -> None"
+            }
+          ],
+          "name": "Diagnos",
+          "signature": "(settings: Settings | None = None, *, token: str | None = None, on_prompt: PromptCallback | None = None, auto_unseal: bool | None = None, transport: VaultTransport | None = None, session: SessionManager | None = None)"
+        },
+        {
+          "bases": [
+            "Exception"
+          ],
+          "doc": {
+            "en": "Base of every SDK error.",
+            "pt-br": "Base de todo erro do SDK."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "DiagnosError"
+        },
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "403 — the service account may not do this here.",
+            "pt-br": "403 — a service account não pode fazer isto aqui."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "DiagnosPermissionError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "A stream's mutable draft head: the web editor's autosave, overwritten in place, never a version.",
+            "pt-br": "A cabeça mutável de rascunho de um fluxo: o autosave do editor web, sobrescrito no lugar, nunca uma versão."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "rev",
+              "signature": ": int"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "size",
+              "signature": ": int"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "updated_at",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "updated_by",
+              "signature": ": str"
+            }
+          ],
+          "name": "DocumentDraft",
+          "signature": "(*, rev: int, size: int, updated_at: str, updated_by: str)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "What the vault knows about a patient/exam/template (`docs/PROTOCOL.md §8`): keys, streams, clear metadata.\n\nEvery field here is something the vault itself reads to route and\nauthorize. The clinical content never appears on this model: it lives in\nthe sealed object of each version, and a short sealed summary (name,\ntitle) lives in `encrypted_index`, which only a DEK holder opens.\n\nExactly one `security_group_id` per document: sharing a patient with\nanother team means copying it, never sharing its key.",
+            "pt-br": "O que o cofre sabe sobre um paciente/exame/modelo (`docs/PROTOCOL.md §8`): chaves, fluxos, metadado em claro.\n\nTodo campo aqui é algo que o próprio cofre lê para rotear e autorizar. O\nconteúdo clínico nunca aparece neste modelo: ele vive no objeto selado de\ncada versão, e um resumo selado curto (nome, título) vive em\n`encrypted_index`, que só quem tem a DEK abre.\n\nExatamente um `security_group_id` por documento: compartilhar um\npaciente com outra equipe é copiá-lo, nunca compartilhar a chave."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "document_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "workspace_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "resource",
+              "signature": ": Literal['patients', 'exams', 'templates']"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "security_group_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "encrypted_keys",
+              "signature": ": dict[str, EncryptedPayload]"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "encrypted_index",
+              "signature": ": EncryptedPayload | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "streams",
+              "signature": ": dict[Literal['data', 'file'], DocumentStream] = {}"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "meta",
+              "signature": ": dict[str, Any] = {}"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "created_at",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "created_by",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "updated_at",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "updated_by",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "is_archived",
+              "signature": ": bool = False"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "is_deleted",
+              "signature": ": bool = False"
+            },
+            {
+              "doc": {
+                "en": "One stream's state; an empty stream when the vault sent none for `name`.",
+                "pt-br": "O estado de um fluxo; um fluxo vazio quando o cofre não mandou nenhum para `name`."
+              },
+              "kind": "method",
+              "name": "stream",
+              "signature": "(name: StreamName = 'data') -> DocumentStream"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `stream(\"data\").latest_version_id`.",
+                "pt-br": "Atalho para `stream(\"data\").latest_version_id`."
+              },
+              "kind": "property",
+              "name": "latest_version_id",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `stream(\"data\").versions`.",
+                "pt-br": "Atalho para `stream(\"data\").versions`."
+              },
+              "kind": "property",
+              "name": "versions",
+              "signature": ": list[DocumentVersion]"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `stream(\"data\").pending_version_id`.",
+                "pt-br": "Atalho para `stream(\"data\").pending_version_id`."
+              },
+              "kind": "property",
+              "name": "pending_version_id",
+              "signature": ": str | None"
+            }
+          ],
+          "name": "DocumentIndex",
+          "signature": "(*, document_id: str, workspace_id: str, resource: Literal['patients', 'exams', 'templates'], security_group_id: str, encrypted_keys: dict[str, EncryptedPayload], encrypted_index: EncryptedPayload | None = None, streams: dict[Literal['data', 'file'], DocumentStream] = {}, meta: dict[str, Any] = {}, created_at: str, created_by: str, updated_at: str, updated_by: str | None = None, is_archived: bool = False, is_deleted: bool = False)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "One row of a list: the index plus its decrypted summary — no version downloaded.\n\n`summary` is `None` when the document predates `encrypted_index` or\nbelongs to a security group this session holds no key for.",
+            "pt-br": "Uma linha de lista: o índice mais o resumo decifrado — nenhuma versão baixada.\n\n`summary` é `None` quando o documento é anterior ao `encrypted_index` ou\npertence a um security group para o qual esta sessão não tem chave."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "index",
+              "signature": ": DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "summary",
+              "signature": ": SummaryT | None = None"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `index.document_id`.",
+                "pt-br": "Atalho para `index.document_id`."
+              },
+              "kind": "property",
+              "name": "id",
+              "signature": ": str"
+            }
+          ],
+          "name": "DocumentListItem",
+          "signature": "(*, index: DocumentIndex, summary: SummaryT | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "One independent line of versions inside a document (`docs/PROTOCOL.md §8`).\n\nExams and templates have a single stream, `data`. Patients have two:\n`data` (the structured record this SDK reads and writes) and `file` (the\nweb editor's rich document, not exposed by the SDK yet).",
+            "pt-br": "Uma linha independente de versões dentro de um documento (`docs/PROTOCOL.md §8`).\n\nExames e modelos têm um fluxo só, `data`. Pacientes têm dois: `data` (o\nregistro estruturado que este SDK lê e grava) e `file` (o documento rico\ndo editor web, ainda não exposto pelo SDK)."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "latest_version_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "versions",
+              "signature": ": list[DocumentVersion] = []"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "pending_version_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "draft",
+              "signature": ": DocumentDraft | None = None"
+            },
+            {
+              "doc": {
+                "en": "The entry of `versions` that `latest_version_id` points at.",
+                "pt-br": "A entrada de `versions` que `latest_version_id` aponta."
+              },
+              "kind": "property",
+              "name": "latest_version",
+              "signature": ": DocumentVersion | None"
+            },
+            {
+              "doc": {
+                "en": "The web app's precedence rule: the draft wins when it exists and is newer than the latest version.\n\nA commit does not erase the draft, it only supersedes it, so \"newer\"\nis decided by timestamps: `draft.updated_at` against the latest\nversion's `created_at`. An unreadable timestamp never makes the draft\nwin — the committed version is the safe answer.",
+                "pt-br": "A regra de precedência do app web: o rascunho vence quando existe e é mais novo que a versão corrente.\n\nUm commit não apaga o rascunho, só o supera, então \"mais novo\" é\ndecidido por horário: `draft.updated_at` contra o `created_at` da\nversão corrente. Um horário ilegível nunca faz o rascunho vencer — a\nversão confirmada é a resposta segura."
+              },
+              "kind": "property",
+              "name": "draft_is_newer",
+              "signature": ": bool"
+            }
+          ],
+          "name": "DocumentStream",
+          "signature": "(*, latest_version_id: str | None = None, versions: list[DocumentVersion] = [], pending_version_id: str | None = None, draft: DocumentDraft | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "One committed version of a stream (`docs/PROTOCOL.md §8`) — metadata only, never content.",
+            "pt-br": "Uma versão confirmada de um fluxo (`docs/PROTOCOL.md §8`) — só metadado, nunca conteúdo."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "version_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "size",
+              "signature": ": int"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "created_at",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "created_by",
+              "signature": ": str"
+            }
+          ],
+          "name": "DocumentVersion",
+          "signature": "(*, version_id: str, size: int, created_at: str, created_by: str)"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "One security group's files — the web app's \"drive\": list, upload, folders, download.",
+            "pt-br": "Os arquivos de um security group — o \"drive\" do app web: listar, subir, pastas, baixar."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "The group this drive belongs to.",
+                "pt-br": "O grupo a que este drive pertence."
+              },
+              "kind": "property",
+              "name": "security_group_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "One page of this group's nodes, optionally of one exam or one folder.",
+                "pt-br": "Uma página dos nós deste grupo, opcionalmente de um exame ou de uma pasta."
+              },
+              "kind": "method",
+              "name": "list",
+              "signature": "(*, exam_id: str | None = None, parent_id: str | None = None, include_pending: bool = False, limit: int = 50, cursor: str | None = None) -> Page[DriveNode]"
+            },
+            {
+              "doc": {
+                "en": "Every node of this group, across all pages.",
+                "pt-br": "Todo nó deste grupo, por todas as páginas."
+              },
+              "kind": "method",
+              "name": "iter_all",
+              "signature": "(*, exam_id: str | None = None, parent_id: str | None = None, include_pending: bool = False, limit: int = 50) -> Iterator[DriveNode]"
+            },
+            {
+              "doc": {
+                "en": "Uploads one file; `name` defaults to the path's file name, `mime_type` to a guess from it.",
+                "pt-br": "Sobe um arquivo; `name` é, por padrão, o nome do arquivo do path, e `mime_type` um palpite por ele."
+              },
+              "kind": "method",
+              "name": "upload",
+              "signature": "(source: str | os.PathLike[str] | bytes | BinaryIO, *, name: str | None = None, mime_type: str | None = None, exam_id: str | None = None, parent_id: str | None = None) -> DriveNode"
+            },
+            {
+              "doc": {
+                "en": "Uploads a batch (reserved 100 at a time), optionally linked to an exam or placed in a folder.",
+                "pt-br": "Sobe um lote (reservado de 100 em 100), opcionalmente ligado a um exame ou dentro de uma pasta."
+              },
+              "kind": "method",
+              "name": "upload_many",
+              "signature": "(sources: Iterable[UploadInput], *, exam_id: str | None = None, parent_id: str | None = None) -> list[DriveNode]"
+            },
+            {
+              "doc": {
+                "en": "Creates a folder and returns its node id — pass it as `parent_id` to upload into it.\n\nThe vault cannot tell two folder names apart (it only sees\nciphertext), so calling this twice creates two folders.",
+                "pt-br": "Cria uma pasta e devolve o id do nó — passe-o como `parent_id` para subir dentro dela.\n\nO cofre não distingue dois nomes de pasta (só vê ciphertext), então\nchamar isto duas vezes cria duas pastas."
+              },
+              "kind": "method",
+              "name": "create_folder",
+              "signature": "(name: str, *, parent_id: str | None = None) -> str"
+            },
+            {
+              "doc": {
+                "en": "One ready file's index; folders and unfinished uploads answer `NotFoundError`.",
+                "pt-br": "O índice de um arquivo pronto; pastas e uploads inacabados respondem `NotFoundError`."
+              },
+              "kind": "method",
+              "name": "get",
+              "signature": "(node_id: str) -> DriveNode"
+            },
+            {
+              "doc": {
+                "en": "Opens the node's sealed file name.",
+                "pt-br": "Abre o nome de arquivo selado do nó."
+              },
+              "kind": "method",
+              "name": "name_of",
+              "signature": "(node: DriveNode) -> str"
+            },
+            {
+              "doc": {
+                "en": "Downloads and decrypts one file lazily, a chunk at a time.",
+                "pt-br": "Baixa e decifra um arquivo aos pedaços."
+              },
+              "kind": "method",
+              "name": "iter_download",
+              "signature": "(node_id: str) -> Iterator[bytes]"
+            },
+            {
+              "doc": {
+                "en": "The plaintext bytes, or written to `destination` (a path or a binary file) chunk by chunk.",
+                "pt-br": "Os bytes em texto claro, ou escritos em `destination` (um path ou um arquivo binário) aos pedaços."
+              },
+              "kind": "method",
+              "name": "download",
+              "signature": "(node_id: str, destination: str | os.PathLike[str] | BinaryIO | None = None) -> bytes | None"
+            }
+          ],
+          "name": "Drive",
+          "signature": "(nodes: _Nodes, security_group_id: str)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "One file or folder of a workspace (`docs/PROTOCOL.md §9`) — the vault's index of it, never its content.\n\nEvery node has its own DEK, wrapped for its security group in\n`encrypted_keys`; the name stays sealed in `encrypted_name` until\n`name_of` opens it on demand (doing it eagerly for a whole page would\nmean an AES-GCM per row nobody asked for). A folder has no content and\nno upload fields; a file's `size` is what the vault measured, never just\nwhat was declared.",
+            "pt-br": "Um arquivo ou pasta de um workspace (`docs/PROTOCOL.md §9`) — o índice que o cofre tem dele, nunca o conteúdo.\n\nTodo nó tem a própria DEK, embrulhada para o security group em\n`encrypted_keys`; o nome fica selado em `encrypted_name` até `name_of`\nabri-lo sob demanda (fazer isso para uma página inteira significaria um\nAES-GCM por linha que ninguém pediu). Uma pasta não tem conteúdo nem\ncampos de upload; o `size` de um arquivo é o que o cofre mediu, nunca só\no declarado."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "node_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "workspace_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "security_group_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "kind",
+              "signature": ": Literal['file', 'folder'] = 'file'"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "status",
+              "signature": ": Literal['pending', 'ready', 'failed']"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "exam_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "parent_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "mode",
+              "signature": ": Literal['single', 'multipart'] | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "media_kind",
+              "signature": ": Literal['image', 'video', 'dicom', 'other'] | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "declared_size",
+              "signature": ": int | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "size",
+              "signature": ": int | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "mime_type",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "encrypted_name",
+              "signature": ": EncryptedPayload"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "encrypted_keys",
+              "signature": ": dict[str, EncryptedPayload]"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "storage_path",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "optimized_variants",
+              "signature": ": list[OptimizedVariant] = []"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "processing_status",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "processing_error",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "total_size",
+              "signature": ": int | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "created_by",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "created_at",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "completed_at",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "is_deleted",
+              "signature": ": bool = False"
+            }
+          ],
+          "name": "DriveNode",
+          "signature": "(*, node_id: str, workspace_id: str, security_group_id: str, kind: Literal['file', 'folder'] = 'file', status: Literal['pending', 'ready', 'failed'], exam_id: str | None = None, parent_id: str | None = None, mode: Literal['single', 'multipart'] | None = None, media_kind: Literal['image', 'video', 'dicom', 'other'] | None = None, declared_size: int | None = None, size: int | None = None, mime_type: str | None = None, encrypted_name: EncryptedPayload, encrypted_keys: dict[str, EncryptedPayload], storage_path: str | None = None, optimized_variants: list[OptimizedVariant] = [], processing_status: str | None = None, processing_error: str | None = None, total_size: int | None = None, created_by: str, created_at: str, completed_at: str | None = None, is_deleted: bool = False)"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "`vault.drives` — the workspace's files across groups, and `drive(group)` for one group's.",
+            "pt-br": "`vault.drives` — os arquivos do workspace entre grupos, e `drive(grupo)` para os de um grupo."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "The files of one security group.",
+                "pt-br": "Os arquivos de um security group."
+              },
+              "kind": "method",
+              "name": "drive",
+              "signature": "(security_group_id: str) -> Drive"
+            },
+            {
+              "doc": {
+                "en": "One page of the workspace's nodes — every group this session may list, unless filtered.",
+                "pt-br": "Uma página dos nós do workspace — todo grupo que esta sessão pode listar, salvo filtro."
+              },
+              "kind": "method",
+              "name": "list",
+              "signature": "(*, security_group: str | None = None, exam_id: str | None = None, parent_id: str | None = None, include_pending: bool = False, limit: int = 50, cursor: str | None = None) -> Page[DriveNode]"
+            },
+            {
+              "doc": {
+                "en": "Every node, across all pages.",
+                "pt-br": "Todo nó, por todas as páginas."
+              },
+              "kind": "method",
+              "name": "iter_all",
+              "signature": "(*, security_group: str | None = None, exam_id: str | None = None, parent_id: str | None = None, include_pending: bool = False, limit: int = 50) -> Iterator[DriveNode]"
+            },
+            {
+              "doc": {
+                "en": "One ready file's index; folders and unfinished uploads answer `NotFoundError`.",
+                "pt-br": "O índice de um arquivo pronto; pastas e uploads inacabados respondem `NotFoundError`."
+              },
+              "kind": "method",
+              "name": "get",
+              "signature": "(node_id: str) -> DriveNode"
+            },
+            {
+              "doc": {
+                "en": "Opens the node's sealed file name.",
+                "pt-br": "Abre o nome de arquivo selado do nó."
+              },
+              "kind": "method",
+              "name": "name_of",
+              "signature": "(node: DriveNode) -> str"
+            },
+            {
+              "doc": {
+                "en": "Downloads and decrypts one file lazily, a chunk at a time.",
+                "pt-br": "Baixa e decifra um arquivo aos pedaços."
+              },
+              "kind": "method",
+              "name": "iter_download",
+              "signature": "(node_id: str) -> Iterator[bytes]"
+            },
+            {
+              "doc": {
+                "en": "The plaintext bytes, or written to `destination` (a path or a binary file) chunk by chunk.",
+                "pt-br": "Os bytes em texto claro, ou escritos em `destination` (um path ou um arquivo binário) aos pedaços."
+              },
+              "kind": "method",
+              "name": "download",
+              "signature": "(node_id: str, destination: str | os.PathLike[str] | BinaryIO | None = None) -> bytes | None"
+            }
+          ],
+          "name": "Drives",
+          "signature": "(transport: VaultTransport, keyring_provider: Callable[[], Keyring], entropy: EntropyMixer, *, workspace_id: str)"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "A person denied this SDK session in the web app.",
+            "pt-br": "Uma pessoa negou esta sessão de SDK no app web."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "EnrollmentDeniedError"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "Nobody approved within the window; start again.",
+            "pt-br": "Ninguém aprovou dentro do prazo; comece de novo."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "EnrollmentExpiredError"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "What a human needs to see: the link to open and the code to type.",
+            "pt-br": "O que uma pessoa precisa ver: o link para abrir e o código para digitar."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "enrollment_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "approval_url",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "code",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "expires_at",
+              "signature": ": int"
+            }
+          ],
+          "name": "EnrollmentPrompt",
+          "signature": "(enrollment_id: str, approval_url: str, code: str, expires_at: int)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "An exam as an application wants it: the index, the decrypted record and its summary.",
+            "pt-br": "Um exame do jeito que uma aplicação quer: o índice, o registro decifrado e o resumo."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "record",
+              "signature": ": ExamRecord"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "summary",
+              "signature": ": ExamSummary | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "index",
+              "signature": ": DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "The committed version the record came from; `None` when it came from the draft head.",
+                "pt-br": "A versão confirmada de onde o registro veio; `None` quando veio da cabeça de rascunho."
+              },
+              "kind": "attribute",
+              "name": "version_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "The draft revision the record came from, when the draft was newer.",
+                "pt-br": "A revisão do rascunho de onde o registro veio, quando ele era mais novo."
+              },
+              "kind": "attribute",
+              "name": "draft_rev",
+              "signature": ": int | None = None"
+            },
+            {
+              "doc": {
+                "en": "The exam's patient, read from clear `meta` (`docs/PROTOCOL.md §8`) — never guessed from content.",
+                "pt-br": "O paciente do exame, lido do `meta` em claro (`docs/PROTOCOL.md §8`) — nunca adivinhado do conteúdo."
+              },
+              "kind": "property",
+              "name": "patient_id",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "`draft` or `published`, from clear `meta`; `None` when never set.",
+                "pt-br": "`draft` ou `published`, do `meta` em claro; `None` quando nunca definido."
+              },
+              "kind": "property",
+              "name": "report_status",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "The document id — shorthand for `index.document_id`.",
+                "pt-br": "O id do documento — atalho para `index.document_id`."
+              },
+              "kind": "property",
+              "name": "id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `index.updated_at`.",
+                "pt-br": "Atalho para `index.updated_at`."
+              },
+              "kind": "property",
+              "name": "updated_at",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `index.security_group_id`.",
+                "pt-br": "Atalho para `index.security_group_id`."
+              },
+              "kind": "property",
+              "name": "security_group_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "`True` when the record is the (newer) draft head, not a committed version.",
+                "pt-br": "`True` quando o registro é a cabeça de rascunho (mais nova), não uma versão confirmada."
+              },
+              "kind": "property",
+              "name": "from_draft",
+              "signature": ": bool"
+            }
+          ],
+          "name": "Exam",
+          "signature": "(*, index: DocumentIndex, version_id: str | None = None, draft_rev: int | None = None, record: ExamRecord, summary: ExamSummary | None = None)"
+        },
+        {
+          "bases": [
+            "DocumentListItem"
+          ],
+          "doc": {
+            "en": "One row of `vault.exams.list()`: the index plus the decrypted `ExamSummary` (title, modality, date).",
+            "pt-br": "Uma linha de `vault.exams.list()`: o índice mais o `ExamSummary` decifrado (título, modalidade, data)."
+          },
+          "kind": "class",
+          "members": [],
+          "name": "ExamListItem",
+          "signature": "(*, index: DocumentIndex, summary: ExamSummary | None = None)"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "`vault.exams` — list, read, create, update, archive/unarchive, delete/restore.",
+            "pt-br": "`vault.exams` — listar, ler, criar, atualizar, arquivar/desarquivar, apagar/restaurar."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "One page of exams, each with its decrypted summary (title, modality, date).",
+                "pt-br": "Uma página de exames, cada um com o resumo decifrado (título, modalidade, data)."
+              },
+              "kind": "method",
+              "name": "list",
+              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50, cursor: str | None = None) -> Page[ExamListItem]"
+            },
+            {
+              "doc": {
+                "en": "Every exam, across all pages.",
+                "pt-br": "Todo exame, por todas as páginas."
+              },
+              "kind": "method",
+              "name": "iter_all",
+              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50) -> Iterator[ExamListItem]"
+            },
+            {
+              "doc": {
+                "en": "Fetches and decrypts one exam: the newest content (draft included), or `version_id`.",
+                "pt-br": "Busca e decifra um exame: o conteúdo mais novo (rascunho incluído), ou `version_id`."
+              },
+              "kind": "method",
+              "name": "get",
+              "signature": "(exam_id: str, *, version_id: str | None = None, include_draft: bool = True) -> Exam"
+            },
+            {
+              "doc": {
+                "en": "Seals `record`, links it to `patient_id` in clear `meta`, and creates the exam.\n\n`patient_id` is required and clear on purpose — it is the axis the\nvault itself uses to route and authorize an exam without ever\nopening its encrypted content. Everything else, modality included,\nstays sealed.",
+                "pt-br": "Sela `record`, liga ao `patient_id` no `meta` em claro, e cria o exame.\n\n`patient_id` é obrigatório e em claro de propósito — é o eixo que o\npróprio cofre usa para rotear e autorizar um exame sem nunca abrir o\nconteúdo cifrado. Todo o resto, modalidade inclusive, fica selado."
+              },
+              "kind": "method",
+              "name": "create",
+              "signature": "(record: ExamRecord | Mapping[str, Any], *, patient_id: str, security_group: str) -> Exam"
+            },
+            {
+              "doc": {
+                "en": "Seals a new complete version of `record` (see `Patients.update` for the conflict guard).",
+                "pt-br": "Sela uma versão nova e completa de `record` (ver `Patients.update` para a trava de conflito)."
+              },
+              "kind": "method",
+              "name": "update",
+              "signature": "(exam_id: str, record: ExamRecord | Mapping[str, Any], *, expected_latest_version_id: str | None = None) -> Exam"
+            },
+            {
+              "doc": {
+                "en": "Marks the exam archived (no new version).",
+                "pt-br": "Marca o exame arquivado (sem versão nova)."
+              },
+              "kind": "method",
+              "name": "archive",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Clears the archived flag (no new version).",
+                "pt-br": "Tira a flag de arquivado (sem versão nova)."
+              },
+              "kind": "method",
+              "name": "unarchive",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Moves the exam to the trash — a flag, never a hard delete; `restore` undoes it.",
+                "pt-br": "Manda o exame para a lixeira — uma flag, nunca um apagar de verdade; `restore` desfaz."
+              },
+              "kind": "method",
+              "name": "delete",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Takes the exam out of the trash.",
+                "pt-br": "Tira o exame da lixeira."
+              },
+              "kind": "method",
+              "name": "restore",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            }
+          ],
+          "name": "Exams",
+          "signature": "(documents: VersionedDocuments[ExamRecord, ExamSummary], *, time_precision: TimePrecision | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "The content of an exam version (`ExamContent` in the web app) — the report and its clinical context.\n\n`report_lexical` is the web editor's state (Lexical JSON, as a string)\nand is the source of truth; `report_html` is derived from it for readers\nthat never open the editor. Write both when you produce a report, or the\nweb editor opens an empty document.",
+            "pt-br": "O conteúdo de uma versão de exame (`ExamContent` no app web) — o laudo e o contexto clínico.\n\n`report_lexical` é o estado do editor web (JSON do Lexical, como string)\ne é a fonte da verdade; `report_html` é derivado dele para leitores que\nnunca abrem o editor. Grave os dois ao produzir um laudo, senão o editor\nweb abre um documento vazio."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "title",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "modality",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "exam_date",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "report_lexical",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "report_html",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "custom_attributes",
+              "signature": ": dict[str, Any] | None = None"
+            }
+          ],
+          "name": "ExamRecord",
+          "signature": "(*, title: str | None = None, modality: str | None = None, exam_date: str | None = None, report_lexical: str | None = None, report_html: str | None = None, custom_attributes: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "The plaintext of an exam's `encrypted_index`: title, modality and date, derived from the record.",
+            "pt-br": "O texto claro do `encrypted_index` de um exame: título, modalidade e data, derivados do registro."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "title",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "modality",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "exam_date",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "The summary the web app would write for `record`.",
+                "pt-br": "O resumo que o app web gravaria para `record`."
+              },
+              "kind": "method",
+              "name": "of",
+              "signature": "(record: ExamRecord) -> ExamSummary"
+            }
+          ],
+          "name": "ExamSummary",
+          "signature": "(*, title: str | None = None, modality: str | None = None, exam_date: str | None = None)"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "The SDK was never handed the DEK of this security group.\n\nThis happens when an admin approves an enrollment for a narrower set of\ngroups than the document being opened needs — a permissions gap, not a\ncrypto failure, so it is its own exception rather than `CryptoError`.",
+            "pt-br": "O SDK nunca recebeu a DEK deste security group.\n\nAcontece quando um admin aprova um enrollment para um conjunto de grupos\nmais estreito do que o documento que está sendo aberto precisa — uma\nlacuna de permissão, não uma falha de cripto, por isso é exceção própria\nem vez de `CryptoError`."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "GroupKeyUnavailable"
+        },
+        {
+          "bases": [
+            "RuntimeWarning"
+          ],
+          "doc": {
+            "en": "Emitted once when the OS refused to lock at least one secret in RAM.\n\nThe secret still has guard pages, no-dump and zero-on-drop; what it lost\nis the guarantee of never reaching swap. The fix is operational, not in\ncode: raise `ulimit -l`, grant `CAP_IPC_LOCK`, or set\n`DIAGNOS_MEMORY_LOCK=require` to refuse to run this way.",
+            "pt-br": "Emitido uma vez quando o SO recusou travar pelo menos um segredo na RAM.\n\nO segredo ainda tem guard pages, sem dump e zero-ao-descartar; o que\nperdeu foi a garantia de nunca ir ao swap. A correção é operacional, não\nde código: aumente `ulimit -l`, conceda `CAP_IPC_LOCK`, ou defina\n`DIAGNOS_MEMORY_LOCK=require` para se recusar a rodar assim."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "MemoryLockWarning"
+        },
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "404.",
+            "pt-br": "404."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "NotFoundError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "One page of a cursor-paginated list (`docs/PROTOCOL.md §8`/`§9`): `items` plus the cursor for the next call.\n\n`__iter__` yields `items` directly (not pydantic's default field-tuple\niteration) so `for item in vault.patients.list(): ...` reads the way any\nPython sequence does — the field-tuple behaviour nobody wants here is\nstill reachable through `dict(page)` if it were ever needed.",
+            "pt-br": "Uma página de uma lista paginada por cursor (`docs/PROTOCOL.md\n§8`/`§9`): `items` mais o cursor para a próxima chamada.\n\n`__iter__` entrega `items` direto (não a iteração padrão do pydantic\nsobre pares campo-valor) para `for item in vault.patients.list(): ...`\nler como qualquer sequência Python — o comportamento de tupla de campos\nque ninguém quer aqui ainda seria alcançável via `dict(page)` se um dia\nprecisasse."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "items",
+              "signature": ": list[T]"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "next_cursor",
+              "signature": ": str | None = None"
+            }
+          ],
+          "name": "Page",
+          "signature": "(*, items: list[T], next_cursor: str | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "A patient as an application wants it: the index, the decrypted record and its summary.",
+            "pt-br": "Um paciente do jeito que uma aplicação quer: o índice, o registro decifrado e o resumo."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "record",
+              "signature": ": PatientRecord"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "summary",
+              "signature": ": PatientSummary | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "index",
+              "signature": ": DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "The committed version the record came from; `None` when it came from the draft head.",
+                "pt-br": "A versão confirmada de onde o registro veio; `None` quando veio da cabeça de rascunho."
+              },
+              "kind": "attribute",
+              "name": "version_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "The draft revision the record came from, when the draft was newer.",
+                "pt-br": "A revisão do rascunho de onde o registro veio, quando ele era mais novo."
+              },
+              "kind": "attribute",
+              "name": "draft_rev",
+              "signature": ": int | None = None"
+            },
+            {
+              "doc": {
+                "en": "The sealed list/search tags (`summary.tags`).",
+                "pt-br": "As tags seladas de lista/busca (`summary.tags`)."
+              },
+              "kind": "property",
+              "name": "tags",
+              "signature": ": list[str]"
+            },
+            {
+              "doc": {
+                "en": "The document id — shorthand for `index.document_id`.",
+                "pt-br": "O id do documento — atalho para `index.document_id`."
+              },
+              "kind": "property",
+              "name": "id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `index.updated_at`.",
+                "pt-br": "Atalho para `index.updated_at`."
+              },
+              "kind": "property",
+              "name": "updated_at",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Shorthand for `index.security_group_id`.",
+                "pt-br": "Atalho para `index.security_group_id`."
+              },
+              "kind": "property",
+              "name": "security_group_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "`True` when the record is the (newer) draft head, not a committed version.",
+                "pt-br": "`True` quando o registro é a cabeça de rascunho (mais nova), não uma versão confirmada."
+              },
+              "kind": "property",
+              "name": "from_draft",
+              "signature": ": bool"
+            }
+          ],
+          "name": "Patient",
+          "signature": "(*, index: DocumentIndex, version_id: str | None = None, draft_rev: int | None = None, record: PatientRecord, summary: PatientSummary | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "A patient's address; every field optional (an emergency registration may have none).",
+            "pt-br": "O endereço de um paciente; todo campo opcional (um cadastro de emergência pode não ter nenhum)."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "postal_code",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "street",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "number",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "complement",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "district",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "city",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "state",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "country",
+              "signature": ": str | None = None"
+            }
+          ],
+          "name": "PatientAddress",
+          "signature": "(*, postal_code: str | None = None, street: str | None = None, number: str | None = None, complement: str | None = None, district: str | None = None, city: str | None = None, state: str | None = None, country: str | None = None)"
+        },
+        {
+          "bases": [
+            "DocumentListItem"
+          ],
+          "doc": {
+            "en": "One row of `vault.patients.list()`: the index plus the decrypted `PatientSummary` (names, tags).",
+            "pt-br": "Uma linha de `vault.patients.list()`: o índice mais o `PatientSummary` decifrado (nomes, tags)."
+          },
+          "kind": "class",
+          "members": [],
+          "name": "PatientListItem",
+          "signature": "(*, index: DocumentIndex, summary: PatientSummary | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "The `data` stream of a patient (`PatientData` in the web app) — everything here is sealed before upload.\n\n`birth_date` accepts a `date` or an aware `datetime` and is stored the\nway the web app stores it, as a UTC ISO 8601 instant. Set\n`Settings.time_precision` to truncate it to the workspace's\nanonymization precision before sealing, like the web app does.",
+            "pt-br": "O fluxo `data` de um paciente (`PatientData` no app web) — tudo aqui é selado antes do upload.\n\n`birth_date` aceita `date` ou `datetime` com fuso e é gravado do jeito\nque o app web grava, como um instante ISO 8601 em UTC. Defina\n`Settings.time_precision` para truncá-lo à precisão de anonimização do\nworkspace antes de selar, como o app web faz."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "legal_name",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "display_name",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "identifiers",
+              "signature": ": list[PersonalIdentifier] | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "external_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "birth_date",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "biological_sex",
+              "signature": ": Literal['MALE', 'FEMALE', 'INTERSEX', 'UNDEFINED'] | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "gender_identity",
+              "signature": ": Literal['CIS_MALE', 'CIS_FEMALE', 'TRANS_MALE', 'TRANS_FEMALE', 'NON_BINARY', 'AGENDER', 'FLUID', 'OTHER', 'PREFER_NOT_TO_SAY'] | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "race_identity",
+              "signature": ": Literal['WHITE', 'BLACK', 'BROWN', 'YELLOW', 'INDIGENOUS', 'NOT_DECLARED'] | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "email",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "phone",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "address",
+              "signature": ": PatientAddress | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "internal_notes",
+              "signature": ": list[str] | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "custom_attributes",
+              "signature": ": dict[str, Any] | None = None"
+            }
+          ],
+          "name": "PatientRecord",
+          "signature": "(*, legal_name: str, display_name: str, identifiers: list[PersonalIdentifier] | None = None, external_id: str | None = None, birth_date: str | None = None, biological_sex: Literal['MALE', 'FEMALE', 'INTERSEX', 'UNDEFINED'] | None = None, gender_identity: Literal['CIS_MALE', 'CIS_FEMALE', 'TRANS_MALE', 'TRANS_FEMALE', 'NON_BINARY', 'AGENDER', 'FLUID', 'OTHER', 'PREFER_NOT_TO_SAY'] | None = None, race_identity: Literal['WHITE', 'BLACK', 'BROWN', 'YELLOW', 'INDIGENOUS', 'NOT_DECLARED'] | None = None, email: str | None = None, phone: str | None = None, address: PatientAddress | None = None, internal_notes: list[str] | None = None, custom_attributes: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "The plaintext of a patient's `encrypted_index`: what a list shows without opening any version.\n\nThe SDK derives it from the record on every write (plus `tags`, which\nare not a record field); it never carries identity documents, because\nopening the summary is not audited.",
+            "pt-br": "O texto claro do `encrypted_index` de um paciente: o que uma lista mostra sem abrir nenhuma versão.\n\nO SDK o deriva do registro a cada gravação (mais `tags`, que não são\ncampo do registro); ele nunca carrega documento de identidade, porque\nabrir o resumo não é auditado."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "display_name",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "legal_name",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "external_id",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "birth_date",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "tags",
+              "signature": ": list[str] = []"
+            },
+            {
+              "doc": {
+                "en": "The summary the web app would write for `record`.",
+                "pt-br": "O resumo que o app web gravaria para `record`."
+              },
+              "kind": "method",
+              "name": "of",
+              "signature": "(record: PatientRecord, tags: Sequence[str]) -> PatientSummary"
+            }
+          ],
+          "name": "PatientSummary",
+          "signature": "(*, display_name: str | None = None, legal_name: str | None = None, external_id: str | None = None, birth_date: str | None = None, tags: list[str] = [])"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "`vault.patients` — list, read, create, update, archive/unarchive, delete/restore.",
+            "pt-br": "`vault.patients` — listar, ler, criar, atualizar, arquivar/desarquivar, apagar/restaurar."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "One page of patients, each with its decrypted summary (names, tags) — no version downloaded.",
+                "pt-br": "Uma página de pacientes, cada um com o resumo decifrado (nomes, tags) — nenhuma versão baixada."
+              },
+              "kind": "method",
+              "name": "list",
+              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50, cursor: str | None = None) -> Page[PatientListItem]"
+            },
+            {
+              "doc": {
+                "en": "Every patient, across all pages.",
+                "pt-br": "Todo paciente, por todas as páginas."
+              },
+              "kind": "method",
+              "name": "iter_all",
+              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50) -> Iterator[PatientListItem]"
+            },
+            {
+              "doc": {
+                "en": "Fetches and decrypts one patient: the newest content, or the version `version_id` names.\n\nThe newest content is the web app's: its draft head when that is\nnewer than the latest version (`Patient.from_draft`), else the\nlatest version. Pass `include_draft=False` to read only committed\nversions.",
+                "pt-br": "Busca e decifra um paciente: o conteúdo mais novo, ou a versão que `version_id` nomeia.\n\nO conteúdo mais novo é o do app web: a cabeça de rascunho quando é\nmais nova que a versão corrente (`Patient.from_draft`), senão a\nversão corrente. Passe `include_draft=False` para ler só versões\nconfirmadas."
+              },
+              "kind": "method",
+              "name": "get",
+              "signature": "(patient_id: str, *, version_id: str | None = None, include_draft: bool = True) -> Patient"
+            },
+            {
+              "doc": {
+                "en": "Seals `record` under `security_group` and creates the patient with its first version.\n\n`tags` are list/search labels (\"diabetes\"); they are sealed inside\nthe summary, never sent in clear. `specialist_ids` go to clear\n`meta` — the only patient metadata the vault itself reads.",
+                "pt-br": "Sela `record` sob `security_group` e cria o paciente com a primeira versão.\n\n`tags` são rótulos de lista/busca (\"diabetes\"); ficam selados dentro\ndo resumo, nunca vão em claro. `specialist_ids` vão no `meta` em\nclaro — o único metadado de paciente que o próprio cofre lê."
+              },
+              "kind": "method",
+              "name": "create",
+              "signature": "(record: PatientRecord | Mapping[str, Any], *, security_group: str, tags: Sequence[str] = (), specialist_ids: Sequence[str] | None = None) -> Patient"
+            },
+            {
+              "doc": {
+                "en": "Seals a new complete version of `record`; `tags=None` keeps the current tags.\n\nPass `expected_latest_version_id=patient.index.latest_version_id`\nfrom your earlier read to have the vault refuse the write\n(`ConflictError`, `DocumentVersionMismatch`) if someone else saved\nin between.",
+                "pt-br": "Sela uma versão nova e completa de `record`; `tags=None` mantém as tags atuais.\n\nPasse `expected_latest_version_id=patient.index.latest_version_id`\nda sua leitura anterior para o cofre recusar a gravação\n(`ConflictError`, `DocumentVersionMismatch`) se outra pessoa salvou\nno meio-tempo."
+              },
+              "kind": "method",
+              "name": "update",
+              "signature": "(patient_id: str, record: PatientRecord | Mapping[str, Any], *, tags: Sequence[str] | None = None, specialist_ids: Sequence[str] | None = None, expected_latest_version_id: str | None = None) -> Patient"
+            },
+            {
+              "doc": {
+                "en": "Marks the patient archived (no new version).",
+                "pt-br": "Marca o paciente arquivado (sem versão nova)."
+              },
+              "kind": "method",
+              "name": "archive",
+              "signature": "(patient_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Clears the archived flag (no new version).",
+                "pt-br": "Tira a flag de arquivado (sem versão nova)."
+              },
+              "kind": "method",
+              "name": "unarchive",
+              "signature": "(patient_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Moves the patient to the trash — a flag, never a hard delete; `restore` undoes it.",
+                "pt-br": "Manda o paciente para a lixeira — uma flag, nunca um apagar de verdade; `restore` desfaz."
+              },
+              "kind": "method",
+              "name": "delete",
+              "signature": "(patient_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Takes the patient out of the trash.",
+                "pt-br": "Tira o paciente da lixeira."
+              },
+              "kind": "method",
+              "name": "restore",
+              "signature": "(patient_id: str) -> DocumentIndex"
+            }
+          ],
+          "name": "Patients",
+          "signature": "(documents: VersionedDocuments[PatientRecord, PatientSummary], *, time_precision: TimePrecision | None = None)"
+        },
+        {
+          "bases": [
+            "BaseModel"
+          ],
+          "doc": {
+            "en": "An identity document (CPF, RG, passport…) whose `value` is sealed by the vault, not by this SDK.\n\nOpening one is audited server-side, which is why the value is\n`secret:v1:…` sealed material rather than plain text. The external API\nhas no route to seal a new one yet: records read from the vault carry\nthem through untouched, and a caller-built record must already hold\nsealed values. For a plain id from another system, use\n`PatientRecord.external_id`.",
+            "pt-br": "Um documento de identidade (CPF, RG, passaporte…) cujo `value` é selado pelo cofre, não por este SDK.\n\nAbrir um é auditado no servidor, por isso o valor é material selado\n`secret:v1:…` e não texto claro. A API externa ainda não tem rota para\nselar um novo: registros lidos do cofre os carregam intactos, e um\nregistro montado por quem chama já precisa trazer valores selados. Para\num id simples de outro sistema, use `PatientRecord.external_id`."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "name",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "value",
+              "signature": ": str"
+            }
+          ],
+          "name": "PersonalIdentifier",
+          "signature": "(*, name: str, value: str)"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "The vault answered something the protocol does not allow (e.g. signed a size that is not the body's).\n\nNot the caller's fault and not retryable: report it with the SDK\nversion, or upgrade if the vault moved on.",
+            "pt-br": "O cofre respondeu algo que o protocolo não permite (ex.: assinou um tamanho que não é o do corpo).\n\nNão é culpa de quem chama e não adianta retentar: reporte com a versão\ndo SDK, ou atualize se o cofre evoluiu."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "ProtocolError"
+        },
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "402 — the workspace has no credit for this; nothing was done.",
+            "pt-br": "402 — o workspace não tem crédito para isto; nada foi feito."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "QuotaError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "429 — slow down; the SDK already retried with backoff.",
+            "pt-br": "429 — devagar; o SDK já tentou de novo com backoff."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "RateLimitError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "The session keys are past `expires_at`; enroll again.",
+            "pt-br": "As chaves de sessão passaram de `expires_at`; refaça o enrollment."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "SessionExpiredError"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "Immutable SDK configuration, usually built by `from_env`.",
+            "pt-br": "Configuração imutável do SDK, normalmente construída por `from_env`."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "api_token",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "vault_url",
+              "signature": ": str = 'https://vault.diagnos.health'"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "timeout_seconds",
+              "signature": ": float = 30.0"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "openbao_addr",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "openbao_token",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "openbao_mount",
+              "signature": ": str = 'secret'"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "openbao_path_prefix",
+              "signature": ": str = 'diagnos'"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "openbao_namespace",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "harden_process",
+              "signature": ": bool = True"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "time_precision",
+              "signature": ": Literal['month', 'day', 'hour', 'minute', 'second'] | None = None"
+            },
+            {
+              "doc": {
+                "en": "Read the environment variables documented in `docs/PROTOCOL.md §11`.\n\n`env` defaults to `os.environ` but accepts an explicit mapping so\ntests never have to monkeypatch process-global state.",
+                "pt-br": "Lê as variáveis de ambiente documentadas em `docs/PROTOCOL.md §11`.\n\n`env` usa `os.environ` por padrão, mas aceita um mapeamento explícito\npara os testes nunca precisarem de monkeypatch em estado global do\nprocesso."
+              },
+              "kind": "method",
+              "name": "from_env",
+              "signature": "(env: Mapping[str, str] | None = None) -> Settings"
+            }
+          ],
+          "name": "Settings",
+          "signature": "(api_token: str, vault_url: str = 'https://vault.diagnos.health', timeout_seconds: float = 30.0, openbao_addr: str | None = None, openbao_token: str | None = None, openbao_mount: str = 'secret', openbao_path_prefix: str = 'diagnos', openbao_namespace: str | None = None, harden_process: bool = True, time_precision: TimePrecision | None = None)"
+        },
+        {
+          "doc": {
+            "en": "A workspace's anonymization precision: every date is truncated to it before sealing (`Settings.time_precision`).",
+            "pt-br": "A precisão de anonimização de um workspace: toda data é truncada nela antes de selar (`Settings.time_precision`)."
+          },
+          "kind": "attribute",
+          "name": "TimePrecision",
+          "signature": " = Literal['month', 'day', 'hour', 'minute', 'second']"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "One file for `upload_many`: the content plus its name and MIME type.\n\n`name` defaults to the file name of a path (or of an open file); a\n`bytes` or anonymous stream needs one explicitly — every node carries a\nsealed name. `mime_type` defaults to a guess from the name, which is\nwhat lets the vault classify DICOM, images and video.",
+            "pt-br": "Um arquivo para `upload_many`: o conteúdo mais o nome e o tipo MIME.\n\n`name` é, por padrão, o nome de arquivo de um path (ou de um arquivo\naberto); `bytes` ou um stream anônimo precisam de um explícito — todo nó\nleva um nome selado. `mime_type` é, por padrão, um palpite pelo nome, o\nque deixa o cofre classificar DICOM, imagem e vídeo."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "source",
+              "signature": ": str | PathLike[str] | bytes | BinaryIO"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "name",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "mime_type",
+              "signature": ": str | None = None"
+            },
+            {
+              "doc": {
+                "en": "The explicit name, else the path's or open file's base name.",
+                "pt-br": "O nome explícito, senão o nome base do path ou do arquivo aberto."
+              },
+              "kind": "method",
+              "name": "resolved_name",
+              "signature": "() -> str"
+            },
+            {
+              "doc": {
+                "en": "The explicit MIME type, else a guess from `name`.",
+                "pt-br": "O tipo MIME explícito, senão um palpite por `name`."
+              },
+              "kind": "method",
+              "name": "resolved_mime_type",
+              "signature": "(name: str) -> str | None"
+            }
+          ],
+          "name": "UploadSource",
+          "signature": "(source: str | os.PathLike[str] | bytes | BinaryIO, name: str | None = None, mime_type: str | None = None)"
+        },
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "400/413 — the request itself is wrong; fix the input.",
+            "pt-br": "400/413 — a requisição está errada; corrija a entrada."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "ValidationError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "bases": [
+            "DiagnosError"
+          ],
+          "doc": {
+            "en": "The vault answered with an error envelope.",
+            "pt-br": "O cofre respondeu com um envelope de erro."
+          },
+          "kind": "exception",
+          "members": [
+            {
+              "doc": {
+                "en": "The vault's error code (`QuotaExceeded`, `DocumentNotFound`…) — branch on it, never on `message`.",
+                "pt-br": "O código de erro do cofre (`QuotaExceeded`, `DocumentNotFound`…) — decida por ele, nunca pela `message`."
+              },
+              "kind": "attribute",
+              "name": "code",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The vault's message, for a person.",
+                "pt-br": "A mensagem do cofre, para uma pessoa."
+              },
+              "kind": "attribute",
+              "name": "message",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The HTTP status the vault answered with.",
+                "pt-br": "O status HTTP com que o cofre respondeu."
+              },
+              "kind": "attribute",
+              "name": "status",
+              "signature": ": int"
+            },
+            {
+              "doc": {
+                "en": "The vault's trace id — what a support ticket needs to find the event.",
+                "pt-br": "O trace id do cofre — o que um chamado de suporte precisa para achar o evento."
+              },
+              "kind": "attribute",
+              "name": "trace_id",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "The `X-Request-Id` of the failed response.",
+                "pt-br": "O `X-Request-Id` da resposta que falhou."
+              },
+              "kind": "attribute",
+              "name": "request_id",
+              "signature": ": str | None"
+            }
+          ],
+          "name": "VaultError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+        },
+        {
+          "doc": {
+            "en": "What the enclave guarantees right now (lock policy, unlocked allocations, limits).",
+            "pt-br": "O que o enclave garante agora (política de travamento, alocações sem trava, limites)."
+          },
+          "kind": "function",
+          "name": "memory_status",
+          "signature": "() -> dict[str, Any]"
+        },
+        {
+          "doc": {
+            "en": "The web app's string for `value`, with no truncation.\n\n>>> to_iso_instant(date(1984, 3, 2))\n'1984-03-02T00:00:00.000Z'",
+            "pt-br": "A string do app web para `value`, sem truncamento."
+          },
+          "kind": "function",
+          "name": "to_iso_instant",
+          "signature": "(value: date | datetime | str) -> str"
+        },
+        {
+          "doc": {
+            "en": "`truncateTimestamp` from the web app: zero everything finer than `precision`, in UTC.\n\n`month` sets the day to 1 (it keeps the month, it does not zero it).\n\n>>> truncate_timestamp(\"1984-03-17T15:42:10Z\", \"month\")\n'1984-03-01T00:00:00.000Z'",
+            "pt-br": "O `truncateTimestamp` do app web: zera tudo que é mais fino que `precision`, em UTC.\n\n`month` põe o dia em 1 (mantém o mês, não o zera)."
+          },
+          "kind": "function",
+          "name": "truncate_timestamp",
+          "signature": "(value: date | datetime | str, precision: TimePrecision) -> str"
+        }
+      ],
+      "name": "diagnos"
+    }
+  ],
+  "schemaVersion": 1
+}

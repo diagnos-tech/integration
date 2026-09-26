@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "site": {
+    "name": "diagnos integration",
+    "repo": "https://github.com/diagnos-tech/integration"
+  },
+  "locales": [
+    "en",
+    "pt-br"
+  ],
+  "nav": [
+    {
+      "group": {
+        "en": "Getting started",
+        "pt-br": "Primeiros passos"
+      },
+      "pages": [
+        {
+          "id": "overview",
+          "source": "README.md",
+          "description": {
+            "en": "Zero-knowledge SDK, CLI and REST API for the diagnos vault: patients, exams and files encrypted in your process before they reach the network.",
+            "pt-br": "SDK, CLI e API REST zero-knowledge para o cofre diagnos: pacientes, exames e arquivos cifrados no seu processo antes de chegarem à rede."
+          },
+          "title": {
+            "en": "Overview",
+            "pt-br": "Visão geral"
+          }
+        },
+        {
+          "id": "quickstart",
+          "source": "docs/guides/quickstart.md",
+          "description": {
+            "en": "From a service-account token to your first encrypted patient and file in five minutes, with the Python SDK or the diagnos CLI.",
+            "pt-br": "De um token de service account ao primeiro paciente e arquivo cifrados em cinco minutos, com o SDK Python ou a CLI diagnos."
+          }
+        },
+        {
+          "id": "install",
+          "source": "docs/guides/install.md",
+          "description": {
+            "en": "Install the diagnos SDK, CLI or REST API: from PyPI, from source with Rust, or as a Docker image, plus the OpenBao extra.",
+            "pt-br": "Instale o SDK, a CLI ou a API REST do diagnos: pelo PyPI, do código-fonte com Rust, ou como imagem Docker, mais o extra do OpenBao."
+          }
+        },
+        {
+          "id": "concepts",
+          "source": "docs/guides/concepts.md",
+          "description": {
+            "en": "Workspaces, service accounts, security groups, documents, versions, drafts and nodes: the model behind every diagnos call.",
+            "pt-br": "Workspaces, service accounts, security groups, documentos, versões, rascunhos e nós: o modelo por trás de toda chamada ao diagnos."
+          }
+        },
+        {
+          "id": "authentication",
+          "source": "docs/guides/authentication.md",
+          "description": {
+            "en": "How a diagnos process earns access: the service-account token, the enrollment link and code, and the admin approval that grants groups.",
+            "pt-br": "Como um processo diagnos ganha acesso: o token da service account, o link e o código de enrollment e a aprovação que concede grupos."
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "en": "SDK",
+        "pt-br": "SDK"
+      },
+      "pages": [
+        {
+          "id": "sdk",
+          "source": "apps/sdk/README.md",
+          "description": {
+            "en": "The diagnos Python SDK: zero-knowledge access to patients, exams and files, with keys held in a Rust memory enclave.",
+            "pt-br": "O SDK Python do diagnos: acesso zero-knowledge a pacientes, exames e arquivos, com chaves guardadas num enclave de memória em Rust."
+          }
+        },
+        {
+          "id": "sessions",
+          "source": "docs/guides/sessions.md",
+          "description": {
+            "en": "Unlock, lock and session expiry in the diagnos SDK, and OpenBao auto-unseal for servers that restart without a human.",
+            "pt-br": "Unlock, lock e expiração de sessão no SDK diagnos, e auto-unseal com OpenBao para servidores que reiniciam sem uma pessoa."
+          }
+        },
+        {
+          "id": "sdk/patients",
+          "source": "docs/guides/patients.md",
+          "description": {
+            "en": "Create, read, update, archive and delete encrypted patient records with the diagnos SDK, including drafts, tags and safe concurrent writes.",
+            "pt-br": "Crie, leia, atualize, arquive e apague registros de paciente cifrados com o SDK diagnos, com rascunhos, tags e gravação concorrente segura."
+          }
+        },
+        {
+          "id": "sdk/exams",
+          "source": "docs/guides/exams.md",
+          "description": {
+            "en": "Encrypted exams and reports with the diagnos SDK: link an exam to a patient, write the report the web editor opens, version it.",
+            "pt-br": "Exames e laudos cifrados com o SDK diagnos: ligue um exame a um paciente, grave o laudo que o editor web abre, versione."
+          }
+        },
+        {
+          "id": "sdk/files",
+          "source": "docs/guides/files.md",
+          "description": {
+            "en": "Upload, list and download end-to-end encrypted DICOM, images, video and PDFs with the diagnos SDK, in folders and linked to exams.",
+            "pt-br": "Suba, liste e baixe DICOM, imagens, vídeo e PDFs cifrados ponta a ponta com o SDK diagnos, em pastas e ligados a exames."
+          }
+        },
+        {
+          "id": "errors",
+          "source": "docs/guides/errors.md",
+          "description": {
+            "en": "Every diagnos exception, what the SDK already retries, clock skew, and how errors map to CLI exit codes and HTTP statuses.",
+            "pt-br": "Toda exceção do diagnos, o que o SDK já retenta, diferença de relógio, e como erros viram códigos de saída da CLI e status HTTP."
+          }
+        },
+        {
+          "id": "configuration",
+          "source": "docs/guides/configuration.md",
+          "description": {
+            "en": "Every environment variable and Settings field of the diagnos SDK, CLI and API: vault URL, timeouts, time precision, OpenBao, memory locking.",
+            "pt-br": "Toda variável de ambiente e campo de Settings do SDK, CLI e API diagnos: URL do cofre, timeouts, precisão de datas, OpenBao, memória."
+          }
+        },
+        {
+          "id": "sdk/reference",
+          "reference": "sdk",
+          "title": {
+            "en": "SDK reference",
+            "pt-br": "Referência do SDK"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "en": "CLI",
+        "pt-br": "CLI"
+      },
+      "pages": [
+        {
+          "id": "cli",
+          "source": "apps/cli/README.md",
+          "description": {
+            "en": "diagnos-cli: the zero-knowledge diagnos vault from your terminal, built on the SDK, with JSON output and stable exit codes.",
+            "pt-br": "diagnos-cli: o cofre diagnos zero-knowledge no seu terminal, construído sobre o SDK, com saída JSON e códigos de saída estáveis."
+          }
+        },
+        {
+          "id": "cli/guide",
+          "source": "docs/guides/cli.md",
+          "description": {
+            "en": "Every diagnos CLI command with real examples: login, patients, exams, files, sessions, JSON output for scripts and cron jobs.",
+            "pt-br": "Todo comando da CLI diagnos com exemplos reais: login, pacientes, exames, arquivos, sessões, saída JSON para scripts e cron."
+          }
+        },
+        {
+          "id": "cli/reference",
+          "reference": "cli",
+          "title": {
+            "en": "CLI reference",
+            "pt-br": "Referência da CLI"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "en": "REST API",
+        "pt-br": "API REST"
+      },
+      "pages": [
+        {
+          "id": "api",
+          "source": "apps/api/README.md",
+          "description": {
+            "en": "diagnos-api: a FastAPI REST facade over the diagnos SDK for systems that speak HTTP, authenticated by mutual TLS only.",
+            "pt-br": "diagnos-api: uma fachada REST em FastAPI sobre o SDK diagnos para sistemas que falam HTTP, autenticada só por TLS mútuo."
+          }
+        },
+        {
+          "id": "api/guide",
+          "source": "docs/guides/api.md",
+          "description": {
+            "en": "Call the diagnos REST API: client certificates, patients, exams and files over HTTPS, the error envelope, and running it in production.",
+            "pt-br": "Chame a API REST do diagnos: certificados de cliente, pacientes, exames e arquivos por HTTPS, o envelope de erro e a operação em produção."
+          }
+        },
+        {
+          "id": "api/reference",
+          "reference": "openapi",
+          "title": {
+            "en": "API reference",
+            "pt-br": "Referência da API"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "en": "Deployment",
+        "pt-br": "Implantação"
+      },
+      "pages": [
+        {
+          "id": "deploy",
+          "source": "apps/api/deploy/README.md",
+          "description": {
+            "en": "Deploy diagnos-api with Docker or Kubernetes: environment, mTLS material, OpenBao auto-unseal and locking keys in RAM.",
+            "pt-br": "Implante o diagnos-api com Docker ou Kubernetes: ambiente, material de mTLS, auto-unseal com OpenBao e chaves travadas na RAM."
+          }
+        },
+        {
+          "id": "deploy/compose",
+          "source": "apps/api/deploy/compose/README.md",
+          "description": {
+            "en": "One docker compose up for OpenBao and diagnos-api: what the bootstrap does, how the token is handed over, and the staging-only caveats.",
+            "pt-br": "Um docker compose up para OpenBao e diagnos-api: o que o bootstrap faz, como o token é entregue e os cuidados só de staging."
+          }
+        },
+        {
+          "id": "deploy/autounseal/aws",
+          "source": "apps/api/deploy/k8s/autounseal/aws/README.md",
+          "description": {
+            "en": "Auto-unseal OpenBao for diagnos with AWS KMS: the key, minimal IAM permissions and an IRSA trust policy scoped to one ServiceAccount.",
+            "pt-br": "Auto-unseal do OpenBao do diagnos com AWS KMS: a chave, permissões IAM mínimas e uma trust policy IRSA restrita a uma ServiceAccount."
+          }
+        },
+        {
+          "id": "deploy/autounseal/gcp",
+          "source": "apps/api/deploy/k8s/autounseal/gcp/README.md",
+          "description": {
+            "en": "Auto-unseal OpenBao for diagnos with Google Cloud KMS through Workload Identity and a single encrypter/decrypter role.",
+            "pt-br": "Auto-unseal do OpenBao do diagnos com o Google Cloud KMS via Workload Identity e um único papel de cifrar/decifrar."
+          }
+        },
+        {
+          "id": "deploy/autounseal/azure",
+          "source": "apps/api/deploy/k8s/autounseal/azure/README.md",
+          "description": {
+            "en": "Auto-unseal OpenBao for diagnos with Azure Key Vault through workload identity federation and get/wrapKey/unwrapKey only.",
+            "pt-br": "Auto-unseal do OpenBao do diagnos com o Azure Key Vault via federação de identidade de workload e só get/wrapKey/unwrapKey."
+          }
+        },
+        {
+          "id": "deploy/autounseal/transit",
+          "source": "apps/api/deploy/k8s/autounseal/transit/README.md",
+          "description": {
+            "en": "Auto-unseal OpenBao for diagnos with the Transit engine of another OpenBao or Vault, using a token scoped to one key.",
+            "pt-br": "Auto-unseal do OpenBao do diagnos com o engine Transit de outro OpenBao ou Vault, usando um token restrito a uma chave."
+          }
+        },
+        {
+          "id": "deploy/autounseal/static",
+          "source": "apps/api/deploy/k8s/autounseal/static/README.md",
+          "description": {
+            "en": "Auto-unseal OpenBao for diagnos with a static 32-byte key you hold, and why that is the weakest of the seal options.",
+            "pt-br": "Auto-unseal do OpenBao do diagnos com uma chave estática de 32 bytes guardada por você, e por que é a opção de selo mais fraca."
+          }
+        },
+        {
+          "id": "deploy/autounseal/shamir",
+          "source": "apps/api/deploy/k8s/autounseal/shamir/README.md",
+          "description": {
+            "en": "The Shamir fallback for OpenBao under diagnos: no KMS needed, a manual bao operator unseal after every restart.",
+            "pt-br": "O fallback Shamir do OpenBao do diagnos: nenhum KMS necessário, um bao operator unseal manual depois de todo reinício."
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "en": "Protocol",
+        "pt-br": "Protocolo"
+      },
+      "pages": [
+        {
+          "id": "security",
+          "source": "docs/guides/security.md",
+          "description": {
+            "en": "The diagnos threat model: what the vault can and cannot see, what the SDK protects in memory, and the trade-offs you opt into.",
+            "pt-br": "O modelo de ameaça do diagnos: o que o cofre vê e não vê, o que o SDK protege na memória e os compromissos que você escolhe."
+          }
+        },
+        {
+          "id": "protocol",
+          "source": "docs/PROTOCOL.md",
+          "description": {
+            "en": "The normative wire contract between the diagnos SDK and the vault: identity, clock, signatures, enrollment, envelopes and errors.",
+            "pt-br": "O contrato de fio normativo entre o SDK diagnos e o cofre: identidade, relógio, assinaturas, enrollment, envelopes e erros."
+          }
+        },
+        {
+          "id": "enclave",
+          "source": "apps/sdk/native/README.md",
+          "description": {
+            "en": "diagnos._secure, the Rust memory enclave: how session keys and DEKs stay out of swap, core dumps and fork children, and its limits.",
+            "pt-br": "diagnos._secure, o enclave de memória em Rust: como chaves de sessão e DEKs ficam fora de swap, core dumps e filhos de fork, e seus limites."
+          }
+        },
+        {
+          "id": "compatibility",
+          "source": "docs/COMPATIBILITY.md",
+          "description": {
+            "en": "What in the diagnos SDK, CLI and API works against today's vault, the known limits, and the questions still open on the vault side.",
+            "pt-br": "O que do SDK, CLI e API diagnos funciona contra o cofre de hoje, os limites conhecidos e as questões ainda abertas do lado do cofre."
+          }
+        },
+        {
+          "id": "contract-tests",
+          "source": "contracts/README.md",
+          "description": {
+            "en": "Consumer-driven Pact contract tests between the diagnos SDK and the vault: what they prove, how to run them, how to add one.",
+            "pt-br": "Testes de contrato Pact guiados pelo consumidor entre o SDK diagnos e o cofre: o que provam, como rodar, como adicionar um."
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "en": "Project",
+        "pt-br": "Projeto"
+      },
+      "pages": [
+        {
+          "id": "contributing",
+          "source": "CONTRIBUTING.md",
+          "description": {
+            "en": "How to contribute to diagnos integration: setup with uv and Rust, the checks CI runs, code conventions and the pull request checklist.",
+            "pt-br": "Como contribuir com o diagnos integration: setup com uv e Rust, as checagens da CI, convenções de código e o checklist de pull request."
+          }
+        },
+        {
+          "id": "contributing/docs",
+          "source": "docs/README.md",
+          "description": {
+            "en": "How the diagnos documentation is written, generated and checked: site.json, bilingual pairs, runnable snippets and make docs-check.",
+            "pt-br": "Como a documentação do diagnos é escrita, gerada e checada: site.json, pares bilíngues, snippets executáveis e make docs-check."
+          }
+        },
+        {
+          "id": "migrating",
+          "source": "MIGRATING.md",
+          "description": {
+            "en": "Moving from the imgexam packages to diagnos: renamed packages, CLI, image and environment variables, and what did not change on purpose.",
+            "pt-br": "Migrando dos pacotes imgexam para o diagnos: pacotes, CLI, imagem e variáveis de ambiente renomeados, e o que de propósito não mudou."
+          }
+        },
+        {
+          "id": "security-policy",
+          "source": "SECURITY.md",
+          "description": {
+            "en": "How to report a vulnerability in the diagnos SDK, CLI, API or deploy manifests privately, supported versions and scope.",
+            "pt-br": "Como reportar em privado uma vulnerabilidade no SDK, CLI, API ou manifestos de deploy do diagnos, versões suportadas e escopo."
+          }
+        },
+        {
+          "id": "code-of-conduct",
+          "source": "CODE_OF_CONDUCT.md",
+          "description": {
+            "en": "The standards of behaviour everyone in the diagnos integration community is held to, and how to report a problem.",
+            "pt-br": "Os padrões de comportamento que todos na comunidade do diagnos integration seguem, e como reportar um problema."
+          }
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "openapi": "docs/reference/openapi.json",
+    "cli": "docs/reference/cli.json",
+    "sdk": "docs/reference/sdk.json"
+  },
+  "redirects": []
+}
