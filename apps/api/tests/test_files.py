@@ -189,6 +189,33 @@ def test_download_content_streams_bytes_with_content_disposition(client: TestCli
     assert response.headers["content-type"].startswith("text/plain")
 
 
+def test_download_content_streams_zero_bytes_for_an_empty_file(client: TestClient) -> None:
+    """🇺🇸 An empty upload downloads as an exact empty body, not a broken stream — `iter_download`'s edge case.
+
+    `_FakeReading.iter_download` yields two chunks (`data[:half]`,
+    `data[half:]`) mirroring the SDK's lazy decryptor; for `b""` that is two
+    empty chunks, which `StreamingResponse` still has to turn into a valid
+    zero-length `200`, not an empty/broken response.
+
+    🇧🇷 Um upload vazio baixa como um corpo vazio exato, não um stream
+    quebrado — o caso de borda de `iter_download`.
+
+    `_FakeReading.iter_download` entrega dois pedaços (`data[:half]`,
+    `data[half:]`) espelhando o decifrador preguiçoso do SDK; para `b""` isso
+    são dois pedaços vazios, que o `StreamingResponse` ainda precisa virar um
+    `200` de tamanho zero válido, não uma resposta vazia/quebrada.
+    """
+    upload = client.post("/v1/drives/sg1/nodes", files={"file": ("empty.txt", b"", "text/plain")})
+    node_id = upload.json()["node_id"]
+    assert upload.json()["size"] == 0
+
+    response = client.get(f"/v1/drives/sg1/nodes/{node_id}/content")
+
+    assert response.status_code == 200
+    assert response.content == b""
+    assert response.headers["content-disposition"].startswith('attachment; filename="empty.txt"')
+
+
 def test_download_without_a_mime_type_is_octet_stream(client: TestClient, fake_vault: FakeDiagnos) -> None:
     """🇺🇸 A node with no recorded MIME type downloads as `application/octet-stream`.
 

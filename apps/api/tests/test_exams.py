@@ -18,6 +18,7 @@ roteador ser de fato chamado.
 
 from __future__ import annotations
 
+import pytest
 from diagnos import QuotaError
 from fastapi.testclient import TestClient
 
@@ -128,6 +129,15 @@ def test_list_summary_and_update_guard(client: TestClient, fake_vault: FakeDiagn
     assert listed[0]["summary"] == {"title": "Chest CT", "modality": "CT", "exam_date": None}
     assert get_call == ("get", {"version_id": None, "include_draft": False})
     assert fake_vault.exams.calls[-1] == ("update", {"expected_latest_version_id": "v1"})
+
+
+@pytest.mark.parametrize("limit", [0, 201])
+def test_list_rejects_a_page_size_the_vault_would_refuse(client: TestClient, limit: int) -> None:
+    """🇺🇸 `limit` is bounded to 1..200 at the edge (§13), same as `/v1/patients` and `/v1/drives/{sg}/nodes`.
+
+    🇧🇷 `limit` é limitado a 1..200 na borda (§13), igual a `/v1/patients` e `/v1/drives/{sg}/nodes`.
+    """
+    assert client.get("/v1/exams", params={"limit": limit}).status_code == 422
 
 
 def test_get_unknown_exam_is_404_with_the_uniform_envelope(client: TestClient) -> None:
