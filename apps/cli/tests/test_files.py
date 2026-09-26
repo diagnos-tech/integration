@@ -6,9 +6,11 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
+from diagnos_cli import main as main_module
 from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
 
@@ -223,6 +225,10 @@ def test_upload_into_a_folder_and_mkdir(runner: CliRunner, patched_build_client:
         ("C:\\temp\\evil.exe", "evil.exe"),
         ("..", "node_1"),
         (None, "node_1"),
+        ("", "node_1"),
+        ("   ", "node_1"),
+        ("/etc/passwd", "passwd"),
+        ("exame_do_tórax_ç.dcm", "exame_do_tórax_ç.dcm"),
     ],
 )
 def test_download_never_writes_outside_the_current_directory(
@@ -244,3 +250,94 @@ def test_download_never_writes_outside_the_current_directory(
 
     assert result.exit_code == 0
     assert (tmp_path / expected).read_bytes() == b"fake-encrypted-then-decrypted-bytes"
+
+
+def test_upload_rejects_a_path_that_does_not_exist_at_all(
+    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path
+) -> None:
+    """🇺🇸 A path with no file behind it at all fails the same `is_file()` check as a directory does.
+
+    🇧🇷 Um path sem arquivo nenhum atrás falha a mesma checagem `is_file()` de um diretório.
+    """
+    missing = tmp_path / "does-not-exist.dcm"
+
+    result = runner.invoke(typer_app, ["files", "upload", "--group", "sg_oncology", str(missing)])
+
+    assert result.exit_code != 0
+    assert "Traceback" not in result.output
+    assert "not a file" in result.output
+    assert not patched_build_client.drives.handed_out
+
+
+def test_upload_and_download_round_trip_a_unicode_file_name(
+    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """🇺🇸 A source path with accented/non-ASCII characters uploads; the same characters in a decrypted name download.
+
+    🇧🇷 Um path de origem com caracteres acentuados/não-ASCII sobe; os mesmos
+    caracteres num nome decifrado baixam.
+    """
+    source = tmp_path / "exame_intoxicação_até_39°.dcm"
+    source.write_bytes(b"unicode-safe-bytes")
+
+    uploaded = runner.invoke(typer_app, ["--quiet", "files", "upload", "--group", "sg1", str(source)])
+    assert uploaded.exit_code == 0
+    drive = patched_build_client.drives.handed_out["sg1"]
+    assert drive.calls[-1][1]["sources"] == [str(source)]
+
+    monkeypatch.chdir(tmp_path)
+    patched_build_client.drives.names["node_1"] = "relatório_ção.dcm"
+    downloaded = runner.invoke(typer_app, ["--quiet", "files", "download", "node_1"])
+    assert downloaded.exit_code == 0
+    assert (tmp_path / "relatório_ção.dcm").read_bytes() == b"fake-encrypted-then-decrypted-bytes"
+
+
+def test_download_into_an_existing_subdirectory_via_output(
+    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path
+) -> None:
+    """🇺🇸 `-o` accepts a nested destination as long as its parent directory already exists.
+
+    🇧🇷 `-o` aceita um destino aninhado desde que o diretório-pai já exista.
+    """
+    subdir = tmp_path / "series"
+    subdir.mkdir()
+
+    result = runner.invoke(typer_app, ["--quiet", "files", "download", "node_1", "-o", str(subdir / "out.dcm")])
+
+    assert result.exit_code == 0
+    assert (subdir / "out.dcm").read_bytes() == b"fake-encrypted-then-decrypted-bytes"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "BUG: files.py:download_file / main.py:app() — an -o destination whose parent directory does not "
+        "exist raises a raw FileNotFoundError (Drive.download opens the path with Path.open('wb'), no "
+        "directory is created and no DiagnosError is raised), which main.app()'s wrapper only catches for "
+        "DiagnosError, so this is an uncaught Python traceback instead of a clean, documented exit code."
+    ),
+)
+def test_download_to_a_missing_parent_directory_never_raises_a_raw_traceback(
+    monkeypatch: pytest.MonkeyPatch, patched_build_client: FakeDiagnos, tmp_path: Path
+) -> None:
+    """🇺🇸 `-o some/missing/dir/out.dcm` should fail cleanly, not crash with a Python traceback.
+
+    Goes through `main_module.app()` (the real console-script entry point,
+    like `test_errors.py`), not `CliRunner`, because `CliRunner` swallows
+    any exception into `result.exception` — a real terminal would not, and
+    that is exactly the gap this test is proving.
+
+    🇧🇷 `-o some/missing/dir/out.dcm` deveria falhar de forma limpa, não
+    quebrar com um traceback Python.
+
+    Passa por `main_module.app()` (o ponto de entrada de verdade do
+    console-script, como em `test_errors.py`), não pelo `CliRunner` —
+    `CliRunner` engole qualquer exceção em `result.exception`, um terminal
+    de verdade não engoliria, e é exatamente essa lacuna que este teste
+    prova.
+    """
+    destination = tmp_path / "no" / "such" / "dir" / "out.dcm"
+    monkeypatch.setattr(sys, "argv", ["diagnos", "--quiet", "files", "download", "node_1", "-o", str(destination)])
+
+    with pytest.raises(SystemExit):
+        main_module.app()
