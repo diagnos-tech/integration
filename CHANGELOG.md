@@ -53,6 +53,9 @@ monorepo.
 - Workspace-wide files: `vault.drives.list()`/`iter_all()` across every group the session may list, filtered by
   `security_group`, `exam_id`, `parent_id` and `include_pending`; `vault.drives.get()`, `name_of()`, `download()` and
   `iter_download()` read any file by node id alone (CLI `files list` without `--group`, `files get`/`download` by id).
+- `DIAGNOS_STORAGE_HOSTS` / `Settings.storage_hosts`: presigned storage URLs are followed only over HTTPS to an
+  allowed host or its subdomains — by default the user-content domain `diagnosusercontent.com` and R2's
+  `r2.cloudflarestorage.com` — so ciphertext and SSE-C keys never go to a host nobody chose.
 - `diagnos.UploadSource`, exported at the top level. A `.dcm` file is typed `application/dicom`, so the vault
   classifies it.
 

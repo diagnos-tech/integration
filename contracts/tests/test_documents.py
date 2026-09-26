@@ -89,9 +89,9 @@ CONTEXT = b64url(fixed_bytes("document/security-context"))
 DRAFT_CONTEXT = b64url(fixed_bytes("document/draft-context"))
 CREATED_AT = "2026-09-01T12:00:00.000Z"
 DRAFT_AT = "2026-09-01T12:05:00.000Z"
-UPLOAD_URL = "https://objects.diagnos.test/upload?X-Amz-Signature=contract"
-DOWNLOAD_URL = "https://objects.diagnos.test/download?X-Amz-Signature=contract"
-DRAFT_URL = "https://objects.diagnos.test/draft?X-Amz-Signature=contract"
+UPLOAD_URL = "https://storage.diagnosusercontent.com/upload?X-Amz-Signature=contract"
+DOWNLOAD_URL = "https://storage.diagnosusercontent.com/download?X-Amz-Signature=contract"
+DRAFT_URL = "https://storage.diagnosusercontent.com/draft?X-Amz-Signature=contract"
 
 MARIA = PatientRecord(legal_name="Maria da Silva", display_name="Maria", birth_date="1984-03-02")
 MARIA_DRAFT = MARIA.model_copy(update={"display_name": "Maria (rascunho)"})

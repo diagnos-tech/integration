@@ -19,6 +19,7 @@ um pod retoma a sessão do SDK sem nova aprovação humana.
 | `OPENBAO_ADDR` / `OPENBAO_TOKEN` / `OPENBAO_MOUNT` / `OPENBAO_PATH_PREFIX` | não | Auto-unseal (veja [`docs/PROTOCOL.pt-BR.md` §11](../../../docs/PROTOCOL.pt-BR.md)). |
 | `OPENBAO_TOKEN_FILE` | não | Um arquivo de onde ler o token do OpenBao quando `OPENBAO_TOKEN` não está definida — como o Compose (`deploy/compose`) e Secrets do Kubernetes montados como arquivo o entregam sem valor de ambiente. |
 | `DIAGNOS_VAULT_URL` | não | Padrão `https://vault.diagnos.health`. |
+| `DIAGNOS_STORAGE_HOSTS` | não | Padrão `diagnosusercontent.com, r2.cloudflarestorage.com` — os hosts de armazenamento para onde URLs pré-assinadas podem apontar. |
 
 Sem OpenBao, o primeiro start imprime o link e o código de aprovação no log do container; um admin do workspace
 aprova uma vez por vida do processo.

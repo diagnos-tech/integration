@@ -120,6 +120,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         # 🇧🇷 Sem `base_url`, sem `Authorization`: URLs do R2 são pré-assinadas e
         # absolutas, e mandar o bearer do cofre para a Cloudflare vazaria uma
         # credencial para quem não tem uso para ela.
+        self._storage_hosts = settings.storage_hosts
         self._storage_client = (
             storage_client if storage_client is not None else httpx.Client(timeout=settings.timeout_seconds)
         )

@@ -382,7 +382,9 @@ def test_upload_bytes_puts_directly_and_returns_the_etag() -> None:
         return httpx.Response(200, headers={"ETag": '"abc123"'})
 
     transport = _make_transport(client=_dummy_client(), storage_client=_client(handler))
-    etag = transport.upload_bytes("https://r2.example.test/object", b"hello world", {"Content-Length": "11"})
+    etag = transport.upload_bytes(
+        "https://storage.diagnosusercontent.com/object", b"hello world", {"Content-Length": "11"}
+    )
 
     assert etag == '"abc123"'
     assert "authorization" not in seen_headers
@@ -395,7 +397,7 @@ def test_download_bytes_returns_the_body_on_success() -> None:
         client=_dummy_client(),
         storage_client=_client(lambda r: httpx.Response(200, content=b"the-bytes")),
     )
-    assert transport.download_bytes("https://r2.example.test/object") == b"the-bytes"
+    assert transport.download_bytes("https://storage.diagnosusercontent.com/object") == b"the-bytes"
 
 
 def test_download_bytes_403_raises_storage_error() -> None:
@@ -408,7 +410,7 @@ def test_download_bytes_403_raises_storage_error() -> None:
         storage_client=_client(lambda r: httpx.Response(403, text="Forbidden")),
     )
     with pytest.raises(VaultError) as excinfo:
-        transport.download_bytes("https://r2.example.test/object")
+        transport.download_bytes("https://storage.diagnosusercontent.com/object")
     assert excinfo.value.code == "StorageError"
     assert excinfo.value.status == 403
 
@@ -425,7 +427,7 @@ def test_download_stream_yields_chunks_without_signing() -> None:
         return httpx.Response(200, content=b"streamed-bytes")
 
     transport = _make_transport(client=_dummy_client(), storage_client=_client(handler))
-    assembled = b"".join(transport.download_stream("https://r2.example.test/object"))
+    assembled = b"".join(transport.download_stream("https://storage.diagnosusercontent.com/object"))
 
     assert assembled == b"streamed-bytes"
     assert "authorization" not in seen_headers

@@ -25,6 +25,7 @@ from typing import cast
 from diagnos.dates import TIME_PRECISIONS, TimePrecision
 from diagnos.errors import ConfigError
 
+from .storage_hosts import DEFAULT_STORAGE_HOSTS, parse_storage_hosts
 from .token import redact_api_token
 
 DEFAULT_VAULT_URL = "https://vault.diagnos.health"
@@ -135,6 +136,10 @@ class Settings:
     #    não a expõe, então defina com o valor do workspace e toda data é truncada antes de selar, como o
     #    app web faz (`diagnos/dates.py`). `None` grava as datas como vieram.
     time_precision: TimePrecision | None = None
+    # 🇺🇸 Hosts a presigned storage URL may point at (and their subdomains), HTTPS only — see `storage_hosts.py`.
+    # 🇧🇷 Hosts para onde uma URL de armazenamento pré-assinada pode apontar (e subdomínios), só HTTPS — ver
+    #    `storage_hosts.py`.
+    storage_hosts: tuple[str, ...] = DEFAULT_STORAGE_HOSTS
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> Settings:
@@ -179,6 +184,7 @@ class Settings:
             openbao_namespace=source.get("OPENBAO_NAMESPACE") or None,
             harden_process=_parse_bool(source.get("DIAGNOS_HARDEN_PROCESS", "1")),
             time_precision=_parse_time_precision(source.get("DIAGNOS_TIME_PRECISION")),
+            storage_hosts=parse_storage_hosts(source.get("DIAGNOS_STORAGE_HOSTS")),
         )
 
     def __repr__(self) -> str:
@@ -193,5 +199,5 @@ class Settings:
             f"openbao_addr={self.openbao_addr!r}, openbao_token={openbao_token!r}, "
             f"openbao_mount={self.openbao_mount!r}, openbao_path_prefix={self.openbao_path_prefix!r}, "
             f"openbao_namespace={self.openbao_namespace!r}, harden_process={self.harden_process!r}, "
-            f"time_precision={self.time_precision!r})"
+            f"time_precision={self.time_precision!r}, storage_hosts={self.storage_hosts!r})"
         )

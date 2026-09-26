@@ -270,6 +270,7 @@ message
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | Where the vault lives. |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | Per-request HTTP timeout. |
 | `DIAGNOS_TIME_PRECISION` | unset | The workspace's anonymization precision (`month`, `day`, `hour`, `minute`, `second`); dates are truncated to it before sealing. |
+| `DIAGNOS_STORAGE_HOSTS` | `diagnosusercontent.com, r2.cloudflarestorage.com` | Hosts (and their subdomains) a presigned storage URL may point at, HTTPS only; anything else is refused before a byte leaves. |
 | `OPENBAO_ADDR` | unset | Enables auto-unseal when set. |
 | `OPENBAO_TOKEN` | unset | Token scoped to this SDK's own OpenBao path. |
 | `OPENBAO_MOUNT` | `secret` | KV v2 mount point. |
