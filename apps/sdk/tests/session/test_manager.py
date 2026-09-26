@@ -312,3 +312,135 @@ def test_keyring_property_raises_session_expired_before_any_unlock() -> None:
     )
     with pytest.raises(SessionExpiredError):
         _ = manager.keyring
+
+
+def test_session_keys_returns_none_once_the_live_session_has_expired() -> None:
+    """🇺🇸 A keyring that is still set but past its margin makes `session_keys()` return `None`, not raise.
+
+    This is the mirror-image path the `keyring` property does not have: a
+    live `_keyring` whose *session* has lapsed. `session_keys()` is the
+    provider `VaultTransport` polls on every signed request, so it must
+    degrade to "nothing usable" quietly (`session/manager.py`).
+
+    🇧🇷 Um keyring ainda definido mas além da margem faz `session_keys()`
+    devolver `None`, não lançar.
+
+    Este é o caminho espelhado que a property `keyring` não tem: um
+    `_keyring` vivo cuja *sessão* venceu. `session_keys()` é o provedor que
+    `VaultTransport` consulta em toda requisição assinada, então precisa
+    degradar para "nada aproveitável" em silêncio.
+    """
+    now_box = {"t": 0.0}
+    store = _FakeStore(initial=UnsealedState(keypair=HybridKeyPair.generate(), keyring=_keyring(expires_at=1_000)))
+    manager = SessionManager(
+        settings=_fake_settings(),
+        token=object(),  # type: ignore[arg-type]
+        transport=_FakeTransport(posts=[]),  # type: ignore[arg-type]
+        on_prompt=lambda prompt: None,
+        store=store,  # type: ignore[arg-type]
+        now=lambda: now_box["t"],
+    )
+    manager.unlock()
+    assert manager.session_keys() is not None  # 🇺🇸/🇧🇷 well before expiry · bem antes de vencer
+
+    now_box["t"] = 999.0  # 🇺🇸/🇧🇷 inside the 60 s margin · dentro da margem de 60 s
+
+    assert manager.session_keys() is None
+    with pytest.raises(SessionExpiredError):
+        _ = manager.keyring
+
+
+def test_harden_once_runs_harden_process_exactly_once_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 With `settings.harden_process=True`, `harden_process()` runs on the first `unlock()`, never again.
+
+    `harden_process()` itself is monkeypatched away — this test is about
+    `SessionManager`'s own idempotence (`_hardened`), not the OS-level
+    effects `crypto/secure.py` already covers.
+
+    🇧🇷 Com `settings.harden_process=True`, `harden_process()` roda no
+    primeiro `unlock()`, nunca de novo.
+
+    O próprio `harden_process()` é substituído — este teste é sobre a
+    idempotência do próprio `SessionManager` (`_hardened`), não os efeitos
+    de nível de SO que `crypto/secure.py` já cobre.
+    """
+    calls = {"n": 0}
+
+    def _fake_harden_process() -> dict[str, object]:
+        calls["n"] += 1
+        return {"ok": True}
+
+    monkeypatch.setattr("diagnos.session.manager.harden_process", _fake_harden_process)
+
+    keyring = _keyring()
+
+    def _fake_enroll(transport: Any, token: Any, keypair: Any, *, on_prompt: Any, sleep: Any, now: Any) -> Keyring:
+        return keyring
+
+    monkeypatch.setattr("diagnos.session.manager.enroll", _fake_enroll)
+
+    manager = SessionManager(
+        settings=types.SimpleNamespace(harden_process=True),
+        token=object(),  # type: ignore[arg-type]
+        transport=_FakeTransport(posts=[]),  # type: ignore[arg-type]
+        on_prompt=lambda prompt: None,
+        now=lambda: 0.0,
+    )
+
+    manager.unlock()
+    manager.lock()
+    manager.unlock()  # 🇺🇸/🇧🇷 a second unlock, after a lock in between · um segundo unlock, com lock no meio
+
+    assert calls["n"] == 1
+
+
+def test_lock_before_any_unlock_still_posts_and_clears_the_store_harmlessly() -> None:
+    """🇺🇸 `lock()` with nothing ever unlocked still calls `session/lock` and clears the store, touching no keys.
+
+    🇧🇷 `lock()` sem nunca ter desbloqueado ainda chama `session/lock` e limpa o store, sem tocar chave nenhuma.
+    """
+    store = _FakeStore(initial=None)
+    transport = _FakeTransport(posts=[])
+    manager = SessionManager(
+        settings=_fake_settings(),
+        token=object(),  # type: ignore[arg-type]
+        transport=transport,  # type: ignore[arg-type]
+        on_prompt=lambda prompt: None,
+        store=store,  # type: ignore[arg-type]
+        now=lambda: 0.0,
+    )
+
+    manager.lock()  # 🇺🇸/🇧🇷 must not raise · não pode lançar
+
+    assert transport.posts == [("/api/external/v1/session/lock", True)]
+    assert store.clear_calls == 1
+    assert manager.keypair is None
+
+
+def test_lock_with_no_store_at_all_still_zeroizes_the_live_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 `lock()` with no `store` configured still wipes the keyring and key pair.
+
+    🇧🇷 `lock()` sem `store` nenhum configurado ainda apaga o keyring e o par de chaves.
+    """
+    keyring = _keyring()
+
+    def _fake_enroll(transport: Any, token: Any, keypair: Any, *, on_prompt: Any, sleep: Any, now: Any) -> Keyring:
+        return keyring
+
+    monkeypatch.setattr("diagnos.session.manager.enroll", _fake_enroll)
+    manager = SessionManager(
+        settings=_fake_settings(),
+        token=object(),  # type: ignore[arg-type]
+        transport=_FakeTransport(posts=[]),  # type: ignore[arg-type]
+        on_prompt=lambda prompt: None,
+        now=lambda: 0.0,
+    )
+    manager.unlock()
+    keypair = manager.keypair
+    assert keypair is not None
+
+    manager.lock()
+
+    assert keyring.session.sign_key.is_wiped is True
+    assert keypair.is_wiped is True
+    assert manager.keypair is None

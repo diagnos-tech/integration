@@ -92,6 +92,25 @@ def test_encrypted_payload_to_dict_from_dict_roundtrip() -> None:
     assert EncryptedPayload.from_dict(payload.to_dict()) == payload
 
 
+def test_encrypted_payload_from_dict_rejects_non_string_fields() -> None:
+    """🇺🇸 A field present but not a string (a number, a list) is rejected, not silently coerced.
+
+    🇧🇷 Um campo presente mas que não é string (um número, uma lista) é rejeitado, não convertido em silêncio.
+    """
+    with pytest.raises(CryptoError):
+        EncryptedPayload.from_dict({"salt": "a", "nonce": 123, "ciphertext": "c"})
+
+
+def test_encrypted_payload_decode_rejects_invalid_b64url() -> None:
+    """🇺🇸 A field that is a string but not valid b64url fails at `decode()`, not with a bare `binascii.Error`.
+
+    🇧🇷 Um campo que é string mas não é b64url válido falha em `decode()`, não com um `binascii.Error` cru.
+    """
+    payload = EncryptedPayload(salt="not base64url!!", nonce="n", ciphertext="c")
+    with pytest.raises(CryptoError):
+        payload.decode()
+
+
 # --- hybrid.py ---
 
 
@@ -130,6 +149,18 @@ def test_from_secrets_reproduces_generate_public_keys() -> None:
     rebuilt = HybridKeyPair.from_secrets(generated.x25519_secret(), generated.mlkem768_secret())
     assert rebuilt.x25519_public == generated.x25519_public
     assert rebuilt.mlkem768_public == generated.mlkem768_public
+
+
+def test_hybrid_keypair_repr_never_contains_secret_material() -> None:
+    """🇺🇸 `repr(keypair)` shows a preview of the public key only, never the secrets.
+
+    🇧🇷 `repr(keypair)` mostra só uma prévia da chave pública, nunca as secretas.
+    """
+    keypair = HybridKeyPair.generate()
+    rendered = repr(keypair)
+    assert "enclave" in rendered
+    assert bytes(keypair.x25519_secret().reveal()).hex() not in rendered
+    assert bytes(keypair.mlkem768_secret().reveal()).hex() not in rendered
 
 
 def test_zeroize_clears_secrets() -> None:
@@ -300,3 +331,13 @@ def test_entropy_mixer_random_respects_length() -> None:
     assert len(mixer.random(1)) == 1
     assert len(mixer.random(100)) == 100
     assert mixer.random(0) == b""
+
+
+def test_entropy_mixer_random_rejects_a_negative_length() -> None:
+    """🇺🇸 A negative `n` is a caller mistake, not a request for `0` bytes.
+
+    🇧🇷 Um `n` negativo é um engano de quem chama, não um pedido de `0` bytes.
+    """
+    mixer = EntropyMixer()
+    with pytest.raises(ValueError, match="n não pode ser negativo"):
+        mixer.random(-1)

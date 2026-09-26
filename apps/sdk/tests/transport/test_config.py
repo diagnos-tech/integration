@@ -130,3 +130,12 @@ def test_time_precision_rejects_an_unknown_value() -> None:
     """
     with pytest.raises(ConfigError, match="DIAGNOS_TIME_PRECISION"):
         Settings.from_env({**_BASE_ENV, "DIAGNOS_TIME_PRECISION": "year"})
+
+
+def test_timeout_seconds_rejects_a_non_numeric_value() -> None:
+    """🇺🇸 A `DIAGNOS_TIMEOUT_SECONDS` that is not a number is a `ConfigError`, not a `ValueError`.
+
+    🇧🇷 Um `DIAGNOS_TIMEOUT_SECONDS` que não é número é `ConfigError`, não um `ValueError`.
+    """
+    with pytest.raises(ConfigError, match="DIAGNOS_TIMEOUT_SECONDS"):
+        Settings.from_env({**_BASE_ENV, "DIAGNOS_TIMEOUT_SECONDS": "soon"})
