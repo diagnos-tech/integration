@@ -6,9 +6,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from diagnos.crypto import EntropyMixer, SecretBox
+from diagnos.crypto import EntropyMixer
 from diagnos.models import DriveNode
 from diagnos.session.keyring import Keyring
 
@@ -53,28 +53,3 @@ class _NodesBase:
         """
         result = self._transport.get(f"{self._base}/{node_id}")
         return DriveNode.model_validate(result["node"])
-
-    def _seal_node(self, group_key: SecretBox, security_group: str, name: str) -> tuple[SecretBox, dict[str, Any]]:
-        """🇺🇸 Declared here for `_Writing` to call, implemented on `_Nodes` itself (`__init__.py`).
-
-        The implementation needs `generate_dek`/`uuid` as *this class's own*
-        module globals, not `_writing.py`'s: a contract test replaces
-        `diagnos.resources.drives._nodes.generate_dek`/`.uuid` (the package's
-        `__init__.py`) with a fixed double, and a lookup from a different
-        module's globals would not see that swap. `_Writing.create_folder`/
-        `_prepare` still reach the override through `self._seal_node(...)` —
-        Python resolves that by the instance's class, not by where the
-        calling method is defined.
-
-        🇧🇷 Declarado aqui para `_Writing` chamar, implementado no próprio `_Nodes` (`__init__.py`).
-
-        A implementação precisa de `generate_dek`/`uuid` como globais do
-        *próprio módulo dela*, não de `_writing.py`: um teste de contrato
-        substitui `diagnos.resources.drives._nodes.generate_dek`/`.uuid` (o
-        `__init__.py` do pacote) por um duplo fixo, e uma busca a partir dos
-        globais de outro módulo não veria essa troca. `_Writing.create_folder`/
-        `_prepare` ainda alcançam a substituição via `self._seal_node(...)` —
-        o Python resolve isso pela classe da instância, não por onde o
-        método que chama foi definido.
-        """
-        raise NotImplementedError
