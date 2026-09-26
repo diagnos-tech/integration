@@ -68,6 +68,9 @@ A Markdown file is published only once `site.json` lists it, inside a navigation
   menu says "Overview").
 - No raw HTML outside code fences — not even `<br>` or a centered `<p>`. The site escapes HTML as text, so
   `make docs-check` rejects it; inside a fence (a mermaid label, an example) it is code and fine.
+- Images are files in this repository, linked by relative path — the site copies them. An external image URL
+  would be blocked by the site's content-security policy, so `make docs-check` rejects it. The one exception is a
+  paragraph made only of badges (the top of a README): GitHub shows it, the site drops it.
 - Renaming an `id` breaks every link to it: add `{"from": "old/id", "to": "new/id"}` to `redirects`.
 - A page with `"reference": "openapi" | "cli" | "sdk"` instead of a `source` is a generated section; the site expands
   it into one page per route, command or class.

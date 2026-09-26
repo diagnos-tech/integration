@@ -10,6 +10,8 @@ Fails (exit 1) when:
   does not resolve (the relative-link reading is `check_docs.links`, shared);
 - a page has raw HTML outside a code fence (`markdown.raw_html`) — the site
   escapes HTML as text, so it would be published as a broken page;
+- an image has an external URL outside a badge-only paragraph
+  (`markdown.external_images`) — the site's CSP would not load it;
 - a runnable ```` ```python ```` block fails in the sandbox (`snippets.py`);
 - a `diagnos …` line in the docs names a command or flag that does not
   exist, or `diagnos … --help` disagrees with `cli.json` (`cli_check.py`);
@@ -27,6 +29,8 @@ Falha (sai com 1) quando:
   não resolve (a leitura de link relativo é `check_docs.links`, compartilhada);
 - uma página tem HTML cru fora de cerca de código (`markdown.raw_html`) — o
   site escapa HTML como texto, então seria publicada como página quebrada;
+- uma imagem tem URL externa fora de um parágrafo só de badges
+  (`markdown.external_images`) — o CSP do site não a carregaria;
 - um bloco ```` ```python ```` executável falha no sandbox (`snippets.py`);
 - uma linha `diagnos …` da doc nomeia comando ou flag que não existe, ou o
   `diagnos … --help` diverge do `cli.json` (`cli_check.py`);
@@ -43,10 +47,11 @@ from typing import Any
 
 from ..check_docs import is_relative, links
 from . import cli_check, generate, openapi, sdk, site, snippets, urls
-from .markdown import anchors, raw_html, structure
+from .markdown import anchors, external_images, raw_html, structure
 from .output import REPO_ROOT
 
 _RAW_HTML = "raw HTML is not rendered by the site · HTML cru não é renderizado pelo site"
+_EXTERNAL_IMAGE = "external image is blocked by the site's CSP · imagem externa é barrada pelo CSP do site"
 
 
 def _repo_link(target: str, repo: str) -> str | None:
@@ -93,8 +98,9 @@ def page_problems(manifest: dict[str, Any], root: Path) -> tuple[list[str], int]
             problems.append(f"{page.translation}:1: skeleton differs from · esqueleto difere de {page.source}")
         for path in (page.source, page.translation):
             problems += link_problems(path, root, repo)
-            for line, tag in raw_html((root / path).read_text(encoding="utf-8")):
-                problems.append(f"{path}:{line}: {_RAW_HTML} → {tag}")
+            text = (root / path).read_text(encoding="utf-8")
+            problems += [f"{path}:{line}: {_RAW_HTML} → {tag}" for line, tag in raw_html(text)]
+            problems += [f"{path}:{line}: {_EXTERNAL_IMAGE} → {url}" for line, url in external_images(text)]
             outcome = snippets.run_file(root / path, root)
             ran += outcome.ran
             problems += outcome.problems
