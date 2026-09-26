@@ -16,6 +16,11 @@ peer's uid. The agent locks the session and exits on `diagnos logout`, after
 `SIGTERM`. `DIAGNOS_AGENT=off` keeps every command in its own process, as
 before.
 
+Layout: `dispatch` decides agent-or-here before parsing; `paths` names and
+guards the socket; `protocol` is the wire; `client` is the command side;
+`server` is the accept loop; `host` owns the one `Diagnos`; `streams` are
+the `sys.stdout`/`stderr`/`stdin` stand-ins; `__main__` is the process.
+
 🇧🇷 O agente de sessão: uma sessão desbloqueada, guardada na memória travada do SDK, reaproveitada por todo
 comando seguinte.
 
@@ -35,4 +40,9 @@ uid de quem conecta. O agente trava a sessão e sai no `diagnos logout`,
 depois de `DIAGNOS_AGENT_IDLE_MINUTES` sem comando (8 horas por padrão), ou
 num `SIGTERM`. `DIAGNOS_AGENT=off` mantém cada comando no próprio processo,
 como antes.
+
+Organização: `dispatch` decide agente-ou-aqui antes de interpretar; `paths`
+nomeia e protege o socket; `protocol` é o fio; `client` é o lado do comando;
+`server` é o laço de accept; `host` é dono da única `Diagnos`; `streams` são
+os substitutos de `sys.stdout`/`stderr`/`stdin`; `__main__` é o processo.
 """

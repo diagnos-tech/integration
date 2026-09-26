@@ -24,6 +24,12 @@ from typing import Any, Final
 #    quebrado ou é hostil.
 MAX_FRAME_BYTES: Final = 4 * 1024 * 1024
 
+# 🇺🇸 The only variables a client may set for its command: presentation, and the group default. The agent's
+#    identity and configuration are the ones it started with.
+# 🇧🇷 As únicas variáveis que um cliente pode definir para o comando dele: apresentação, e o grupo padrão. A
+#    identidade e a configuração do agente são as com que ele subiu.
+FORWARDED_ENV: Final = ("DIAGNOS_GROUP", "NO_COLOR", "FORCE_COLOR", "COLUMNS", "LINES", "TERM", "COLORTERM")
+
 
 class ProtocolViolation(Exception):  # noqa: N818 — named after the condition, like `ConnectionResetError`
     """🇺🇸 The other side sent something that is not a frame. 🇧🇷 O outro lado mandou algo que não é um frame."""

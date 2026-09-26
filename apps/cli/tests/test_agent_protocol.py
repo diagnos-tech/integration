@@ -12,7 +12,7 @@ from collections.abc import Iterator
 
 import pytest
 from diagnos_cli.agent import protocol
-from diagnos_cli.agent.server import _Input, _Stream
+from diagnos_cli.agent.streams import InputStream, OutputStream
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ def test_stream_sends_text_and_behaves_like_a_text_stream(pair: tuple[socket.soc
     🇧🇷 Texto vira um frame; texto vazio não manda nada; bytes são recusados (o Click testa com `write(b"")`).
     """
     left, right = pair
-    stream = _Stream(left, threading.Lock(), "err", tty=True)
+    stream = OutputStream(left, threading.Lock(), "err", tty=True)
     assert stream.write("") == 0
     assert stream.write("olá") == 3
     assert protocol.Reader(right).next() == {"type": "err", "data": "olá"}
@@ -99,7 +99,7 @@ def test_input_asks_the_client_for_each_line(pair: tuple[socket.socket, socket.s
     🇧🇷 `readline` manda um frame de prompt e devolve a resposta; qualquer outra coisa é fim da entrada.
     """
     agent_side, client_side = pair
-    stdin = _Input(agent_side, protocol.Reader(agent_side), threading.Lock())
+    stdin = InputStream(agent_side, protocol.Reader(agent_side), threading.Lock())
     protocol.send(client_side, {"type": "input", "line": "y\n"})
     assert stdin.readline() == "y\n"
     protocol.send(client_side, {"type": "out", "data": "confused"})
