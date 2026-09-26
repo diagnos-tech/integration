@@ -19,6 +19,7 @@ resumes the SDK session without a human approving again.
 | `OPENBAO_ADDR` / `OPENBAO_TOKEN` / `OPENBAO_MOUNT` / `OPENBAO_PATH_PREFIX` | no | Auto-unseal (see [`docs/PROTOCOL.md` §11](../../../docs/PROTOCOL.md)). |
 | `OPENBAO_TOKEN_FILE` | no | A file to read the OpenBao token from when `OPENBAO_TOKEN` is unset — how Compose (`deploy/compose`) and file-mounted Kubernetes Secrets hand it over without an environment value. |
 | `DIAGNOS_VAULT_URL` | no | Default `https://vault.diagnos.health`. |
+| `DIAGNOS_STORAGE_HOSTS` | no | Default `diagnosusercontent.com, r2.cloudflarestorage.com` — the storage hosts presigned URLs may point at. |
 
 Without OpenBao, the first start prints the approval link and code to the container log; a workspace admin approves
 once per process lifetime.

@@ -437,6 +437,14 @@ came; `client_headers` names the two whose values only the client knows.
 Versioned documents (§8) do not use SSE-C. The vault-side questions still
 open about this layer are listed in [COMPATIBILITY.md](COMPATIBILITY.md).
 
+**Storage hosts.** A presigned URL — for documents and files alike — is
+followed only when it is HTTPS on an allowed host or one of its subdomains:
+by default the user-content domain `diagnosusercontent.com` and R2's
+`r2.cloudflarestorage.com`, which the vault presigns against today.
+`DIAGNOS_STORAGE_HOSTS` (comma-separated) replaces the list. Anything else
+is refused before a byte leaves (`ProtocolError`): ciphertext and SSE-C keys
+only go where the deployment chose.
+
 ## 11. OpenBao auto-unseal
 
 Optional. When `OPENBAO_ADDR` and `OPENBAO_TOKEN` are set, the SDK saves

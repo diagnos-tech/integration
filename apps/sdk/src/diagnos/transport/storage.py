@@ -30,6 +30,8 @@ import httpx
 
 from diagnos.errors import VaultError
 
+from .storage_hosts import require_storage_host
+
 
 class _StorageHost(Protocol):
     """🇺🇸 What `_StorageMixin` needs from `VaultTransport` — see the module docstring for why this is a `Protocol`.
@@ -38,6 +40,7 @@ class _StorageHost(Protocol):
     """
 
     _storage_client: httpx.Client
+    _storage_hosts: tuple[str, ...]
 
 
 class _StorageMixin:
@@ -57,6 +60,7 @@ class _StorageMixin:
 
         Retorna o `ETag` que o passo de completar multipart precisa depois.
         """
+        require_storage_host(url, self._storage_hosts)
         response = self._storage_client.put(url, content=data, headers=dict(headers))
         _raise_for_storage_error(response)
         etag: str | None = response.headers.get("ETag")
@@ -67,6 +71,7 @@ class _StorageMixin:
 
         🇧🇷 `GET` direto do R2 e junta o corpo inteiro.
         """
+        require_storage_host(url, self._storage_hosts)
         response = self._storage_client.get(url, headers=dict(headers) if headers else None)
         _raise_for_storage_error(response)
         return response.content
@@ -84,6 +89,7 @@ class _StorageMixin:
         quem chama remontar os frames do `secretstream` sem segurar um objeto
         de 64 MiB inteiro na memória de uma vez.
         """
+        require_storage_host(url, self._storage_hosts)
         with self._storage_client.stream("GET", url, headers=dict(headers) if headers else None) as response:
             _raise_for_storage_error(response)
             yield from response.iter_bytes()

@@ -94,8 +94,8 @@ FILE_REF = uuid.UUID(bytes=fixed_bytes("node/client-ref/file", 16)).hex
 FOLDER_REF = uuid.UUID(bytes=fixed_bytes("node/client-ref/folder", 16)).hex
 CONTEXT = b64url(fixed_bytes("node/security-context"))
 CREATED_AT = "2026-09-01T12:00:00.000Z"
-UPLOAD_URL = "https://objects.diagnos.test/node-upload?X-Amz-Signature=contract"
-DOWNLOAD_URL = "https://objects.diagnos.test/node-download?X-Amz-Signature=contract"
+UPLOAD_URL = "https://storage.diagnosusercontent.com/node-upload?X-Amz-Signature=contract"
+DOWNLOAD_URL = "https://storage.diagnosusercontent.com/node-download?X-Amz-Signature=contract"
 
 FILE_NAME = "IM-0001-0001.dcm"
 DICOM_MIME = "application/dicom"

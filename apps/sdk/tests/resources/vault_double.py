@@ -310,7 +310,7 @@ class FakeVault:
 
         🇧🇷 Uma URL presigned opaca e estável para uma chave de armazenamento.
         """
-        return f"https://r2.example.test/objects/{key}"
+        return f"https://storage.diagnosusercontent.com/objects/{key}"
 
     @staticmethod
     def security_context(resource: str, document_id: str, key_id: str) -> dict[str, str]:
@@ -737,7 +737,7 @@ class FakeVault:
     @staticmethod
     def _part_url(node_id: str, number: int) -> str:
         """🇺🇸 A part's presigned URL. 🇧🇷 A URL pré-assinada de uma parte."""
-        return f"https://r2.example.test/parts/{node_id}/{number}"
+        return f"https://storage.diagnosusercontent.com/parts/{node_id}/{number}"
 
     def complete_multipart(self, node_id: str, parts: list[dict[str, Any]]) -> dict[str, Any]:
         """🇺🇸 `POST /nodes/{id}/multipart/complete` — assembles the parts in order; the node becomes ready.

@@ -439,6 +439,14 @@ Documentos versionados (§8) não usam SSE-C. As questões ainda em aberto do
 lado do cofre sobre esta camada estão em
 [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-BR.md).
 
+**Hosts de armazenamento.** Uma URL pré-assinada — de documento ou de
+arquivo — só é seguida quando é HTTPS num host permitido ou num subdomínio
+dele: por padrão o domínio de conteúdo de usuário `diagnosusercontent.com` e
+o `r2.cloudflarestorage.com` do R2, contra o qual o cofre assina hoje.
+`DIAGNOS_STORAGE_HOSTS` (separado por vírgula) substitui a lista. Qualquer
+outra coisa é recusada antes de um byte sair (`ProtocolError`): ciphertext e
+chaves de SSE-C só vão para onde o deploy escolheu.
+
 ## 11. Auto-unseal com OpenBao
 
 Opcional. Com `OPENBAO_ADDR` e `OPENBAO_TOKEN` definidas, o SDK salva o
