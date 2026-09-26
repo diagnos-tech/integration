@@ -17,6 +17,33 @@ HTTP than import Python. It never adds capability the SDK does not already have 
 > Coming from `imgexam-api`? Versions restart at `0.1.0` under the new name and image — read
 > [MIGRATING.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.md) before upgrading.
 
+## SDK, API or CLI?
+
+| You are writing… | Use |
+|---|---|
+| Python | **the SDK directly** — `from diagnos import Diagnos`. No extra process, no certificates, and the keys stay in your own process's locked memory. |
+| Any other language (Node, Go, Java, .NET, a BI tool) | **this API**, over HTTPS with a client certificate. |
+| Shell scripts, a terminal | **the CLI** (`diagnos`). |
+
+The API is an ordinary Python process: `diagnos-api` or `python -m diagnos_api` runs it anywhere Python runs. The
+container runs the very same code and is the recommended production shape (a pinned build, a non-root user,
+`IPC_LOCK` for memory locking, Kubernetes manifests in `deploy/`); plain Python is just as good on your machine or a
+VM.
+
+## Try it on your machine
+
+```sh
+uv run --package diagnos-api diagnos-api dev-certs   # ./certs: a local CA, a localhost server pair, a client pair
+export DIAGNOS_API_TOKEN="apikey-…"                  # plus the four exports dev-certs prints
+uv run --package diagnos-api diagnos-api
+curl --cacert certs/ca.pem --cert certs/client.pem --key certs/client-key.pem https://localhost:8443/healthz
+```
+
+`dev-certs` is for your machine only: the certificates last 30 days and the CA key sits next to them. It refuses to
+overwrite existing files (`--force` replaces them) and takes `--client-cn` for the name
+`DIAGNOS_API_ALLOWED_CLIENT_CN` matches. Outside the workspace it needs `pip install "diagnos-api[dev]"`. For
+anything shared, use your organization's CA, or the `openssl` steps below.
+
 ## Why mutual TLS, and only mutual TLS
 
 There is no `Authorization` header, no API key, no session cookie. The one thing this API accepts as identity is a
@@ -31,8 +58,8 @@ never completes the TLS handshake — it never becomes an HTTP request at all, l
 
 ## Generating a CA and certificates with `openssl`
 
-For a real deployment, use whatever CA your organization already operates. To try this locally, or to stand up a
-throwaway CA for a non-production environment:
+For a real deployment, use whatever CA your organization already operates. To stand up a CA by hand for a
+non-production environment (on your own machine, `diagnos-api dev-certs` above does all of this in one step):
 
 ```sh
 # 1. A CA that will sign both the server and every client certificate.
@@ -69,7 +96,7 @@ export DIAGNOS_API_TOKEN="apikey-…"
 export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
 export DIAGNOS_API_TLS_CERT_FILE=./tls.pem
 export DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
-uv run --package diagnos-api diagnos-api
+uv run --package diagnos-api diagnos-api   # or: python -m diagnos_api
 ```
 
 ```sh

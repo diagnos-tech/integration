@@ -402,8 +402,14 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.optional-dependencies]
+dev = [
+    { name = "cryptography" },
+]
+
 [package.dev-dependencies]
 dev = [
+    { name = "cryptography" },
     { name = "httpx" },
     { name = "mypy" },
     { name = "pytest" },
@@ -412,14 +418,17 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", marker = "extra == 'dev'", specifier = ">=43" },
     { name = "diagnos", extras = ["openbao"], editable = "apps/sdk" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "python-multipart", specifier = ">=0.0.12" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
+provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "cryptography", specifier = ">=43" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest", specifier = ">=8.3" },

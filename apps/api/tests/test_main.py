@@ -81,7 +81,7 @@ def test_run_exits_2_when_api_settings_are_missing(
     🇧🇷 Nenhuma CA/cert/key de mTLS: `ApiSettings.from_env()` lança antes de `create_app` sequer ser chamada.
     """
     with pytest.raises(SystemExit) as exc_info:
-        main_module.run()
+        main_module.run([])
 
     assert exc_info.value.code == 2
     assert "DIAGNOS_API_MTLS_CA_FILE" in capsys.readouterr().err
@@ -99,7 +99,7 @@ def test_run_exits_2_when_create_app_raises_config_error(
     monkeypatch.setattr(main_module, "create_app", lambda settings: (_ for _ in ()).throw(ConfigError("no token")))
 
     with pytest.raises(SystemExit) as exc_info:
-        main_module.run()
+        main_module.run([])
 
     assert exc_info.value.code == 2
     assert "no token" in capsys.readouterr().err
@@ -125,7 +125,7 @@ def test_run_serves_https_with_mandatory_client_certificates(monkeypatch: pytest
 
     monkeypatch.setattr(main_module.uvicorn, "run", fake_run)
 
-    main_module.run()
+    main_module.run([])
 
     assert recorded["app"] is sentinel_app
     assert recorded["host"] == "127.0.0.1"

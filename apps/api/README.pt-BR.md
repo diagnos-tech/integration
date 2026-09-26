@@ -19,6 +19,33 @@ a importar Python. Nunca soma capacidade que o SDK já não tenha — toda rota 
 > [MIGRATING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.pt-BR.md) antes de
 > atualizar.
 
+## SDK, API ou CLI?
+
+| Você está escrevendo… | Use |
+|---|---|
+| Python | **o SDK direto** — `from diagnos import Diagnos`. Sem processo extra, sem certificados, e as chaves ficam na memória travada do seu próprio processo. |
+| Qualquer outra linguagem (Node, Go, Java, .NET, uma ferramenta de BI) | **esta API**, por HTTPS com certificado de cliente. |
+| Scripts de shell, um terminal | **a CLI** (`diagnos`). |
+
+A API é um processo Python comum: `diagnos-api` ou `python -m diagnos_api` a roda em qualquer lugar onde Python roda.
+O contêiner roda exatamente o mesmo código e é a forma recomendada para produção (build fixado, usuário não-root,
+`IPC_LOCK` para travar memória, manifests de Kubernetes em `deploy/`); Python puro serve igualmente bem na sua máquina
+ou numa VM.
+
+## Experimente na sua máquina
+
+```sh
+uv run --package diagnos-api diagnos-api dev-certs   # ./certs: uma CA local, um par do servidor localhost, um de cliente
+export DIAGNOS_API_TOKEN="apikey-…"                  # mais os quatro exports que o dev-certs mostra
+uv run --package diagnos-api diagnos-api
+curl --cacert certs/ca.pem --cert certs/client.pem --key certs/client-key.pem https://localhost:8443/healthz
+```
+
+O `dev-certs` é só para a sua máquina: os certificados duram 30 dias e a chave da CA fica ao lado deles. Ele se
+recusa a sobrescrever arquivos existentes (`--force` os substitui) e aceita `--client-cn` para o nome que
+`DIAGNOS_API_ALLOWED_CLIENT_CN` compara. Fora do workspace ele precisa de `pip install "diagnos-api[dev]"`. Para
+qualquer coisa compartilhada, use a CA da sua organização, ou os passos com `openssl` abaixo.
+
 ## Por que mTLS, e só mTLS
 
 Não existe header `Authorization`, API key, nem cookie de sessão. A única coisa que esta API aceita como identidade é
@@ -34,8 +61,8 @@ muito menos alcança uma rota.
 
 ## Gerando uma CA e certificados com `openssl`
 
-Para um deployment de verdade, use a CA que sua organização já opera. Para testar localmente, ou montar uma CA
-descartável para um ambiente que não é produção:
+Para um deployment de verdade, use a CA que sua organização já opera. Para montar uma CA à mão para um ambiente que
+não é produção (na sua própria máquina, o `diagnos-api dev-certs` acima faz tudo isto num passo):
 
 ```sh
 # 1. Uma CA que vai assinar tanto o certificado do servidor quanto o de todo cliente.
@@ -73,7 +100,7 @@ export DIAGNOS_API_TOKEN="apikey-…"
 export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
 export DIAGNOS_API_TLS_CERT_FILE=./tls.pem
 export DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
-uv run --package diagnos-api diagnos-api
+uv run --package diagnos-api diagnos-api   # ou: python -m diagnos_api
 ```
 
 ```sh
