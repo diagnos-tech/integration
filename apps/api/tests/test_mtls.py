@@ -1,15 +1,10 @@
 """🇺🇸 mTLS is the only authentication: no certificate is a 401, a disallowed CN is a 403, config demands both PEMs.
 
-Also pins one known gap: `/openapi.json`/`/docs` are not actually gated by
-mTLS the way `README.md` claims (`test_openapi_schema_is_gated_by_mtls_like_every_other_route`,
-marked `xfail`) — see that test's own docstring.
+That includes `/openapi.json` and `/docs` (`routers/docs.py`), which FastAPI would otherwise serve ungated.
 
 🇧🇷 mTLS é a única autenticação: sem certificado é 401, um CN não permitido é 403, a configuração exige os dois PEMs.
 
-Também trava uma lacuna conhecida: `/openapi.json`/`/docs` não são de fato
-travados por mTLS como o `README.md` promete
-(`test_openapi_schema_is_gated_by_mtls_like_every_other_route`, marcado
-`xfail`) — veja a docstring desse próprio teste.
+Isso inclui `/openapi.json` e `/docs` (`routers/docs.py`), que o FastAPI serviria sem trava.
 """
 
 from __future__ import annotations
@@ -226,43 +221,28 @@ def test_client_cert_h11_protocol_scope_setter_accepts_none() -> None:
     assert protocol.scope is None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: /openapi.json and /docs are served with no client certificate at all, though README.md says "
-    "they are 'reachable only with a valid client certificate, like everything else' (apps/api/app.py never "
-    "adds require_client_certificate as a dependency of the FastAPI app itself, only of each router's own routes, "
-    "so FastAPI's auto-mounted schema/docs routes skip it entirely)",
-)
 def test_openapi_schema_is_gated_by_mtls_like_every_other_route(
     fake_vault: FakeDiagnos, api_settings: ApiSettings
 ) -> None:
-    """🇺🇸 `README.md` promises `/openapi.json` needs a client certificate too — today, it does not.
+    """🇺🇸 `/openapi.json` and `/docs` need a client certificate like every route, as `README.md` promises.
 
-    Every route this API defines by hand takes `Depends(require_client_certificate)`
-    explicitly (`routers/*.py`), but `/openapi.json`/`/docs`/`/redoc` are
-    routes FastAPI itself adds to `app` — `create_app` never passes
-    `dependencies=[Depends(require_client_certificate)]` to `FastAPI(...)`
-    (`app.py`), so those three are wide open to anyone who can reach the
-    port at all, TLS client certificate or not. That is a real schema
-    disclosure gap against this API's own documented security model, not
-    just a stale README line.
+    FastAPI mounts its own schema routes where no dependency reaches them;
+    `create_app` replaces them with `routers/docs.py`'s gated ones.
 
-    🇧🇷 O `README.md` promete que `/openapi.json` também precisa de
-    certificado de cliente — hoje, não precisa.
+    🇧🇷 `/openapi.json` e `/docs` exigem certificado de cliente como toda rota, como o `README.md` promete.
 
-    Toda rota que esta API define à mão recebe
-    `Depends(require_client_certificate)` explicitamente (`routers/*.py`),
-    mas `/openapi.json`/`/docs`/`/redoc` são rotas que o próprio FastAPI
-    acrescenta a `app` — `create_app` nunca passa
-    `dependencies=[Depends(require_client_certificate)]` para `FastAPI(...)`
-    (`app.py`), então essas três ficam abertas para qualquer um que alcance
-    a porta, com ou sem certificado de cliente TLS. Isso é uma lacuna real de
-    divulgação de schema contra o próprio modelo de segurança documentado
-    desta API, não só uma linha de README desatualizada.
+    O FastAPI monta as próprias rotas de schema onde nenhuma dependência as
+    alcança; `create_app` as troca pelas de `routers/docs.py`, travadas.
     """
-    app = build_app(fake_vault, api_settings, trusted_test_identity=None)
+    ungated = build_app(fake_vault, api_settings, trusted_test_identity=None)
+    with TestClient(ungated) as client:
+        refused = [client.get(path).status_code for path in ("/openapi.json", "/docs", "/redoc")]
+    with TestClient(build_app(fake_vault, api_settings)) as client:
+        schema = client.get("/openapi.json")
+        swagger = client.get("/docs")
 
-    with TestClient(app) as client:
-        response = client.get("/openapi.json")
-
-    assert response.status_code == 401
+    assert refused == [401, 401, 404]
+    assert schema.status_code == 200
+    assert "/v1/patients" in schema.json()["paths"]
+    assert swagger.status_code == 200
+    assert "/openapi.json" in swagger.text
