@@ -60,6 +60,15 @@ monorepo.
   `DIAGNOS_GROUP`, then (for an exam) the patient's group, then the session's only group, and says which it picked;
   with several groups it stops and lists them.
 - `Patients.index(id)` / `Exams.index(id)`: a document's metadata (group, versions, flags) without opening its record.
+- CLI session agent: `diagnos login` keeps the session for the commands that follow, until `diagnos logout`, the idle
+  timeout (`DIAGNOS_AGENT_IDLE_MINUTES`, 8 hours by default) or `SIGTERM`. The session stays in one background
+  process, in the SDK's locked memory; later commands send it their arguments over a private Unix socket and it runs
+  them, streaming output, prompts and exit codes back — the keys never leave that process, nothing is written to disk
+  and no OS keychain is used. `DIAGNOS_AGENT=off` keeps every command in its own process. `diagnos status` shows the
+  agent.
+- CLI `diagnos logout`: revokes the kept session, wipes its keys and stops the agent.
+- CLI global options (`--json`, `--quiet`, `--no-color`, `--token`, `--vault-url`) go anywhere on the line:
+  `diagnos patients list --json` works.
 - `diagnos.UploadSource`, exported at the top level. A `.dcm` file is typed `application/dicom`, so the vault
   classifies it.
 
@@ -126,6 +135,11 @@ monorepo.
   relative path there, and a name such as `../../.bashrc` could otherwise write outside the working directory. The
   API's `Content-Disposition` offers the same base name.
 - Contract harness: running with `-p no:cacheprovider` no longer crashes the partial-run check.
+- CLI: a local file problem (an `-o` into a directory that does not exist, an unreadable upload) prints
+  `I/O error` and exits `1` instead of a Python traceback.
+- CLI: `--no-color` and `NO_COLOR` drop every ANSI escape, bold and dim included, not only colors.
+- API: `/openapi.json` and `/docs` require the client certificate like every other route (FastAPI mounts its own
+  schema routes outside the app's dependencies); `/redoc` is gone.
 
 ### Known issues
 

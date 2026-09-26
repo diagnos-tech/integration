@@ -3,10 +3,10 @@
 `unlock()` is idempotent and lazy (`apps/sdk/README.md`): every other command
 would enroll on its own the moment it touched `vault.patients`/`exams`/
 `drives`. This command exists for the case where a human wants to *see* the
-approval happen — workspace, service account and granted groups — without
-also running a real query. Without OpenBao configured, this session dies
-with the process; the next invocation enrolls again, by design (see
-`README.md`'s "OpenBao for servers" section).
+approval happen — workspace, service account and granted groups — and to
+keep that session: `diagnos login` starts the session agent
+(`diagnos_cli/agent`) and runs inside it, so the commands that follow reuse
+the session until `diagnos logout`.
 
 🇧🇷 `diagnos login` — faz enrollment de propósito, para validar um token e
 mostrar o que foi concedido.
@@ -15,10 +15,9 @@ mostrar o que foi concedido.
 já faria enrollment sozinho no primeiro toque em
 `vault.patients`/`exams`/`drives`. Este comando existe para o caso em que
 uma pessoa quer *ver* a aprovação acontecer — workspace, service account e
-grupos concedidos — sem também rodar uma consulta de verdade. Sem OpenBao
-configurado, esta sessão morre com o processo; a próxima invocação faz
-enrollment de novo, de propósito (ver a seção "OpenBao para servidores" do
-`README.md`).
+grupos concedidos — e guardar essa sessão: o `diagnos login` sobe o agente
+de sessão (`diagnos_cli/agent`) e roda dentro dele, então os comandos
+seguintes reaproveitam a sessão até o `diagnos logout`.
 """
 
 from __future__ import annotations
@@ -64,3 +63,10 @@ def login(
     console.print(f"  workspace_id: {result['workspace_id']}")
     console.print(f"  account_id:   {result['account_id']}")
     console.print(f"  groups · grupos: {', '.join(result['security_groups']) or '—'}")
+    if context.is_hosted():
+        console.print(
+            "[dim]Kept in memory by the diagnos agent until `diagnos logout` or the idle timeout — next commands "
+            "reuse it.\n"
+            "Guardada na memória pelo agente do diagnos até `diagnos logout` ou o tempo ocioso — os próximos comandos "
+            "a reutilizam.[/dim]"
+        )

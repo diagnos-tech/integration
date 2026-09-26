@@ -13,6 +13,7 @@ from diagnos import __version__ as sdk_version
 from diagnos import memory_status
 
 from diagnos_cli import context
+from diagnos_cli.agent.dispatch import agent_status
 from diagnos_cli.context import CliOptions
 from diagnos_cli.render import get_console, get_err_console, print_json
 
@@ -56,6 +57,7 @@ def status(
         "openbao_configured": bool(os.environ.get("OPENBAO_ADDR")),
         "sdk_version": sdk_version,
         "memory": _memory_summary(),
+        "agent": _agent_summary(opts),
     }
 
     # 🇺🇸 Kept out of `result` (typed `dict[str, object]`) until printed, so
@@ -85,6 +87,7 @@ def status(
     console.print(f"  openbao:      {openbao_label}")
     console.print(f"  sdk_version:  {result['sdk_version']}")
     console.print(f"  memory:       {_memory_label()}")
+    console.print(f"  agent:        {_agent_label(result['agent'])}")
     if check:
         console.print(f"  groups · grupos: {', '.join(security_groups) or '—'}")
 
@@ -119,3 +122,22 @@ def _memory_label() -> str:
         f"{unlocked} allocation(s) not locked · alocação(ões) sem trava "
         f"({summary['backend']}, {summary['lock_policy']}) — raise `ulimit -l` or grant CAP_IPC_LOCK"
     )
+
+
+def _agent_summary(opts: CliOptions) -> dict[str, object] | None:
+    """🇺🇸 The session agent for this token, if one is running (`agent/dispatch.py`).
+
+    🇧🇷 O agente de sessão deste token, se houver um rodando (`agent/dispatch.py`).
+    """
+    found = agent_status(os.environ, opts.token, opts.vault_url)
+    if found is None:
+        return None
+    return {key: found.get(key) for key in ("pid", "started_at", "unlocked", "groups")}
+
+
+def _agent_label(agent: object) -> str:
+    """🇺🇸 One line for the agent row. 🇧🇷 Uma linha para a linha do agente."""
+    if not isinstance(agent, dict):
+        return "not running · não está rodando (`diagnos login` starts it · o inicia)"
+    state = "session kept · sessão guardada" if agent.get("unlocked") else "no session yet · ainda sem sessão"
+    return f"running · rodando (pid {agent.get('pid')}) — {state}"

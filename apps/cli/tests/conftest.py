@@ -285,6 +285,8 @@ class FakeDiagnos:
         # --check` — a property abaixo só o devolve depois de `unlock()`,
         # exatamente como a `Diagnos.security_groups` de verdade.
         self.granted_groups: list[str] = ["sg_oncology"]
+        self.lock_calls = 0
+        self.close_calls = 0
 
     @property
     def workspace_id(self) -> str:
@@ -304,6 +306,10 @@ class FakeDiagnos:
 
     def lock(self) -> None:
         self._unlocked = False
+        self.lock_calls += 1
+
+    def close(self) -> None:
+        self.close_calls += 1
 
 
 @pytest.fixture
@@ -334,3 +340,12 @@ def runner() -> CliRunner:
     🇧🇷 O runner de teste do `typer`, invocando a app Typer real, no mesmo processo.
     """
     return CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _no_session_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 Keeps every test in-process even if the developer running them has an agent up for a real token.
+
+    🇧🇷 Mantém todo teste no próprio processo mesmo se quem os roda tiver um agente no ar para um token real.
+    """
+    monkeypatch.setenv("DIAGNOS_AGENT", "off")

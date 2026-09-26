@@ -308,15 +308,6 @@ def test_download_into_an_existing_subdirectory_via_output(
     assert (subdir / "out.dcm").read_bytes() == b"fake-encrypted-then-decrypted-bytes"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "BUG: files.py:download_file / main.py:app() — an -o destination whose parent directory does not "
-        "exist raises a raw FileNotFoundError (Drive.download opens the path with Path.open('wb'), no "
-        "directory is created and no DiagnosError is raised), which main.app()'s wrapper only catches for "
-        "DiagnosError, so this is an uncaught Python traceback instead of a clean, documented exit code."
-    ),
-)
 def test_download_to_a_missing_parent_directory_never_raises_a_raw_traceback(
     monkeypatch: pytest.MonkeyPatch, patched_build_client: FakeDiagnos, tmp_path: Path
 ) -> None:

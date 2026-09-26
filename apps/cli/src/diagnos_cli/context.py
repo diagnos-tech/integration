@@ -52,13 +52,66 @@ class CliOptions:
     no_color: bool = False
 
 
+ClientFactory = Callable[[CliOptions, Callable[[EnrollmentPrompt], None] | None, bool | None], Diagnos]
+
+# 🇺🇸 Set only inside the session agent (`agent/server.py`): every command then shares the agent's one client.
+# 🇧🇷 Definido só dentro do agente de sessão (`agent/server.py`): todo comando então divide o único client do agente.
+_client_factory: ClientFactory | None = None
+_agent_stop_requested = False
+
+
+def host_clients(factory: ClientFactory | None) -> None:
+    """🇺🇸 Makes `build_client` hand out `factory`'s client (the agent), or builds one per command again (`None`).
+
+    🇧🇷 Faz o `build_client` entregar o client de `factory` (o agente), ou volta a construir um por comando (`None`).
+    """
+    global _client_factory
+    _client_factory = factory
+
+
+def is_hosted() -> bool:
+    """🇺🇸 Whether this command runs inside the session agent. 🇧🇷 Se este comando roda dentro do agente de sessão."""
+    return _client_factory is not None
+
+
+def request_agent_stop() -> None:
+    """🇺🇸 Asks the agent to exit once this command's reply is sent (`logout`). 🇧🇷 Pede ao agente para sair."""
+    global _agent_stop_requested
+    _agent_stop_requested = True
+
+
+def consume_agent_stop() -> bool:
+    """🇺🇸 Whether the last command asked the agent to stop — and resets the request.
+
+    🇧🇷 Se o último comando pediu ao agente para parar — e zera o pedido.
+    """
+    global _agent_stop_requested
+    requested, _agent_stop_requested = _agent_stop_requested, False
+    return requested
+
+
 def build_client(
     options: CliOptions,
     *,
     on_prompt: Callable[[EnrollmentPrompt], None] | None = None,
     auto_unseal: bool | None = None,
 ) -> Diagnos:
-    """🇺🇸 Builds the `Diagnos` for this invocation; `--token`/`--vault-url` override the real environment on top of it.
+    """🇺🇸 The `Diagnos` for this command: the session agent's when running inside it, else `make_client`'s.
+
+    🇧🇷 A `Diagnos` deste comando: a do agente de sessão quando roda dentro dele, senão a de `make_client`.
+    """
+    if _client_factory is not None:
+        return _client_factory(options, on_prompt, auto_unseal)
+    return make_client(options, on_prompt=on_prompt, auto_unseal=auto_unseal)
+
+
+def make_client(
+    options: CliOptions,
+    *,
+    on_prompt: Callable[[EnrollmentPrompt], None] | None = None,
+    auto_unseal: bool | None = None,
+) -> Diagnos:
+    """🇺🇸 Builds a new `Diagnos`; `--token`/`--vault-url` override the real environment on top of it.
 
     Routing overrides through `Settings.from_env` (instead of hand-building
     a `Settings`) mirrors `client.py`'s own `_resolve_settings`: every other
@@ -97,6 +150,13 @@ def _render_prompt_panel(console: Console, prompt: EnrollmentPrompt) -> None:
         f"[bold cyan]{escape(prompt.approval_url)}[/bold cyan]\n\n"
         f"[bold white on grey23]  {spaced_code}  [/bold white on grey23]"
     )
+    if not is_hosted():
+        # 🇺🇸 Outside the agent this approval dies with the process — say how to keep it.
+        # 🇧🇷 Fora do agente esta aprovação morre com o processo — diga como mantê-la.
+        body += (
+            "\n\n[dim]Tip: `diagnos login` keeps the session for the next commands.\n"
+            "Dica: `diagnos login` mantém a sessão para os próximos comandos.[/dim]"
+        )
     console.print(Panel(body, title="diagnos · enrollment", expand=False))
 
 
