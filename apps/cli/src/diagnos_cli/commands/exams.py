@@ -86,7 +86,9 @@ def create_exam(
         show_envvar=True,
         help="Security group to seal under (default: the patient's) · Grupo sob o qual selar (padrão: o do paciente)",
     ),
-    file: Path | None = typer.Option(None, "--file", help="Record JSON file · Arquivo JSON do registro"),
+    file: Path | None = typer.Option(
+        None, "--file", help="Record JSON file, `-` for stdin · Arquivo JSON do registro, `-` para stdin"
+    ),
     title: str | None = typer.Option(None, "--title"),
     modality: str | None = typer.Option(None, "--modality", help="e.g. CT, MR, US · ex: CT, MR, US"),
     exam_date: str | None = typer.Option(None, "--exam-date", help="ISO date · Data ISO"),
@@ -113,7 +115,9 @@ def create_exam(
 def update_exam(
     ctx: typer.Context,
     exam_id: str = typer.Argument(...),
-    file: Path = typer.Option(..., "--file", help="New record JSON file · Arquivo JSON do registro novo"),
+    file: Path = typer.Option(
+        ..., "--file", help="New record JSON file, `-` for stdin · Arquivo JSON do registro novo, `-` para stdin"
+    ),
     expect_version: str | None = typer.Option(None, "--expect-version", help=_EXPECT_HELP),
 ) -> None:
     """🇺🇸 Encrypts a brand new, complete version of the record, reusing the exam's existing DEK.

@@ -88,7 +88,9 @@ def get_patient(
 def create_patient(
     ctx: typer.Context,
     group: str | None = context.group_option(),
-    file: Path | None = typer.Option(None, "--file", help="Record JSON file · Arquivo JSON do registro"),
+    file: Path | None = typer.Option(
+        None, "--file", help="Record JSON file, `-` for stdin · Arquivo JSON do registro, `-` para stdin"
+    ),
     legal_name: str | None = typer.Option(None, "--legal-name"),
     display_name: str | None = typer.Option(None, "--display-name"),
     birth_date: str | None = typer.Option(None, "--birth-date", help="ISO date, e.g. 1990-01-31 · Data ISO"),
@@ -131,7 +133,9 @@ def create_patient(
 def update_patient(
     ctx: typer.Context,
     patient_id: str = typer.Argument(...),
-    file: Path = typer.Option(..., "--file", help="New record JSON file · Arquivo JSON do registro novo"),
+    file: Path = typer.Option(
+        ..., "--file", help="New record JSON file, `-` for stdin · Arquivo JSON do registro novo, `-` para stdin"
+    ),
     tags: list[str] | None = typer.Option(
         None, "--tag", help="Replace the tags, repeatable (default: keep) · Substitui as tags (padrão: mantém)"
     ),

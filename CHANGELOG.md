@@ -110,6 +110,9 @@ monorepo.
   (was a generic `500`), CLI exit code `3`. Listings degrade instead of failing: a file whose group key the session
   lacks is listed with `name: null` (CLI: 🔒), like document summaries.
 - CLI `files … --json` prints `{node, name}` per file, the same shape as the API.
+- CLI: `--file` together with inline record flags (`--legal-name`, `--title`, …) is a usage error naming the flags;
+  the flags used to be dropped without a word. `--file -` reads the record from stdin.
+- CLI: a bare `diagnos` prints the help with where to start and exits `0` (was `2`).
 
 ### Removed
 

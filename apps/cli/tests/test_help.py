@@ -105,26 +105,20 @@ def test_root_help_lists_the_global_options(runner: CliRunner) -> None:
         assert flag in result.output
 
 
-def test_no_arguments_at_all_prints_help_and_exits_2(runner: CliRunner) -> None:
-    """🇺🇸 `no_args_is_help=True`: running `diagnos` bare still prints the full bilingual help, but exits `2`.
+def test_no_arguments_at_all_prints_help_and_succeeds(runner: CliRunner) -> None:
+    """🇺🇸 Running `diagnos` bare prints the full bilingual help, ends with where to start, and exits `0`.
 
-    `click`'s `no_args_is_help` raises its own `NoArgsIsHelpError` (a
-    `UsageError` subclass) rather than a clean `ctx.exit()` — a bare
-    invocation is usage feedback for a human, not a success, so a script
-    that runs `diagnos` with no arguments by mistake gets a nonzero exit to
-    notice, while still seeing the same help `--help` would have shown.
+    Someone typing `diagnos` alone is finding their way, not making a
+    mistake — like `gh`, `docker` or `kubectl`, it succeeds.
 
-    🇧🇷 `no_args_is_help=True`: rodar `diagnos` sem nada ainda imprime a
-    ajuda bilíngue inteira, mas sai com `2`.
+    🇧🇷 Rodar `diagnos` sozinho imprime a ajuda bilíngue inteira, termina com por onde começar, e sai com `0`.
 
-    O `no_args_is_help` do `click` lança seu próprio `NoArgsIsHelpError`
-    (uma subclasse de `UsageError`) em vez de um `ctx.exit()` limpo — uma
-    chamada sem nada é feedback de uso para um humano, não um sucesso, então
-    um script que roda `diagnos` sem argumentos por engano recebe uma saída
-    não-zero para perceber, ainda vendo a mesma ajuda que `--help` mostraria.
+    Quem digita `diagnos` sozinho está se orientando, não errando — como
+    `gh`, `docker` ou `kubectl`, termina com sucesso.
     """
     result = runner.invoke(typer_app, [])
-    assert result.exit_code == 2
+    assert result.exit_code == 0
+    assert "diagnos login" in result.output
     assert "Traceback" not in result.output
     assert "·" in result.output
     assert "Usage" in result.output

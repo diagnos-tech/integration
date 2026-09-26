@@ -137,7 +137,9 @@ definida) só para aquela invocação.
 | `diagnos files download NODE_ID [-o DEST]` | ✅ funciona hoje | Baixa e decifra, por padrão com o nome do próprio arquivo (só o último segmento do caminho). |
 | `diagnos files get NODE_ID` | ✅ funciona hoje | Metadado e nome decifrado de um arquivo. |
 
-Ler um arquivo precisa só do id do nó; o cofre sabe a que grupo ele pertence.
+Ler um arquivo precisa só do id do nó; o cofre sabe a que grupo ele pertence. Um registro vem de `--file` ou das
+flags inline, nunca dos dois (misturar é recusado); `--file -` o lê do stdin, por exemplo
+`jq '.patient' export.json | diagnos patients create --file -`.
 
 **Para qual security group uma gravação vai.** `patients create`, `exams create`, `files upload` e `files mkdir`
 selam sob `--group`, senão `DIAGNOS_GROUP`, senão — num exame — o grupo do paciente, senão o único grupo que esta

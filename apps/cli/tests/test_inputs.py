@@ -1,4 +1,4 @@
-"""🇺🇸 `inputs.load_record` — `--file` wins outright, its three failure modes, and the inline-flags fallback.
+"""🇺🇸 `inputs.load_record` — `--file` or inline flags (never both), the file's three failure modes, the fallback.
 
 Every other test file drives this indirectly through `patients`/`exams
 create`/`update`; this one calls `load_record` directly so each branch (a
@@ -6,8 +6,8 @@ missing file, invalid JSON, a JSON array instead of an object, and the
 "nothing given at all" refusal) gets its own unambiguous assertion instead
 of being a side effect of some command's happy path.
 
-🇧🇷 `inputs.load_record` — `--file` vence direto, os três jeitos dele falhar,
-e o retorno às flags inline.
+🇧🇷 `inputs.load_record` — `--file` ou flags inline (nunca os dois), os três
+jeitos do arquivo falhar, e o retorno às flags inline.
 
 Todo outro arquivo de teste exercita isto indiretamente via `patients`/
 `exams create`/`update`; este chama `load_record` direto para cada ramo
@@ -25,15 +25,16 @@ import typer
 from diagnos_cli.inputs import load_record
 
 
-def test_file_wins_over_inline_fields(tmp_path: Path) -> None:
-    """🇺🇸 A `--file` object is returned as-is, even with inline fields also passed in.
+def test_file_and_inline_fields_together_are_refused(tmp_path: Path) -> None:
+    """🇺🇸 `--file` with an inline field is a `BadParameter` naming the flag, never a silent pick.
 
-    🇧🇷 Um objeto de `--file` é devolvido como está, mesmo com campos inline também passados.
+    🇧🇷 `--file` com um campo inline é um `BadParameter` que nomeia a flag, nunca uma escolha silenciosa.
     """
     record_file = tmp_path / "record.json"
     record_file.write_text('{"legal_name": "Jane Doe"}', encoding="utf-8")
-    result = load_record(record_file, {"legal_name": "ignored"})
-    assert result == {"legal_name": "Jane Doe"}
+    with pytest.raises(typer.BadParameter, match="--legal-name"):
+        load_record(record_file, {"legal_name": "other", "display_name": None})
+    assert load_record(record_file, {"legal_name": None}) == {"legal_name": "Jane Doe"}
 
 
 def test_missing_file_raises_bad_parameter(tmp_path: Path) -> None:

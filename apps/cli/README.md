@@ -135,7 +135,9 @@ session itself expires. `login --auto-unseal`/`--no-auto-unseal` overrides the a
 | `diagnos files download NODE_ID [-o DEST]` | ✅ works today | Downloads and decrypts, by default to the file's own name (its last path segment only). |
 | `diagnos files get NODE_ID` | ✅ works today | One file's metadata and decrypted name. |
 
-Reading a file needs only its node id; the vault knows which group it belongs to.
+Reading a file needs only its node id; the vault knows which group it belongs to. A record comes from `--file` or
+from the inline flags, never both (mixing them is refused); `--file -` reads it from stdin, e.g.
+`jq '.patient' export.json | diagnos patients create --file -`.
 
 **Which security group a write goes to.** `patients create`, `exams create`, `files upload` and `files mkdir` seal
 under `--group`, else `DIAGNOS_GROUP`, else — for an exam — its patient's group, else the only group this session
