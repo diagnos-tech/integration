@@ -46,7 +46,10 @@ def test_the_committed_manifest_is_valid(manifest: dict[str, Any]) -> None:
         (lambda m: first_page(m).update(source="docs/nope.md"), "missing file"),
         (lambda m: first_page(m).update(source="README.pt-BR.md"), "source must be the English .md"),
         (lambda m: first_page(m).update(desciption={}), "unknown key"),
-        (lambda m: first_page(m).pop("title"), "has no '# H1' and no title"),
+        (
+            lambda m: (first_page(m).pop("title"), first_page(m).update(source="scripts/docs/tests/fixtures/no-h1.md")),
+            "has no '# H1' and no title",
+        ),
         (lambda m: m["redirects"].append({"from": "old", "to": "nowhere"}), "is not a page"),
         (lambda m: m["nav"][1]["pages"][0].update(id="sdk/reference/intro"), "is under the reference section"),
         (lambda m: m.update(locales=["en"]), "locales must be"),

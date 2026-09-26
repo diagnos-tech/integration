@@ -1,31 +1,18 @@
-<h1 align="center">diagnos · integration</h1>
+# diagnos · integration
 
-<p align="center"><b>SDK, CLI e API REST zero-knowledge para o cofre diagnos.</b></p>
-
-<p align="center">
+**SDK, CLI e API REST zero-knowledge para o cofre diagnos.**
 
 [English](README.md) · **Português (Brasil)**
 
-</p>
+[![Testes unitários](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
+[![Cobertura](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
+[![Testes de contrato](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop)
+[![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab)](pyproject.toml)
+[![Licença: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-64748b)](LICENSE)
 
-<p align="center">
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop"><img alt="Testes unitários" src="https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml/badge.svg?branch=develop"></a>
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop"><img alt="Cobertura" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json"></a>
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop"><img alt="Testes de contrato" src="https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop"></a>
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop"><img alt="CI" src="https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop"></a>
-  <a href="pyproject.toml"><img alt="Python 3.11 | 3.12 | 3.13" src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab"></a>
-  <a href="LICENSE"><img alt="Licença: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-64748b"></a>
-</p>
-
-<p align="center">
-  <a href="apps/sdk/README.pt-BR.md"><b>SDK</b></a> ·
-  <a href="apps/cli/README.pt-BR.md"><b>CLI</b></a> ·
-  <a href="apps/api/README.pt-BR.md"><b>API</b></a> ·
-  <a href="docs/PROTOCOL.pt-BR.md">Protocolo</a> ·
-  <a href="contracts/README.pt-BR.md">Testes de contrato</a> ·
-  <a href="CONTRIBUTING.pt-BR.md">Como contribuir</a> ·
-  <a href="SECURITY.pt-BR.md">Segurança</a>
-</p>
+**[SDK](apps/sdk/README.pt-BR.md)** · **[CLI](apps/cli/README.pt-BR.md)** · **[API](apps/api/README.pt-BR.md)** · [Protocolo](docs/PROTOCOL.pt-BR.md) ·
+[Testes de contrato](contracts/README.pt-BR.md) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Segurança](SECURITY.pt-BR.md)
 
 Três pacotes Python de código aberto para falar com o cofre diagnos sem nunca lidar com URL assinada, HMAC ou envelope
 de chave. Tudo que é clínico é cifrado **dentro do seu processo** antes de tocar a rede — o cofre só vê ciphertext.
@@ -175,4 +162,6 @@ Achou uma vulnerabilidade? Por favor **não** abra issue pública — reporte em
 [GitHub Security Advisories](https://github.com/diagnos-tech/integration/security/advisories/new). Detalhes no
 [SECURITY.pt-BR.md](SECURITY.pt-BR.md).
 
-<p align="center"><sub><a href="LICENSE">Apache-2.0</a> · <a href="https://diagnos.health">diagnos.health</a></sub></p>
+---
+
+[Apache-2.0](LICENSE) · [diagnos.health](https://diagnos.health)
