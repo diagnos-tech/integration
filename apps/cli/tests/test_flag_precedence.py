@@ -1,8 +1,8 @@
 """🇺🇸 What wins when two ways of saying the same thing disagree, and what the CLI deliberately never validates.
 
-`--file` versus inline flags, `--all` versus `--cursor`, and a boolean pair
-like `--auto-unseal`/`--no-auto-unseal` each have one documented or
-`click`-given precedence rule; this file locks each one down end to end
+`--file` versus inline flags (refused together), `--all` versus `--cursor`,
+and a boolean pair like `--auto-unseal`/`--no-auto-unseal` each have one
+documented or `click`-given rule; this file locks each one down end to end
 (through the real Typer app, not by calling a helper function directly) so a
 change to option wiring in `commands/*.py` breaks a test here before it
 breaks a user's script. It also covers two rendering paths no fixed fake in
@@ -13,9 +13,9 @@ invocation this time, not `render_index_table` called directly.
 🇧🇷 O que vence quando duas formas de dizer a mesma coisa discordam, e o que
 a CLI deliberadamente nunca valida.
 
-`--file` contra flags inline, `--all` contra `--cursor`, e um par booleano
-como `--auto-unseal`/`--no-auto-unseal` têm cada um uma regra de precedência
-documentada ou dada pelo `click`; este arquivo tranca cada uma ponta a ponta
+`--file` contra flags inline (recusados juntos), `--all` contra `--cursor`,
+e um par booleano como `--auto-unseal`/`--no-auto-unseal` têm cada um uma
+regra documentada ou dada pelo `click`; este arquivo tranca cada uma ponta a ponta
 (pela app Typer de verdade, não chamando uma função auxiliar direto) para
 uma mudança na fiação de opções em `commands/*.py` quebrar um teste aqui
 antes de quebrar o script de alguém. Também cobre dois caminhos de
@@ -39,53 +39,54 @@ from typer.testing import CliRunner
 from .conftest import DRIVE_NODE, PATIENT_ITEM, FakeDiagnos
 
 
-def test_patients_create_file_wins_over_inline_flags_end_to_end(
-    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path
+@pytest.mark.parametrize(
+    ("argv", "flag"),
+    [
+        (["patients", "create", "--group", "sg1", "--legal-name", "From flag"], "--legal-name"),
+        (["exams", "create", "--patient", "pat_1", "--group", "sg1", "--title", "Ignored"], "--title"),
+    ],
+    ids=["patients", "exams"],
+)
+def test_file_and_inline_flags_together_are_refused(
+    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path, argv: list[str], flag: str
 ) -> None:
-    """🇺🇸 `--file` together with `--legal-name` sends only the file's content to `Patients.create`.
+    """🇺🇸 `--file` plus an inline field stops with a usage error naming the flag — nothing is written.
 
-    `test_inputs.py` proves this at the `load_record` level; this is the
-    same rule through the real command, so a future `patients create` that
-    (say) merges the two instead of choosing one would still be caught.
+    Keeping one and silently dropping the other let a script write a record
+    nobody meant to; a usage error (exit `2`) says exactly what to remove.
 
-    🇧🇷 `--file` junto com `--legal-name` manda só o conteúdo do arquivo para
-    `Patients.create`.
+    🇧🇷 `--file` mais um campo inline para com um erro de uso que nomeia a flag — nada é gravado.
 
-    `test_inputs.py` prova isto no nível de `load_record`; este é o mesmo
-    controle pelo comando de verdade, para um futuro `patients create` que
-    (digamos) misture os dois em vez de escolher um ainda ser pego.
+    Manter um e descartar o outro em silêncio deixava um script gravar um
+    registro que ninguém quis; um erro de uso (saída `2`) diz exatamente o
+    que tirar.
     """
     record_file = tmp_path / "record.json"
-    record_file.write_text(json.dumps({"legal_name": "From file"}), encoding="utf-8")
+    record_file.write_text(json.dumps({"legal_name": "From file", "title": "From file"}), encoding="utf-8")
 
+    result = runner.invoke(typer_app, [*argv, "--file", str(record_file)])
+
+    assert result.exit_code == 2
+    assert flag in result.output
+    assert "not both" in result.output
+    assert patched_build_client.patients.calls == []
+    assert patched_build_client.exams.calls == []
+
+
+def test_file_dash_reads_the_record_from_stdin(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:
+    """🇺🇸 `--file -` takes the record from a pipe: `jq … | diagnos patients create --file -`.
+
+    🇧🇷 `--file -` pega o registro de um pipe: `jq … | diagnos patients create --file -`.
+    """
     result = runner.invoke(
         typer_app,
-        ["patients", "create", "--group", "sg1", "--file", str(record_file), "--legal-name", "From flag"],
+        ["patients", "create", "--group", "sg1", "--file", "-"],
+        input=json.dumps({"legal_name": "From stdin", "display_name": "S"}),
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     _, kwargs = patched_build_client.patients.calls[-1]
-    assert kwargs["record"] == {"legal_name": "From file"}
-
-
-def test_exams_create_file_wins_over_inline_flags_end_to_end(
-    runner: CliRunner, patched_build_client: FakeDiagnos, tmp_path: Path
-) -> None:
-    """🇺🇸 The same `--file`-wins rule holds for `exams create`'s `--title`/`--modality`/`--exam-date`.
-
-    🇧🇷 A mesma regra de `--file` vencer vale para `--title`/`--modality`/`--exam-date` de `exams create`.
-    """
-    record_file = tmp_path / "record.json"
-    record_file.write_text(json.dumps({"title": "From file"}), encoding="utf-8")
-
-    result = runner.invoke(
-        typer_app,
-        ["exams", "create", "--patient", "pat_1", "--group", "sg1", "--file", str(record_file), "--title", "Ignored"],
-    )
-
-    assert result.exit_code == 0
-    _, kwargs = patched_build_client.exams.calls[-1]
-    assert kwargs["record"] == {"title": "From file"}
+    assert kwargs["record"] == {"legal_name": "From stdin", "display_name": "S"}
 
 
 def test_patients_list_all_flag_ignores_cursor(runner: CliRunner, patched_build_client: FakeDiagnos) -> None:

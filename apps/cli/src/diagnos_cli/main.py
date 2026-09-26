@@ -42,7 +42,7 @@ from diagnos_cli.exit_codes import EXIT_GENERAL, classify
 typer_app = typer.Typer(
     name="diagnos",
     help="The diagnos vault, from your terminal · O cofre diagnos, do seu terminal.",
-    no_args_is_help=True,
+    epilog="Start here · Comece aqui:  diagnos login  →  diagnos patients list  →  diagnos logout",
     add_completion=False,
 )
 typer_app.add_typer(patients.app, name="patients")
@@ -89,6 +89,13 @@ def main(
     🇧🇷 Comando raiz: guarda as opções globais em `ctx.obj` para todo subcomando ler.
     """
     ctx.obj = CliOptions(json_output=json_output, quiet=quiet, vault_url=vault_url, token=token, no_color=no_color)
+    if ctx.invoked_subcommand is None:
+        # 🇺🇸 A bare `diagnos` is someone finding their way, not a mistake: the help, and success.
+        # 🇧🇷 Um `diagnos` sozinho é alguém se orientando, não um erro: a ajuda, e sucesso.
+        help_text = ctx.get_help()  # 🇺🇸 rich prints it already and returns "" 🇧🇷 o rich já imprime e devolve ""
+        if help_text:
+            typer.echo(help_text)
+        raise typer.Exit()
 
 
 def run(argv: list[str]) -> int:
