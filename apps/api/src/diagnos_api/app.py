@@ -12,14 +12,68 @@ from contextlib import asynccontextmanager
 
 from diagnos import Diagnos
 from fastapi import Depends, FastAPI
+from fastapi.routing import APIRoute
 
 from diagnos_api._version import __version__
-from diagnos_api.errors import register_exception_handlers
+from diagnos_api.errors import MTLS_RESPONSES, register_exception_handlers
 from diagnos_api.mtls import ClientIdentity, require_client_certificate
 from diagnos_api.routers import exams, files, patients, session
 from diagnos_api.settings import ApiSettings
 
 logger = logging.getLogger("diagnos_api")
+
+# 🇺🇸 One entry per router tag, in the order a reader meets them — the sections of `/docs` and of the site's
+#    API reference. Descriptions carry 🇺🇸/🇧🇷 like every summary: the site splits them with the same rule.
+# 🇧🇷 Uma entrada por tag de roteador, na ordem em que quem lê as encontra — as seções do `/docs` e da
+#    referência de API do site. As descrições levam 🇺🇸/🇧🇷 como todo summary: o site as divide com a mesma regra.
+OPENAPI_TAGS = [
+    {
+        "name": "patients",
+        "description": "🇺🇸 Encrypted patient records: sealed in this process, versioned, never readable by the vault. "
+        "🇧🇷 Registros de paciente cifrados: selados neste processo, versionados, nunca legíveis pelo cofre.",
+    },
+    {
+        "name": "exams",
+        "description": "🇺🇸 Encrypted exams and their reports, each linked to one patient. "
+        "🇧🇷 Exames cifrados e seus laudos, cada um ligado a um paciente.",
+    },
+    {
+        "name": "drives",
+        "description": "🇺🇸 Files and folders of one security group (`{sg}`), each file under its own key. "
+        "🇧🇷 Arquivos e pastas de um security group (`{sg}`), cada arquivo sob a própria chave.",
+    },
+    {
+        "name": "session",
+        "description": "🇺🇸 The one SDK session this process holds, and the caller's mTLS identity. "
+        "🇧🇷 A única sessão de SDK que este processo mantém, e a identidade mTLS de quem chama.",
+    },
+    {
+        "name": "health",
+        "description": "🇺🇸 Liveness, behind mTLS like everything else. 🇧🇷 Vivacidade, atrás do mTLS como todo o resto.",
+    },
+]
+DESCRIPTION = (
+    "🇺🇸 A thin HTTP face over the diagnos SDK: one process, one service account, one live session. Every route "
+    "requires a client certificate signed by the CA this deployment trusts — there is no other credential. Every "
+    'non-2xx response is `{"error": {"code", "message", "trace_id"}}`; branch on `code`. '
+    "🇧🇷 Uma face HTTP fina sobre o SDK diagnos: um processo, uma service account, uma sessão viva. Toda rota exige "
+    "um certificado de cliente assinado pela CA em que este deployment confia — não existe outra credencial. Toda "
+    'resposta não-2xx é `{"error": {"code", "message", "trace_id"}}`; decida por `code`.'
+)
+
+
+def _operation_id(route: APIRoute) -> str:
+    """🇺🇸 The handler's own name (`list_patients`) — stable, readable, and part of the site's API URLs.
+
+    FastAPI's default (`list_patients_v1_patients_get`) repeats the path and
+    the method; handler names are already unique across the four routers.
+
+    🇧🇷 O nome do próprio handler (`list_patients`) — estável, legível, e parte das URLs de API do site.
+
+    O padrão do FastAPI (`list_patients_v1_patients_get`) repete o caminho e
+    o método; os nomes dos handlers já são únicos entre os quatro roteadores.
+    """
+    return route.name
 
 
 def _lifespan(vault: Diagnos) -> object:
@@ -109,6 +163,9 @@ def create_app(
         version=__version__,
         summary="🇺🇸 REST facade over the diagnos SDK, authenticated by mutual TLS. "
         "🇧🇷 Fachada REST sobre o SDK diagnos, autenticada por mTLS mútuo.",
+        description=DESCRIPTION,
+        openapi_tags=OPENAPI_TAGS,
+        generate_unique_id_function=_operation_id,
         lifespan=_lifespan(resolved_vault),  # type: ignore[arg-type]
     )
     app.state.settings = settings
@@ -124,7 +181,9 @@ def create_app(
 
     @app.get(
         "/healthz",
-        summary="Liveness probe · Sonda de vida",
+        tags=["health"],
+        responses=MTLS_RESPONSES,
+        summary="🇺🇸 Liveness probe 🇧🇷 Sonda de vida",
         description="🇺🇸 Always mTLS-gated like every other route (`apps/api/deploy/README.md`): Kubernetes probes "
         "this process over plain TCP instead, never HTTP. "
         "🇧🇷 Sempre travado por mTLS como toda outra rota (`apps/api/deploy/README.md`): o Kubernetes sonda "

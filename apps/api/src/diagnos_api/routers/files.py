@@ -44,17 +44,23 @@ chegarem do cofre.
 from __future__ import annotations
 
 import re
+from typing import Annotated
 from urllib.parse import quote
 
 from diagnos import Diagnos, Drive, DriveNode, GroupKeyUnavailable, NotFoundError, Page
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from diagnos_api.deps import get_vault
+from diagnos_api.document_params import CURSOR_QUERY_HELP, LIMIT_QUERY_HELP
+from diagnos_api.errors import ERROR_RESPONSES
 from diagnos_api.mtls import ClientIdentity, require_client_certificate
 from diagnos_api.schemas import FolderCreated, FolderCreateRequest, NodeView
 
-router = APIRouter(prefix="/v1/drives/{sg}", tags=["drives"])
+router = APIRouter(prefix="/v1/drives/{sg}", tags=["drives"], responses=ERROR_RESPONSES)
+
+SecurityGroup = Annotated[str, Path(description="🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive).")]
+NodeId = Annotated[str, Path(description="🇺🇸 The file's node id. 🇧🇷 O id do nó do arquivo.")]
 
 # 🇺🇸 CR/LF would let a crafted decrypted filename inject a second header
 # into the response; quotes and control bytes would break the
@@ -118,19 +124,21 @@ def _node_in_group(vault: Diagnos, sg: str, node_id: str) -> DriveNode:
 @router.get(
     "/nodes",
     response_model=Page[NodeView],
-    summary="List drive nodes · Lista nós do drive",
+    summary="🇺🇸 List drive nodes 🇧🇷 Lista nós do drive",
     description="🇺🇸 One page of files and folders in security group `sg`, each with its name decrypted (`null` when "
     "this process holds no key for the group). "
     "🇧🇷 Uma página de arquivos e pastas do security group `sg`, cada um com o nome decifrado (`null` quando este "
     "processo não tem a chave do grupo).",
 )
 def list_nodes(
-    sg: str,
-    exam_id: str | None = None,
+    sg: SecurityGroup,
+    exam_id: str | None = Query(None, description="🇺🇸 Only files linked to this exam. 🇧🇷 Só arquivos deste exame."),
     parent_id: str | None = Query(None, description="🇺🇸 Folder node id. 🇧🇷 Id do nó da pasta."),
-    include_pending: bool = False,
-    limit: int = Query(50, ge=1, le=200),
-    cursor: str | None = None,
+    include_pending: bool = Query(
+        False, description="🇺🇸 Include uploads not finished yet. 🇧🇷 Inclui uploads ainda não terminados."
+    ),
+    limit: int = Query(50, ge=1, le=200, description=LIMIT_QUERY_HELP),
+    cursor: str | None = Query(None, description=CURSOR_QUERY_HELP),
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> Page[NodeView]:
@@ -147,13 +155,13 @@ def list_nodes(
 @router.get(
     "/nodes/{node_id}",
     response_model=NodeView,
-    summary="Get one drive node · Busca um nó do drive",
+    summary="🇺🇸 Get one drive node 🇧🇷 Busca um nó do drive",
     description="🇺🇸 One ready file's metadata plus its decrypted name. "
     "🇧🇷 O metadado de um arquivo pronto mais o nome decifrado.",
 )
 def get_node(
-    sg: str,
-    node_id: str,
+    sg: SecurityGroup,
+    node_id: NodeId,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> NodeView:
@@ -166,7 +174,7 @@ def get_node(
     "/nodes",
     response_model=DriveNode,
     status_code=201,
-    summary="Upload a file · Sobe um arquivo",
+    summary="🇺🇸 Upload a file 🇧🇷 Sobe um arquivo",
     description="🇺🇸 Encrypts and uploads `file` into security group `sg`, optionally inside folder `parent_id` "
     "and linked to `exam_id`; single `PUT` or multipart is chosen by the SDK from its size. The whole multipart "
     "body is buffered (`python-multipart`'s `SpooledTemporaryFile`, 1 MiB in RAM before it spills to disk) "
@@ -178,7 +186,7 @@ def get_node(
     "endpoint.",
 )
 def upload_node(
-    sg: str,
+    sg: SecurityGroup,
     file: UploadFile = File(...),
     exam_id: str | None = Form(None),
     parent_id: str | None = Form(None),
@@ -205,14 +213,14 @@ def upload_node(
     "/folders",
     response_model=FolderCreated,
     status_code=201,
-    summary="Create a folder · Cria uma pasta",
+    summary="🇺🇸 Create a folder 🇧🇷 Cria uma pasta",
     description="🇺🇸 Creates a folder in security group `sg` (its name sealed like a file's); pass the returned "
     "`node_id` as `parent_id` when uploading. "
     "🇧🇷 Cria uma pasta no security group `sg` (nome selado como o de um arquivo); passe o `node_id` devolvido "
     "como `parent_id` ao subir.",
 )
 def create_folder(
-    sg: str,
+    sg: SecurityGroup,
     body: FolderCreateRequest,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
@@ -224,15 +232,15 @@ def create_folder(
 
 @router.get(
     "/nodes/{node_id}/content",
-    summary="Download decrypted content · Baixa o conteúdo decifrado",
+    summary="🇺🇸 Download decrypted content 🇧🇷 Baixa o conteúdo decifrado",
     description="🇺🇸 Streams the decrypted bytes of one file, with its decrypted (sanitized) name in "
     "`Content-Disposition`. "
     "🇧🇷 Transmite os bytes decifrados de um arquivo, com o nome decifrado (higienizado) em "
     "`Content-Disposition`.",
 )
 def download_node_content(
-    sg: str,
-    node_id: str,
+    sg: SecurityGroup,
+    node_id: NodeId,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> StreamingResponse:

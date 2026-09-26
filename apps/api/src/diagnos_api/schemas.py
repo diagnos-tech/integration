@@ -121,6 +121,37 @@ class ClientIdentityView(BaseModel):
     serial: str
 
 
+class ErrorDetail(BaseModel):
+    """🇺🇸 The body of every non-2xx response: what went wrong, for a program and for a person.
+
+    🇧🇷 O corpo de toda resposta não-2xx: o que deu errado, para um programa e para uma pessoa.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    code: str = Field(
+        description="🇺🇸 Stable and machine-readable: branch on it, never on `message`. "
+        "🇧🇷 Estável e legível por máquina: decida por ele, nunca pela `message`."
+    )
+    message: str = Field(description="🇺🇸 For a person; its wording may change. 🇧🇷 Para uma pessoa; o texto pode mudar.")
+    trace_id: str | None = Field(
+        default=None,
+        description="🇺🇸 The vault's trace id when the failure came from the vault — what a support ticket needs. "
+        "🇧🇷 O trace id do cofre quando a falha veio do cofre — o que um chamado de suporte precisa.",
+    )
+
+
+class ErrorResponse(BaseModel):
+    """🇺🇸 `{"error": {code, message, trace_id}}` — the one error shape of this API (`errors.py`).
+
+    🇧🇷 `{"error": {code, message, trace_id}}` — a única forma de erro desta API (`errors.py`).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    error: ErrorDetail
+
+
 class SessionInfo(BaseModel):
     """🇺🇸 Response of `GET /v1/session`: what this process is, plus who is asking.
 
