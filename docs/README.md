@@ -64,7 +64,10 @@ A Markdown file is published only once `site.json` lists it, inside a navigation
   unique across the manifest. `overview` is the root page and is required.
 - `source` is the English file; its `.pt-BR.md` twin is the Portuguese page.
 - `description` is search-engine copy — at most 160 characters in each language — not prose from the page.
-- `title` is only for a file whose H1 cannot serve as a menu title (the root README's centered HTML heading).
+- `title` is only for a file whose H1 is not a good menu title (the root README: its H1 is the project name, the
+  menu says "Overview").
+- No raw HTML outside code fences — not even `<br>` or a centered `<p>`. The site escapes HTML as text, so
+  `make docs-check` rejects it; inside a fence (a mermaid label, an example) it is code and fine.
 - Renaming an `id` breaks every link to it: add `{"from": "old/id", "to": "new/id"}` to `redirects`.
 - A page with `"reference": "openapi" | "cli" | "sdk"` instead of a `source` is a generated section; the site expands
   it into one page per route, command or class.

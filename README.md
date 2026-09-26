@@ -1,31 +1,18 @@
-<h1 align="center">diagnos · integration</h1>
+# diagnos · integration
 
-<p align="center"><b>Zero-knowledge SDK, CLI and REST API for the diagnos vault.</b></p>
-
-<p align="center">
+**Zero-knowledge SDK, CLI and REST API for the diagnos vault.**
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
-</p>
+[![Unit tests](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
+[![Contract tests](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop)
+[![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab)](pyproject.toml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-64748b)](LICENSE)
 
-<p align="center">
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop"><img alt="Unit tests" src="https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml/badge.svg?branch=develop"></a>
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop"><img alt="Coverage" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json"></a>
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop"><img alt="Contract tests" src="https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop"></a>
-  <a href="https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop"><img alt="CI" src="https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop"></a>
-  <a href="pyproject.toml"><img alt="Python 3.11 | 3.12 | 3.13" src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab"></a>
-  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-64748b"></a>
-</p>
-
-<p align="center">
-  <a href="apps/sdk/README.md"><b>SDK</b></a> ·
-  <a href="apps/cli/README.md"><b>CLI</b></a> ·
-  <a href="apps/api/README.md"><b>API</b></a> ·
-  <a href="docs/PROTOCOL.md">Protocol</a> ·
-  <a href="contracts/README.md">Contract tests</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="SECURITY.md">Security</a>
-</p>
+**[SDK](apps/sdk/README.md)** · **[CLI](apps/cli/README.md)** · **[API](apps/api/README.md)** · [Protocol](docs/PROTOCOL.md) ·
+[Contract tests](contracts/README.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 Three open-source Python packages for talking to the diagnos vault without ever handling a signed URL, an HMAC or a
 key envelope yourself. Everything clinical is encrypted **inside your process** before it touches the network — the
@@ -172,4 +159,6 @@ Found a vulnerability? Please **do not** open a public issue — report it priva
 [GitHub Security Advisories](https://github.com/diagnos-tech/integration/security/advisories/new). Details in
 [SECURITY.md](SECURITY.md).
 
-<p align="center"><sub><a href="LICENSE">Apache-2.0</a> · <a href="https://diagnos.health">diagnos.health</a></sub></p>
+---
+
+[Apache-2.0](LICENSE) · [diagnos.health](https://diagnos.health)

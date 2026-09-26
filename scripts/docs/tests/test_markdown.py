@@ -1,11 +1,11 @@
-"""🇺🇸 The Markdown the checks rely on is read the way GitHub reads it: fences, headings and anchors.
+"""🇺🇸 The Markdown the checks rely on is read the way GitHub reads it: fences, headings, anchors and raw HTML.
 
-🇧🇷 O Markdown em que as checagens se apoiam é lido do jeito que o GitHub lê: cercas, títulos e âncoras.
+🇧🇷 O Markdown em que as checagens se apoiam é lido do jeito que o GitHub lê: cercas, títulos, âncoras e HTML cru.
 """
 
 from __future__ import annotations
 
-from scripts.docs.markdown import anchors, fences, headings, slug, structure
+from scripts.docs.markdown import anchors, fences, headings, raw_html, slug, structure
 
 PAGE = """# Title
 
@@ -53,10 +53,29 @@ def test_slugs_follow_github() -> None:
     assert slug("See [the guide](x.md) now") == "see-the-guide-now"
 
 
-def test_anchors_deduplicate_and_include_html_ids() -> None:
-    """🇺🇸 Repeats get `-1`, and `<a id>` counts. 🇧🇷 Repetições ganham `-1`, e `<a id>` conta."""
+def test_anchors_deduplicate_and_ignore_html_ids() -> None:
+    """🇺🇸 Repeats get `-1`; an `<a id>` is raw HTML, not an anchor. 🇧🇷 Repetições ganham `-1`; `<a id>` é HTML cru."""
     found = anchors(PAGE)
-    assert {"title", "datas-e-precisão-de-tempo", "datas-e-precisão-de-tempo-1", "custom-anchor"} <= found
+    assert {"title", "datas-e-precisão-de-tempo", "datas-e-precisão-de-tempo-1"} <= found
+    assert "custom-anchor" not in found
+
+
+def test_raw_html_outside_fences_and_inline_code_only() -> None:
+    """🇺🇸 Tags and comments count; a fenced `<br/>`, a code span and an autolink do not.
+
+    🇧🇷 Tags e comentários contam; um `<br/>` em cerca, um trecho de código e um autolink não.
+    """
+    assert raw_html(PAGE) == [(17, "<a>"), (17, "</a>")]
+    page = (
+        '<p align="center"><b>x</b></p>\n'
+        "<!-- hidden -->\n"
+        "Use `<br/>` in a label, see <https://example.com> or <dev@example.com>.\n"
+        "```mermaid\n"
+        'A["one<br/>two"]\n'
+        "```\n"
+        "Done.\n"
+    )
+    assert raw_html(page) == [(1, "<p>"), (1, "<b>"), (1, "</b>"), (1, "</p>"), (2, "<!--")]
 
 
 def test_structure_is_the_skeleton_in_order() -> None:

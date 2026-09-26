@@ -8,6 +8,8 @@ Fails (exit 1) when:
 - a page's twin does not share its skeleton (heading levels, code fences);
 - a relative link, an anchor, or an absolute link into this repository
   does not resolve (the relative-link reading is `check_docs.links`, shared);
+- a page has raw HTML outside a code fence (`markdown.raw_html`) — the site
+  escapes HTML as text, so it would be published as a broken page;
 - a runnable ```` ```python ```` block fails in the sandbox (`snippets.py`);
 - a `diagnos …` line in the docs names a command or flag that does not
   exist, or `diagnos … --help` disagrees with `cli.json` (`cli_check.py`);
@@ -23,6 +25,8 @@ Falha (sai com 1) quando:
 - o gêmeo de uma página não tem o mesmo esqueleto (níveis de título, blocos);
 - um link relativo, uma âncora, ou um link absoluto para este repositório
   não resolve (a leitura de link relativo é `check_docs.links`, compartilhada);
+- uma página tem HTML cru fora de cerca de código (`markdown.raw_html`) — o
+  site escapa HTML como texto, então seria publicada como página quebrada;
 - um bloco ```` ```python ```` executável falha no sandbox (`snippets.py`);
 - uma linha `diagnos …` da doc nomeia comando ou flag que não existe, ou o
   `diagnos … --help` diverge do `cli.json` (`cli_check.py`);
@@ -39,7 +43,7 @@ from typing import Any
 
 from ..check_docs import is_relative, links
 from . import cli_check, generate, openapi, sdk, site, snippets, urls
-from .markdown import anchors, structure
+from .markdown import anchors, raw_html, structure
 from .output import REPO_ROOT
 
 
@@ -87,6 +91,10 @@ def page_problems(manifest: dict[str, Any], root: Path) -> tuple[list[str], int]
             problems.append(f"{page.translation}:1: skeleton differs from · esqueleto difere de {page.source}")
         for path in (page.source, page.translation):
             problems += link_problems(path, root, repo)
+            for line, tag in raw_html((root / path).read_text(encoding="utf-8")):
+                problems.append(
+                    f"{path}:{line}: raw HTML is not rendered by the site · HTML cru não é renderizado pelo site → {tag}"
+                )
             outcome = snippets.run_file(root / path, root)
             ran += outcome.ran
             problems += outcome.problems

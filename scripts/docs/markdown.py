@@ -1,20 +1,24 @@
-"""🇺🇸 Just enough Markdown for the checks: fenced blocks, headings and GitHub's anchor slugs.
+"""🇺🇸 Just enough Markdown for the checks: fenced blocks, headings, GitHub's anchor slugs and raw HTML.
 
-Not a Markdown parser — the site has a real one. These are the three
-facts the checks need, read the way GitHub reads them (the repository has
-to stay readable there without the site): a fence opens with three or
-more backticks or tildes and closes with the same character, at least as
-long; a heading is `#`… outside a fence; an anchor is GitHub's slug of the
-heading text, with `-1`, `-2`… on repeats.
+Not a Markdown parser — the site has a real one. These are the facts the
+checks need, read the way GitHub reads them (the repository has to stay
+readable there without the site): a fence opens with three or more
+backticks or tildes and closes with the same character, at least as long;
+a heading is `#`… outside a fence; an anchor is GitHub's slug of the
+heading text, with `-1`, `-2`… on repeats; raw HTML is any tag or comment
+outside a fence and outside inline code — the site never renders HTML (it
+escapes it as text), so a page must not contain any.
 
-🇧🇷 Só o Markdown que as checagens precisam: blocos cercados, títulos e os slugs de âncora do GitHub.
+🇧🇷 Só o Markdown que as checagens precisam: blocos cercados, títulos, os slugs de âncora do GitHub e HTML cru.
 
-Não é um parser de Markdown — o site tem um de verdade. São os três fatos
-que as checagens precisam, lidos do jeito que o GitHub os lê (o repositório
+Não é um parser de Markdown — o site tem um de verdade. São os fatos que as
+checagens precisam, lidos do jeito que o GitHub os lê (o repositório
 precisa continuar legível lá sem o site): uma cerca abre com três ou mais
 crases ou tils e fecha com o mesmo caractere, no mínimo do mesmo tamanho;
 um título é `#`… fora de cerca; uma âncora é o slug do GitHub para o texto
-do título, com `-1`, `-2`… nas repetições.
+do título, com `-1`, `-2`… nas repetições; HTML cru é qualquer tag ou
+comentário fora de cerca e fora de código inline — o site nunca renderiza
+HTML (escapa como texto), então uma página não pode ter nenhum.
 """
 
 from __future__ import annotations
@@ -24,8 +28,12 @@ from dataclasses import dataclass
 
 _OPEN = re.compile(r"^(?P<indent> *)(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 _HEADING = re.compile(r"^(?P<marks>#{1,6})\s+(?P<text>.+?)\s*#*\s*$")
-_ANCHOR_ID = re.compile(r"""<a\s+[^>]*(?:id|name)="([^"]+)\"""")
 _LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
+_INLINE_CODE = re.compile(r"`+[^`]*`+")
+# A tag (`<b>`, `</p>`, `<br/>`, `<img …>`) or a comment. An autolink
+# (`<https://…>`, `<user@host>`) has `:`/`@` right after the name, so the
+# name must be followed by whitespace, `/` or `>` to count as a tag.
+_RAW_HTML = re.compile(r"<!--|</?[A-Za-z][A-Za-z0-9-]*(?=[\s/>])[^<>]*>")
 _SLUG_DROP = re.compile(r"[^\w\- ]")
 
 
@@ -105,9 +113,15 @@ def slug(title: str) -> str:
 
 
 def anchors(text: str) -> set[str]:
-    """🇺🇸 Every anchor a link may target in `text`: heading slugs (deduplicated GitHub's way) and HTML ids.
+    """🇺🇸 Every anchor a link may target in `text`: heading slugs, deduplicated GitHub's way.
 
-    🇧🇷 Toda âncora que um link pode mirar em `text`: slugs de título (desduplicados como o GitHub) e ids HTML.
+    Only headings: an `<a id>` would be raw HTML (`raw_html`), which the site
+    escapes — a link to it would pass here and 404 there.
+
+    🇧🇷 Toda âncora que um link pode mirar em `text`: slugs de título, desduplicados como o GitHub.
+
+    Só títulos: um `<a id>` seria HTML cru (`raw_html`), que o site escapa — um
+    link para ele passaria aqui e daria 404 lá.
     """
     seen: dict[str, int] = {}
     found: set[str] = set()
@@ -116,7 +130,26 @@ def anchors(text: str) -> set[str]:
         count = seen.get(base, 0)
         seen[base] = count + 1
         found.add(base if count == 0 else f"{base}-{count}")
-    found.update(match.lower() for match in _ANCHOR_ID.findall(text))
+    return found
+
+
+def raw_html(text: str) -> list[tuple[int, str]]:
+    """🇺🇸 `(line, tag)` of every HTML tag or comment outside fences and inline code — none is allowed.
+
+    Inside a fence it is code (a mermaid label may say `<br/>`); inside
+    backticks it is a code span; anywhere else the site would show it as
+    literal text, so it is a problem here, not on the published page.
+
+    🇧🇷 `(linha, tag)` de toda tag ou comentário HTML fora de cerca e de código inline — nenhum é permitido.
+
+    Dentro de cerca é código (um rótulo mermaid pode dizer `<br/>`); entre
+    crases é um trecho de código; em qualquer outro lugar o site mostraria
+    como texto literal, então o problema é apontado aqui, não na página.
+    """
+    found: list[tuple[int, str]] = []
+    for number, line in outside_fences(text):
+        for match in _RAW_HTML.finditer(_INLINE_CODE.sub("", line)):
+            found.append((number, match[0] if match[0] == "<!--" else match[0].split()[0].rstrip("/>") + ">"))
     return found
 
 
