@@ -28,6 +28,16 @@ def first_page(manifest: dict[str, Any]) -> dict[str, Any]:
     return page
 
 
+def _without_title_or_h1(manifest: dict[str, Any]) -> None:
+    """🇺🇸 The root page pointed at a fixture with no `# H1`, and no `title` to fall back on.
+
+    🇧🇷 A página raiz apontando para uma fixture sem `# H1`, e sem `title` para cair.
+    """
+    page = first_page(manifest)
+    page.pop("title")
+    page["source"] = "scripts/docs/tests/fixtures/no-h1.md"
+
+
 def test_the_committed_manifest_is_valid(manifest: dict[str, Any]) -> None:
     """🇺🇸 No problem at all, and every page is a markdown pair. 🇧🇷 Nenhum problema, e toda página é um par."""
     assert site.check(manifest) == []
@@ -47,7 +57,7 @@ def test_the_committed_manifest_is_valid(manifest: dict[str, Any]) -> None:
         (lambda m: first_page(m).update(source="README.pt-BR.md"), "source must be the English .md"),
         (lambda m: first_page(m).update(desciption={}), "unknown key"),
         (
-            lambda m: (first_page(m).pop("title"), first_page(m).update(source="scripts/docs/tests/fixtures/no-h1.md")),
+            _without_title_or_h1,
             "has no '# H1' and no title",
         ),
         (lambda m: m["redirects"].append({"from": "old", "to": "nowhere"}), "is not a page"),
