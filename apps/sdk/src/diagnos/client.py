@@ -24,14 +24,13 @@ gerar.
 
 from __future__ import annotations
 
-import os
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
+from diagnos import _client_wiring
+from diagnos._client_wiring import _print_enrollment_prompt_fallback, _resolve_settings
 from diagnos.crypto import EntropyMixer
 from diagnos.errors import SessionExpiredError
-from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary
-from diagnos.resources._documents import VersionedDocuments
 from diagnos.resources.drives import Drives
 from diagnos.resources.exams import Exams
 from diagnos.resources.patients import Patients
@@ -44,54 +43,6 @@ from diagnos.transport.token import ServiceAccountToken, redact_api_token
 
 if TYPE_CHECKING:
     from diagnos.session.keyring import Keyring, SessionKeys
-
-
-def _resolve_settings(settings: Settings | None, token: str | None) -> Settings:
-    """🇺🇸 `settings` wins outright; `token` overrides only `DIAGNOS_API_TOKEN` on top of the real environment.
-
-    Routing an explicit `token` through `Settings.from_env` (instead of
-    hand-building a `Settings`) means `vault_url`/`time_precision`/OpenBao config
-    still come from the environment exactly as they would without `token` —
-    a caller passing a token is choosing *which credential* to use, not
-    opting out of every other env var.
-
-    🇧🇷 `settings` vence direto; `token` sobrescreve só `DIAGNOS_API_TOKEN` em cima do ambiente de verdade.
-
-    Rotear um `token` explícito por `Settings.from_env` (em vez de montar um
-    `Settings` à mão) faz `vault_url`/`time_precision`/config do OpenBao continuarem
-    vindo do ambiente exatamente como viriam sem `token` — quem chama
-    passando um token está escolhendo *qual credencial* usar, não saindo de
-    toda outra variável de ambiente.
-    """
-    if settings is not None:
-        return settings
-    if token is not None:
-        return Settings.from_env({**os.environ, "DIAGNOS_API_TOKEN": token})
-    return Settings.from_env()
-
-
-def _print_enrollment_prompt_fallback() -> PromptCallback:
-    """🇺🇸 A deferred-import wrapper around `SessionManager`'s own `default_prompt`.
-
-    Returning the bound reference this way (instead of importing
-    `diagnos.session.manager.default_prompt` at module scope) keeps this
-    module's only hard dependency on `session/manager.py` the one class it
-    actually orchestrates, `SessionManager` itself — its default keyword
-    argument already covers "no `on_prompt` given".
-
-    🇧🇷 O próprio `default_prompt` do `SessionManager` já é um padrão
-    sensato; isto só existe para `Diagnos` nunca precisar importá-lo só para
-    ler o nome.
-
-    Devolver a referência assim (em vez de importar
-    `diagnos.session.manager.default_prompt` no nível do módulo) mantém a
-    única dependência forte deste módulo em `session/manager.py` a classe que
-    ele de fato orquestra, o próprio `SessionManager` — o argumento nomeado
-    padrão dele já cobre "nenhum `on_prompt` foi dado".
-    """
-    from diagnos.session.manager import default_prompt
-
-    return default_prompt
 
 
 class Diagnos:
@@ -145,11 +96,8 @@ class Diagnos:
                 if auto_unseal_enabled
                 else None
             )
-            session_kwargs: dict[str, Any] = {"store": store}
-            if on_prompt is not None:
-                session_kwargs["on_prompt"] = on_prompt
-            else:
-                session_kwargs["on_prompt"] = _print_enrollment_prompt_fallback()
+            resolved_prompt = on_prompt if on_prompt is not None else _print_enrollment_prompt_fallback()
+            session_kwargs: dict[str, Any] = {"store": store, "on_prompt": resolved_prompt}
             self._session = SessionManager(self._settings, self._token, self._transport, **session_kwargs)
 
         self._patients: Patients | None = None
@@ -238,16 +186,13 @@ class Diagnos:
         🇧🇷 `vault.patients` — construído uma vez, no primeiro acesso.
         """
         if self._patients is None:
-            documents = VersionedDocuments(
+            self._patients = _client_wiring._build_patients(
                 self._transport,
                 self._keyring_provider,
                 self._entropy,
                 workspace_id=self.workspace_id,
-                resource="patients",
-                record_model=PatientRecord,
-                summary_model=PatientSummary,
+                time_precision=self._settings.time_precision,
             )
-            self._patients = Patients(documents, time_precision=self._settings.time_precision)
         return self._patients
 
     @property
@@ -257,16 +202,13 @@ class Diagnos:
         🇧🇷 `vault.exams` — construído uma vez, no primeiro acesso.
         """
         if self._exams is None:
-            documents = VersionedDocuments(
+            self._exams = _client_wiring._build_exams(
                 self._transport,
                 self._keyring_provider,
                 self._entropy,
                 workspace_id=self.workspace_id,
-                resource="exams",
-                record_model=ExamRecord,
-                summary_model=ExamSummary,
+                time_precision=self._settings.time_precision,
             )
-            self._exams = Exams(documents, time_precision=self._settings.time_precision)
         return self._exams
 
     @property
