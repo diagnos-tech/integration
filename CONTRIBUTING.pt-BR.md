@@ -122,6 +122,12 @@ correspondente — ele compara o arquivo commitado contra uma rodada completa e 
 geral subir, nunca baixe para um pull request passar. `make cov` imprime o número combinado atual (cobertura de
 ramos, os três pacotes).
 
+Para olhar uma área, mantenha a fonte no nível do pacote e leia as linhas dela: `pytest apps/sdk/tests --cov=diagnos
+--cov-report=term-missing`. Uma fonte pontuada como `--cov=diagnos.crypto` faz o coverage importar o pacote
+`diagnos` para localizá-lo e depois tirá-lo de `sys.modules`; a extensão Rust não pode ser inicializada duas vezes,
+então ela mantém o primeiro `CryptoError` como base do `SecureError` enquanto o `diagnos.errors` é recriado — e todo
+teste de "chave errada precisa levantar `CryptoError`" falha. É a ferramenta de medição, não o enclave.
+
 ## Estilo de commit
 
 Commits seguem [Conventional Commits](https://www.conventionalcommits.org/): um tipo, um escopo opcional e um

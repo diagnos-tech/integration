@@ -119,6 +119,12 @@ the committed file against a fresh, full run instead of rewriting it.
 coverage goes up, never lower it to make a pull request pass. `make cov` prints the current combined number
 (branch coverage, all three packages).
 
+To look at one area, keep the package-level source and read its rows: `pytest apps/sdk/tests --cov=diagnos
+--cov-report=term-missing`. A dotted source such as `--cov=diagnos.crypto` makes coverage import the `diagnos`
+package to locate it and then drop it from `sys.modules`; the Rust extension cannot be initialized twice, so it keeps
+the first `CryptoError` as `SecureError`'s base while `diagnos.errors` is re-created — and every "wrong key must
+raise `CryptoError`" test then fails. That is the measuring tool, not the enclave.
+
 ## Commit style
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/): a type, an optional scope, and an
