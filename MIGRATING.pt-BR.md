@@ -96,7 +96,7 @@ Duas categorias de constante foram deliberadamente **não** renomeadas, porque s
 persistidas, não nomes de produto:
 
 - Os rótulos HKDF/AAD `imgexam-*-v1` (`apps/sdk/src/diagnos/crypto/hkdf.py`, `hybrid.py`, `keys.py`,
-  `apps/sdk/native/src/hybrid.rs`) — por exemplo `imgexam-sdk-hybrid-seal-v1`, `imgexam-patient-dek-v1`,
+  `apps/sdk/native/src/hybrid/`) — por exemplo `imgexam-sdk-hybrid-seal-v1`, `imgexam-patient-dek-v1`,
   `imgexam-drive-node-key-v1`.
 - O id de chave de seal estático do OpenBao `imgexam-static-v1` (`apps/api/deploy/k8s/autounseal/static/seal.hcl`).
 
@@ -123,7 +123,7 @@ falso positivo:
 - [ ] Se você fixa a URL do cofre: confirme que ainda aponta para onde você quer — o padrão mudou, conforme acima.
 - [ ] Se você usa auto-unseal do OpenBao: decida entre as duas opções da seção acima (`OPENBAO_PATH_PREFIX` ou
       fazer o enrollment de novo) **antes** de fazer o deploy da renomeação, não depois.
-- [ ] **Não toque**: toda string `imgexam-*-v1` em `crypto/`, `native/src/hybrid.rs`, `apps/sdk/tests/vectors/`, e
+- [ ] **Não toque**: toda string `imgexam-*-v1` em `crypto/`, `native/src/hybrid/`, `apps/sdk/tests/vectors/`, e
       `imgexam-static-v1` em `apps/api/deploy/k8s/autounseal/static/seal.hcl`.
 
 ## Um comando de exemplo para adaptar

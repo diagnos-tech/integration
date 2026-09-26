@@ -95,7 +95,7 @@ Two categories of constant were deliberately **not** renamed, because they are p
 constants rather than product names:
 
 - The `imgexam-*-v1` HKDF/AAD labels (`apps/sdk/src/diagnos/crypto/hkdf.py`, `hybrid.py`, `keys.py`,
-  `apps/sdk/native/src/hybrid.rs`) — for example `imgexam-sdk-hybrid-seal-v1`, `imgexam-patient-dek-v1`,
+  `apps/sdk/native/src/hybrid/`) — for example `imgexam-sdk-hybrid-seal-v1`, `imgexam-patient-dek-v1`,
   `imgexam-drive-node-key-v1`.
 - The OpenBao static seal key id `imgexam-static-v1` (`apps/api/deploy/k8s/autounseal/static/seal.hcl`).
 
@@ -121,7 +121,7 @@ a false match:
 - [ ] If you pin the vault URL: confirm it still points where you intend — the default changed, per above.
 - [ ] If you use OpenBao auto-unseal: decide between the two options in the section above (`OPENBAO_PATH_PREFIX` or
       re-enroll) **before** deploying the rename, not after.
-- [ ] **Leave untouched**: every `imgexam-*-v1` string in `crypto/`, `native/src/hybrid.rs`, `apps/sdk/tests/vectors/`,
+- [ ] **Leave untouched**: every `imgexam-*-v1` string in `crypto/`, `native/src/hybrid/`, `apps/sdk/tests/vectors/`,
       and `imgexam-static-v1` in `apps/api/deploy/k8s/autounseal/static/seal.hcl`.
 
 ## A one-liner to adapt
