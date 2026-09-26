@@ -186,14 +186,6 @@ def test_no_color_strips_the_color_codes_readme_promises(
     assert "32m" not in plain.output
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "BUG: --no-color only strips rich's *color* SGR codes; a message styled with a bare "
-        "[bold]/[dim] (no color) still emits an ANSI escape (e.g. '\\x1b[1m'), so --no-color does not "
-        "make output byte-for-byte ANSI-free as its README wording ('no ANSI escapes') implies."
-    ),
-)
 def test_no_color_removes_every_ansi_escape_sequence(
     runner: CliRunner, patched_build_client: FakeDiagnos, monkeypatch: pytest.MonkeyPatch
 ) -> None:
