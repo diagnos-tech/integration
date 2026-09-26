@@ -68,6 +68,10 @@ def test_a_reservation_answering_no_file_node_is_a_protocol_error(harness: Harne
     drive = _drive(harness)
 
     def fake_stage(body: dict[str, Any]) -> list[StagedNode]:
+        """🇺🇸 Answers a file upload's reservation with a folder node, which never happens for real.
+
+        🇧🇷 Responde a reserva de um upload de arquivo com um nó de pasta, o que nunca acontece de verdade.
+        """
         (entry,) = body["files"]
         return [_staged_stub(entry["client_ref"], kind="folder")]
 
@@ -98,6 +102,10 @@ def test_a_reservation_claiming_an_unknown_upload_mode_is_a_protocol_error(harne
     drive = _drive(harness)
 
     def fake_stage(body: dict[str, Any]) -> list[StagedNode]:
+        """🇺🇸 Answers with a file node whose `mode` is `None` — a shape a real reservation never sends.
+
+        🇧🇷 Responde com um nó de arquivo cujo `mode` é `None` — uma forma que uma reserva de verdade nunca manda.
+        """
         (entry,) = body["files"]
         return [_staged_stub(entry["client_ref"], mode=None)]
 
@@ -115,6 +123,10 @@ def test_a_single_mode_node_with_no_upload_url_is_a_protocol_error(harness: Harn
     drive = _drive(harness)
 
     def fake_stage(body: dict[str, Any]) -> list[StagedNode]:
+        """🇺🇸 Answers `mode="single"` with no `upload` at all — a shape a real reservation never sends.
+
+        🇧🇷 Responde `mode="single"` sem `upload` nenhum — uma forma que uma reserva de verdade nunca manda.
+        """
         (entry,) = body["files"]
         return [_staged_stub(entry["client_ref"], mode="single", upload=None)]
 
@@ -146,6 +158,10 @@ def test_a_failing_abort_never_hides_the_original_multipart_failure(
     real = harness.vault.handle_storage
 
     def fail_second_part(request: httpx.Request) -> httpx.Response:
+        """🇺🇸 Fails only the second part's `PUT`, so the multipart upload must abort mid-flight.
+
+        🇧🇷 Falha só o `PUT` da segunda parte, então o upload multipart precisa abortar em pleno voo.
+        """
         return httpx.Response(500) if str(request.url).endswith("/2") else real(request)
 
     harness.transport._storage_client = httpx.Client(  # noqa: SLF001
@@ -157,6 +173,10 @@ def test_a_failing_abort_never_hides_the_original_multipart_failure(
     def post_and_break_abort(
         path: str, *, json: Any | None = None, query: Any | None = None, signed: bool = True
     ) -> Any:
+        """🇺🇸 Passes every `POST` through except the abort route, which raises instead.
+
+        🇧🇷 Repassa todo `POST` menos a rota de abort, que lança em vez disso.
+        """
         if path.endswith("/multipart/abort"):
             raise RuntimeError("the abort route is down too")
         return real_post(path, json=json, query=query, signed=signed)

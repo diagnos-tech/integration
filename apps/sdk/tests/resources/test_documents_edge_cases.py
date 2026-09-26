@@ -138,6 +138,10 @@ def test_read_falls_back_to_the_committed_version_when_the_draft_vanishes_mid_re
     calls = {"n": 0}
 
     def get_then_vanish(path: str, *, query: dict[str, object] | None = None, signed: bool = True) -> object:
+        """🇺🇸 Answers once as usual, then lets the draft disappear from under the second call.
+
+        🇧🇷 Responde uma vez normalmente, depois deixa o rascunho sumir antes da segunda chamada.
+        """
         result = real_get(path, query=query, signed=signed)
         calls["n"] += 1
         if calls["n"] == 1:

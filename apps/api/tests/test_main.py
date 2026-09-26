@@ -120,6 +120,10 @@ def test_run_serves_https_with_mandatory_client_certificates(monkeypatch: pytest
     recorded: dict[str, Any] = {}
 
     def fake_run(app: object, **kwargs: Any) -> None:
+        """🇺🇸 Records the app and keyword arguments `main.run` would hand to `uvicorn.run`, instead of serving.
+
+        🇧🇷 Registra o app e os argumentos nomeados que `main.run` passaria a `uvicorn.run`, em vez de servir.
+        """
         recorded["app"] = app
         recorded.update(kwargs)
 
