@@ -15,7 +15,8 @@ vai para `stderr`.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import os
+from typing import TYPE_CHECKING, Literal
 
 from rich.console import Console
 
@@ -28,7 +29,7 @@ def get_console(opts: CliOptions) -> Console:
 
     🇧🇷 O console de `stdout` para resultados (tabelas, painéis, JSON) — respeita `--no-color`.
     """
-    return Console(no_color=opts.no_color, highlight=False)
+    return Console(color_system=_color_system(opts), highlight=False)
 
 
 def get_err_console(opts: CliOptions) -> Console:
@@ -36,4 +37,18 @@ def get_err_console(opts: CliOptions) -> Console:
 
     🇧🇷 O console de `stderr` para progresso e diagnóstico — nunca misturado à saída de `--json`.
     """
-    return Console(no_color=opts.no_color, stderr=True, highlight=False)
+    return Console(color_system=_color_system(opts), stderr=True, highlight=False)
+
+
+def _color_system(opts: CliOptions) -> Literal["auto"] | None:
+    """🇺🇸 `None` — no ANSI escapes at all, bold included — for `--no-color` or `NO_COLOR`; else auto-detect.
+
+    `rich`'s own `no_color` drops colors but keeps bold and dim, which still
+    litters logs and `grep` output with escape codes.
+
+    🇧🇷 `None` — nenhum escape ANSI, nem negrito — para `--no-color` ou `NO_COLOR`; senão detecção automática.
+
+    O `no_color` do próprio `rich` tira as cores mas mantém negrito e
+    esmaecido, o que ainda suja logs e saída de `grep` com códigos de escape.
+    """
+    return None if opts.no_color or os.environ.get("NO_COLOR") is not None else "auto"
