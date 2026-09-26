@@ -37,6 +37,7 @@ lint-py:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts
+	uv run python scripts/check_file_size.py
 
 lint-rust:
 	cargo fmt --manifest-path $(NATIVE) --check

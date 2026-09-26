@@ -64,7 +64,8 @@ substitui.
   consecutivas. Comentário explica o **porquê** (a ameaça, o custo, a restrição do protocolo), nunca repete o
   código. Comentários de doc em Rust (`//!` de módulo, `///` de item) seguem a mesma regra à risca.
   `scripts/check_bilingual.py` (parte do `make lint`) derruba o build quando uma docstring ou comentário de doc está
-  sem uma das bandeiras.
+  sem uma das bandeiras — em todo o `src/`, e nos testes para o módulo e todo teste, fixture, ajudante e classe de
+  nível de cima.
 
   ```python
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
@@ -82,7 +83,9 @@ substitui.
   ```
 
 - **Arquivos pequenos, uma responsabilidade.** Uma pasta por domínio (`crypto/`, `session/`, `resources/`,
-  `transport/`). Nenhum arquivo acima de ~250 linhas.
+  `transport/`); um módulo que passa de uma responsabilidade vira pacote (`models/`, `resources/_documents/`). Mire em
+  ~250 linhas. `scripts/check_file_size.py` (parte do `make lint`) derruba o build acima de 300 linhas em fonte e 500
+  em teste (o módulo `#[cfg(test)]` embutido num arquivo Rust não conta).
 - **`cli` e `api` importam só `diagnos`.** Se precisam de algo que o SDK não expõe, o SDK cresce — as cascas nunca
   reimplementam criptografia, assinatura ou lógica de retentativa.
 - **Decisão pendente é `TODO(gustavo): ...`.** Sem `FIXME`, sem `HACK`.

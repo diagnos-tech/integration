@@ -171,16 +171,16 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
         `summary` maps the current summary (or `None`) to the new one, so a
         resource can carry forward what is not part of the record (a
         patient's `tags`). `expected_latest_version_id` makes the vault
-        refuse the write (`409 DocumentVersionMismatch`) if someone else
-        committed a version since you read it.
+        refuse the write — a `ConflictError` with `code` `"DocumentVersionMismatch"` —
+        if someone else committed a version since you read it.
 
         🇧🇷 Uma versão nova e completa de `record`, selada sob a DEK existente do documento.
 
         `summary` transforma o resumo atual (ou `None`) no novo, para um
         recurso carregar adiante o que não é parte do registro (as `tags` de
         um paciente). `expected_latest_version_id` faz o cofre recusar a
-        gravação (`409 DocumentVersionMismatch`) se outra pessoa confirmou
-        uma versão depois da sua leitura.
+        gravação — um `ConflictError` com `code` `"DocumentVersionMismatch"` —
+        se outra pessoa confirmou uma versão depois da sua leitura.
         """
         index = self.get_index(document_id)
         dek = self._document_dek(index)
