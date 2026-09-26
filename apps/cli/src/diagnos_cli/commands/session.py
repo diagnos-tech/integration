@@ -10,6 +10,7 @@ import typer
 
 from diagnos_cli import context
 from diagnos_cli.context import CliOptions
+from diagnos_cli.examples import examples
 from diagnos_cli.render import get_console
 
 app = typer.Typer(help="Session lifecycle · Ciclo de vida da sessão")
@@ -18,6 +19,13 @@ app = typer.Typer(help="Session lifecycle · Ciclo de vida da sessão")
 @app.command(
     "lock",
     help="End the session on the vault and wipe local keys · Encerra a sessão no cofre e apaga as chaves locais",
+    epilog=examples(
+        (
+            "diagnos session lock",
+            "End the session, wipe local keys and the OpenBao copy"
+            " · Encerra a sessão, apaga as chaves locais e a cópia no OpenBao",
+        )
+    ),
 )
 def lock(ctx: typer.Context) -> None:
     """🇺🇸 Calls `vault.lock()` on a freshly built client.

@@ -6,7 +6,7 @@ would enroll on its own the moment it touched `vault.patients`/`exams`/
 approval happen — workspace, service account and granted groups — without
 also running a real query. Without OpenBao configured, this session dies
 with the process; the next invocation enrolls again, by design (see
-`README.md`'s "OpenBao for servers" section).
+`docs/guides/cli.md`'s "Not approving every command" section).
 
 🇧🇷 `diagnos login` — faz enrollment de propósito, para validar um token e
 mostrar o que foi concedido.
@@ -17,8 +17,8 @@ já faria enrollment sozinho no primeiro toque em
 uma pessoa quer *ver* a aprovação acontecer — workspace, service account e
 grupos concedidos — sem também rodar uma consulta de verdade. Sem OpenBao
 configurado, esta sessão morre com o processo; a próxima invocação faz
-enrollment de novo, de propósito (ver a seção "OpenBao para servidores" do
-`README.md`).
+enrollment de novo, de propósito (ver a seção "Sem aprovar todo comando" de
+`docs/guides/cli.pt-BR.md`).
 """
 
 from __future__ import annotations
@@ -36,8 +36,8 @@ def login(
         None,
         "--auto-unseal/--no-auto-unseal",
         help=(
-            "Save/restore the session via OpenBao · Salva/restaura a sessão via OpenBao "
-            "(default · padrão: on iff OPENBAO_ADDR is set · ligado se OPENBAO_ADDR estiver definida)"
+            "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set) · "
+            "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
         ),
     ),
 ) -> None:

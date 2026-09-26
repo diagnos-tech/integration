@@ -11,6 +11,7 @@ import typer
 
 from diagnos_cli import context
 from diagnos_cli.context import CliOptions
+from diagnos_cli.examples import examples
 from diagnos_cli.inputs import load_record
 from diagnos_cli.render import get_console, get_err_console, render_document_index, render_index_table, render_patient
 
@@ -19,13 +20,26 @@ app = typer.Typer(help="Patients · Pacientes")
 _SUMMARY_HELP = (
     "Also decrypt each row's sealed summary (name, tags) · Também decifra o resumo selado de cada linha (nome, tags)"
 )
+_ID_HELP = "Patient document id · Id do documento de paciente"
 _EXPECT_HELP = (
     "Refuse if a version newer than this one was saved meanwhile · Recusa se uma versão mais nova que esta foi salva"
 )
 
 
 @app.command(
-    "list", help="List patients (one page, or all with --all) · Lista pacientes (uma página, ou todas com --all)"
+    "list",
+    help="List patients (one page, or all with --all) · Lista pacientes (uma página, ou todas com --all)",
+    epilog=examples(
+        (
+            "diagnos patients list --group sg_oncology --summary",
+            "One page of a group, names decrypted · Uma página de um grupo, nomes decifrados",
+        ),
+        ("diagnos --json patients list --all", "Every page, as JSON · Todas as páginas, em JSON"),
+        (
+            "diagnos patients list --limit 20 --cursor CURSOR",
+            "The page after the cursor the last one printed · A página depois do cursor impresso na anterior",
+        ),
+    ),
 )
 def list_patients(
     ctx: typer.Context,
@@ -56,10 +70,27 @@ def list_patients(
     render_index_table(console, items, json_output=opts.json_output, next_cursor=next_cursor, show_summary=summary)
 
 
-@app.command("get", help="Fetch and decrypt one patient · Busca e decifra um paciente")
+@app.command(
+    "get",
+    help="Fetch and decrypt one patient · Busca e decifra um paciente",
+    epilog=examples(
+        (
+            "diagnos patients get PATIENT_ID",
+            "The newest content (a newer draft wins) · O conteúdo mais novo (um rascunho mais novo vence)",
+        ),
+        (
+            "diagnos patients get PATIENT_ID --committed",
+            "Saved versions only, never the draft · Só versões salvas, nunca o rascunho",
+        ),
+        (
+            "diagnos --json patients get PATIENT_ID --version VERSION_ID",
+            "One specific version, as JSON · Uma versão específica, em JSON",
+        ),
+    ),
+)
 def get_patient(
     ctx: typer.Context,
-    patient_id: str = typer.Argument(..., help="Patient document id · Id do documento de paciente"),
+    patient_id: str = typer.Argument(..., help=_ID_HELP),
     version: str | None = typer.Option(None, "--version", help="A specific version id · Um id de versão específico"),
     committed: bool = typer.Option(
         False, "--committed", help="Ignore a newer unsaved draft · Ignora um rascunho mais novo não salvo"
@@ -84,13 +115,29 @@ def get_patient(
     render_patient(console, patient, json_output=opts.json_output)
 
 
-@app.command("create", help="Encrypt and create a patient · Cifra e cria um paciente")
+@app.command(
+    "create",
+    help="Encrypt and create a patient · Cifra e cria um paciente",
+    epilog=examples(
+        (
+            'diagnos patients create --group sg_oncology --legal-name "Jane Doe" --display-name Jane'
+            " --birth-date 1990-01-31 --tag diabetes",
+            "Inline fields and one sealed tag · Campos inline e uma tag selada",
+        ),
+        (
+            "diagnos patients create --group sg_oncology --file patient.json",
+            "A complete record from a JSON file · Um registro completo de um arquivo JSON",
+        ),
+    ),
+)
 def create_patient(
     ctx: typer.Context,
     group: str = typer.Option(..., "--group", "-g", help="Security group to encrypt under · Grupo sob o qual cifrar"),
     file: Path | None = typer.Option(None, "--file", help="Record JSON file · Arquivo JSON do registro"),
-    legal_name: str | None = typer.Option(None, "--legal-name"),
-    display_name: str | None = typer.Option(None, "--display-name"),
+    legal_name: str | None = typer.Option(None, "--legal-name", help="Full legal name · Nome civil completo"),
+    display_name: str | None = typer.Option(
+        None, "--display-name", help="Name shown in lists · Nome exibido nas listas"
+    ),
     birth_date: str | None = typer.Option(None, "--birth-date", help="ISO date, e.g. 1990-01-31 · Data ISO"),
     external_id: str | None = typer.Option(None, "--external-id", help="Id in another system · Id em outro sistema"),
     tags: list[str] | None = typer.Option(
@@ -125,10 +172,24 @@ def create_patient(
     render_patient(console, patient, json_output=opts.json_output)
 
 
-@app.command("update", help="Write a new version of a patient · Grava uma versão nova de um paciente")
+@app.command(
+    "update",
+    help="Write a new version of a patient · Grava uma versão nova de um paciente",
+    epilog=examples(
+        (
+            "diagnos patients update PATIENT_ID --file patient.json --expect-version VERSION_ID",
+            "A complete new version, refused if someone saved since"
+            " · Uma versão completa nova, recusada se alguém salvou depois",
+        ),
+        (
+            "diagnos patients update PATIENT_ID --file patient.json --tag diabetes --tag follow-up",
+            "Also replace the tags · Também substitui as tags",
+        ),
+    ),
+)
 def update_patient(
     ctx: typer.Context,
-    patient_id: str = typer.Argument(...),
+    patient_id: str = typer.Argument(..., help=_ID_HELP),
     file: Path = typer.Option(..., "--file", help="New record JSON file · Arquivo JSON do registro novo"),
     tags: list[str] | None = typer.Option(
         None, "--tag", help="Replace the tags, repeatable (default: keep) · Substitui as tags (padrão: mantém)"
@@ -149,8 +210,17 @@ def update_patient(
     render_patient(console, patient, json_output=opts.json_output)
 
 
-@app.command("archive", help="Archive a patient · Arquiva um paciente")
-def archive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -> None:
+@app.command(
+    "archive",
+    help="Archive a patient · Arquiva um paciente",
+    epilog=examples(
+        (
+            "diagnos patients archive PATIENT_ID",
+            "Set the archived flag; no new version · Liga a flag de arquivado; sem versão nova",
+        )
+    ),
+)
+def archive_patient(ctx: typer.Context, patient_id: str = typer.Argument(..., help=_ID_HELP)) -> None:
     """🇺🇸 Marks the patient archived (a flag, no new version).
 
     🇧🇷 Marca o paciente arquivado (uma flag, sem versão nova).
@@ -164,8 +234,12 @@ def archive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("unarchive", help="Unarchive a patient · Desarquiva um paciente")
-def unarchive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -> None:
+@app.command(
+    "unarchive",
+    help="Unarchive a patient · Desarquiva um paciente",
+    epilog=examples(("diagnos patients unarchive PATIENT_ID", "Clear the archived flag · Tira a flag de arquivado")),
+)
+def unarchive_patient(ctx: typer.Context, patient_id: str = typer.Argument(..., help=_ID_HELP)) -> None:
     """🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado."""
     opts: CliOptions = ctx.obj
     console = get_console(opts)
@@ -176,10 +250,20 @@ def unarchive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...))
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("delete", help="Move a patient to the trash · Manda um paciente para a lixeira")
+@app.command(
+    "delete",
+    help="Move a patient to the trash · Manda um paciente para a lixeira",
+    epilog=examples(
+        (
+            "diagnos patients delete PATIENT_ID",
+            "Asks before moving it to the trash · Pergunta antes de mandar para a lixeira",
+        ),
+        ("diagnos patients delete PATIENT_ID --yes", "No prompt, for scripts · Sem pergunta, para scripts"),
+    ),
+)
 def delete_patient(
     ctx: typer.Context,
-    patient_id: str = typer.Argument(...),
+    patient_id: str = typer.Argument(..., help=_ID_HELP),
     yes: bool = typer.Option(False, "--yes", help="Skip the confirmation prompt · Pula a confirmação"),
 ) -> None:
     """🇺🇸 Flags the patient deleted — never a hard delete; `restore` undoes it.
@@ -201,8 +285,17 @@ def delete_patient(
     render_document_index(console, index, json_output=opts.json_output)
 
 
-@app.command("restore", help="Take a patient out of the trash · Tira um paciente da lixeira")
-def restore_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -> None:
+@app.command(
+    "restore",
+    help="Take a patient out of the trash · Tira um paciente da lixeira",
+    epilog=examples(
+        (
+            "diagnos patients restore PATIENT_ID",
+            "Back out of the trash, history intact · De volta da lixeira, histórico intacto",
+        )
+    ),
+)
+def restore_patient(ctx: typer.Context, patient_id: str = typer.Argument(..., help=_ID_HELP)) -> None:
     """🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado."""
     opts: CliOptions = ctx.obj
     console = get_console(opts)

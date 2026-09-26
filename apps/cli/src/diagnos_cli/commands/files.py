@@ -26,6 +26,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeEl
 
 from diagnos_cli import context
 from diagnos_cli.context import CliOptions
+from diagnos_cli.examples import examples
 from diagnos_cli.render import get_console, get_err_console, print_json, render_drive_node, render_drive_node_table
 from diagnos_cli.render._shared import plain
 
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 app = typer.Typer(help="Files and folders · Arquivos e pastas")
 
 _FOLDER_HELP = "Folder node id · Id do nó da pasta"
+_NODE_HELP = "File node id · Id do nó do arquivo"
 
 
 def safe_file_name(name: str | None, fallback: str) -> str:
@@ -57,6 +59,16 @@ def safe_file_name(name: str | None, fallback: str) -> str:
 @app.command(
     "list",
     help="List files and folders (one page, or all with --all) · Lista arquivos e pastas (uma página, ou --all)",
+    epilog=examples(
+        (
+            "diagnos files list --group sg_oncology --folder FOLDER_ID",
+            "One folder, names decrypted · Uma pasta, nomes decifrados",
+        ),
+        (
+            "diagnos --json files list --exam EXAM_ID --all",
+            "Every file linked to an exam, as JSON · Todo arquivo ligado a um exame, em JSON",
+        ),
+    ),
 )
 def list_files(
     ctx: typer.Context,
@@ -119,7 +131,20 @@ def _upload_with_progress(
     return nodes
 
 
-@app.command("upload", help="Encrypt and upload files · Cifra e envia arquivos")
+@app.command(
+    "upload",
+    help="Encrypt and upload files · Cifra e envia arquivos",
+    epilog=examples(
+        (
+            "diagnos files upload --group sg_oncology --exam EXAM_ID scans/IM-0001.dcm scans/IM-0002.dcm",
+            "Encrypt a series and link it to an exam · Cifra uma série e liga a um exame",
+        ),
+        (
+            "diagnos files upload --group sg_oncology --folder FOLDER_ID report.pdf",
+            "Into a folder · Dentro de uma pasta",
+        ),
+    ),
+)
 def upload_files(
     ctx: typer.Context,
     paths: list[Path] = typer.Argument(..., help="Files to upload · Arquivos para subir"),
@@ -144,7 +169,20 @@ def upload_files(
     render_drive_node_table(console, drive, nodes, json_output=opts.json_output)
 
 
-@app.command("mkdir", help="Create a folder · Cria uma pasta")
+@app.command(
+    "mkdir",
+    help="Create a folder · Cria uma pasta",
+    epilog=examples(
+        (
+            'diagnos files mkdir "CT 2026-09-01" --group sg_oncology',
+            "Prints the new folder's node id · Imprime o id do nó da pasta nova",
+        ),
+        (
+            "diagnos --json files mkdir Series --group sg_oncology --parent FOLDER_ID",
+            "A subfolder, id as JSON · Uma subpasta, id em JSON",
+        ),
+    ),
+)
 def make_folder(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Folder name (sealed) · Nome da pasta (selado)"),
@@ -167,10 +205,20 @@ def make_folder(
         console.print(folder_id, markup=False)
 
 
-@app.command("download", help="Download and decrypt one file · Baixa e decifra um arquivo")
+@app.command(
+    "download",
+    help="Download and decrypt one file · Baixa e decifra um arquivo",
+    epilog=examples(
+        (
+            "diagnos files download NODE_ID",
+            "Saved under its decrypted name, in this folder · Salvo com o nome decifrado, nesta pasta",
+        ),
+        ("diagnos files download NODE_ID -o scan.dcm", "Saved where you say · Salvo onde você mandar"),
+    ),
+)
 def download_file(
     ctx: typer.Context,
-    node_id: str = typer.Argument(...),
+    node_id: str = typer.Argument(..., help=_NODE_HELP),
     output: Path | None = typer.Option(
         None,
         "--output",
@@ -205,8 +253,17 @@ def download_file(
         console.print(f"[green]Saved · Salvo:[/green] {plain(output)}", highlight=False)
 
 
-@app.command("get", help="Show one file's metadata and name · Mostra metadados e nome de um arquivo")
-def get_file(ctx: typer.Context, node_id: str = typer.Argument(...)) -> None:
+@app.command(
+    "get",
+    help="Show one file's metadata and name · Mostra metadados e nome de um arquivo",
+    epilog=examples(
+        (
+            "diagnos files get NODE_ID",
+            "Metadata and the decrypted name, never the content · Metadados e o nome decifrado, nunca o conteúdo",
+        )
+    ),
+)
+def get_file(ctx: typer.Context, node_id: str = typer.Argument(..., help=_NODE_HELP)) -> None:
     """🇺🇸 One file's metadata plus its decrypted name — never its content (use `download` for that).
 
     🇧🇷 O metadado de um arquivo mais o nome decifrado — nunca o conteúdo (use `download` para isso).

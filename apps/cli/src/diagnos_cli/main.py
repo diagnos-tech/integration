@@ -34,23 +34,55 @@ from rich.console import Console
 from diagnos_cli import __version__
 from diagnos_cli.commands import exams, files, groups, login, patients, session, status
 from diagnos_cli.context import CliOptions
+from diagnos_cli.examples import examples
 from diagnos_cli.exit_codes import classify
 
 typer_app = typer.Typer(
     name="diagnos",
-    help="The diagnos vault, from your terminal · O cofre diagnos, do seu terminal.",
+    help="The diagnos vault, from your terminal · O cofre diagnos, do seu terminal",
     no_args_is_help=True,
     add_completion=False,
+    epilog=examples(
+        (
+            "diagnos login",
+            "Enroll this process and show the granted groups · Faz enrollment e mostra os grupos concedidos",
+        ),
+        (
+            "diagnos --json patients list --all",
+            "Every patient, as JSON for scripts · Todos os pacientes, em JSON para scripts",
+        ),
+        ("diagnos --quiet files download NODE_ID", "No spinner, for cron jobs · Sem spinner, para cron"),
+    ),
 )
 typer_app.add_typer(patients.app, name="patients")
 typer_app.add_typer(exams.app, name="exams")
 typer_app.add_typer(files.app, name="files")
 typer_app.add_typer(session.app, name="session")
-typer_app.command("login", help="Enroll and show what was granted · Faz enrollment e mostra o que foi concedido")(
-    login.login
-)
-typer_app.command("status", help="Token, OpenBao and SDK version · Token, OpenBao e versão do SDK")(status.status)
-typer_app.command("groups", help="Granted security groups · Security groups concedidos")(groups.groups)
+typer_app.command(
+    "login",
+    help="Enroll and show what was granted · Faz enrollment e mostra o que foi concedido",
+    epilog=examples(
+        ("diagnos login", "Prints a link and a code, waits for approval · Imprime link e código, espera a aprovação"),
+        ("diagnos login --no-auto-unseal", "Do not save the session to OpenBao · Não salva a sessão no OpenBao"),
+        ("diagnos --json login", "What was granted, as JSON · O que foi concedido, em JSON"),
+    ),
+)(login.login)
+typer_app.command(
+    "status",
+    help="Token, OpenBao and SDK version · Token, OpenBao e versão do SDK",
+    epilog=examples(
+        ("diagnos status", "Parses the token locally; no network · Lê o token localmente; sem rede"),
+        ("diagnos status --check", "Also unlock and list the granted groups · Também desbloqueia e lista os grupos"),
+    ),
+)(status.status)
+typer_app.command(
+    "groups",
+    help="Granted security groups · Security groups concedidos",
+    epilog=examples(
+        ("diagnos groups", "One security group id per line · Um id de security group por linha"),
+        ("diagnos --json groups", "The same list, as JSON · A mesma lista, em JSON"),
+    ),
+)(groups.groups)
 
 
 def _version_callback(value: bool) -> None:
@@ -68,7 +100,9 @@ def main(
     ctx: typer.Context,
     json_output: bool = typer.Option(False, "--json", help="Machine output · Saída para máquina"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="No spinners/progress · Sem spinners/progresso"),
-    vault_url: str | None = typer.Option(None, "--vault-url", help="Overrides DIAGNOS_VAULT_URL"),
+    vault_url: str | None = typer.Option(
+        None, "--vault-url", help="Overrides DIAGNOS_VAULT_URL · Sobrescreve DIAGNOS_VAULT_URL"
+    ),
     token: str | None = typer.Option(
         None,
         "--token",
