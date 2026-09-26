@@ -6,10 +6,19 @@
 from __future__ import annotations
 
 import builtins
+import uuid
 from collections.abc import Iterable
 from typing import Any
 
-from diagnos.crypto import SecretBox, encrypted_size
+from diagnos.crypto import (
+    NODE_DEK_INFO,
+    NODE_NAME_INFO,
+    SecretBox,
+    encrypt_content,
+    encrypted_size,
+    generate_dek,
+    wrap_key,
+)
 from diagnos.errors import ProtocolError
 from diagnos.models import DriveNode, StagedNode
 
@@ -20,18 +29,20 @@ from ._transfer import _Transfer
 
 
 class _Writing(_Transfer):
-    """🇺🇸 The write routes of `_Nodes`: folders and batched uploads.
+    """🇺🇸 The write routes of `_Nodes`: folders and batched uploads. 🇧🇷 As rotas de escrita: pastas e lotes."""
 
-    `_seal_node` (used below by `create_folder`/`_prepare`) is declared on
-    `_NodesBase` and implemented on `_Nodes` itself, not here — see
-    `_base.py` for why.
+    def _seal_node(self, group_key: SecretBox, security_group: str, name: str) -> tuple[SecretBox, dict[str, Any]]:
+        """🇺🇸 A fresh node DEK plus the sealed name and wrapped key every stage entry carries.
 
-    🇧🇷 As rotas de escrita de `_Nodes`: pastas e uploads em lote.
-
-    `_seal_node` (usado abaixo por `create_folder`/`_prepare`) é declarado
-    em `_NodesBase` e implementado no próprio `_Nodes`, não aqui — veja
-    `_base.py` para o porquê.
-    """
+        🇧🇷 Uma DEK de nó nova mais o nome selado e a chave embrulhada que toda entrada de reserva leva.
+        """
+        dek = generate_dek(self._entropy)
+        entry = {
+            "client_ref": uuid.uuid4().hex,
+            "encrypted_name": encrypt_content(dek, name.encode("utf-8"), NODE_NAME_INFO).to_dict(),
+            "encrypted_keys": {security_group: wrap_key(group_key, dek, NODE_DEK_INFO).to_dict()},
+        }
+        return dek, entry
 
     def _stage(self, body: dict[str, Any]) -> builtins.list[StagedNode]:
         """🇺🇸 `POST /nodes/uploads` — one reservation for the whole batch (idempotent per `client_ref`).

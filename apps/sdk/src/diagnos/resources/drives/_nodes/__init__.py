@@ -24,13 +24,7 @@ helpers; `_base.py` is shared construction plus the one read both directions
 need; `_reading.py` is list/get/name/download; `_transfer.py` is the raw
 single-`PUT`/multipart byte-moving; `_writing.py` is batching, staging and
 folders, built on `_transfer.py`. `_Nodes` below stitches `_Reading` and
-`_Writing` together, and implements `_seal_node` itself: a contract test
-replaces this module's own `generate_dek`/`uuid` with a fixed double
-(`monkeypatch.setattr(nodes_module, "generate_dek", ...)`), which only
-`_seal_node` looking those up as *this* module's globals honours. Every name
-importable from `diagnos.resources.drives._nodes` before this split —
-including what tests assign onto `._stage`, or patch as `generate_dek`/
-`uuid` — is re-exported/preserved here unchanged.
+`_Writing` together.
 
 🇧🇷 `_Nodes`: o único motor por trás de `vault.drives` — todo byte do protocolo `/nodes` (`docs/PROTOCOL.md §9`).
 
@@ -58,22 +52,10 @@ ajudantes de dado/algoritmo puros; `_base.py` é a construção compartilhada
 mais a leitura de que as duas direções precisam; `_reading.py` é
 listar/buscar/nomear/baixar; `_transfer.py` é o `PUT` único/multipart cru de
 mover bytes; `_writing.py` é lote, reserva e pastas, construído sobre
-`_transfer.py`. `_Nodes` abaixo costura `_Reading` e `_Writing` juntas, e
-implementa `_seal_node` ela mesma: um teste de contrato substitui o
-`generate_dek`/`uuid` deste próprio módulo por um duplo fixo
-(`monkeypatch.setattr(nodes_module, "generate_dek", ...)`), o que só
-`_seal_node` buscando-os como globais *deste* módulo respeita. Todo nome
-importável de `diagnos.resources.drives._nodes` antes desta divisão —
-inclusive o que testes atribuem em `._stage`, ou substituem como
-`generate_dek`/`uuid` — é reexportado/preservado aqui sem mudanças.
+`_transfer.py`. `_Nodes` abaixo costura `_Reading` e `_Writing` juntas.
 """
 
 from __future__ import annotations
-
-import uuid
-from typing import Any
-
-from diagnos.crypto import NODE_DEK_INFO, NODE_NAME_INFO, SecretBox, encrypt_content, generate_dek, wrap_key
 
 from ._reading import _Reading
 from ._support import DEFAULT_PAGE_SIZE, UploadInput
@@ -85,37 +67,11 @@ __all__ = ["DEFAULT_PAGE_SIZE", "UploadInput", "_Nodes"]
 class _Nodes(_Reading, _Writing):
     """🇺🇸 The `/nodes` routes of one workspace: list, read, name, download, upload, folders.
 
-    Assembled from `_Reading` and `_Writing` (both built on `_NodesBase` for
-    construction); `_seal_node` is the one method defined here rather than
-    inherited — see `_base.py`'s declaration of it for why (a contract test
-    monkeypatches this module's own `generate_dek`/`uuid`). Everything else
-    exists so the two halves have one name and one instance, exactly as
-    `_Nodes` did before this split (`Drive`/`Drives` in `_drive.py` still
-    hold one `_Nodes` each, and a test replacing `._stage` on that one
-    instance still reaches the method `_upload_batch` calls).
+    One instance per `Drive`/`Drives` (`_drive.py`), so both halves share a
+    transport, a keyring and the vault's `security_context` handling.
 
     🇧🇷 As rotas `/nodes` de um workspace: listar, ler, nomear, baixar, subir, pastas.
 
-    Montada a partir de `_Reading` e `_Writing` (ambas construídas sobre
-    `_NodesBase` para a construção); `_seal_node` é o único método definido
-    aqui em vez de herdado — veja a declaração dele em `_base.py` para o
-    porquê (um teste de contrato substitui o `generate_dek`/`uuid` deste
-    próprio módulo). O resto existe para as duas metades terem um nome e uma
-    instância só, exatamente como `_Nodes` fazia antes desta divisão
-    (`Drive`/`Drives` em `_drive.py` ainda guardam um `_Nodes` cada, e um
-    teste que substitui `._stage` nessa mesma instância ainda alcança o
-    método que `_upload_batch` chama).
+    Uma instância por `Drive`/`Drives` (`_drive.py`), para as duas metades
+    dividirem transporte, keyring e o tratamento do `security_context` do cofre.
     """
-
-    def _seal_node(self, group_key: SecretBox, security_group: str, name: str) -> tuple[SecretBox, dict[str, Any]]:
-        """🇺🇸 A fresh node DEK plus the sealed name and wrapped key every stage entry carries.
-
-        🇧🇷 Uma DEK de nó nova mais o nome selado e a chave embrulhada que toda entrada de reserva leva.
-        """
-        dek = generate_dek(self._entropy)
-        entry = {
-            "client_ref": uuid.uuid4().hex,
-            "encrypted_name": encrypt_content(dek, name.encode("utf-8"), NODE_NAME_INFO).to_dict(),
-            "encrypted_keys": {security_group: wrap_key(group_key, dek, NODE_DEK_INFO).to_dict()},
-        }
-        return dek, entry

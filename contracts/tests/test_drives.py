@@ -45,7 +45,7 @@ import pytest
 from diagnos.crypto import EntropyMixer
 from diagnos.crypto.secure import SecretBox
 from diagnos.resources.drives import Drives
-from diagnos.resources.drives import _nodes as nodes_module
+from diagnos.resources.drives._nodes import _writing as nodes_module
 from diagnos.session.keyring import Keyring
 from pact import Pact, match
 
