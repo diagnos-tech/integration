@@ -140,3 +140,31 @@ def test_status_memory_label_when_some_allocations_are_unlocked(
     assert result.exit_code == 0
     assert "3 allocation(s) not locked" in result.output
     assert "ulimit -l" in result.output
+
+
+@pytest.mark.parametrize(
+    ("found", "label"),
+    [
+        (None, "not running · não está rodando"),
+        ({"type": "pong", "pid": 42, "started_at": 1, "unlocked": False, "groups": []}, "(pid 42) — no session yet"),
+        ({"type": "pong", "pid": 42, "started_at": 1, "unlocked": True, "groups": ["sg_1"]}, "(pid 42) — session kept"),
+    ],
+    ids=["none", "idle-agent", "agent-with-session"],
+)
+def test_status_shows_the_session_agent(
+    monkeypatch: pytest.MonkeyPatch,
+    runner: CliRunner,
+    patched_build_client: FakeDiagnos,
+    found: dict[str, object] | None,
+    label: str,
+) -> None:
+    """🇺🇸 The `agent:` row, and the same facts under `agent` in `--json` (the `type` frame field left out).
+
+    🇧🇷 A linha `agent:`, e os mesmos fatos em `agent` no `--json` (sem o campo `type` do frame).
+    """
+    monkeypatch.setattr(commands.status, "agent_status", lambda *args: found)
+    result = runner.invoke(typer_app, ["status"])
+    assert result.exit_code == 0
+    assert label in result.output
+    as_json = json.loads(runner.invoke(typer_app, ["--json", "status"]).output)
+    assert as_json["agent"] == (None if found is None else {key: v for key, v in found.items() if key != "type"})

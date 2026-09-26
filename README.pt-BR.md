@@ -73,8 +73,9 @@ with Diagnos() as vault:  # faz enrollment na entrada: imprime o link de aprova�
 ```
 
 ```sh
-diagnos login          # o mesmo enrollment, pelo terminal
-diagnos status         # token, OpenBao e versão do SDK
+diagnos login          # o mesmo enrollment, pelo terminal — guardado para os próximos comandos
+diagnos patients list  # reaproveita, sem nova aprovação
+diagnos logout         # revoga e apaga as chaves
 ```
 
 **3. Use.** Pacientes, exames e arquivos penduram no mesmo objeto — `vault.patients`, `vault.exams`,

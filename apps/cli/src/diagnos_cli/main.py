@@ -30,11 +30,14 @@ import sys
 import typer
 from diagnos import DiagnosError
 from rich.console import Console
+from rich.markup import escape
 
 from diagnos_cli import __version__
-from diagnos_cli.commands import exams, files, groups, login, patients, session, status
+from diagnos_cli.agent.dispatch import dispatch
+from diagnos_cli.argv import hoist_global_options
+from diagnos_cli.commands import exams, files, groups, login, logout, patients, session, status
 from diagnos_cli.context import CliOptions
-from diagnos_cli.exit_codes import classify
+from diagnos_cli.exit_codes import EXIT_GENERAL, classify
 
 typer_app = typer.Typer(
     name="diagnos",
@@ -50,6 +53,7 @@ typer_app.command("login", help="Enroll and show what was granted · Faz enrollm
     login.login
 )
 typer_app.command("status", help="Token, OpenBao and SDK version · Token, OpenBao e versão do SDK")(status.status)
+typer_app.command("logout", help="Lock the session and stop the agent · Trava a sessão e para o agente")(logout.logout)
 typer_app.command("groups", help="Granted security groups · Security groups concedidos")(groups.groups)
 
 
@@ -87,27 +91,46 @@ def main(
     ctx.obj = CliOptions(json_output=json_output, quiet=quiet, vault_url=vault_url, token=token, no_color=no_color)
 
 
-def app() -> None:
-    """🇺🇸 The console-script entry point: runs the Typer app, catching `DiagnosError` into a clean exit.
+def run(argv: list[str]) -> int:
+    """🇺🇸 Runs one `diagnos` command line and returns its exit code — here, or inside the session agent.
 
     A `--no-color`/`NO_COLOR` check on the raw argv, instead of reading
     `ctx.obj`, is deliberate: an error can originate before `main()` even
     finishes parsing (e.g. a malformed `--vault-url`), so this has to work
     without assuming the callback ever ran.
 
-    🇧🇷 O ponto de entrada do console-script: roda a app Typer, capturando
-    `DiagnosError` num exit limpo.
+    🇧🇷 Roda uma linha de comando `diagnos` e devolve o código de saída — aqui, ou dentro do agente de sessão.
 
     Conferir `--no-color`/`NO_COLOR` no argv cru, em vez de ler `ctx.obj`, é
     de propósito: um erro pode se originar antes até do `main()` terminar de
     interpretar (ex.: um `--vault-url` malformado), então isto precisa
     funcionar sem supor que o callback já rodou.
     """
-    no_color = "--no-color" in sys.argv[1:] or os.environ.get("NO_COLOR") is not None
-    err_console = Console(stderr=True, no_color=no_color, highlight=False)
+    no_color = "--no-color" in argv or os.environ.get("NO_COLOR") is not None
+    err_console = Console(stderr=True, color_system=None if no_color else "auto", highlight=False)
     try:
-        typer_app()
+        typer_app(args=argv, prog_name="diagnos")
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
     except DiagnosError as exc:
         code, label = classify(exc)
         err_console.print(f"[bold red]{label}[/bold red] — {exc}")
-        raise SystemExit(code) from None
+        return code
+    except OSError as exc:
+        # 🇺🇸 A local file problem (a missing `-o` directory, an unreadable upload) is the user's to fix, not a crash.
+        # 🇧🇷 Um problema de arquivo local (diretório de `-o` ausente, upload ilegível) é para o usuário corrigir, não
+        #    uma quebra.
+        err_console.print(f"[bold red]I/O error · Erro de E/S[/bold red] — {escape(str(exc))}")
+        return EXIT_GENERAL
+    return 0
+
+
+def app() -> None:
+    """🇺🇸 The console-script entry point: global options anywhere, the session agent when running, else in-process.
+
+    🇧🇷 O ponto de entrada do console-script: opções globais em qualquer lugar, o agente de sessão quando rodando,
+    senão no próprio processo.
+    """
+    argv = hoist_global_options(sys.argv[1:])
+    code = dispatch(argv)
+    raise SystemExit(run(argv) if code is None else code)

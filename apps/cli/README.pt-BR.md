@@ -39,9 +39,9 @@ ecoado em lugar nenhum (nem no `--help`, nem na saída, nem no `--json`).
 $ diagnos login
 ```
 
-Na primeira vez que um processo `diagnos` roda (e em toda vez depois, a menos que o OpenBao esteja configurado — veja
-abaixo), ele precisa fazer *enrollment*. O `login` roda essa dança de forma explícita, para você ver acontecer:
-aparece um painel com um link e um código de 6 dígitos, depois um spinner enquanto espera.
+Antes de decifrar qualquer coisa, a CLI precisa fazer *enrollment*: uma pessoa aprova esta sessão no navegador. O
+`login` roda essa dança de forma explícita, para você ver acontecer: aparece um painel com um link e um código de 6
+dígitos, depois um spinner enquanto espera.
 
 ```
 ╭────────────────────── diagnos · enrollment ───────────────────────╮
@@ -68,12 +68,35 @@ Enrolled · Sessão estabelecida
   groups · grupos: sg_oncology, sg_radiology
 ```
 
-**A CLI nunca guarda a sessão em disco.** Sem o OpenBao configurado (próxima seção), essa sessão vive só na memória
-deste processo — no instante em que ele termina, ela some, e a *próxima* invocação de `diagnos` faz enrollment de
-novo, do zero, com link e código novos. Isto não é um bug para contornar: o `login` sozinho serve para *validar um
-token e ver o que foi concedido*, um processo por vez. Todo outro comando (`patients`, `exams`, `files`, `groups`)
-também faz enrollment sozinho, de forma preguiçosa, se não houver sessão disponível — você não precisa rodar `login`
-antes.
+## Uma sessão para todo comando seguinte
+
+Depois do `login`, os próximos comandos reaproveitam aquela sessão — sem link novo, sem código novo — até você sair:
+
+```sh
+diagnos login                    # aprova uma vez
+diagnos patients list            # reaproveita a sessão
+diagnos files upload scan.dcm    # …e assim por diante
+diagnos logout                   # revoga no cofre e apaga as chaves
+```
+
+**Como funciona.** O `login` sobe um pequeno processo em segundo plano para o seu token, o *agente de sessão*, e a
+sessão é desbloqueada dentro dele, no enclave Rust do SDK: RAM travada, fora de core dumps, apagada na saída. Os
+comandos seguintes nunca recebem as chaves. Eles entregam os argumentos ao agente por um socket Unix privado; o
+agente roda o comando ele mesmo e devolve a saída, os prompts e o código de saída. Então `--json`, pipes, caminhos
+relativos como `-o out.dcm`, prompts de confirmação e códigos de saída se comportam exatamente como se o comando
+rodasse no seu shell. **Nada é gravado em disco, e nenhum keychain do sistema operacional entra.**
+
+- **Termina** no `diagnos logout`, depois de `DIAGNOS_AGENT_IDLE_MINUTES` sem comando (padrão `480`, 8 horas), ou num
+  `SIGTERM` (um desligamento, por exemplo). Em todos os casos a sessão é revogada no cofre e as chaves apagadas.
+  `diagnos session lock` revoga a sessão mas mantém o agente: o próximo comando faz enrollment de novo.
+- **Só você o usa.** O socket fica em `$XDG_RUNTIME_DIR/diagnos-<uid>/` (senão no diretório temporário), que precisa
+  ser seu com modo `0700` — qualquer outra coisa é recusada, nunca consertada — e no Linux o agente também confere o
+  uid do processo que conecta. Há um agente por token e URL de cofre: `--token` com outro token nunca chega a esta
+  sessão.
+- **`diagnos status`** diz se há um agente rodando e se ele guarda uma sessão.
+- **Sem `login`** (um script, um job de CI), ou com `DIAGNOS_AGENT=off`, cada comando roda no próprio processo e faz
+  enrollment sozinho na primeira vez que precisa do cofre; a sessão morre com aquele processo. Para jobs sem ninguém
+  olhando, veja o OpenBao abaixo. O Windows ainda não tem agente e sempre funciona assim.
 
 ## OpenBao, para servidores
 
@@ -91,8 +114,9 @@ definida) só para aquela invocação.
 |---|---|---|
 | `diagnos login [--auto-unseal/--no-auto-unseal]` | ✅ funciona hoje | Faz enrollment, mostra o que foi concedido. |
 | `diagnos status [--check]` | ✅ funciona hoje | Token interpretado, OpenBao, versão do SDK; `--check` também desbloqueia. |
+| `diagnos logout` | ✅ funciona hoje | Revoga a sessão guardada, apaga as chaves e para o agente. |
 | `diagnos groups` | ✅ funciona hoje | Lista os security groups concedidos. |
-| `diagnos session lock` | ✅ funciona hoje | Encerra a sessão, best-effort. |
+| `diagnos session lock` | ✅ funciona hoje | Encerra a sessão, best-effort (o agente continua rodando). |
 | `diagnos patients list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ funciona hoje | Pagina pacientes; anônimo a menos que `--summary` decifre nomes e tags. |
 | `diagnos patients get PATIENT_ID [--version V] [--committed]` | ✅ funciona hoje | Decifra e mostra um paciente (um rascunho mais novo vence, salvo com `--committed`). |
 | `diagnos patients create [--group G] (--file record.json \| --legal-name ... --display-name ... [--birth-date D] [--external-id X]) [--tag T]...` | ✅ funciona hoje | Cria um paciente. |
@@ -122,7 +146,8 @@ porque selar sob o grupo errado entrega o registro à equipe errada.
 Limites conhecidos e as questões ainda em aberto do lado do cofre:
 [Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
 
-Opções globais, no comando raiz, antes do subcomando:
+Opções globais vão em qualquer lugar da linha — `diagnos patients list --json` é `diagnos --json patients list` (só o
+que vem depois de `--` fica como está):
 
 | Opção | O que faz |
 |---|---|
@@ -135,7 +160,7 @@ Opções globais, no comando raiz, antes do subcomando:
 
 ## `--json`, para scripts
 
-Todo comando aceita `--json` antes do nome do subcomando — a saída é `json.dumps` puro, nunca envolvida pelo `rich`,
+Todo comando aceita `--json`, em qualquer lugar da linha — a saída é `json.dumps` puro, nunca envolvida pelo `rich`,
 então um campo longo nunca quebra uma linha no meio do jeito que um renderizador ciente da largura do terminal
 poderia:
 
@@ -163,7 +188,7 @@ Estáveis e documentados, para `if`/`case` num script — nunca faça grep do te
 ```sh
 uv sync --all-packages
 uv run --package diagnos-cli pytest apps/cli/tests -q
-uv run ruff check cli && uv run ruff format --check cli
+uv run ruff check apps/cli && uv run ruff format --check apps/cli
 uv run mypy apps/cli/src
 ```
 

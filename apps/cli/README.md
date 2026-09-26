@@ -37,9 +37,9 @@ echoed anywhere (not in `--help`, not in output, not in `--json`).
 $ diagnos login
 ```
 
-The first time a `diagnos` process runs (and every time after, unless OpenBao is configured — see below), it has to
-*enroll*. `login` runs that dance explicitly, so you can watch it happen: a panel with a link and a 6-digit code
-appears, then a spinner while it waits.
+Before it can decrypt anything, the CLI has to *enroll*: a human approves this session in the browser. `login` runs
+that dance explicitly, so you can watch it happen: a panel with a link and a 6-digit code appears, then a spinner
+while it waits.
 
 ```
 ╭────────────────────── diagnos · enrollment ───────────────────────╮
@@ -66,11 +66,35 @@ Enrolled · Sessão estabelecida
   groups · grupos: sg_oncology, sg_radiology
 ```
 
-**The CLI never persists the session to disk.** Without OpenBao configured (next section), that session lives only
-in this process's memory — the moment it exits, it is gone, and the *next* `diagnos` invocation enrolls again, from
-scratch, with a brand new link and code. This is not a bug to route around: `login` on its own is for *validating a
-token and seeing what it was granted*, one process at a time. Every other command (`patients`, `exams`, `files`,
-`groups`) also enrolls lazily on its own if no session is available — you do not have to run `login` first.
+## One session for every command that follows
+
+After `login`, the next commands reuse that session — no new link, no new code — until you log out:
+
+```sh
+diagnos login                    # approve once
+diagnos patients list            # reuses the session
+diagnos files upload scan.dcm    # …and so on
+diagnos logout                   # revokes it on the vault and wipes the keys
+```
+
+**How it works.** `login` starts a small background process for your token, the *session agent*, and the session is
+unlocked inside it, in the SDK's Rust enclave: locked RAM, left out of core dumps, wiped on exit. Later commands never
+receive the keys. They hand their arguments to the agent over a private Unix socket; the agent runs the command
+itself and streams back its output, its prompts and its exit code. So `--json`, pipes, relative paths like
+`-o out.dcm`, confirmation prompts and exit codes behave exactly as if the command ran in your shell. **Nothing is
+written to disk, and no OS keychain is involved.**
+
+- **It ends** on `diagnos logout`, after `DIAGNOS_AGENT_IDLE_MINUTES` without a command (default `480`, 8 hours), or on
+  `SIGTERM` (a shutdown, say). Every time, the session is revoked on the vault and its keys wiped.
+  `diagnos session lock` revokes the session but keeps the agent: the next command enrolls again.
+- **Only you can use it.** The socket lives in `$XDG_RUNTIME_DIR/diagnos-<uid>/` (else the temp directory), which
+  must be yours with mode `0700` — anything else is refused, never repaired — and on Linux the agent also checks the
+  connecting process's uid. There is one agent per token and vault URL: `--token` with another token never reaches
+  this session.
+- **`diagnos status`** says whether an agent is running and holds a session.
+- **Without `login`** (a script, a CI job), or with `DIAGNOS_AGENT=off`, each command runs in its own process and
+  enrolls on its own the first time it needs the vault; the session dies with that process. For unattended jobs, see
+  OpenBao below. Windows has no agent yet and always works this way.
 
 ## OpenBao, for servers
 
@@ -88,8 +112,9 @@ session itself expires. `login --auto-unseal`/`--no-auto-unseal` overrides the a
 |---|---|---|
 | `diagnos login [--auto-unseal/--no-auto-unseal]` | ✅ works today | Enrolls, shows what was granted. |
 | `diagnos status [--check]` | ✅ works today | Parsed token, OpenBao, SDK version; `--check` also unlocks. |
+| `diagnos logout` | ✅ works today | Revokes the kept session, wipes its keys and stops the agent. |
 | `diagnos groups` | ✅ works today | Lists granted security groups. |
-| `diagnos session lock` | ✅ works today | Ends the session, best-effort. |
+| `diagnos session lock` | ✅ works today | Ends the session, best-effort (the agent keeps running). |
 | `diagnos patients list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ works today | Pages patients; anonymous unless `--summary` decrypts names and tags. |
 | `diagnos patients get PATIENT_ID [--version V] [--committed]` | ✅ works today | Decrypts and shows one patient (a newer draft wins unless `--committed`). |
 | `diagnos patients create [--group G] (--file record.json \| --legal-name ... --display-name ... [--birth-date D] [--external-id X]) [--tag T]...` | ✅ works today | Creates a patient. |
@@ -119,7 +144,8 @@ it never guesses, since sealing under the wrong group hands the record to the wr
 Known limits and the questions still open on the vault side:
 [Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
 
-Global options, on the root command, before the subcommand:
+Global options go anywhere on the line — `diagnos patients list --json` is `diagnos --json patients list` (only
+what comes after `--` is left alone):
 
 | Option | What it does |
 |---|---|
@@ -132,7 +158,7 @@ Global options, on the root command, before the subcommand:
 
 ## `--json`, for scripts
 
-Every command accepts `--json` before the subcommand name — the output is plain `json.dumps`, never wrapped by
+Every command accepts `--json`, anywhere on the line — the output is plain `json.dumps`, never wrapped by
 `rich`, so a long field can never break a line mid-document the way a terminal-width-aware renderer could:
 
 ```sh
@@ -159,7 +185,7 @@ Stable and documented, for `if`/`case` in a script — never grep the error text
 ```sh
 uv sync --all-packages
 uv run --package diagnos-cli pytest apps/cli/tests -q
-uv run ruff check cli && uv run ruff format --check cli
+uv run ruff check apps/cli && uv run ruff format --check apps/cli
 uv run mypy apps/cli/src
 ```
 
