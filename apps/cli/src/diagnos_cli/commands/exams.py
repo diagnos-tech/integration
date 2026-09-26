@@ -11,6 +11,7 @@ import typer
 
 from diagnos_cli import context
 from diagnos_cli.context import CliOptions
+from diagnos_cli.group_choice import GROUP_ENV_VAR, resolve_group
 from diagnos_cli.inputs import load_record
 from diagnos_cli.render import get_console, get_err_console, render_document_index, render_exam, render_index_table
 
@@ -82,7 +83,7 @@ def create_exam(
         None,
         "--group",
         "-g",
-        envvar=context.GROUP_ENV_VAR,
+        envvar=GROUP_ENV_VAR,
         show_envvar=True,
         help="Security group to seal under (default: the patient's) · Grupo sob o qual selar (padrão: o do paciente)",
     ),
@@ -106,7 +107,7 @@ def create_exam(
         inferred = (
             None if group else (vault.patients.index(patient_id).security_group_id, "the patient's · o do paciente")
         )
-        group = context.resolve_group(vault, group, err_console=err_console, quiet=opts.quiet, inferred=inferred)
+        group = resolve_group(vault, group, err_console=err_console, quiet=opts.quiet, inferred=inferred)
         exam = vault.exams.create(record, patient_id=patient_id, security_group=group)
     render_exam(console, exam, json_output=opts.json_output)
 

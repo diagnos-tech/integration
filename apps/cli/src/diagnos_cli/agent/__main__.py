@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 from types import FrameType
 
-from .server import AgentServer, SessionHost
+from .host import SessionHost
+from .server import AgentServer
 
 
 def _exit(signum: int, frame: FrameType | None) -> None:

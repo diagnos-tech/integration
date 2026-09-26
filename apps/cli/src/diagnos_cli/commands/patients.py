@@ -11,6 +11,7 @@ import typer
 
 from diagnos_cli import context
 from diagnos_cli.context import CliOptions
+from diagnos_cli.group_choice import group_option, resolve_group
 from diagnos_cli.inputs import load_record
 from diagnos_cli.render import get_console, get_err_console, render_document_index, render_index_table, render_patient
 
@@ -87,7 +88,7 @@ def get_patient(
 @app.command("create", help="Encrypt and create a patient · Cifra e cria um paciente")
 def create_patient(
     ctx: typer.Context,
-    group: str | None = context.group_option(),
+    group: str | None = group_option(),
     file: Path | None = typer.Option(
         None, "--file", help="Record JSON file, `-` for stdin · Arquivo JSON do registro, `-` para stdin"
     ),
@@ -99,13 +100,13 @@ def create_patient(
         None, "--tag", help="Sealed list label, repeatable · Rótulo selado, repetível"
     ),
 ) -> None:
-    """🇺🇸 Encrypts a new patient under its group (see `context.resolve_group`), from `--file` or the inline flags.
+    """🇺🇸 Encrypts a new patient under its group (see `group_choice.resolve_group`), from `--file` or the inline flags.
 
     `birth_date` stays a plain `str` here: `PatientRecord` itself accepts an
     ISO date and stores it the way the web app does, so parsing it twice
     would be duplicated, driftable validation.
 
-    🇧🇷 Cifra um paciente novo sob o grupo dele (ver `context.resolve_group`), a partir de `--file` ou das flags
+    🇧🇷 Cifra um paciente novo sob o grupo dele (ver `group_choice.resolve_group`), a partir de `--file` ou das flags
     inline.
 
     `birth_date` fica como `str` puro aqui: o próprio `PatientRecord` aceita
@@ -124,7 +125,7 @@ def create_patient(
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
-        group = context.resolve_group(vault, group, err_console=err_console, quiet=opts.quiet)
+        group = resolve_group(vault, group, err_console=err_console, quiet=opts.quiet)
         patient = vault.patients.create(record, security_group=group, tags=tags or ())
     render_patient(console, patient, json_output=opts.json_output)
 

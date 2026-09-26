@@ -28,7 +28,8 @@ from pathlib import Path
 from typing import Any
 
 from diagnos_cli.agent import client
-from diagnos_cli.agent.server import AgentServer, SessionHost
+from diagnos_cli.agent.host import SessionHost
+from diagnos_cli.agent.server import AgentServer
 from diagnos_cli.main import run
 
 

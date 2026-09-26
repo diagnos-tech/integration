@@ -17,7 +17,7 @@ from typing import IO, Any, Final
 
 from . import protocol
 from .paths import AgentUnavailable
-from .server import FORWARDED_ENV
+from .protocol import FORWARDED_ENV
 
 _START_TIMEOUT_SECONDS: Final = 10.0
 
