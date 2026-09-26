@@ -87,7 +87,7 @@ def get_patient(
 @app.command("create", help="Encrypt and create a patient · Cifra e cria um paciente")
 def create_patient(
     ctx: typer.Context,
-    group: str = typer.Option(..., "--group", "-g", help="Security group to encrypt under · Grupo sob o qual cifrar"),
+    group: str | None = context.group_option(),
     file: Path | None = typer.Option(None, "--file", help="Record JSON file · Arquivo JSON do registro"),
     legal_name: str | None = typer.Option(None, "--legal-name"),
     display_name: str | None = typer.Option(None, "--display-name"),
@@ -97,13 +97,14 @@ def create_patient(
         None, "--tag", help="Sealed list label, repeatable · Rótulo selado, repetível"
     ),
 ) -> None:
-    """🇺🇸 Encrypts a new patient under `--group`, from `--file` or the inline flags.
+    """🇺🇸 Encrypts a new patient under its group (see `context.resolve_group`), from `--file` or the inline flags.
 
     `birth_date` stays a plain `str` here: `PatientRecord` itself accepts an
     ISO date and stores it the way the web app does, so parsing it twice
     would be duplicated, driftable validation.
 
-    🇧🇷 Cifra um paciente novo sob `--group`, a partir de `--file` ou das flags inline.
+    🇧🇷 Cifra um paciente novo sob o grupo dele (ver `context.resolve_group`), a partir de `--file` ou das flags
+    inline.
 
     `birth_date` fica como `str` puro aqui: o próprio `PatientRecord` aceita
     uma data ISO e a grava do jeito que o app web grava, então validar duas
@@ -121,6 +122,7 @@ def create_patient(
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
+        group = context.resolve_group(vault, group, err_console=err_console, quiet=opts.quiet)
         patient = vault.patients.create(record, security_group=group, tags=tags or ())
     render_patient(console, patient, json_output=opts.json_output)
 

@@ -78,15 +78,22 @@ def get_exam(
 def create_exam(
     ctx: typer.Context,
     patient_id: str = typer.Option(..., "--patient", help="The exam's patient id · Id do paciente do exame"),
-    group: str = typer.Option(..., "--group", "-g", help="Security group to encrypt under · Grupo sob o qual cifrar"),
+    group: str | None = typer.Option(
+        None,
+        "--group",
+        "-g",
+        envvar=context.GROUP_ENV_VAR,
+        show_envvar=True,
+        help="Security group to seal under (default: the patient's) · Grupo sob o qual selar (padrão: o do paciente)",
+    ),
     file: Path | None = typer.Option(None, "--file", help="Record JSON file · Arquivo JSON do registro"),
     title: str | None = typer.Option(None, "--title"),
     modality: str | None = typer.Option(None, "--modality", help="e.g. CT, MR, US · ex: CT, MR, US"),
     exam_date: str | None = typer.Option(None, "--exam-date", help="ISO date · Data ISO"),
 ) -> None:
-    """🇺🇸 Encrypts a new exam under `--group`; only `--patient` goes to clear `meta`, the rest is sealed.
+    """🇺🇸 Encrypts a new exam — by default in its patient's group; only `--patient` goes to clear `meta`.
 
-    🇧🇷 Cifra um exame novo sob `--group`; só `--patient` vai ao `meta` em claro, o resto é selado.
+    🇧🇷 Cifra um exame novo — por padrão no grupo do paciente; só `--patient` vai ao `meta` em claro.
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
@@ -94,6 +101,10 @@ def create_exam(
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
+        inferred = (
+            None if group else (vault.patients.index(patient_id).security_group_id, "the patient's · o do paciente")
+        )
+        group = context.resolve_group(vault, group, err_console=err_console, quiet=opts.quiet, inferred=inferred)
         exam = vault.exams.create(record, patient_id=patient_id, security_group=group)
     render_exam(console, exam, json_output=opts.json_output)
 
