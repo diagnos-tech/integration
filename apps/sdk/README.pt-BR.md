@@ -56,7 +56,8 @@ for row in vault.patients.list():
 Você nem precisa chamar `unlock()`: na primeira vez que você toca
 `vault.patients`, `vault.exams` ou `vault.drives`, o SDK desbloqueia sozinho.
 `unlock()` (e esse caminho preguiçoso) são idempotentes — chame quantas
-vezes quiser, de quantos lugares quiser.
+vezes quiser, de quantos lugares quiser. Sem `DIAGNOS_API_TOKEN`, `Diagnos()`
+levanta `ConfigError` nomeando a variável, antes de qualquer chamada de rede.
 
 ## Enrollment: o link e o código
 
@@ -76,6 +77,20 @@ que o auto-unseal esteja configurado — veja abaixo), ele precisa fazer
    cofre sela as chaves de sessão do mesmo jeito. O SDK faz poll, abre as
    duas com as chaves privadas que nunca saíram do processo, e fica
    desbloqueado.
+
+O que o passo 2 imprime no `stderr` (o prompt padrão; passe `on_prompt=` para mostrá-lo do seu jeito):
+
+```text
+diagnos SDK — enrollment approval needed · aprovação de enrollment necessária
+
+Open this link to approve · Abra este link para aprovar:
+  https://…
+
+Code to type · Código para digitar:
+  4 8 2 9 1 5
+
+Expires at (unix seconds) · Expira em (segundos unix): 1790000000
+```
 
 Até uma pessoa aprovar, `unlock()` bloqueia. Não existe atalho para esse
 passo — é o modelo de segurança inteiro, não um atrito para contornar.
@@ -265,6 +280,20 @@ por mensagem
 | `SessionExpiredError` | nenhuma sessão local viva — chame `unlock()` (de novo) antes de uma chamada assinada |
 | `ProtocolError` | o cofre respondeu algo que o protocolo não permite — não adianta retentar; reporte com a versão do SDK |
 | `VaultError` | classe base; carrega `code`, `status`, `trace_id` para um chamado de suporte |
+
+Um conflito é uma classe com muitas causas; `code` diz qual. A que você mesmo trata é a atualização perdida:
+
+```python
+from diagnos import ConflictError
+
+patient = vault.patients.get(patient_id)
+try:
+    vault.patients.update(patient_id, edited, expected_latest_version_id=patient.index.latest_version_id)
+except ConflictError as exc:
+    if exc.code != "DocumentVersionMismatch":
+        raise
+    ...  # alguém salvou no meio-tempo: leia de novo, reaplique a mudança, atualize de novo
+```
 
 ## Configuração
 

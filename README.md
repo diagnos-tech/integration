@@ -80,6 +80,9 @@ diagnos logout         # revokes it and wipes the keys
 **3. Use it.** Patients, exams and files hang off the same object — `vault.patients`, `vault.exams`,
 `vault.drives` — see the [SDK guide](apps/sdk/README.md).
 
+One name, three spellings: a **security group** is `security_group=` in the SDK (`security_group_id` on what it
+returns), `--group` / `DIAGNOS_GROUP` in the CLI, and `security_group` or `{sg}` in the API.
+
 ## How a session is born
 
 ```mermaid

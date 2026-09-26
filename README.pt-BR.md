@@ -81,6 +81,9 @@ diagnos logout         # revoga e apaga as chaves
 **3. Use.** Pacientes, exames e arquivos penduram no mesmo objeto — `vault.patients`, `vault.exams`,
 `vault.drives` — veja o [guia do SDK](apps/sdk/README.pt-BR.md).
 
+Um nome, três grafias: um **security group** é `security_group=` no SDK (`security_group_id` no que ele devolve),
+`--group` / `DIAGNOS_GROUP` na CLI, e `security_group` ou `{sg}` na API.
+
 ## Como nasce uma sessão
 
 ```mermaid
