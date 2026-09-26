@@ -43,7 +43,7 @@ convention = "google"
 #    `sys.path`) sort as local code, after `diagnos` and third-party imports.
 # 🇧🇷 Helpers de teste importados pelo nome (o pytest põe cada pasta de teste
 #    no `sys.path`) ordenam como código local, depois de `diagnos` e terceiros.
-known-local-folder = ["_crypto", "_wire", "conftest", "vault_double"]
+known-local-folder = ["_crypto", "_documents", "_wire", "conftest", "vault_double"]
 
 [tool.mypy]
 python_version = "3.11"
