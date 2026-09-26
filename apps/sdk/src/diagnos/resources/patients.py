@@ -143,16 +143,16 @@ class Patients:
         """🇺🇸 Seals a new complete version of `record`; `tags=None` keeps the current tags.
 
         Pass `expected_latest_version_id=patient.index.latest_version_id`
-        from your earlier read to have the vault refuse the write
-        (`ConflictError`, `DocumentVersionMismatch`) if someone else saved
-        in between.
+        from your earlier read to have the vault refuse the write — a
+        `ConflictError` whose `code` is `"DocumentVersionMismatch"` — if
+        someone else saved in between.
 
         🇧🇷 Sela uma versão nova e completa de `record`; `tags=None` mantém as tags atuais.
 
         Passe `expected_latest_version_id=patient.index.latest_version_id`
-        da sua leitura anterior para o cofre recusar a gravação
-        (`ConflictError`, `DocumentVersionMismatch`) se outra pessoa salvou
-        no meio-tempo.
+        da sua leitura anterior para o cofre recusar a gravação — um
+        `ConflictError` cujo `code` é `"DocumentVersionMismatch"` — se outra
+        pessoa salvou no meio-tempo.
         """
         patient_record = self._anonymize(coerce_record(PatientRecord, record))
 

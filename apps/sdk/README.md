@@ -56,7 +56,8 @@ for row in vault.patients.list():
 You do not even have to call `unlock()` yourself: the first time you touch
 `vault.patients`, `vault.exams` or `vault.drives`, the SDK unlocks lazily.
 `unlock()` (and the lazy path) are idempotent — call them as many times as
-you like, from as many call sites as you like.
+you like, from as many call sites as you like. Without `DIAGNOS_API_TOKEN`,
+`Diagnos()` raises `ConfigError` naming the variable, before any network call.
 
 ## Enrollment: the link and the code
 
@@ -73,6 +74,20 @@ auto-unseal is configured — see below), it has to *enroll*:
 3. The web app seals the DEKs of those groups **to the SDK's public keys**;
    the vault seals the session keys the same way. The SDK polls, opens both
    with the private keys that never left the process, and is unlocked.
+
+What step 2 prints to `stderr` (the default prompt; pass `on_prompt=` to show it your own way):
+
+```text
+diagnos SDK — enrollment approval needed · aprovação de enrollment necessária
+
+Open this link to approve · Abra este link para aprovar:
+  https://…
+
+Code to type · Código para digitar:
+  4 8 2 9 1 5
+
+Expires at (unix seconds) · Expira em (segundos unix): 1790000000
+```
 
 Until a human approves, `unlock()` blocks. There is no way around that step —
 it is the whole security model, not friction to route around.
@@ -261,6 +276,20 @@ message
 | `SessionExpiredError` | no live local session — call `unlock()` (again) before a signed call |
 | `ProtocolError` | the vault answered something the protocol does not allow — not retryable; report it with the SDK version |
 | `VaultError` | base class; carries `code`, `status`, `trace_id` for a support ticket |
+
+A conflict is one class with many causes; `code` says which. The one you handle yourself is a lost update:
+
+```python
+from diagnos import ConflictError
+
+patient = vault.patients.get(patient_id)
+try:
+    vault.patients.update(patient_id, edited, expected_latest_version_id=patient.index.latest_version_id)
+except ConflictError as exc:
+    if exc.code != "DocumentVersionMismatch":
+        raise
+    ...  # someone saved in between: read again, re-apply your change, update again
+```
 
 ## Configuration
 
