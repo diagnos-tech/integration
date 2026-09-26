@@ -69,6 +69,9 @@ monorepo.
 - CLI `diagnos logout`: revokes the kept session, wipes its keys and stops the agent.
 - CLI global options (`--json`, `--quiet`, `--no-color`, `--token`, `--vault-url`) go anywhere on the line:
   `diagnos patients list --json` works.
+- API `diagnos-api dev-certs [DIR]`: a throwaway local CA, a `localhost` server pair and a client pair in one step
+  (keys `0600`, 30 days, never overwritten without `--force`; needs the new `diagnos-api[dev]` extra outside the
+  workspace). `python -m diagnos_api` runs the API like `diagnos-api`.
 - `diagnos.UploadSource`, exported at the top level. A `.dcm` file is typed `application/dicom`, so the vault
   classifies it.
 

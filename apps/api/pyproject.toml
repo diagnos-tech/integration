@@ -25,6 +25,11 @@ classifiers = [
 ]
 dependencies = ["diagnos[openbao]", "fastapi>=0.115", "uvicorn[standard]>=0.32", "python-multipart>=0.0.12"]
 
+[project.optional-dependencies]
+# 🇺🇸 Only `diagnos-api dev-certs` needs it; a production image never generates certificates.
+# 🇧🇷 Só o `diagnos-api dev-certs` precisa; uma imagem de produção nunca gera certificados.
+dev = ["cryptography>=43"]
+
 [project.urls]
 Homepage = "https://diagnos.health/dev"
 Documentation = "https://github.com/diagnos-tech/integration/tree/develop/apps/api#readme"
@@ -36,7 +41,7 @@ Changelog = "https://github.com/diagnos-tech/integration/blob/develop/CHANGELOG.
 diagnos-api = "diagnos_api.main:run"
 
 [dependency-groups]
-dev = ["pytest>=8.3", "httpx>=0.28", "ruff>=0.7", "mypy>=1.13"]
+dev = ["pytest>=8.3", "httpx>=0.28", "ruff>=0.7", "mypy>=1.13", "cryptography>=43"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/diagnos_api"]
