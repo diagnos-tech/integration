@@ -90,6 +90,19 @@ class Patients:
         """
         return _patient(self._documents.read(patient_id, version_id=version_id, include_draft=include_draft))
 
+    def index(self, patient_id: str) -> DocumentIndex:
+        """🇺🇸 The patient's metadata — group, versions, flags, sealed summary — without opening the record.
+
+        One signed read and no decryption: for "which group is this patient
+        in?" or "is it archived?", not for reading the record.
+
+        🇧🇷 O metadado do paciente — grupo, versões, flags, resumo selado — sem abrir o registro.
+
+        Uma leitura assinada e nenhuma decifragem: para "em que grupo está
+        este paciente?" ou "está arquivado?", não para ler o registro.
+        """
+        return self._documents.get_index(patient_id)
+
     def create(
         self,
         record: PatientRecord | Mapping[str, Any],

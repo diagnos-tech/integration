@@ -67,6 +67,13 @@ class Exams:
         """
         return _exam(self._documents.read(exam_id, version_id=version_id, include_draft=include_draft))
 
+    def index(self, exam_id: str) -> DocumentIndex:
+        """🇺🇸 The exam's metadata — group, versions, flags, clear `meta` — without opening the record.
+
+        🇧🇷 O metadado do exame — grupo, versões, flags, `meta` em claro — sem abrir o registro.
+        """
+        return self._documents.get_index(exam_id)
+
     def create(self, record: ExamRecord | Mapping[str, Any], *, patient_id: str, security_group: str) -> Exam:
         """🇺🇸 Seals `record`, links it to `patient_id` in clear `meta`, and creates the exam.
 

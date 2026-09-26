@@ -92,25 +92,30 @@ session itself expires. `login --auto-unseal`/`--no-auto-unseal` overrides the a
 | `diagnos session lock` | ✅ works today | Ends the session, best-effort. |
 | `diagnos patients list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ works today | Pages patients; anonymous unless `--summary` decrypts names and tags. |
 | `diagnos patients get PATIENT_ID [--version V] [--committed]` | ✅ works today | Decrypts and shows one patient (a newer draft wins unless `--committed`). |
-| `diagnos patients create --group G (--file record.json \| --legal-name ... --display-name ... [--birth-date D] [--external-id X]) [--tag T]...` | ✅ works today | Creates a patient. |
+| `diagnos patients create [--group G] (--file record.json \| --legal-name ... --display-name ... [--birth-date D] [--external-id X]) [--tag T]...` | ✅ works today | Creates a patient. |
 | `diagnos patients update PATIENT_ID --file record.json [--tag T]... [--expect-version V]` | ✅ works today | New complete version; `--tag` replaces the tags, `--expect-version` refuses a stale write. |
 | `diagnos patients archive\|unarchive PATIENT_ID` | ✅ works today | Flips the archived flag (no new version). |
 | `diagnos patients delete PATIENT_ID [--yes]` | ✅ works today | Moves the patient to the trash (`--yes` skips the confirmation prompt). |
 | `diagnos patients restore PATIENT_ID` | ✅ works today | Takes the patient out of the trash. |
 | `diagnos exams list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ works today | Pages exams; anonymous unless `--summary` decrypts title, modality and date. |
 | `diagnos exams get EXAM_ID [--version V] [--committed]` | ✅ works today | Decrypts and shows one exam, the report as plain text. |
-| `diagnos exams create --patient P --group G (--file record.json \| --title T [--modality M] [--exam-date D])` | ✅ works today | Creates an exam; only `--patient` is sent in clear. |
+| `diagnos exams create --patient P [--group G] (--file record.json \| --title T [--modality M] [--exam-date D])` | ✅ works today | Creates an exam; only `--patient` is sent in clear. |
 | `diagnos exams update EXAM_ID --file record.json [--expect-version V]` | ✅ works today | New complete version of the record. |
 | `diagnos exams archive\|unarchive EXAM_ID` | ✅ works today | Flips the archived flag (no new version). |
 | `diagnos exams delete EXAM_ID [--yes]` | ✅ works today | Moves the exam to the trash (`--yes` skips the confirmation prompt). |
 | `diagnos exams restore EXAM_ID` | ✅ works today | Takes the exam out of the trash. |
 | `diagnos files list [--group G] [--folder F] [--exam E] [--include-pending] [--limit N] [--cursor C] [--all]` | ✅ works today | Lists files and folders, names decrypted — the whole workspace unless filtered. |
-| `diagnos files upload --group G PATH... [--exam E] [--folder F]` | ✅ works today | Encrypts and uploads, 100 files per reservation; large files go up in parts. |
-| `diagnos files mkdir NAME --group G [--parent F]` | ✅ works today | Creates a folder and prints its node id (pass it to `--folder`). |
+| `diagnos files upload [--group G] PATH... [--exam E] [--folder F]` | ✅ works today | Encrypts and uploads, 100 files per reservation; large files go up in parts. |
+| `diagnos files mkdir NAME [--group G] [--parent F]` | ✅ works today | Creates a folder and prints its node id (pass it to `--folder`). |
 | `diagnos files download NODE_ID [-o DEST]` | ✅ works today | Downloads and decrypts, by default to the file's own name (its last path segment only). |
 | `diagnos files get NODE_ID` | ✅ works today | One file's metadata and decrypted name. |
 
 Reading a file needs only its node id; the vault knows which group it belongs to.
+
+**Which security group a write goes to.** `patients create`, `exams create`, `files upload` and `files mkdir` seal
+under `--group`, else `DIAGNOS_GROUP`, else — for an exam — its patient's group, else the only group this session
+holds (the CLI prints which one it picked). With several groups and none of those, the command stops and lists them:
+it never guesses, since sealing under the wrong group hands the record to the wrong team.
 Known limits and the questions still open on the vault side:
 [Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
 

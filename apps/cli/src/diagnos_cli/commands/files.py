@@ -1,14 +1,16 @@
 """🇺🇸 `diagnos files` — list, upload, mkdir, download, get: the workspace's files and folders.
 
-A file belongs to one security group, so `upload` and `mkdir` take
-`--group`; reading a file needs only its node id. `upload_many` has no
+A file belongs to one security group — `upload` and `mkdir` take it from
+`--group`, `DIAGNOS_GROUP` or the session's only group (`context.resolve_group`);
+reading a file needs only its node id. `upload_many` has no
 progress callback (one blocking call per batch), so the progress below shows
 one row per file and that a batch is in flight — never faked byte counts.
 
 🇧🇷 `diagnos files` — listar, subir, criar pasta, baixar, ler: os arquivos e pastas do workspace.
 
-Um arquivo pertence a um security group, então `upload` e `mkdir` recebem
-`--group`; ler um arquivo precisa só do id do nó. `upload_many` não tem
+Um arquivo pertence a um security group — `upload` e `mkdir` o tiram de
+`--group`, `DIAGNOS_GROUP` ou do único grupo da sessão (`context.resolve_group`);
+ler um arquivo precisa só do id do nó. `upload_many` não tem
 callback de progresso (uma chamada bloqueante por lote), então o progresso
 abaixo mostra uma linha por arquivo e que um lote está em voo — nunca
 contagem de bytes inventada.
@@ -123,7 +125,7 @@ def _upload_with_progress(
 def upload_files(
     ctx: typer.Context,
     paths: list[Path] = typer.Argument(..., help="Files to upload · Arquivos para subir"),
-    group: str = typer.Option(..., "--group", "-g", help="Security group to seal under · Grupo sob o qual selar"),
+    group: str | None = context.group_option(),
     exam: str | None = typer.Option(None, "--exam", help="Attach to this exam id · Vincula a este id de exame"),
     folder: str | None = typer.Option(None, "--folder", help=_FOLDER_HELP),
 ) -> None:
@@ -139,7 +141,7 @@ def upload_files(
         raise typer.BadParameter(f"not a file · não é um arquivo: {missing[0]}")
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
-        drive = vault.drives.drive(group)
+        drive = vault.drives.drive(context.resolve_group(vault, group, err_console=err_console, quiet=opts.quiet))
         nodes = _upload_with_progress(err_console, drive, paths, exam_id=exam, parent_id=folder, quiet=opts.quiet)
     render_drive_node_table(console, drive, nodes, json_output=opts.json_output)
 
@@ -148,7 +150,7 @@ def upload_files(
 def make_folder(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Folder name (sealed) · Nome da pasta (selado)"),
-    group: str = typer.Option(..., "--group", "-g", help="Security group to seal under · Grupo sob o qual selar"),
+    group: str | None = context.group_option(),
     parent: str | None = typer.Option(None, "--parent", help="Parent folder node id · Id do nó da pasta-mãe"),
 ) -> None:
     """🇺🇸 Creates a folder and prints its node id — pass it to `upload --folder`.
@@ -160,6 +162,7 @@ def make_folder(
     err_console = get_err_console(opts)
     with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
         vault = context.build_client(opts, on_prompt=on_prompt)
+        group = context.resolve_group(vault, group, err_console=err_console, quiet=opts.quiet)
         folder_id = vault.drives.drive(group).create_folder(name, parent_id=parent)
     if opts.json_output:
         print_json({"node_id": folder_id})

@@ -56,6 +56,10 @@ monorepo.
 - `DIAGNOS_STORAGE_HOSTS` / `Settings.storage_hosts`: presigned storage URLs are followed only over HTTPS to an
   allowed host or its subdomains — by default the user-content domain `diagnosusercontent.com` and R2's
   `r2.cloudflarestorage.com` — so ciphertext and SSE-C keys never go to a host nobody chose.
+- CLI: `--group` is optional on `patients create`, `exams create`, `files upload` and `files mkdir` — it falls back to
+  `DIAGNOS_GROUP`, then (for an exam) the patient's group, then the session's only group, and says which it picked;
+  with several groups it stops and lists them.
+- `Patients.index(id)` / `Exams.index(id)`: a document's metadata (group, versions, flags) without opening its record.
 - `diagnos.UploadSource`, exported at the top level. A `.dcm` file is typed `application/dicom`, so the vault
   classifies it.
 

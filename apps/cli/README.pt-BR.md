@@ -95,25 +95,30 @@ definida) só para aquela invocação.
 | `diagnos session lock` | ✅ funciona hoje | Encerra a sessão, best-effort. |
 | `diagnos patients list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ funciona hoje | Pagina pacientes; anônimo a menos que `--summary` decifre nomes e tags. |
 | `diagnos patients get PATIENT_ID [--version V] [--committed]` | ✅ funciona hoje | Decifra e mostra um paciente (um rascunho mais novo vence, salvo com `--committed`). |
-| `diagnos patients create --group G (--file record.json \| --legal-name ... --display-name ... [--birth-date D] [--external-id X]) [--tag T]...` | ✅ funciona hoje | Cria um paciente. |
+| `diagnos patients create [--group G] (--file record.json \| --legal-name ... --display-name ... [--birth-date D] [--external-id X]) [--tag T]...` | ✅ funciona hoje | Cria um paciente. |
 | `diagnos patients update PATIENT_ID --file record.json [--tag T]... [--expect-version V]` | ✅ funciona hoje | Versão nova e completa; `--tag` substitui as tags, `--expect-version` recusa gravação desatualizada. |
 | `diagnos patients archive\|unarchive PATIENT_ID` | ✅ funciona hoje | Vira a flag de arquivado (sem versão nova). |
 | `diagnos patients delete PATIENT_ID [--yes]` | ✅ funciona hoje | Manda o paciente para a lixeira (`--yes` pula a confirmação). |
 | `diagnos patients restore PATIENT_ID` | ✅ funciona hoje | Tira o paciente da lixeira. |
 | `diagnos exams list [--group G] [--include-deleted] [--limit N] [--cursor C] [--all] [--summary]` | ✅ funciona hoje | Pagina exames; anônimo a menos que `--summary` decifre título, modalidade e data. |
 | `diagnos exams get EXAM_ID [--version V] [--committed]` | ✅ funciona hoje | Decifra e mostra um exame, o laudo como texto puro. |
-| `diagnos exams create --patient P --group G (--file record.json \| --title T [--modality M] [--exam-date D])` | ✅ funciona hoje | Cria um exame; só `--patient` vai em claro. |
+| `diagnos exams create --patient P [--group G] (--file record.json \| --title T [--modality M] [--exam-date D])` | ✅ funciona hoje | Cria um exame; só `--patient` vai em claro. |
 | `diagnos exams update EXAM_ID --file record.json [--expect-version V]` | ✅ funciona hoje | Versão nova e completa do registro. |
 | `diagnos exams archive\|unarchive EXAM_ID` | ✅ funciona hoje | Vira a flag de arquivado (sem versão nova). |
 | `diagnos exams delete EXAM_ID [--yes]` | ✅ funciona hoje | Manda o exame para a lixeira (`--yes` pula a confirmação). |
 | `diagnos exams restore EXAM_ID` | ✅ funciona hoje | Tira o exame da lixeira. |
 | `diagnos files list [--group G] [--folder F] [--exam E] [--include-pending] [--limit N] [--cursor C] [--all]` | ✅ funciona hoje | Lista arquivos e pastas, nomes decifrados — o workspace inteiro, salvo filtro. |
-| `diagnos files upload --group G PATH... [--exam E] [--folder F]` | ✅ funciona hoje | Cifra e sobe, 100 arquivos por reserva; arquivos grandes sobem por partes. |
-| `diagnos files mkdir NOME --group G [--parent F]` | ✅ funciona hoje | Cria uma pasta e imprime o id do nó (passe-o para `--folder`). |
+| `diagnos files upload [--group G] PATH... [--exam E] [--folder F]` | ✅ funciona hoje | Cifra e sobe, 100 arquivos por reserva; arquivos grandes sobem por partes. |
+| `diagnos files mkdir NOME [--group G] [--parent F]` | ✅ funciona hoje | Cria uma pasta e imprime o id do nó (passe-o para `--folder`). |
 | `diagnos files download NODE_ID [-o DEST]` | ✅ funciona hoje | Baixa e decifra, por padrão com o nome do próprio arquivo (só o último segmento do caminho). |
 | `diagnos files get NODE_ID` | ✅ funciona hoje | Metadado e nome decifrado de um arquivo. |
 
 Ler um arquivo precisa só do id do nó; o cofre sabe a que grupo ele pertence.
+
+**Para qual security group uma gravação vai.** `patients create`, `exams create`, `files upload` e `files mkdir`
+selam sob `--group`, senão `DIAGNOS_GROUP`, senão — num exame — o grupo do paciente, senão o único grupo que esta
+sessão tem (a CLI diz qual escolheu). Com vários grupos e nada disso, o comando para e lista as opções: nunca chuta,
+porque selar sob o grupo errado entrega o registro à equipe errada.
 Limites conhecidos e as questões ainda em aberto do lado do cofre:
 [Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
 
