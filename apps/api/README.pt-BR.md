@@ -3,171 +3,65 @@
 [English](README.md) · **Português (Brasil)**
 
 Uma fachada REST (FastAPI) sobre o SDK [`diagnos`](https://github.com/diagnos-tech/integration/tree/develop/apps/sdk): um
-processo, uma service account, uma sessão `Diagnos` viva na RAM, exposta a sistemas internos que preferem falar HTTP
-a importar Python. Nunca soma capacidade que o SDK já não tenha — toda rota é um envoltório fino sobre
-`vault.patients`/`vault.exams`/`vault.drives`
-([`CONTRIBUTING.pt-BR.md`](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.pt-BR.md)).
+processo, uma service account, uma sessão `Diagnos` viva na RAM, exposta a sistemas internos que preferem falar HTTP a
+importar Python. Ela nunca acrescenta capacidade que o SDK já não tenha — toda rota é um invólucro fino sobre
+`vault.patients`, `vault.exams` ou `vault.drives` — e TLS mútuo é a única autenticação que ela aceita.
 
 > [!NOTE]
-> **Ainda não está no PyPI** — `diagnos-api` (e o SDK `diagnos` do qual depende) não tem wheel publicado. A imagem
-> Docker construída a partir de `apps/api/Dockerfile` (abaixo) é o jeito suportado de rodar hoje: ela constrói o SDK, a
-> CLI e a API a partir do fonte dentro da imagem, então não precisa de nada do PyPI para funcionar. Rodar com
-> `python`/`uv` puro também funciona a partir de um checkout do fonte deste repositório (veja [Rodando](#rodando)
-> abaixo), só não via `pip install` ainda.
+> **Ainda não está no PyPI** — o `diagnos-api` (e o SDK `diagnos` de que depende) não tem wheel publicado. A imagem
+> Docker construída a partir de `apps/api/Dockerfile` é a forma suportada de rodá-lo hoje: ela constrói o SDK, a CLI e
+> a API do código-fonte dentro da imagem, então não precisa de nada do PyPI. Rodar com `uv` a partir de um checkout
+> também funciona.
 >
-> Vem do `imgexam-api`? As versões recomeçam em `0.1.0` sob o nome e a imagem novos — leia o
-> [MIGRATING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.pt-BR.md) antes de
-> atualizar.
+> Vindo do `imgexam-api`? As versões recomeçam em `0.1.0` sob o nome e a imagem novos — leia o
+> [MIGRATING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.pt-BR.md) antes de atualizar.
 
-## Por que mTLS, e só mTLS
-
-Não existe header `Authorization`, API key, nem cookie de sessão. A única coisa que esta API aceita como identidade é
-um certificado de cliente assinado por uma CA que este deployment escolheu confiar — configurada uma vez, na subida,
-via `DIAGNOS_API_MTLS_CA_FILE`. Uma credencial bearer pode ser copiada num chat, commitada por acidente, ou
-reproduzida de um log roubado; um certificado de cliente não pode ser reproduzido só a partir de um segredo vazado,
-porque quem chama precisa ter a chave privada que a CA assinou, e essa chave nunca viaja pela rede. É também por
-isso que headers `X-Forwarded-*` de um proxy reverso nunca são tratados como identidade aqui: um header de proxy é
-só uma string que qualquer um que alcançou o proxy pode setar, enquanto o certificado de cliente TLS é a única coisa
-na conexão que foi verificada criptograficamente, pelo próprio uvicorn, antes de qualquer código de aplicação rodar.
-Uma requisição sem um certificado de cliente válido nunca termina o handshake TLS — nunca vira uma requisição HTTP,
-muito menos alcança uma rota.
-
-## Gerando uma CA e certificados com `openssl`
-
-Para um deployment de verdade, use a CA que sua organização já opera. Para testar localmente, ou montar uma CA
-descartável para um ambiente que não é produção:
+## De relance
 
 ```sh
-# 1. Uma CA que vai assinar tanto o certificado do servidor quanto o de todo cliente.
-openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
-  -keyout clients-ca-key.pem -out clients-ca.pem \
-  -subj "/CN=diagnos-api internal CA"
-
-# 2. O certificado do próprio servidor, para o uvicorn apresentar a quem chama.
-openssl req -newkey rsa:4096 -sha256 -nodes -keyout tls-key.pem -out server.csr \
-  -subj "/CN=diagnos-api.internal"
-openssl x509 -req -in server.csr -CA clients-ca.pem -CAkey clients-ca-key.pem \
-  -CAcreateserial -days 825 -out tls.pem
-
-# 3. Um certificado de cliente por sistema autorizado a chamar esta API. O
-#    CN abaixo é o que DIAGNOS_API_ALLOWED_CLIENT_CN pode restringir.
-openssl req -newkey rsa:4096 -sha256 -nodes -keyout client-key.pem -out client.csr \
-  -subj "/CN=billing-system"
-openssl x509 -req -in client.csr -CA clients-ca.pem -CAkey clients-ca-key.pem \
-  -CAcreateserial -days 365 -out client.pem
-```
-
-Guarde `clients-ca-key.pem` fora de linha depois de terminar de assinar — esta API só precisa do certificado público
-da CA (`clients-ca.pem`), nunca da chave dela, para verificar quem chama.
-
-## Rodando
-
-De qualquer jeito que você rode, a tabela de ambiente em [`deploy/README.pt-BR.md`](deploy/README.pt-BR.md) é o
-contrato completo — `DIAGNOS_API_TOKEN`, `DIAGNOS_API_MTLS_CA_FILE`,
-`DIAGNOS_API_TLS_CERT_FILE`/`DIAGNOS_API_TLS_KEY_FILE` são obrigatórias; host, porta, a lista de CN permitidos e o
-auto-unseal do OpenBao são opcionais.
-
-```sh
-# python
-export DIAGNOS_API_TOKEN="apikey-…"
-export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
-export DIAGNOS_API_TLS_CERT_FILE=./tls.pem
-export DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
-uv run --package diagnos-api diagnos-api
-```
-
-```sh
-# Docker — veja apps/api/Dockerfile
-docker build -f apps/api/Dockerfile -t diagnos-api .   # a partir da raiz do repositório
+docker build -f apps/api/Dockerfile -t diagnos-api .   # da raiz do repositório
 docker run --rm -p 8443:8443 --cap-add=IPC_LOCK \
   -e DIAGNOS_API_TOKEN=apikey-… \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
-  -e DIAGNOS_API_TLS_CERT_FILE=/certs/server.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/server-key.pem \
-  -v $PWD/certs:/certs:ro diagnos-api
-```
+  -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
+  -v "$PWD/certs:/certs:ro" diagnos-api
 
-`--cap-add=IPC_LOCK` é o que permite o SDK travar as chaves na RAM além do padrão de 64 KiB; sem isso o container
-ainda sobe e roda em modo best-effort — veja a seção "Travamento de memória" do
-[`deploy/README.pt-BR.md`](deploy/README.pt-BR.md) para a história completa em três partes (capability,
-`RLIMIT_MEMLOCK`, `DIAGNOS_MEMORY_LOCK`).
-
-Para Kubernetes, veja [`deploy/README.pt-BR.md`](deploy/README.pt-BR.md) — `deploy/k8s` traz um Deployment, Service,
-ConfigMap e um template de Secret.
-
-## OpenBao (auto-unseal)
-
-Sem `OPENBAO_ADDR`/`OPENBAO_TOKEN`, todo reinício do processo refaz o enrollment: imprime um link de aprovação e um
-código de 6 dígitos no log estruturado (`src/diagnos_api/logging.py`), e bloqueia até um admin do workspace aprovar
-no app web do diagnos — ok para uma rodada avulsa, não para um pod que reinicia sozinho. Configure as duas e o SDK
-salva a sessão desbloqueada no OpenBao logo após o enrollment, restaurando de lá em toda subida seguinte sem humano
-envolvido (a seção
-[Auto-unseal com OpenBao](https://github.com/diagnos-tech/integration/blob/develop/apps/sdk/README.pt-BR.md#auto-unseal-com-openbao)
-do SDK tem o tradeoff completo). Esta API nunca toca o OpenBao direto — é inteiramente responsabilidade do SDK,
-configurado pelas mesmas variáveis de ambiente que `diagnos.Settings.from_env()` lê.
-
-## Rotas
-
-Toda rota exige certificado de cliente; `{sg}` é um id de security group.
-
-| Método | Caminho | O que faz | Situação |
-|---|---|---|---|
-| `GET` | `/v1/patients` | Lista pacientes (`?summary=true` acrescenta nomes e tags decifrados) | ✅ funciona hoje |
-| `POST` | `/v1/patients` | Cria um paciente (`record`, `security_group`, `tags`, `specialist_ids`) | ✅ funciona hoje |
-| `GET` | `/v1/patients/{id}` | Busca um paciente (`?version_id=`, `?include_draft=false`) | ✅ funciona hoje |
-| `PUT` | `/v1/patients/{id}` | Versão nova e completa (`record`, `tags`, `expected_latest_version_id`) | ✅ funciona hoje |
-| `POST` | `/v1/patients/{id}/archive` | Arquiva (sem versão nova) | ✅ funciona hoje |
-| `POST` | `/v1/patients/{id}/unarchive` | Desarquiva | ✅ funciona hoje |
-| `DELETE` | `/v1/patients/{id}` | Manda para a lixeira (soft) | ✅ funciona hoje |
-| `POST` | `/v1/patients/{id}/restore` | Tira da lixeira | ✅ funciona hoje |
-| `GET` | `/v1/exams` | Lista exames (`?summary=true` acrescenta título, modalidade e data) | ✅ funciona hoje |
-| `POST` | `/v1/exams` | Cria um exame (`record`, `patient_id`, `security_group`) | ✅ funciona hoje |
-| `GET` | `/v1/exams/{id}` | Busca um exame (`?version_id=`, `?include_draft=false`) | ✅ funciona hoje |
-| `PUT` | `/v1/exams/{id}` | Versão nova e completa (`record`, `expected_latest_version_id`) | ✅ funciona hoje |
-| `POST` | `/v1/exams/{id}/archive` | Arquiva (sem versão nova) | ✅ funciona hoje |
-| `POST` | `/v1/exams/{id}/unarchive` | Desarquiva | ✅ funciona hoje |
-| `DELETE` | `/v1/exams/{id}` | Manda para a lixeira (soft) | ✅ funciona hoje |
-| `POST` | `/v1/exams/{id}/restore` | Tira da lixeira | ✅ funciona hoje |
-| `GET` | `/v1/drives/{sg}/nodes` | Lista arquivos e pastas, nomes decifrados (`?parent_id=`, `?exam_id=`, `?include_pending=`, `?limit=` 1–200, `?cursor=`) | ✅ funciona hoje |
-| `GET` | `/v1/drives/{sg}/nodes/{id}` | Metadado e nome decifrado de um arquivo | ✅ funciona hoje |
-| `POST` | `/v1/drives/{sg}/nodes` | Sobe um arquivo (`multipart/form-data`: `file`, opcionais `exam_id`, `parent_id`, `mime_type`) | ✅ funciona hoje |
-| `POST` | `/v1/drives/{sg}/folders` | Cria uma pasta (`name`, `parent_id`) → `{node_id}` | ✅ funciona hoje |
-| `GET` | `/v1/drives/{sg}/nodes/{id}/content` | Transmite o conteúdo decifrado, nomeado pelo último segmento do caminho | ✅ funciona hoje |
-| `GET` | `/v1/session` | Identidade deste processo e a identidade mTLS de quem chamou | ✅ funciona hoje |
-| `POST` | `/v1/session/lock` | Encerra a sessão do SDK | ✅ funciona hoje |
-| `GET` | `/healthz` | 200 trivial (ainda travado por mTLS) | ✅ funciona hoje |
-
-Um nó lido sob o `{sg}` errado responde `404`, igual a um que não existe. Limites conhecidos e as questões ainda em
-aberto do lado do cofre:
-[Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
-
-Os esquemas completos de requisição/resposta, gerados do código, ficam em `/docs` (Swagger UI) e `/openapi.json` com
-o processo rodando — alcançáveis só com um certificado de cliente válido, como tudo mais.
-
-## Formato de erro
-
-Toda resposta não-2xx é `{"error": {"code": str, "message": str, "trace_id": str | None}}`. `code`/`trace_id` vêm
-direto do envelope de erro do próprio cofre quando a falha se originou lá
-([`docs/PROTOCOL.md` §12](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.pt-BR.md)) — um
-`trace_id` é o que um chamado de suporte precisa para achar o evento do lado do servidor.
-
-| HTTP | Exceção `diagnos` | Significado |
-|---|---|---|
-| 400 | `ValidationError` | A requisição está errada |
-| 401 | `AuthenticationError`, `SessionExpiredError` | Token/sessão/assinatura recusados |
-| 402 | `QuotaError` | Sem crédito no workspace |
-| 403 | `DiagnosPermissionError` | Não permitido aqui |
-| 403 | `GroupKeyUnavailable` (`code: group_key_unavailable`) | Este processo nunca recebeu a chave do security group do dado — um admin aprova um enrollment que o cubra |
-| 404 | `NotFoundError` | Não encontrado |
-| 409 | `ConflictError` | Versão pendente ou mais nova, replay, ou um upload que nunca chegou ao armazenamento |
-| 422 | — | Corpo/query da requisição falhou validação |
-| 429 | `RateLimitError` | Devagar |
-| 500 | `CryptoError` | Um envelope não abriu (sem mais detalhe) |
-| 502 | `VaultError` | O próprio cofre falhou (qualquer outro código) |
-| 502 | `ProtocolError` (`code: protocol_error`) | O cofre respondeu algo que o protocolo não permite |
-
-## Chamando com `curl`
-
-```sh
 curl --cert client.pem --key client-key.pem --cacert clients-ca.pem \
   https://diagnos-api.internal:8443/v1/patients
 ```
+
+| Prefixo | O que serve |
+|---|---|
+| `/v1/patients` | registros de paciente cifrados — listar, criar, ler, atualizar, arquivar, lixeira, restaurar |
+| `/v1/exams` | o mesmo para exames, cada um ligado a um paciente |
+| `/v1/drives/{sg}` | arquivos e pastas de um security group — subir, listar, ler, baixar decifrado |
+| `/v1/session` | a identidade deste processo e o certificado de quem chama; travar a sessão |
+| `/healthz` | vivacidade, atrás do TLS mútuo como todo o resto |
+
+Toda rota, parâmetro e schema está na referência gerada, e em `/docs` e `/openapi.json` num processo rodando. Toda
+resposta não-2xx é `{"error": {"code", "message", "trace_id"}}`.
+
+## Guias
+
+| | |
+|---|---|
+| [Guia da API REST](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/api.pt-BR.md) | por que TLS mútuo, certificados, como rodar, como chamar toda rota com `curl` |
+| [Referência da API](https://github.com/diagnos-tech/integration/blob/develop/docs/reference/openapi.json) | o documento OpenAPI, gerado a partir do código |
+| [Implantação](deploy/README.pt-BR.md) | ambiente, Kubernetes, Docker Compose, auto-unseal com OpenBao, travamento de memória |
+| [Erros](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/errors.pt-BR.md#toda-exceção) | em qual status HTTP cada falha vira |
+| [Modelo de segurança](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/security.pt-BR.md#a-fronteira-da-api-rest) | o que o processo da API guarda, e por que a CA de clientes é o controle de acesso |
+
+Limites conhecidos e as questões ainda em aberto do lado do cofre:
+[Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
+
+## Desenvolvimento
+
+```sh
+make sync
+uv run --package diagnos-api pytest apps/api/tests -q
+uv run mypy apps/api/src
+make docs   # regera docs/reference/openapi.json depois de mudar uma rota
+```
+
+Os textos `summary` e `description` das rotas são escritos `🇺🇸 … 🇧🇷 …`: chegam ao site de documentação pelo
+documento OpenAPI gerado, e o `make docs-check` recusa um sem as duas línguas.

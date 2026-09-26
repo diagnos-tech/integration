@@ -16,12 +16,10 @@ resumes the SDK session without a human approving again.
 | `DIAGNOS_API_TLS_CERT_FILE` / `DIAGNOS_API_TLS_KEY_FILE` | yes | Server certificate and key (PEM). |
 | `DIAGNOS_API_HOST` / `DIAGNOS_API_PORT` | no | Default `0.0.0.0` / `8443`. |
 | `DIAGNOS_API_ALLOWED_CLIENT_CN` | no | Comma-separated CNs; when set, only these client certificates pass. |
-| `OPENBAO_ADDR` / `OPENBAO_TOKEN` / `OPENBAO_MOUNT` / `OPENBAO_PATH_PREFIX` | no | Auto-unseal (see [`docs/PROTOCOL.md` §11](../../../docs/PROTOCOL.md)). |
-| `OPENBAO_TOKEN_FILE` | no | A file to read the OpenBao token from when `OPENBAO_TOKEN` is unset — how Compose (`deploy/compose`) and file-mounted Kubernetes Secrets hand it over without an environment value. |
-| `DIAGNOS_VAULT_URL` | no | Default `https://vault.diagnos.health`. |
+| `OPENBAO_*`, `DIAGNOS_VAULT_URL`, `DIAGNOS_MEMORY_LOCK`, … | no | Every SDK variable applies too — see [Configuration](../../../docs/guides/configuration.md). `OPENBAO_TOKEN_FILE` is how Compose (`deploy/compose`) and file-mounted Kubernetes Secrets hand over the OpenBao token without an environment value. |
 
 Without OpenBao, the first start prints the approval link and code to the container log; a workspace admin approves
-once per process lifetime.
+once per process lifetime. Generating the certificates and calling the API: the [REST API guide](../../../docs/guides/api.md).
 
 ## Kubernetes
 

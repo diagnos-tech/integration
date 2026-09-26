@@ -66,7 +66,7 @@ substitui.
   `scripts/check_bilingual.py` (parte do `make lint`) derruba o build quando uma docstring ou comentário de doc está
   sem uma das bandeiras.
 
-  ```python
+  ```python no-run
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
       """🇺🇸 HMAC-SHA512 over the canonical string, hex-encoded.
 

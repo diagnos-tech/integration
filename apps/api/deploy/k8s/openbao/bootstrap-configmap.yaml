@@ -302,7 +302,7 @@ data:
     main "$@"
   policy.hcl: |
     # 🇺🇸 Policy `diagnos-sdk`: the *only* thing the diagnos-api process's
-    # OpenBao token may do. `apps/sdk/README.md`'s "Auto-unseal with OpenBao" section
+    # OpenBao token may do. `docs/guides/sessions.md`'s "Auto-unseal with OpenBao" section
     # states the trade plainly — whoever can read this one path can decrypt
     # exactly what the SDK process can — so this policy is the enforcement of
     # that boundary, not a formality. `__WORKSPACE_ID__`/`__ACCOUNT_ID__` are
@@ -311,7 +311,7 @@ data:
     # write`); this file on disk is the template, never the literal policy.
     # 🇧🇷 Política `diagnos-sdk`: a *única* coisa que o token de OpenBao do
     # processo diagnos-api pode fazer. A seção "Auto-unseal com OpenBao" de
-    # `apps/sdk/README.md` diz o tradeoff sem rodeios — quem consegue ler este único
+    # `docs/guides/sessions.pt-BR.md` diz o tradeoff sem rodeios — quem consegue ler este único
     # path decifra exatamente o que o processo do SDK decifra — então esta
     # política é a aplicação prática dessa fronteira, não uma formalidade.
     # `__WORKSPACE_ID__`/`__ACCOUNT_ID__` são substituídos pelo `bootstrap.sh` a

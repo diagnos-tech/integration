@@ -49,9 +49,19 @@ known-local-folder = ["_crypto", "_wire", "conftest", "vault_double"]
 python_version = "3.11"
 strict = true
 warn_unused_ignores = true
-# 🇺🇸 The contract suite imports its helpers by bare name, as pytest runs it.
-# 🇧🇷 A suíte de contrato importa os helpers pelo nome, como o pytest a roda.
-mypy_path = "contracts/tests"
+# 🇺🇸 The contract suite imports its helpers by bare name, as pytest runs it; the docs sandbox
+#    (`scripts/docs/sandbox.py`) imports the SDK's vault double the same way.
+# 🇧🇷 A suíte de contrato importa os helpers pelo nome, como o pytest a roda; o sandbox da doc
+#    (`scripts/docs/sandbox.py`) importa o duplo do cofre do SDK do mesmo jeito.
+mypy_path = "contracts/tests:apps/sdk/tests/resources"
+
+[[tool.mypy.overrides]]
+# 🇺🇸 The SDK's vault double is a test fixture, outside what `make types` holds to `--strict`: its types are
+#    followed where `scripts` uses them, its own findings are not reported.
+# 🇧🇷 O duplo do cofre do SDK é uma fixture de teste, fora do que o `make types` cobra em `--strict`: os tipos
+#    dele são seguidos onde `scripts` os usa, os achados dele não são reportados.
+module = ["vault_double"]
+follow_imports = "silent"
 
 [[tool.mypy.overrides]]
 # 🇺🇸 Test-only crypto oracles that ship no type information.

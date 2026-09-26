@@ -58,6 +58,23 @@ class ProtocolError(DiagnosError):
 class VaultError(DiagnosError):
     """🇺🇸 The vault answered with an error envelope. 🇧🇷 O cofre respondeu com um envelope de erro."""
 
+    code: str
+    """🇺🇸 The vault's error code (`QuotaExceeded`, `DocumentNotFound`…) — branch on it, never on `message`.
+
+    🇧🇷 O código de erro do cofre (`QuotaExceeded`, `DocumentNotFound`…) — decida por ele, nunca pela `message`.
+    """
+    message: str
+    """🇺🇸 The vault's message, for a person. 🇧🇷 A mensagem do cofre, para uma pessoa."""
+    status: int
+    """🇺🇸 The HTTP status the vault answered with. 🇧🇷 O status HTTP com que o cofre respondeu."""
+    trace_id: str | None
+    """🇺🇸 The vault's trace id — what a support ticket needs to find the event.
+
+    🇧🇷 O trace id do cofre — o que um chamado de suporte precisa para achar o evento.
+    """
+    request_id: str | None
+    """🇺🇸 The `X-Request-Id` of the failed response. 🇧🇷 O `X-Request-Id` da resposta que falhou."""
+
     def __init__(
         self,
         code: str,

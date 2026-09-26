@@ -1,0 +1,1738 @@
+{
+  "commands": [
+    {
+      "examples": [
+        {
+          "command": "diagnos login",
+          "description": {
+            "en": "Enroll this process and show the granted groups",
+            "pt-br": "Faz enrollment e mostra os grupos concedidos"
+          }
+        },
+        {
+          "command": "diagnos --json patients list --all",
+          "description": {
+            "en": "Every patient, as JSON for scripts",
+            "pt-br": "Todos os pacientes, em JSON para scripts"
+          }
+        },
+        {
+          "command": "diagnos --quiet files download NODE_ID",
+          "description": {
+            "en": "No spinner, for cron jobs",
+            "pt-br": "Sem spinner, para cron"
+          }
+        }
+      ],
+      "help": {
+        "en": "The diagnos vault, from your terminal",
+        "pt-br": "O cofre diagnos, do seu terminal"
+      },
+      "params": [
+        {
+          "default": "false",
+          "flags": [
+            "--json"
+          ],
+          "help": {
+            "en": "Machine output",
+            "pt-br": "Saída para máquina"
+          },
+          "kind": "option",
+          "name": "json",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--quiet",
+            "-q"
+          ],
+          "help": {
+            "en": "No spinners/progress",
+            "pt-br": "Sem spinners/progresso"
+          },
+          "kind": "option",
+          "name": "quiet",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--vault-url"
+          ],
+          "help": {
+            "en": "Overrides DIAGNOS_VAULT_URL",
+            "pt-br": "Sobrescreve DIAGNOS_VAULT_URL"
+          },
+          "kind": "option",
+          "name": "vault-url",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--token"
+          ],
+          "help": {
+            "en": "Overrides DIAGNOS_API_TOKEN",
+            "pt-br": "Sobrescreve DIAGNOS_API_TOKEN"
+          },
+          "kind": "option",
+          "name": "token",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--no-color"
+          ],
+          "help": {
+            "en": "Disable ANSI colors",
+            "pt-br": "Desliga cores ANSI"
+          },
+          "kind": "option",
+          "name": "no-color",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--version"
+          ],
+          "help": {
+            "en": "Show the version",
+            "pt-br": "Mostra a versão"
+          },
+          "kind": "option",
+          "name": "version",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": []
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos login",
+          "description": {
+            "en": "Prints a link and a code, waits for approval",
+            "pt-br": "Imprime link e código, espera a aprovação"
+          }
+        },
+        {
+          "command": "diagnos login --no-auto-unseal",
+          "description": {
+            "en": "Do not save the session to OpenBao",
+            "pt-br": "Não salva a sessão no OpenBao"
+          }
+        },
+        {
+          "command": "diagnos --json login",
+          "description": {
+            "en": "What was granted, as JSON",
+            "pt-br": "O que foi concedido, em JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "Enroll and show what was granted",
+        "pt-br": "Faz enrollment e mostra o que foi concedido"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [
+            "--auto-unseal",
+            "--no-auto-unseal"
+          ],
+          "help": {
+            "en": "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set)",
+            "pt-br": "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
+          },
+          "kind": "option",
+          "name": "auto-unseal",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "login"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos status",
+          "description": {
+            "en": "Parses the token locally; no network",
+            "pt-br": "Lê o token localmente; sem rede"
+          }
+        },
+        {
+          "command": "diagnos status --check",
+          "description": {
+            "en": "Also unlock and list the granted groups",
+            "pt-br": "Também desbloqueia e lista os grupos"
+          }
+        }
+      ],
+      "help": {
+        "en": "Token, OpenBao and SDK version",
+        "pt-br": "Token, OpenBao e versão do SDK"
+      },
+      "params": [
+        {
+          "default": "false",
+          "flags": [
+            "--check"
+          ],
+          "help": {
+            "en": "Also unlock and list granted groups",
+            "pt-br": "Também desbloqueia e lista os grupos concedidos"
+          },
+          "kind": "option",
+          "name": "check",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "status"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos groups",
+          "description": {
+            "en": "One security group id per line",
+            "pt-br": "Um id de security group por linha"
+          }
+        },
+        {
+          "command": "diagnos --json groups",
+          "description": {
+            "en": "The same list, as JSON",
+            "pt-br": "A mesma lista, em JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "Granted security groups",
+        "pt-br": "Security groups concedidos"
+      },
+      "params": [],
+      "path": [
+        "groups"
+      ]
+    },
+    {
+      "help": {
+        "en": "Patients",
+        "pt-br": "Pacientes"
+      },
+      "params": [],
+      "path": [
+        "patients"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients list --group sg_oncology --summary",
+          "description": {
+            "en": "One page of a group, names decrypted",
+            "pt-br": "Uma página de um grupo, nomes decifrados"
+          }
+        },
+        {
+          "command": "diagnos --json patients list --all",
+          "description": {
+            "en": "Every page, as JSON",
+            "pt-br": "Todas as páginas, em JSON"
+          }
+        },
+        {
+          "command": "diagnos patients list --limit 20 --cursor CURSOR",
+          "description": {
+            "en": "The page after the cursor the last one printed",
+            "pt-br": "A página depois do cursor impresso na anterior"
+          }
+        }
+      ],
+      "help": {
+        "en": "List patients (one page, or all with --all)",
+        "pt-br": "Lista pacientes (uma página, ou todas com --all)"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [
+            "--group",
+            "-g"
+          ],
+          "help": {
+            "en": "Security group filter",
+            "pt-br": "Filtro de security group"
+          },
+          "kind": "option",
+          "name": "group",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--include-deleted"
+          ],
+          "help": {
+            "en": "Include the trash",
+            "pt-br": "Inclui a lixeira"
+          },
+          "kind": "option",
+          "name": "include-deleted",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": "50",
+          "flags": [
+            "--limit"
+          ],
+          "help": {
+            "en": "Page size",
+            "pt-br": "Tamanho da página"
+          },
+          "kind": "option",
+          "name": "limit",
+          "required": false,
+          "type": "int"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--cursor"
+          ],
+          "help": {
+            "en": "Resume from this cursor",
+            "pt-br": "Retoma a partir deste cursor"
+          },
+          "kind": "option",
+          "name": "cursor",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--all"
+          ],
+          "help": {
+            "en": "Walk every page",
+            "pt-br": "Percorre todas as páginas"
+          },
+          "kind": "option",
+          "name": "all",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--summary",
+            "-s"
+          ],
+          "help": {
+            "en": "Also decrypt each row's sealed summary (name, tags)",
+            "pt-br": "Também decifra o resumo selado de cada linha (nome, tags)"
+          },
+          "kind": "option",
+          "name": "summary",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "patients",
+        "list"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients get PATIENT_ID",
+          "description": {
+            "en": "The newest content (a newer draft wins)",
+            "pt-br": "O conteúdo mais novo (um rascunho mais novo vence)"
+          }
+        },
+        {
+          "command": "diagnos patients get PATIENT_ID --committed",
+          "description": {
+            "en": "Saved versions only, never the draft",
+            "pt-br": "Só versões salvas, nunca o rascunho"
+          }
+        },
+        {
+          "command": "diagnos --json patients get PATIENT_ID --version VERSION_ID",
+          "description": {
+            "en": "One specific version, as JSON",
+            "pt-br": "Uma versão específica, em JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "Fetch and decrypt one patient",
+        "pt-br": "Busca e decifra um paciente"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Patient document id",
+            "pt-br": "Id do documento de paciente"
+          },
+          "kind": "argument",
+          "name": "patient_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--version"
+          ],
+          "help": {
+            "en": "A specific version id",
+            "pt-br": "Um id de versão específico"
+          },
+          "kind": "option",
+          "name": "version",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--committed"
+          ],
+          "help": {
+            "en": "Ignore a newer unsaved draft",
+            "pt-br": "Ignora um rascunho mais novo não salvo"
+          },
+          "kind": "option",
+          "name": "committed",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "patients",
+        "get"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients create --group sg_oncology --legal-name \"Jane Doe\" --display-name Jane --birth-date 1990-01-31 --tag diabetes",
+          "description": {
+            "en": "Inline fields and one sealed tag",
+            "pt-br": "Campos inline e uma tag selada"
+          }
+        },
+        {
+          "command": "diagnos patients create --group sg_oncology --file patient.json",
+          "description": {
+            "en": "A complete record from a JSON file",
+            "pt-br": "Um registro completo de um arquivo JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "Encrypt and create a patient",
+        "pt-br": "Cifra e cria um paciente"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [
+            "--group",
+            "-g"
+          ],
+          "help": {
+            "en": "Security group to encrypt under",
+            "pt-br": "Grupo sob o qual cifrar"
+          },
+          "kind": "option",
+          "name": "group",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--file"
+          ],
+          "help": {
+            "en": "Record JSON file",
+            "pt-br": "Arquivo JSON do registro"
+          },
+          "kind": "option",
+          "name": "file",
+          "required": false,
+          "type": "path"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--legal-name"
+          ],
+          "help": {
+            "en": "Full legal name",
+            "pt-br": "Nome civil completo"
+          },
+          "kind": "option",
+          "name": "legal-name",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--display-name"
+          ],
+          "help": {
+            "en": "Name shown in lists",
+            "pt-br": "Nome exibido nas listas"
+          },
+          "kind": "option",
+          "name": "display-name",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--birth-date"
+          ],
+          "help": {
+            "en": "ISO date, e.g. 1990-01-31",
+            "pt-br": "Data ISO"
+          },
+          "kind": "option",
+          "name": "birth-date",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--external-id"
+          ],
+          "help": {
+            "en": "Id in another system",
+            "pt-br": "Id em outro sistema"
+          },
+          "kind": "option",
+          "name": "external-id",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--tag"
+          ],
+          "help": {
+            "en": "Sealed list label, repeatable",
+            "pt-br": "Rótulo selado, repetível"
+          },
+          "kind": "option",
+          "name": "tag",
+          "required": false,
+          "type": "list[str]"
+        }
+      ],
+      "path": [
+        "patients",
+        "create"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients update PATIENT_ID --file patient.json --expect-version VERSION_ID",
+          "description": {
+            "en": "A complete new version, refused if someone saved since",
+            "pt-br": "Uma versão completa nova, recusada se alguém salvou depois"
+          }
+        },
+        {
+          "command": "diagnos patients update PATIENT_ID --file patient.json --tag diabetes --tag follow-up",
+          "description": {
+            "en": "Also replace the tags",
+            "pt-br": "Também substitui as tags"
+          }
+        }
+      ],
+      "help": {
+        "en": "Write a new version of a patient",
+        "pt-br": "Grava uma versão nova de um paciente"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Patient document id",
+            "pt-br": "Id do documento de paciente"
+          },
+          "kind": "argument",
+          "name": "patient_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--file"
+          ],
+          "help": {
+            "en": "New record JSON file",
+            "pt-br": "Arquivo JSON do registro novo"
+          },
+          "kind": "option",
+          "name": "file",
+          "required": true,
+          "type": "path"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--tag"
+          ],
+          "help": {
+            "en": "Replace the tags, repeatable (default: keep)",
+            "pt-br": "Substitui as tags (padrão: mantém)"
+          },
+          "kind": "option",
+          "name": "tag",
+          "required": false,
+          "type": "list[str]"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--expect-version"
+          ],
+          "help": {
+            "en": "Refuse if a version newer than this one was saved meanwhile",
+            "pt-br": "Recusa se uma versão mais nova que esta foi salva"
+          },
+          "kind": "option",
+          "name": "expect-version",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "patients",
+        "update"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients archive PATIENT_ID",
+          "description": {
+            "en": "Set the archived flag; no new version",
+            "pt-br": "Liga a flag de arquivado; sem versão nova"
+          }
+        }
+      ],
+      "help": {
+        "en": "Archive a patient",
+        "pt-br": "Arquiva um paciente"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Patient document id",
+            "pt-br": "Id do documento de paciente"
+          },
+          "kind": "argument",
+          "name": "patient_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "patients",
+        "archive"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients unarchive PATIENT_ID",
+          "description": {
+            "en": "Clear the archived flag",
+            "pt-br": "Tira a flag de arquivado"
+          }
+        }
+      ],
+      "help": {
+        "en": "Unarchive a patient",
+        "pt-br": "Desarquiva um paciente"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Patient document id",
+            "pt-br": "Id do documento de paciente"
+          },
+          "kind": "argument",
+          "name": "patient_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "patients",
+        "unarchive"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients delete PATIENT_ID",
+          "description": {
+            "en": "Asks before moving it to the trash",
+            "pt-br": "Pergunta antes de mandar para a lixeira"
+          }
+        },
+        {
+          "command": "diagnos patients delete PATIENT_ID --yes",
+          "description": {
+            "en": "No prompt, for scripts",
+            "pt-br": "Sem pergunta, para scripts"
+          }
+        }
+      ],
+      "help": {
+        "en": "Move a patient to the trash",
+        "pt-br": "Manda um paciente para a lixeira"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Patient document id",
+            "pt-br": "Id do documento de paciente"
+          },
+          "kind": "argument",
+          "name": "patient_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--yes"
+          ],
+          "help": {
+            "en": "Skip the confirmation prompt",
+            "pt-br": "Pula a confirmação"
+          },
+          "kind": "option",
+          "name": "yes",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "patients",
+        "delete"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos patients restore PATIENT_ID",
+          "description": {
+            "en": "Back out of the trash, history intact",
+            "pt-br": "De volta da lixeira, histórico intacto"
+          }
+        }
+      ],
+      "help": {
+        "en": "Take a patient out of the trash",
+        "pt-br": "Tira um paciente da lixeira"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Patient document id",
+            "pt-br": "Id do documento de paciente"
+          },
+          "kind": "argument",
+          "name": "patient_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "patients",
+        "restore"
+      ]
+    },
+    {
+      "help": {
+        "en": "Exams",
+        "pt-br": "Exames"
+      },
+      "params": [],
+      "path": [
+        "exams"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams list --group sg_radiology --summary",
+          "description": {
+            "en": "One page, titles, modalities and dates decrypted",
+            "pt-br": "Uma página, títulos, modalidades e datas decifrados"
+          }
+        },
+        {
+          "command": "diagnos --json exams list --all",
+          "description": {
+            "en": "Every page, as JSON",
+            "pt-br": "Todas as páginas, em JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "List exams (one page, or all with --all)",
+        "pt-br": "Lista exames (uma página, ou todas com --all)"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [
+            "--group",
+            "-g"
+          ],
+          "help": {
+            "en": "Security group filter",
+            "pt-br": "Filtro de security group"
+          },
+          "kind": "option",
+          "name": "group",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--include-deleted"
+          ],
+          "help": {
+            "en": "Include the trash",
+            "pt-br": "Inclui a lixeira"
+          },
+          "kind": "option",
+          "name": "include-deleted",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": "50",
+          "flags": [
+            "--limit"
+          ],
+          "help": {
+            "en": "Page size",
+            "pt-br": "Tamanho da página"
+          },
+          "kind": "option",
+          "name": "limit",
+          "required": false,
+          "type": "int"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--cursor"
+          ],
+          "help": {
+            "en": "Resume from this cursor",
+            "pt-br": "Retoma a partir deste cursor"
+          },
+          "kind": "option",
+          "name": "cursor",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--all"
+          ],
+          "help": {
+            "en": "Walk every page",
+            "pt-br": "Percorre todas as páginas"
+          },
+          "kind": "option",
+          "name": "all",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--summary",
+            "-s"
+          ],
+          "help": {
+            "en": "Also decrypt each row's sealed summary (title, modality, date)",
+            "pt-br": "Também decifra o resumo selado de cada linha"
+          },
+          "kind": "option",
+          "name": "summary",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "exams",
+        "list"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams get EXAM_ID",
+          "description": {
+            "en": "The exam, its report as plain text",
+            "pt-br": "O exame, com o laudo em texto puro"
+          }
+        },
+        {
+          "command": "diagnos --json exams get EXAM_ID",
+          "description": {
+            "en": "The full record, report HTML included",
+            "pt-br": "O registro completo, com o HTML do laudo"
+          }
+        }
+      ],
+      "help": {
+        "en": "Fetch and decrypt one exam",
+        "pt-br": "Busca e decifra um exame"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Exam document id",
+            "pt-br": "Id do documento de exame"
+          },
+          "kind": "argument",
+          "name": "exam_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--version"
+          ],
+          "help": {
+            "en": "A specific version id",
+            "pt-br": "Um id de versão específico"
+          },
+          "kind": "option",
+          "name": "version",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--committed"
+          ],
+          "help": {
+            "en": "Ignore a newer unsaved draft",
+            "pt-br": "Ignora um rascunho mais novo não salvo"
+          },
+          "kind": "option",
+          "name": "committed",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "exams",
+        "get"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams create --patient PATIENT_ID --group sg_radiology --title \"Chest CT\" --modality CT --exam-date 2026-09-01",
+          "description": {
+            "en": "Inline fields; only the patient id travels in clear",
+            "pt-br": "Campos inline; só o id do paciente vai em claro"
+          }
+        },
+        {
+          "command": "diagnos exams create --patient PATIENT_ID --group sg_radiology --file exam.json",
+          "description": {
+            "en": "With the report, from a JSON file",
+            "pt-br": "Com o laudo, de um arquivo JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "Encrypt and create an exam for a patient",
+        "pt-br": "Cifra e cria um exame de um paciente"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [
+            "--patient"
+          ],
+          "help": {
+            "en": "The exam's patient id",
+            "pt-br": "Id do paciente do exame"
+          },
+          "kind": "option",
+          "name": "patient",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--group",
+            "-g"
+          ],
+          "help": {
+            "en": "Security group to encrypt under",
+            "pt-br": "Grupo sob o qual cifrar"
+          },
+          "kind": "option",
+          "name": "group",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--file"
+          ],
+          "help": {
+            "en": "Record JSON file",
+            "pt-br": "Arquivo JSON do registro"
+          },
+          "kind": "option",
+          "name": "file",
+          "required": false,
+          "type": "path"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--title"
+          ],
+          "help": {
+            "en": "e.g. Chest CT",
+            "pt-br": "ex: TC de tórax"
+          },
+          "kind": "option",
+          "name": "title",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--modality"
+          ],
+          "help": {
+            "en": "e.g. CT, MR, US",
+            "pt-br": "ex: CT, MR, US"
+          },
+          "kind": "option",
+          "name": "modality",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--exam-date"
+          ],
+          "help": {
+            "en": "ISO date",
+            "pt-br": "Data ISO"
+          },
+          "kind": "option",
+          "name": "exam-date",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "exams",
+        "create"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams update EXAM_ID --file exam.json --expect-version VERSION_ID",
+          "description": {
+            "en": "A complete new version, refused if someone saved since",
+            "pt-br": "Uma versão completa nova, recusada se alguém salvou depois"
+          }
+        }
+      ],
+      "help": {
+        "en": "Write a new version of an exam",
+        "pt-br": "Grava uma versão nova de um exame"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Exam document id",
+            "pt-br": "Id do documento de exame"
+          },
+          "kind": "argument",
+          "name": "exam_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--file"
+          ],
+          "help": {
+            "en": "New record JSON file",
+            "pt-br": "Arquivo JSON do registro novo"
+          },
+          "kind": "option",
+          "name": "file",
+          "required": true,
+          "type": "path"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--expect-version"
+          ],
+          "help": {
+            "en": "Refuse if a version newer than this one was saved meanwhile",
+            "pt-br": "Recusa se uma versão mais nova que esta foi salva"
+          },
+          "kind": "option",
+          "name": "expect-version",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "exams",
+        "update"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams archive EXAM_ID",
+          "description": {
+            "en": "Set the archived flag; no new version",
+            "pt-br": "Liga a flag de arquivado; sem versão nova"
+          }
+        }
+      ],
+      "help": {
+        "en": "Archive an exam",
+        "pt-br": "Arquiva um exame"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Exam document id",
+            "pt-br": "Id do documento de exame"
+          },
+          "kind": "argument",
+          "name": "exam_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "exams",
+        "archive"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams unarchive EXAM_ID",
+          "description": {
+            "en": "Clear the archived flag",
+            "pt-br": "Tira a flag de arquivado"
+          }
+        }
+      ],
+      "help": {
+        "en": "Unarchive an exam",
+        "pt-br": "Desarquiva um exame"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Exam document id",
+            "pt-br": "Id do documento de exame"
+          },
+          "kind": "argument",
+          "name": "exam_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "exams",
+        "unarchive"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams delete EXAM_ID --yes",
+          "description": {
+            "en": "Move to the trash without the prompt",
+            "pt-br": "Manda para a lixeira sem a pergunta"
+          }
+        }
+      ],
+      "help": {
+        "en": "Move an exam to the trash",
+        "pt-br": "Manda um exame para a lixeira"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Exam document id",
+            "pt-br": "Id do documento de exame"
+          },
+          "kind": "argument",
+          "name": "exam_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--yes"
+          ],
+          "help": {
+            "en": "Skip the confirmation prompt",
+            "pt-br": "Pula a confirmação"
+          },
+          "kind": "option",
+          "name": "yes",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "exams",
+        "delete"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos exams restore EXAM_ID",
+          "description": {
+            "en": "Back out of the trash, history intact",
+            "pt-br": "De volta da lixeira, histórico intacto"
+          }
+        }
+      ],
+      "help": {
+        "en": "Take an exam out of the trash",
+        "pt-br": "Tira um exame da lixeira"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Exam document id",
+            "pt-br": "Id do documento de exame"
+          },
+          "kind": "argument",
+          "name": "exam_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "exams",
+        "restore"
+      ]
+    },
+    {
+      "help": {
+        "en": "Files and folders",
+        "pt-br": "Arquivos e pastas"
+      },
+      "params": [],
+      "path": [
+        "files"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos files list --group sg_oncology --folder FOLDER_ID",
+          "description": {
+            "en": "One folder, names decrypted",
+            "pt-br": "Uma pasta, nomes decifrados"
+          }
+        },
+        {
+          "command": "diagnos --json files list --exam EXAM_ID --all",
+          "description": {
+            "en": "Every file linked to an exam, as JSON",
+            "pt-br": "Todo arquivo ligado a um exame, em JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "List files and folders (one page, or all with --all)",
+        "pt-br": "Lista arquivos e pastas (uma página, ou --all)"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [
+            "--group",
+            "-g"
+          ],
+          "help": {
+            "en": "Security group filter",
+            "pt-br": "Filtro de security group"
+          },
+          "kind": "option",
+          "name": "group",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--exam"
+          ],
+          "help": {
+            "en": "Filter by exam id",
+            "pt-br": "Filtra por id de exame"
+          },
+          "kind": "option",
+          "name": "exam",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--folder"
+          ],
+          "help": {
+            "en": "Folder node id",
+            "pt-br": "Id do nó da pasta"
+          },
+          "kind": "option",
+          "name": "folder",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--include-pending"
+          ],
+          "help": {
+            "en": "Include pending",
+            "pt-br": "Inclui pendentes"
+          },
+          "kind": "option",
+          "name": "include-pending",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": "50",
+          "flags": [
+            "--limit"
+          ],
+          "help": {
+            "en": "Page size",
+            "pt-br": "Tamanho da página"
+          },
+          "kind": "option",
+          "name": "limit",
+          "required": false,
+          "type": "int"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--cursor"
+          ],
+          "help": {
+            "en": "Resume from this cursor",
+            "pt-br": "Retoma a partir deste cursor"
+          },
+          "kind": "option",
+          "name": "cursor",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--all"
+          ],
+          "help": {
+            "en": "Walk every page",
+            "pt-br": "Percorre todas as páginas"
+          },
+          "kind": "option",
+          "name": "all",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "files",
+        "list"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos files upload --group sg_oncology --exam EXAM_ID scans/IM-0001.dcm scans/IM-0002.dcm",
+          "description": {
+            "en": "Encrypt a series and link it to an exam",
+            "pt-br": "Cifra uma série e liga a um exame"
+          }
+        },
+        {
+          "command": "diagnos files upload --group sg_oncology --folder FOLDER_ID report.pdf",
+          "description": {
+            "en": "Into a folder",
+            "pt-br": "Dentro de uma pasta"
+          }
+        }
+      ],
+      "help": {
+        "en": "Encrypt and upload files",
+        "pt-br": "Cifra e envia arquivos"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Files to upload",
+            "pt-br": "Arquivos para subir"
+          },
+          "kind": "argument",
+          "name": "paths",
+          "required": true,
+          "type": "list[path]"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--group",
+            "-g"
+          ],
+          "help": {
+            "en": "Security group to seal under",
+            "pt-br": "Grupo sob o qual selar"
+          },
+          "kind": "option",
+          "name": "group",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--exam"
+          ],
+          "help": {
+            "en": "Attach to this exam id",
+            "pt-br": "Vincula a este id de exame"
+          },
+          "kind": "option",
+          "name": "exam",
+          "required": false,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--folder"
+          ],
+          "help": {
+            "en": "Folder node id",
+            "pt-br": "Id do nó da pasta"
+          },
+          "kind": "option",
+          "name": "folder",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "files",
+        "upload"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos files mkdir \"CT 2026-09-01\" --group sg_oncology",
+          "description": {
+            "en": "Prints the new folder's node id",
+            "pt-br": "Imprime o id do nó da pasta nova"
+          }
+        },
+        {
+          "command": "diagnos --json files mkdir Series --group sg_oncology --parent FOLDER_ID",
+          "description": {
+            "en": "A subfolder, id as JSON",
+            "pt-br": "Uma subpasta, id em JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "Create a folder",
+        "pt-br": "Cria uma pasta"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Folder name (sealed)",
+            "pt-br": "Nome da pasta (selado)"
+          },
+          "kind": "argument",
+          "name": "name",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--group",
+            "-g"
+          ],
+          "help": {
+            "en": "Security group to seal under",
+            "pt-br": "Grupo sob o qual selar"
+          },
+          "kind": "option",
+          "name": "group",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--parent"
+          ],
+          "help": {
+            "en": "Parent folder node id",
+            "pt-br": "Id do nó da pasta-mãe"
+          },
+          "kind": "option",
+          "name": "parent",
+          "required": false,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "files",
+        "mkdir"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos files download NODE_ID",
+          "description": {
+            "en": "Saved under its decrypted name, in this folder",
+            "pt-br": "Salvo com o nome decifrado, nesta pasta"
+          }
+        },
+        {
+          "command": "diagnos files download NODE_ID -o scan.dcm",
+          "description": {
+            "en": "Saved where you say",
+            "pt-br": "Salvo onde você mandar"
+          }
+        }
+      ],
+      "help": {
+        "en": "Download and decrypt one file",
+        "pt-br": "Baixa e decifra um arquivo"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "File node id",
+            "pt-br": "Id do nó do arquivo"
+          },
+          "kind": "argument",
+          "name": "node_id",
+          "required": true,
+          "type": "str"
+        },
+        {
+          "default": null,
+          "flags": [
+            "--output",
+            "-o"
+          ],
+          "help": {
+            "en": "Destination path (default: the decrypted file name)",
+            "pt-br": "Destino (padrão: o nome decifrado)"
+          },
+          "kind": "option",
+          "name": "output",
+          "required": false,
+          "type": "path"
+        }
+      ],
+      "path": [
+        "files",
+        "download"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos files get NODE_ID",
+          "description": {
+            "en": "Metadata and the decrypted name, never the content",
+            "pt-br": "Metadados e o nome decifrado, nunca o conteúdo"
+          }
+        }
+      ],
+      "help": {
+        "en": "Show one file's metadata and name",
+        "pt-br": "Mostra metadados e nome de um arquivo"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "File node id",
+            "pt-br": "Id do nó do arquivo"
+          },
+          "kind": "argument",
+          "name": "node_id",
+          "required": true,
+          "type": "str"
+        }
+      ],
+      "path": [
+        "files",
+        "get"
+      ]
+    },
+    {
+      "help": {
+        "en": "Session lifecycle",
+        "pt-br": "Ciclo de vida da sessão"
+      },
+      "params": [],
+      "path": [
+        "session"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos session lock",
+          "description": {
+            "en": "End the session, wipe local keys and the OpenBao copy",
+            "pt-br": "Encerra a sessão, apaga as chaves locais e a cópia no OpenBao"
+          }
+        }
+      ],
+      "help": {
+        "en": "End the session on the vault and wipe local keys",
+        "pt-br": "Encerra a sessão no cofre e apaga as chaves locais"
+      },
+      "params": [],
+      "path": [
+        "session",
+        "lock"
+      ]
+    }
+  ],
+  "generatedFrom": {
+    "commit": "28bb22f",
+    "package": "diagnos-cli",
+    "version": "0.1.0"
+  },
+  "program": {
+    "help": {
+      "en": "The diagnos vault, from your terminal",
+      "pt-br": "O cofre diagnos, do seu terminal"
+    },
+    "name": "diagnos",
+    "version": "0.1.0"
+  },
+  "schemaVersion": 1
+}

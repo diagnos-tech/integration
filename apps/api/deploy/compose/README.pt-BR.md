@@ -14,9 +14,9 @@ cp .env.example .env
 # edite .env: DIAGNOS_API_TOKEN, depois `diagnos status` para os dois ids
 ```
 
-Gere o material de mTLS em `certs/` — a receita exata de `openssl` está na seção "Gerando uma CA e certificados com
-openssl" de [`../../README.pt-BR.md`](../../README.pt-BR.md); esta stack de compose espera `certs/clients-ca.pem`,
-`certs/server.pem`, `certs/server-key.pem`.
+Gere o material de mTLS em `certs/` com a receita de `openssl` do
+[guia da API REST](../../../../docs/guides/api.pt-BR.md#certificados); esta stack de compose espera
+`certs/clients-ca.pem`, `certs/server.pem` (o `tls.pem` da receita) e `certs/server-key.pem` (o `tls-key.pem` dela).
 
 ```sh
 docker compose up

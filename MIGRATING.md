@@ -27,7 +27,7 @@ internal version numbers were.
 | exception `ImgexamError` | exception `DiagnosError` |
 | exception `ImgexamPermissionError` | exception `DiagnosPermissionError` |
 
-```python
+```python no-run
 # before
 from imgexam import Imgexam, ImgexamError
 

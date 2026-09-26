@@ -14,9 +14,9 @@ cp .env.example .env
 # edit .env: DIAGNOS_API_TOKEN, then `diagnos status` for the two ids
 ```
 
-Generate the mTLS material into `certs/` — the exact `openssl` recipe is in
-[`../../README.md`](../../README.md)'s "Generating a CA and certificates with openssl" section; this compose stack
-expects `certs/clients-ca.pem`, `certs/server.pem`, `certs/server-key.pem`.
+Generate the mTLS material into `certs/` with the `openssl` recipe in the
+[REST API guide](../../../../docs/guides/api.md#certificates); this compose stack expects `certs/clients-ca.pem`,
+`certs/server.pem` (the recipe's `tls.pem`) and `certs/server-key.pem` (its `tls-key.pem`).
 
 ```sh
 docker compose up

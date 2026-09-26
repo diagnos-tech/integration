@@ -1,0 +1,4851 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "diagnos API",
+    "summary": "🇺🇸 REST facade over the diagnos SDK, authenticated by mutual TLS. 🇧🇷 Fachada REST sobre o SDK diagnos, autenticada por mTLS mútuo.",
+    "description": "🇺🇸 A thin HTTP face over the diagnos SDK: one process, one service account, one live session. Every route requires a client certificate signed by the CA this deployment trusts — there is no other credential. Every non-2xx response is `{\"error\": {\"code\", \"message\", \"trace_id\"}}`; branch on `code`. 🇧🇷 Uma face HTTP fina sobre o SDK diagnos: um processo, uma service account, uma sessão viva. Toda rota exige um certificado de cliente assinado pela CA em que este deployment confia — não existe outra credencial. Toda resposta não-2xx é `{\"error\": {\"code\", \"message\", \"trace_id\"}}`; decida por `code`.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/patients": {
+      "get": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 List patients 🇧🇷 Lista pacientes",
+        "description": "🇺🇸 One page of patients; rows are anonymous unless `summary=true`. 🇧🇷 Uma página de pacientes; as linhas são anônimas a menos que `summary=true`.",
+        "operationId": "list_patients",
+        "parameters": [
+          {
+            "name": "security_group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 Only this security group (default: every group this process may list). 🇧🇷 Só este security group (padrão: todo grupo que este processo pode listar).",
+              "title": "Security Group"
+            },
+            "description": "🇺🇸 Only this security group (default: every group this process may list). 🇧🇷 Só este security group (padrão: todo grupo que este processo pode listar)."
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "🇺🇸 Include documents in the trash. 🇧🇷 Inclui documentos na lixeira.",
+              "default": false,
+              "title": "Include Deleted"
+            },
+            "description": "🇺🇸 Include documents in the trash. 🇧🇷 Inclui documentos na lixeira."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior.",
+              "title": "Cursor"
+            },
+            "description": "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior."
+          },
+          {
+            "name": "summary",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "🇺🇸 Include each row's decrypted summary (names/tags, or title/modality/date). 🇧🇷 Inclui o resumo decifrado de cada linha (nomes/tags, ou título/modalidade/data).",
+              "default": false,
+              "title": "Summary"
+            },
+            "description": "🇺🇸 Include each row's decrypted summary (names/tags, or title/modality/date). 🇧🇷 Inclui o resumo decifrado de cada linha (nomes/tags, ou título/modalidade/data)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_DocumentListItem_PatientSummary__"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 Create a patient 🇧🇷 Cria um paciente",
+        "description": "🇺🇸 Seals `record` under `security_group` and creates the patient with its first version. 🇧🇷 Sela `record` sob `security_group` e cria o paciente com a primeira versão.",
+        "operationId": "create_patient",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/patients/{patient_id}": {
+      "get": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 Get one patient 🇧🇷 Busca um paciente",
+        "description": "🇺🇸 Fetches and decrypts one patient: the newest content, or `version_id`. 🇧🇷 Busca e decifra um paciente: o conteúdo mais novo, ou `version_id`.",
+        "operationId": "get_patient",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente.",
+              "title": "Patient Id"
+            },
+            "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente."
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 Read this committed version instead of the newest content. 🇧🇷 Lê esta versão confirmada em vez do conteúdo mais novo.",
+              "title": "Version Id"
+            },
+            "description": "🇺🇸 Read this committed version instead of the newest content. 🇧🇷 Lê esta versão confirmada em vez do conteúdo mais novo."
+          },
+          {
+            "name": "include_draft",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "🇺🇸 Read the web editor's draft when it is newer than the latest version (the web app's rule). 🇧🇷 Lê o rascunho do editor web quando é mais novo que a versão corrente (a regra do app web).",
+              "default": true,
+              "title": "Include Draft"
+            },
+            "description": "🇺🇸 Read the web editor's draft when it is newer than the latest version (the web app's rule). 🇧🇷 Lê o rascunho do editor web quando é mais novo que a versão corrente (a regra do app web)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 Update a patient 🇧🇷 Atualiza um paciente",
+        "description": "🇺🇸 Seals a complete new version of `record`, reusing the patient's DEK. 🇧🇷 Sela uma versão nova e completa de `record`, reusando a DEK do paciente.",
+        "operationId": "update_patient",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente.",
+              "title": "Patient Id"
+            },
+            "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 Move a patient to the trash 🇧🇷 Manda um paciente para a lixeira",
+        "description": "🇺🇸 Sets the deleted flag — never a hard delete; `POST .../restore` undoes it. 🇧🇷 Liga a flag de apagado — nunca um apagar de verdade; `POST .../restore` desfaz.",
+        "operationId": "delete_patient",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente.",
+              "title": "Patient Id"
+            },
+            "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/patients/{patient_id}/archive": {
+      "post": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 Archive a patient 🇧🇷 Arquiva um paciente",
+        "description": "🇺🇸 Sets the archived flag (no new version). 🇧🇷 Liga a flag de arquivado (sem versão nova).",
+        "operationId": "archive_patient",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente.",
+              "title": "Patient Id"
+            },
+            "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/patients/{patient_id}/unarchive": {
+      "post": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 Unarchive a patient 🇧🇷 Desarquiva um paciente",
+        "description": "🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado.",
+        "operationId": "unarchive_patient",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente.",
+              "title": "Patient Id"
+            },
+            "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/patients/{patient_id}/restore": {
+      "post": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "🇺🇸 Restore a patient from the trash 🇧🇷 Restaura um paciente da lixeira",
+        "description": "🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado.",
+        "operationId": "restore_patient",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente.",
+              "title": "Patient Id"
+            },
+            "description": "🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exams": {
+      "get": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 List exams 🇧🇷 Lista exames",
+        "description": "🇺🇸 One page of exams; rows are anonymous unless `summary=true`. 🇧🇷 Uma página de exames; as linhas são anônimas a menos que `summary=true`.",
+        "operationId": "list_exams",
+        "parameters": [
+          {
+            "name": "security_group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 Only this security group (default: every group this process may list). 🇧🇷 Só este security group (padrão: todo grupo que este processo pode listar).",
+              "title": "Security Group"
+            },
+            "description": "🇺🇸 Only this security group (default: every group this process may list). 🇧🇷 Só este security group (padrão: todo grupo que este processo pode listar)."
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "🇺🇸 Include documents in the trash. 🇧🇷 Inclui documentos na lixeira.",
+              "default": false,
+              "title": "Include Deleted"
+            },
+            "description": "🇺🇸 Include documents in the trash. 🇧🇷 Inclui documentos na lixeira."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior.",
+              "title": "Cursor"
+            },
+            "description": "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior."
+          },
+          {
+            "name": "summary",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "🇺🇸 Include each row's decrypted summary (names/tags, or title/modality/date). 🇧🇷 Inclui o resumo decifrado de cada linha (nomes/tags, ou título/modalidade/data).",
+              "default": false,
+              "title": "Summary"
+            },
+            "description": "🇺🇸 Include each row's decrypted summary (names/tags, or title/modality/date). 🇧🇷 Inclui o resumo decifrado de cada linha (nomes/tags, ou título/modalidade/data)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_DocumentListItem_ExamSummary__"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 Create an exam 🇧🇷 Cria um exame",
+        "description": "🇺🇸 Seals `record`, links it to `patient_id` in clear `meta`, and creates the exam. 🇧🇷 Sela `record`, liga ao `patient_id` no `meta` em claro, e cria o exame.",
+        "operationId": "create_exam",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exam"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exams/{exam_id}": {
+      "get": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 Get one exam 🇧🇷 Busca um exame",
+        "description": "🇺🇸 Fetches and decrypts one exam: the newest content, or `version_id`. 🇧🇷 Busca e decifra um exame: o conteúdo mais novo, ou `version_id`.",
+        "operationId": "get_exam",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame.",
+              "title": "Exam Id"
+            },
+            "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame."
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 Read this committed version instead of the newest content. 🇧🇷 Lê esta versão confirmada em vez do conteúdo mais novo.",
+              "title": "Version Id"
+            },
+            "description": "🇺🇸 Read this committed version instead of the newest content. 🇧🇷 Lê esta versão confirmada em vez do conteúdo mais novo."
+          },
+          {
+            "name": "include_draft",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "🇺🇸 Read the web editor's draft when it is newer than the latest version (the web app's rule). 🇧🇷 Lê o rascunho do editor web quando é mais novo que a versão corrente (a regra do app web).",
+              "default": true,
+              "title": "Include Draft"
+            },
+            "description": "🇺🇸 Read the web editor's draft when it is newer than the latest version (the web app's rule). 🇧🇷 Lê o rascunho do editor web quando é mais novo que a versão corrente (a regra do app web)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exam"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 Update an exam 🇧🇷 Atualiza um exame",
+        "description": "🇺🇸 Seals a complete new version of `record`, reusing the exam's DEK. 🇧🇷 Sela uma versão nova e completa de `record`, reusando a DEK do exame.",
+        "operationId": "update_exam",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame.",
+              "title": "Exam Id"
+            },
+            "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exam"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 Move an exam to the trash 🇧🇷 Manda um exame para a lixeira",
+        "description": "🇺🇸 Sets the deleted flag — never a hard delete; `POST .../restore` undoes it. 🇧🇷 Liga a flag de apagado — nunca um apagar de verdade; `POST .../restore` desfaz.",
+        "operationId": "delete_exam",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame.",
+              "title": "Exam Id"
+            },
+            "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exams/{exam_id}/archive": {
+      "post": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 Archive an exam 🇧🇷 Arquiva um exame",
+        "description": "🇺🇸 Sets the archived flag (no new version). 🇧🇷 Liga a flag de arquivado (sem versão nova).",
+        "operationId": "archive_exam",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame.",
+              "title": "Exam Id"
+            },
+            "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exams/{exam_id}/unarchive": {
+      "post": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 Unarchive an exam 🇧🇷 Desarquiva um exame",
+        "description": "🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado.",
+        "operationId": "unarchive_exam",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame.",
+              "title": "Exam Id"
+            },
+            "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exams/{exam_id}/restore": {
+      "post": {
+        "tags": [
+          "exams"
+        ],
+        "summary": "🇺🇸 Restore an exam from the trash 🇧🇷 Restaura um exame da lixeira",
+        "description": "🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado.",
+        "operationId": "restore_exam",
+        "parameters": [
+          {
+            "name": "exam_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame.",
+              "title": "Exam Id"
+            },
+            "description": "🇺🇸 The exam's document id. 🇧🇷 O id do documento do exame."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIndex"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/drives/{sg}/nodes": {
+      "get": {
+        "tags": [
+          "drives"
+        ],
+        "summary": "🇺🇸 List drive nodes 🇧🇷 Lista nós do drive",
+        "description": "🇺🇸 One page of files and folders in security group `sg`, each with its name decrypted (`null` when this process holds no key for the group). 🇧🇷 Uma página de arquivos e pastas do security group `sg`, cada um com o nome decifrado (`null` quando este processo não tem a chave do grupo).",
+        "operationId": "list_nodes",
+        "parameters": [
+          {
+            "name": "sg",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive).",
+              "title": "Sg"
+            },
+            "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive)."
+          },
+          {
+            "name": "exam_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 Only files linked to this exam. 🇧🇷 Só arquivos deste exame.",
+              "title": "Exam Id"
+            },
+            "description": "🇺🇸 Only files linked to this exam. 🇧🇷 Só arquivos deste exame."
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 Folder node id. 🇧🇷 Id do nó da pasta.",
+              "title": "Parent Id"
+            },
+            "description": "🇺🇸 Folder node id. 🇧🇷 Id do nó da pasta."
+          },
+          {
+            "name": "include_pending",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "🇺🇸 Include uploads not finished yet. 🇧🇷 Inclui uploads ainda não terminados.",
+              "default": false,
+              "title": "Include Pending"
+            },
+            "description": "🇺🇸 Include uploads not finished yet. 🇧🇷 Inclui uploads ainda não terminados."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior.",
+              "title": "Cursor"
+            },
+            "description": "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_NodeView_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "drives"
+        ],
+        "summary": "🇺🇸 Upload a file 🇧🇷 Sobe um arquivo",
+        "description": "🇺🇸 Encrypts and uploads `file` into security group `sg`, optionally inside folder `parent_id` and linked to `exam_id`; single `PUT` or multipart is chosen by the SDK from its size. The whole multipart body is buffered (`python-multipart`'s `SpooledTemporaryFile`, 1 MiB in RAM before it spills to disk) before this handler even runs, so request size is what bounds memory, not this endpoint's own logic. 🇧🇷 Cifra e sobe `file` no security group `sg`, opcionalmente dentro da pasta `parent_id` e ligado a `exam_id`; `PUT` único ou multipart é escolhido pelo SDK a partir do tamanho. O corpo multipart inteiro é bufferizado (`SpooledTemporaryFile` do `python-multipart`, 1 MiB em RAM antes de derramar em disco) antes deste handler sequer rodar, então é o tamanho da requisição que limita a memória, não a lógica deste endpoint.",
+        "operationId": "upload_node",
+        "parameters": [
+          {
+            "name": "sg",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive).",
+              "title": "Sg"
+            },
+            "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_node"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriveNode"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/drives/{sg}/nodes/{node_id}": {
+      "get": {
+        "tags": [
+          "drives"
+        ],
+        "summary": "🇺🇸 Get one drive node 🇧🇷 Busca um nó do drive",
+        "description": "🇺🇸 One ready file's metadata plus its decrypted name. 🇧🇷 O metadado de um arquivo pronto mais o nome decifrado.",
+        "operationId": "get_node",
+        "parameters": [
+          {
+            "name": "sg",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive).",
+              "title": "Sg"
+            },
+            "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive)."
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The file's node id. 🇧🇷 O id do nó do arquivo.",
+              "title": "Node Id"
+            },
+            "description": "🇺🇸 The file's node id. 🇧🇷 O id do nó do arquivo."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/drives/{sg}/folders": {
+      "post": {
+        "tags": [
+          "drives"
+        ],
+        "summary": "🇺🇸 Create a folder 🇧🇷 Cria uma pasta",
+        "description": "🇺🇸 Creates a folder in security group `sg` (its name sealed like a file's); pass the returned `node_id` as `parent_id` when uploading. 🇧🇷 Cria uma pasta no security group `sg` (nome selado como o de um arquivo); passe o `node_id` devolvido como `parent_id` ao subir.",
+        "operationId": "create_folder",
+        "parameters": [
+          {
+            "name": "sg",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive).",
+              "title": "Sg"
+            },
+            "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/drives/{sg}/nodes/{node_id}/content": {
+      "get": {
+        "tags": [
+          "drives"
+        ],
+        "summary": "🇺🇸 Download decrypted content 🇧🇷 Baixa o conteúdo decifrado",
+        "description": "🇺🇸 Streams the decrypted bytes of one file, with its decrypted (sanitized) name in `Content-Disposition`. 🇧🇷 Transmite os bytes decifrados de um arquivo, com o nome decifrado (higienizado) em `Content-Disposition`.",
+        "operationId": "download_node_content",
+        "parameters": [
+          {
+            "name": "sg",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive).",
+              "title": "Sg"
+            },
+            "description": "🇺🇸 The security group (the drive). 🇧🇷 O security group (o drive)."
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "🇺🇸 The file's node id. 🇧🇷 O id do nó do arquivo.",
+              "title": "Node Id"
+            },
+            "description": "🇺🇸 The file's node id. 🇧🇷 O id do nó do arquivo."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). 🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 CN not allowed, permission denied, or no key for the data's security group (`group_key_unavailable`). 🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado (`group_key_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "🇺🇸 Not found — also a node read under a group it does not belong to. 🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. 🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "🇺🇸 The body or query failed validation (`invalid_request`). 🇧🇷 O corpo ou a query falhou na validação (`invalid_request`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). 🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). 🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/session": {
+      "get": {
+        "tags": [
+          "session"
+        ],
+        "summary": "🇺🇸 Describe this session 🇧🇷 Descreve esta sessão",
+        "description": "🇺🇸 This process's workspace/account and unlocked security groups, plus the caller's own mTLS identity. 🇧🇷 O workspace/conta deste processo e os security groups desbloqueados, mais a identidade mTLS de quem chamou.",
+        "operationId": "get_session",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate reached this route (`client_certificate_required`). 🇧🇷 Nenhum certificado de cliente chegou a esta rota (`client_certificate_required`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 The client certificate's CN is not in `DIAGNOS_API_ALLOWED_CLIENT_CN` (`client_certificate_cn_not_allowed`). 🇧🇷 O CN do certificado de cliente não está em `DIAGNOS_API_ALLOWED_CLIENT_CN` (`client_certificate_cn_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/session/lock": {
+      "post": {
+        "tags": [
+          "session"
+        ],
+        "summary": "🇺🇸 Lock this session 🇧🇷 Trava esta sessão",
+        "description": "🇺🇸 Ends the SDK session (best-effort server-side, always locally) and wipes its key material. Every route after this one fails until the process is restarted and re-enrolls (or restores via OpenBao) — this does not restart the session itself. 🇧🇷 Encerra a sessão do SDK (best-effort do lado do servidor, sempre localmente) e apaga o material de chave dela. Toda rota depois desta falha até o processo reiniciar e refazer o enrollment (ou restaurar via OpenBao) — isto não reinicia a sessão sozinho.",
+        "operationId": "lock_session",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Lock Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate reached this route (`client_certificate_required`). 🇧🇷 Nenhum certificado de cliente chegou a esta rota (`client_certificate_required`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 The client certificate's CN is not in `DIAGNOS_API_ALLOWED_CLIENT_CN` (`client_certificate_cn_not_allowed`). 🇧🇷 O CN do certificado de cliente não está em `DIAGNOS_API_ALLOWED_CLIENT_CN` (`client_certificate_cn_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "🇺🇸 Liveness probe 🇧🇷 Sonda de vida",
+        "description": "🇺🇸 Always mTLS-gated like every other route (`apps/api/deploy/README.md`): Kubernetes probes this process over plain TCP instead, never HTTP. 🇧🇷 Sempre travado por mTLS como toda outra rota (`apps/api/deploy/README.md`): o Kubernetes sonda este processo por TCP puro, nunca por HTTP.",
+        "operationId": "healthz",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Healthz"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "🇺🇸 No client certificate reached this route (`client_certificate_required`). 🇧🇷 Nenhum certificado de cliente chegou a esta rota (`client_certificate_required`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "🇺🇸 The client certificate's CN is not in `DIAGNOS_API_ALLOWED_CLIENT_CN` (`client_certificate_cn_not_allowed`). 🇧🇷 O CN do certificado de cliente não está em `DIAGNOS_API_ALLOWED_CLIENT_CN` (`client_certificate_cn_not_allowed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_node": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "exam_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_node"
+      },
+      "ClientIdentityView": {
+        "properties": {
+          "common_name": {
+            "type": "string",
+            "title": "Common Name"
+          },
+          "serial": {
+            "type": "string",
+            "title": "Serial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "common_name",
+          "serial"
+        ],
+        "title": "ClientIdentityView",
+        "description": "🇺🇸 The mTLS identity of the caller, as `GET /v1/session` reports it.\n\n🇧🇷 A identidade mTLS de quem chama, como `GET /v1/session` reporta."
+      },
+      "DocumentDraft": {
+        "properties": {
+          "rev": {
+            "type": "integer",
+            "title": "Rev"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "type": "string",
+            "title": "Updated By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rev",
+          "size",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "DocumentDraft",
+        "description": "🇺🇸 A stream's mutable draft head: the web editor's autosave, overwritten in place, never a version.\n\n🇧🇷 A cabeça mutável de rascunho de um fluxo: o autosave do editor web, sobrescrito no lugar, nunca uma versão."
+      },
+      "DocumentIndex": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "resource": {
+            "type": "string",
+            "enum": [
+              "patients",
+              "exams",
+              "templates"
+            ],
+            "title": "Resource"
+          },
+          "security_group_id": {
+            "type": "string",
+            "title": "Security Group Id"
+          },
+          "encrypted_keys": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EncryptedPayload"
+            },
+            "type": "object",
+            "title": "Encrypted Keys"
+          },
+          "encrypted_index": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "streams": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DocumentStream"
+            },
+            "propertyNames": {
+              "enum": [
+                "data",
+                "file"
+              ]
+            },
+            "type": "object",
+            "title": "Streams"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "is_archived": {
+            "type": "boolean",
+            "title": "Is Archived",
+            "default": false
+          },
+          "is_deleted": {
+            "type": "boolean",
+            "title": "Is Deleted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "workspace_id",
+          "resource",
+          "security_group_id",
+          "encrypted_keys",
+          "created_at",
+          "created_by",
+          "updated_at"
+        ],
+        "title": "DocumentIndex",
+        "description": "🇺🇸 What the vault knows about a patient/exam/template (`docs/PROTOCOL.md §8`): keys, streams, clear metadata.\n\nEvery field here is something the vault itself reads to route and\nauthorize. The clinical content never appears on this model: it lives in\nthe sealed object of each version, and a short sealed summary (name,\ntitle) lives in `encrypted_index`, which only a DEK holder opens.\n\nExactly one `security_group_id` per document: sharing a patient with\nanother team means copying it, never sharing its key.\n\n🇧🇷 O que o cofre sabe sobre um paciente/exame/modelo (`docs/PROTOCOL.md §8`): chaves, fluxos, metadado em claro.\n\nTodo campo aqui é algo que o próprio cofre lê para rotear e autorizar. O\nconteúdo clínico nunca aparece neste modelo: ele vive no objeto selado de\ncada versão, e um resumo selado curto (nome, título) vive em\n`encrypted_index`, que só quem tem a DEK abre.\n\nExatamente um `security_group_id` por documento: compartilhar um\npaciente com outra equipe é copiá-lo, nunca compartilhar a chave."
+      },
+      "DocumentListItem_ExamSummary_": {
+        "properties": {
+          "index": {
+            "$ref": "#/components/schemas/DocumentIndex"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExamSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "index"
+        ],
+        "title": "DocumentListItem[ExamSummary]"
+      },
+      "DocumentListItem_PatientSummary_": {
+        "properties": {
+          "index": {
+            "$ref": "#/components/schemas/DocumentIndex"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PatientSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "index"
+        ],
+        "title": "DocumentListItem[PatientSummary]"
+      },
+      "DocumentStream": {
+        "properties": {
+          "latest_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Version Id"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentVersion"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "pending_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Version Id"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "DocumentStream",
+        "description": "🇺🇸 One independent line of versions inside a document (`docs/PROTOCOL.md §8`).\n\nExams and templates have a single stream, `data`. Patients have two:\n`data` (the structured record this SDK reads and writes) and `file` (the\nweb editor's rich document, not exposed by the SDK yet).\n\n🇧🇷 Uma linha independente de versões dentro de um documento (`docs/PROTOCOL.md §8`).\n\nExames e modelos têm um fluxo só, `data`. Pacientes têm dois: `data` (o\nregistro estruturado que este SDK lê e grava) e `file` (o documento rico\ndo editor web, ainda não exposto pelo SDK)."
+      },
+      "DocumentVersion": {
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_id",
+          "size",
+          "created_at",
+          "created_by"
+        ],
+        "title": "DocumentVersion",
+        "description": "🇺🇸 One committed version of a stream (`docs/PROTOCOL.md §8`) — metadata only, never content.\n\n🇧🇷 Uma versão confirmada de um fluxo (`docs/PROTOCOL.md §8`) — só metadado, nunca conteúdo."
+      },
+      "DriveNode": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "security_group_id": {
+            "type": "string",
+            "title": "Security Group Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "file",
+              "folder"
+            ],
+            "title": "Kind",
+            "default": "file"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "exam_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "multipart"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "media_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video",
+                  "dicom",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Kind"
+          },
+          "declared_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared Size"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "encrypted_name": {
+            "$ref": "#/components/schemas/EncryptedPayload"
+          },
+          "encrypted_keys": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EncryptedPayload"
+            },
+            "type": "object",
+            "title": "Encrypted Keys"
+          },
+          "storage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Path"
+          },
+          "optimized_variants": {
+            "items": {
+              "$ref": "#/components/schemas/OptimizedVariant"
+            },
+            "type": "array",
+            "title": "Optimized Variants"
+          },
+          "processing_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processing Status"
+          },
+          "processing_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processing Error"
+          },
+          "total_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Size"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "is_deleted": {
+            "type": "boolean",
+            "title": "Is Deleted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "workspace_id",
+          "security_group_id",
+          "status",
+          "encrypted_name",
+          "encrypted_keys",
+          "created_by",
+          "created_at"
+        ],
+        "title": "DriveNode",
+        "description": "🇺🇸 One file or folder of a workspace (`docs/PROTOCOL.md §9`) — the vault's index of it, never its content.\n\nEvery node has its own DEK, wrapped for its security group in\n`encrypted_keys`; the name stays sealed in `encrypted_name` until\n`name_of` opens it on demand (doing it eagerly for a whole page would\nmean an AES-GCM per row nobody asked for). A folder has no content and\nno upload fields; a file's `size` is what the vault measured, never just\nwhat was declared.\n\n🇧🇷 Um arquivo ou pasta de um workspace (`docs/PROTOCOL.md §9`) — o índice que o cofre tem dele, nunca o conteúdo.\n\nTodo nó tem a própria DEK, embrulhada para o security group em\n`encrypted_keys`; o nome fica selado em `encrypted_name` até `name_of`\nabri-lo sob demanda (fazer isso para uma página inteira significaria um\nAES-GCM por linha que ninguém pediu). Uma pasta não tem conteúdo nem\ncampos de upload; o `size` de um arquivo é o que o cofre mediu, nunca só\no declarado."
+      },
+      "EncryptedPayload": {
+        "properties": {
+          "salt": {
+            "type": "string",
+            "title": "Salt"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "ciphertext": {
+            "type": "string",
+            "title": "Ciphertext"
+          }
+        },
+        "type": "object",
+        "required": [
+          "salt",
+          "nonce",
+          "ciphertext"
+        ],
+        "title": "EncryptedPayload",
+        "description": "🇺🇸 The `{salt, nonce, ciphertext}` shape (all b64url) that crosses the wire.\n\nThis is the only envelope shape in the protocol — a `HybridSeal` (§6)\nreuses these same three field names even though its `salt` carries a KEM\nencapsulation instead of an HKDF salt, so the wire JSON of both looks\nidentical to anything that doesn't know the difference.\n\n🇧🇷 O formato `{salt, nonce, ciphertext}` (tudo b64url) que atravessa a rede.\n\nÉ o único formato de envelope do protocolo — um `HybridSeal` (§6) reusa\nos mesmos três nomes de campo mesmo com o `salt` carregando um\nencapsulamento KEM em vez de um salt de HKDF, então o JSON de ambos é\nidêntico para quem não sabe da diferença."
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "🇺🇸 Stable and machine-readable: branch on it, never on `message`. 🇧🇷 Estável e legível por máquina: decida por ele, nunca pela `message`."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "🇺🇸 For a person; its wording may change. 🇧🇷 Para uma pessoa; o texto pode mudar."
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "🇺🇸 The vault's trace id when the failure came from the vault — what a support ticket needs. 🇧🇷 O trace id do cofre quando a falha veio do cofre — o que um chamado de suporte precisa."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "description": "🇺🇸 The body of every non-2xx response: what went wrong, for a program and for a person.\n\n🇧🇷 O corpo de toda resposta não-2xx: o que deu errado, para um programa e para uma pessoa."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "description": "🇺🇸 `{\"error\": {code, message, trace_id}}` — the one error shape of this API (`errors.py`).\n\n🇧🇷 `{\"error\": {code, message, trace_id}}` — a única forma de erro desta API (`errors.py`)."
+      },
+      "Exam": {
+        "properties": {
+          "index": {
+            "$ref": "#/components/schemas/DocumentIndex"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "draft_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Rev"
+          },
+          "record": {
+            "$ref": "#/components/schemas/ExamRecord"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExamSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "record"
+        ],
+        "title": "Exam",
+        "description": "🇺🇸 An exam as an application wants it: the index, the decrypted record and its summary.\n\n🇧🇷 Um exame do jeito que uma aplicação quer: o índice, o registro decifrado e o resumo."
+      },
+      "ExamCreateRequest": {
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/ExamRecord"
+          },
+          "patient_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Patient Id"
+          },
+          "security_group": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Security Group"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "record",
+          "patient_id",
+          "security_group"
+        ],
+        "title": "ExamCreateRequest",
+        "description": "🇺🇸 Body of `POST /v1/exams`. 🇧🇷 Corpo de `POST /v1/exams`."
+      },
+      "ExamRecord": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "modality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modality"
+          },
+          "exam_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Date"
+          },
+          "report_lexical": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Lexical"
+          },
+          "report_html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Html"
+          },
+          "custom_attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Attributes"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ExamRecord",
+        "description": "🇺🇸 The content of an exam version (`ExamContent` in the web app) — the report and its clinical context.\n\n`report_lexical` is the web editor's state (Lexical JSON, as a string)\nand is the source of truth; `report_html` is derived from it for readers\nthat never open the editor. Write both when you produce a report, or the\nweb editor opens an empty document.\n\n🇧🇷 O conteúdo de uma versão de exame (`ExamContent` no app web) — o laudo e o contexto clínico.\n\n`report_lexical` é o estado do editor web (JSON do Lexical, como string)\ne é a fonte da verdade; `report_html` é derivado dele para leitores que\nnunca abrem o editor. Grave os dois ao produzir um laudo, senão o editor\nweb abre um documento vazio."
+      },
+      "ExamSummary": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "modality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modality"
+          },
+          "exam_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Date"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ExamSummary",
+        "description": "🇺🇸 The plaintext of an exam's `encrypted_index`: title, modality and date, derived from the record.\n\n🇧🇷 O texto claro do `encrypted_index` de um exame: título, modalidade e data, derivados do registro."
+      },
+      "ExamUpdateRequest": {
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/ExamRecord"
+          },
+          "expected_latest_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Latest Version Id",
+            "description": "🇺🇸 The `latest_version_id` you read; the write is refused with 409 if another version was saved since. 🇧🇷 O `latest_version_id` que você leu; a gravação é recusada com 409 se outra versão foi salva depois."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "record"
+        ],
+        "title": "ExamUpdateRequest",
+        "description": "🇺🇸 Body of `PUT /v1/exams/{id}`: a complete new record. 🇧🇷 Corpo de `PUT /v1/exams/{id}`: o registro completo."
+      },
+      "FolderCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "🇺🇸 Sealed before it leaves. 🇧🇷 Selado antes de sair."
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "🇺🇸 Parent folder node id. 🇧🇷 Id da pasta-mãe."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FolderCreateRequest",
+        "description": "🇺🇸 Body of `POST /v1/drives/{sg}/folders`. 🇧🇷 Corpo de `POST /v1/drives/{sg}/folders`."
+      },
+      "FolderCreated": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id"
+        ],
+        "title": "FolderCreated",
+        "description": "🇺🇸 A new folder's node id — folders have no content, so there is nothing else to report.\n\n🇧🇷 O id do nó da pasta nova — pastas não têm conteúdo, então não há mais nada a reportar."
+      },
+      "NodeView": {
+        "properties": {
+          "node": {
+            "$ref": "#/components/schemas/DriveNode"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node"
+        ],
+        "title": "NodeView",
+        "description": "🇺🇸 One drive node plus its decrypted name — `DriveNode` alone keeps the name sealed.\n\n🇧🇷 Um nó de drive mais seu nome decifrado — `DriveNode` sozinho mantém o nome selado."
+      },
+      "OptimizedVariant": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "storage_bucket": {
+            "type": "string",
+            "title": "Storage Bucket"
+          },
+          "storage_path": {
+            "type": "string",
+            "title": "Storage Path"
+          },
+          "storage_size": {
+            "type": "integer",
+            "title": "Storage Size"
+          },
+          "storage_mime_type": {
+            "type": "string",
+            "title": "Storage Mime Type"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "storage_bucket",
+          "storage_path",
+          "storage_size",
+          "storage_mime_type",
+          "created_at"
+        ],
+        "title": "OptimizedVariant",
+        "description": "🇺🇸 A derived rendition the vault's processor made from a node (thumbnail, WebP, DICOM instance, stream).\n\n🇧🇷 Uma derivação que o processador do cofre fez a partir de um nó (miniatura, WebP, instância DICOM, stream)."
+      },
+      "Page_DocumentListItem_ExamSummary__": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentListItem_ExamSummary_"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[DocumentListItem[ExamSummary]]"
+      },
+      "Page_DocumentListItem_PatientSummary__": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentListItem_PatientSummary_"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[DocumentListItem[PatientSummary]]"
+      },
+      "Page_NodeView_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NodeView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[NodeView]"
+      },
+      "Patient": {
+        "properties": {
+          "index": {
+            "$ref": "#/components/schemas/DocumentIndex"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "draft_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Rev"
+          },
+          "record": {
+            "$ref": "#/components/schemas/PatientRecord"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PatientSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "record"
+        ],
+        "title": "Patient",
+        "description": "🇺🇸 A patient as an application wants it: the index, the decrypted record and its summary.\n\n🇧🇷 Um paciente do jeito que uma aplicação quer: o índice, o registro decifrado e o resumo."
+      },
+      "PatientAddress": {
+        "properties": {
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "street": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Street"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "complement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complement"
+          },
+          "district": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "PatientAddress",
+        "description": "🇺🇸 A patient's address; every field optional (an emergency registration may have none).\n\n🇧🇷 O endereço de um paciente; todo campo opcional (um cadastro de emergência pode não ter nenhum)."
+      },
+      "PatientCreateRequest": {
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/PatientRecord"
+          },
+          "security_group": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Security Group",
+            "description": "🇺🇸 The one group the patient belongs to. 🇧🇷 O grupo."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "🇺🇸 Sealed list labels. 🇧🇷 Rótulos selados."
+          },
+          "specialist_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "record",
+          "security_group"
+        ],
+        "title": "PatientCreateRequest",
+        "description": "🇺🇸 Body of `POST /v1/patients`. 🇧🇷 Corpo de `POST /v1/patients`."
+      },
+      "PatientRecord": {
+        "properties": {
+          "legal_name": {
+            "type": "string",
+            "title": "Legal Name"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "identifiers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PersonalIdentifier"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifiers"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "biological_sex": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "MALE",
+                  "FEMALE",
+                  "INTERSEX",
+                  "UNDEFINED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Biological Sex"
+          },
+          "gender_identity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "CIS_MALE",
+                  "CIS_FEMALE",
+                  "TRANS_MALE",
+                  "TRANS_FEMALE",
+                  "NON_BINARY",
+                  "AGENDER",
+                  "FLUID",
+                  "OTHER",
+                  "PREFER_NOT_TO_SAY"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender Identity"
+          },
+          "race_identity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "WHITE",
+                  "BLACK",
+                  "BROWN",
+                  "YELLOW",
+                  "INDIGENOUS",
+                  "NOT_DECLARED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Race Identity"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PatientAddress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "internal_notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Internal Notes"
+          },
+          "custom_attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Attributes"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "legal_name",
+          "display_name"
+        ],
+        "title": "PatientRecord",
+        "description": "🇺🇸 The `data` stream of a patient (`PatientData` in the web app) — everything here is sealed before upload.\n\n`birth_date` accepts a `date` or an aware `datetime` and is stored the\nway the web app stores it, as a UTC ISO 8601 instant. Set\n`Settings.time_precision` to truncate it to the workspace's\nanonymization precision before sealing, like the web app does.\n\n🇧🇷 O fluxo `data` de um paciente (`PatientData` no app web) — tudo aqui é selado antes do upload.\n\n`birth_date` aceita `date` ou `datetime` com fuso e é gravado do jeito\nque o app web grava, como um instante ISO 8601 em UTC. Defina\n`Settings.time_precision` para truncá-lo à precisão de anonimização do\nworkspace antes de selar, como o app web faz."
+      },
+      "PatientSummary": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "legal_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Name"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "PatientSummary",
+        "description": "🇺🇸 The plaintext of a patient's `encrypted_index`: what a list shows without opening any version.\n\nThe SDK derives it from the record on every write (plus `tags`, which\nare not a record field); it never carries identity documents, because\nopening the summary is not audited.\n\n🇧🇷 O texto claro do `encrypted_index` de um paciente: o que uma lista mostra sem abrir nenhuma versão.\n\nO SDK o deriva do registro a cada gravação (mais `tags`, que não são\ncampo do registro); ele nunca carrega documento de identidade, porque\nabrir o resumo não é auditado."
+      },
+      "PatientUpdateRequest": {
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/PatientRecord"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "🇺🇸 `null` keeps the tags. 🇧🇷 `null` mantém as tags."
+          },
+          "specialist_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist Ids"
+          },
+          "expected_latest_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Latest Version Id",
+            "description": "🇺🇸 The `latest_version_id` you read; the write is refused with 409 if another version was saved since. 🇧🇷 O `latest_version_id` que você leu; a gravação é recusada com 409 se outra versão foi salva depois."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "record"
+        ],
+        "title": "PatientUpdateRequest",
+        "description": "🇺🇸 Body of `PUT /v1/patients/{id}`: a complete new record.\n\n🇧🇷 Corpo de `PUT /v1/patients/{id}`: o registro completo."
+      },
+      "PersonalIdentifier": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "PersonalIdentifier",
+        "description": "🇺🇸 An identity document (CPF, RG, passport…) whose `value` is sealed by the vault, not by this SDK.\n\nOpening one is audited server-side, which is why the value is\n`secret:v1:…` sealed material rather than plain text. The external API\nhas no route to seal a new one yet: records read from the vault carry\nthem through untouched, and a caller-built record must already hold\nsealed values. For a plain id from another system, use\n`PatientRecord.external_id`.\n\n🇧🇷 Um documento de identidade (CPF, RG, passaporte…) cujo `value` é selado pelo cofre, não por este SDK.\n\nAbrir um é auditado no servidor, por isso o valor é material selado\n`secret:v1:…` e não texto claro. A API externa ainda não tem rota para\nselar um novo: registros lidos do cofre os carregam intactos, e um\nregistro montado por quem chama já precisa trazer valores selados. Para\num id simples de outro sistema, use `PatientRecord.external_id`."
+      },
+      "SessionInfo": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "security_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Security Groups"
+          },
+          "client": {
+            "$ref": "#/components/schemas/ClientIdentityView"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "account_id",
+          "security_groups",
+          "client"
+        ],
+        "title": "SessionInfo",
+        "description": "🇺🇸 Response of `GET /v1/session`: what this process is, plus who is asking.\n\n🇧🇷 Resposta de `GET /v1/session`: o que este processo é, mais quem está perguntando."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "patients",
+      "description": "🇺🇸 Encrypted patient records: sealed in this process, versioned, never readable by the vault. 🇧🇷 Registros de paciente cifrados: selados neste processo, versionados, nunca legíveis pelo cofre."
+    },
+    {
+      "name": "exams",
+      "description": "🇺🇸 Encrypted exams and their reports, each linked to one patient. 🇧🇷 Exames cifrados e seus laudos, cada um ligado a um paciente."
+    },
+    {
+      "name": "drives",
+      "description": "🇺🇸 Files and folders of one security group (`{sg}`), each file under its own key. 🇧🇷 Arquivos e pastas de um security group (`{sg}`), cada arquivo sob a própria chave."
+    },
+    {
+      "name": "session",
+      "description": "🇺🇸 The one SDK session this process holds, and the caller's mTLS identity. 🇧🇷 A única sessão de SDK que este processo mantém, e a identidade mTLS de quem chama."
+    },
+    {
+      "name": "health",
+      "description": "🇺🇸 Liveness, behind mTLS like everything else. 🇧🇷 Vivacidade, atrás do mTLS como todo o resto."
+    }
+  ]
+}
