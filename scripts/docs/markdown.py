@@ -34,6 +34,9 @@ _INLINE_CODE = re.compile(r"`+[^`]*`+")
 # (`<https://…>`, `<user@host>`) has `:`/`@` right after the name, so the
 # name must be followed by whitespace, `/` or `>` to count as a tag.
 _RAW_HTML = re.compile(r"<!--|</?[A-Za-z][A-Za-z0-9-]*(?=[\s/>])[^<>]*>")
+_EXTERNAL_IMAGE = re.compile(r"!\[[^\]]*\]\(\s*<?(?P<url>[A-Za-z][A-Za-z0-9+.-]*:[^)\s>]+)")
+# A badge: an image, or a link whose whole content is an image — `[![CI](svg)](url)`.
+_BADGE = re.compile(r"\[?!\[[^\]]*\]\([^)]*\)(?:\]\([^)]*\))?")
 _SLUG_DROP = re.compile(r"[^\w\- ]")
 
 
@@ -130,6 +133,51 @@ def anchors(text: str) -> set[str]:
         count = seen.get(base, 0)
         seen[base] = count + 1
         found.add(base if count == 0 else f"{base}-{count}")
+    return found
+
+
+def paragraphs(text: str) -> list[list[tuple[int, str]]]:
+    """🇺🇸 Runs of consecutive non-blank lines outside fences — a paragraph, as far as the checks care.
+
+    🇧🇷 Sequências de linhas não vazias consecutivas fora de cerca — um parágrafo, no que importa às checagens.
+    """
+    found: list[list[tuple[int, str]]] = []
+    current: list[tuple[int, str]] = []
+    for number, line in outside_fences(text):
+        if line.strip() == "" or (current and number != current[-1][0] + 1):
+            if current:
+                found.append(current)
+            current = []
+        if line.strip() != "":
+            current.append((number, line))
+    if current:
+        found.append(current)
+    return found
+
+
+def external_images(text: str) -> list[tuple[int, str]]:
+    """🇺🇸 `(line, url)` of every image with an absolute URL, except inside a paragraph made only of badges.
+
+    The site only loads images from its own origin, so an external image is
+    a broken image on the published page — images are files in this
+    repository, linked by relative path. The badge block at the top of a
+    README is the one exception, and only because the site drops that
+    paragraph entirely (it is GitHub decoration, not documentation).
+
+    🇧🇷 `(linha, url)` de toda imagem com URL absoluta, exceto num parágrafo feito só de badges.
+
+    O site só carrega imagem da própria origem, então uma imagem externa é
+    uma imagem quebrada na página publicada — imagem é arquivo deste
+    repositório, por caminho relativo. O bloco de badges no topo de um README
+    é a única exceção, e só porque o site descarta esse parágrafo inteiro (é
+    decoração do GitHub, não documentação).
+    """
+    found: list[tuple[int, str]] = []
+    for paragraph in paragraphs(text):
+        if all(_BADGE.sub("", line).strip() == "" and _EXTERNAL_IMAGE.search(line) for _, line in paragraph):
+            continue
+        for number, line in paragraph:
+            found.extend((number, match["url"]) for match in _EXTERNAL_IMAGE.finditer(line))
     return found
 
 

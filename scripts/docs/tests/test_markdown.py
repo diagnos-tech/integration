@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from scripts.docs.markdown import anchors, fences, headings, raw_html, slug, structure
+from scripts.docs.markdown import anchors, external_images, fences, headings, raw_html, slug, structure
 
 PAGE = """# Title
 
@@ -81,3 +81,26 @@ def test_raw_html_outside_fences_and_inline_code_only() -> None:
 def test_structure_is_the_skeleton_in_order() -> None:
     """🇺🇸 Heading levels and fence languages, as they appear. 🇧🇷 Níveis de título e linguagens, na ordem."""
     assert structure(PAGE) == ["h1", "```python", "```sh", "h2", "h2", "h2"]
+
+
+def test_external_images_skip_badge_only_paragraphs() -> None:
+    """🇺🇸 A badge block passes; an external image in prose, or next to prose, does not; relative images are fine.
+
+    🇧🇷 Um bloco de badges passa; imagem externa na prosa, ou ao lado dela, não; imagem relativa é normal.
+    """
+    page = (
+        "# Title\n"
+        "\n"
+        "[![CI](https://x.test/ci.svg)](https://x.test/ci)\n"
+        "![License](https://x.test/lic.svg)\n"
+        "\n"
+        "See ![diagram](https://x.test/d.png) and ![local](images/d.png).\n"
+        "\n"
+        "![Coverage](https://x.test/cov.svg)\n"
+        "Prose right after a badge makes it a normal paragraph.\n"
+        "\n"
+        "```md\n"
+        "![in code](https://x.test/code.png)\n"
+        "```\n"
+    )
+    assert external_images(page) == [(6, "https://x.test/d.png"), (8, "https://x.test/cov.svg")]
