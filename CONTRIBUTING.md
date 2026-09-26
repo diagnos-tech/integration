@@ -62,7 +62,8 @@ These rules govern code (`.py` and `.rs` files); they used to live in `CONVENTIO
   prefixed `🇺🇸` followed by the Portuguese paragraph prefixed `🇧🇷`. Inline comments follow the same pair on
   consecutive lines. Comments explain the **why** (the threat, the cost, the protocol constraint), never restate the
   code. Rust doc comments (`//!` for modules, `///` for items) follow the identical rule. `scripts/check_bilingual.py`
-  (part of `make lint`) fails the build when a docstring or doc comment is missing either flag.
+  (part of `make lint`) fails the build when a docstring or doc comment is missing either flag — everywhere in `src/`,
+  and in tests for the module and every top-level test, fixture, helper and class.
 
   ```python
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
@@ -79,8 +80,10 @@ These rules govern code (`.py` and `.rs` files); they used to live in `CONVENTIO
       """
   ```
 
-- **Small files, one responsibility.** A folder per domain (`crypto/`, `session/`, `resources/`, `transport/`). No
-  file above ~250 lines.
+- **Small files, one responsibility.** A folder per domain (`crypto/`, `session/`, `resources/`, `transport/`); a
+  module that outgrows one responsibility becomes a package (`models/`, `resources/_documents/`). Aim for ~250 lines.
+  `scripts/check_file_size.py` (part of `make lint`) fails the build above 300 lines for source and 500 for tests (a
+  Rust file's inline `#[cfg(test)]` module does not count).
 - **`cli` and `api` import only `diagnos`.** If they need something the SDK does not expose, the SDK grows — the
   shells never reimplement cryptography, signing or retry logic.
 - **Pending decisions are `TODO(gustavo): ...`.** No `FIXME`, no `HACK`.

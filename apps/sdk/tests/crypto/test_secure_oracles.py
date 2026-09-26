@@ -73,7 +73,7 @@ def _python_seal(x25519_public: bytes, mlkem768_public: bytes, plaintext: bytes,
     PyNaCl's raw `crypto_scalarmult` (X25519) and `kyber_py`'s `ML_KEM_768.encaps`
     stand in for the enclave's own X25519-dalek/`ml-kem` crate; `cryptography`'s
     HKDF/AESGCM stand in for the enclave's HKDF-SHA256/AES-256-GCM. None of this
-    shares one line of code with `apps/sdk/native/src/hybrid.rs`.
+    shares one line of code with `apps/sdk/native/src/hybrid/`.
 
     🇧🇷 Uma reimplementação independente do selo híbrido de `docs/PROTOCOL.md §6`,
     como oráculo para `HybridKeyPair.open*`.
@@ -81,7 +81,7 @@ def _python_seal(x25519_public: bytes, mlkem768_public: bytes, plaintext: bytes,
     O `crypto_scalarmult` cru do PyNaCl (X25519) e o `ML_KEM_768.encaps` do
     `kyber_py` fazem o papel do X25519-dalek/crate `ml-kem` do próprio enclave;
     o HKDF/AESGCM do `cryptography` fazem o papel do HKDF-SHA256/AES-256-GCM do
-    enclave. Nada disso compartilha uma linha de código com `apps/sdk/native/src/hybrid.rs`.
+    enclave. Nada disso compartilha uma linha de código com `apps/sdk/native/src/hybrid/`.
     """
     eph_secret = os.urandom(32)
     eph_public = nb.crypto_scalarmult_base(eph_secret)

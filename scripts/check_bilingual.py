@@ -76,13 +76,26 @@ def check_rust(path: Path) -> list[str]:
     return [f"{path}:{lineno}: doc missing {why}" for lineno, why in sorted(findings)]
 
 
-def check(path: Path) -> list[str]:
-    """🇺🇸 Problems found in one file, as `file:line: what`. 🇧🇷 Problemas de um arquivo, como `arquivo:linha: o quê`."""
+def check(path: Path, *, top_level_only: bool = False) -> list[str]:
+    """🇺🇸 Problems in one file, as `file:line: what`; `top_level_only` for tests: module, classes, functions.
+
+    In a test file the module, each test, fixture, helper and fake class is
+    what a reader needs explained; a fake's methods mirror the SDK methods
+    documented where they are defined, and a closure lives three lines from
+    its use.
+
+    🇧🇷 Problemas de um arquivo, como `arquivo:linha: o quê`; `top_level_only` para testes: módulo, classes, funções.
+
+    Num arquivo de teste, o módulo, cada teste, fixture, ajudante e classe
+    falsa é o que quem lê precisa ver explicado; os métodos de um fake
+    espelham os métodos do SDK documentados onde são definidos, e uma closure
+    vive a três linhas do uso.
+    """
     tree = ast.parse(path.read_text(encoding="utf-8"))
     problems: list[str] = []
     if (why := _missing(tree)) is not None:
         problems.append(f"{path}:1: module {why}")
-    for node in ast.walk(tree):
+    for node in tree.body if top_level_only else ast.walk(tree):
         if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
             if node.name.startswith("_") and not node.name.startswith("__"):
                 continue
@@ -99,11 +112,14 @@ def main(argv: list[str]) -> int:
     roots = [Path(arg) for arg in argv] or [Path("apps/sdk"), Path("apps/cli"), Path("apps/api")]
     problems: list[str] = []
     for root in roots:
-        # 🇺🇸 A package root is checked through its `src/`; any other folder (`contracts`, `scripts`) as a whole.
-        # 🇧🇷 A raiz de um pacote é checada pelo `src/`; qualquer outra pasta (`contracts`, `scripts`) por inteiro.
+        # 🇺🇸 A package root is checked through `src/` (fully) and `tests/` (top level); any other folder as a whole.
+        # 🇧🇷 A raiz de um pacote é checada pelo `src/` (inteiro) e `tests/` (nível de cima); outra pasta, inteira.
         python_root = root / "src" if (root / "src").is_dir() else root
         for path in sorted(python_root.rglob("*.py")):
             problems.extend(check(path))
+        if python_root != root and (root / "tests").is_dir():
+            for path in sorted((root / "tests").rglob("*.py")):
+                problems.extend(check(path, top_level_only=True))
         native = root / "native"
         if native.is_dir():
             for sub in ("src", "tests"):
