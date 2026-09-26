@@ -160,6 +160,9 @@ class _Nodes:
 
         🇧🇷 Uma página de nós (`GET /nodes`), filtrada por grupo, exame e/ou pasta.
         """
+        # 🇺🇸 Asking for the keyring unlocks lazily; a signed request cannot go out before there is a session.
+        # 🇧🇷 Pedir o keyring desbloqueia de forma preguiçosa; uma requisição assinada não sai antes de existir sessão.
+        self._keyring_provider()
         query: dict[str, str | int | bool] = {"limit": limit}
         for name, value in (("security_group_id", security_group), ("exam_id", exam_id), ("parent_id", parent_id)):
             if value is not None:
@@ -188,6 +191,7 @@ class _Nodes:
 
         🇧🇷 O índice de um arquivo pronto (`GET /nodes/{id}`); pastas e uploads inacabados respondem `404`.
         """
+        self._keyring_provider()  # 🇺🇸 lazy unlock before signing (see `list`) 🇧🇷 unlock preguiçoso antes de assinar
         result = self._transport.get(f"{self._base}/{node_id}")
         return DriveNode.model_validate(result["node"])
 
@@ -220,6 +224,7 @@ class _Nodes:
         Nada maior que um frame fica em memória, e os primeiros bytes chegam
         a quem chama antes de os últimos saírem do armazenamento.
         """
+        self._keyring_provider()  # 🇺🇸 lazy unlock before signing (see `list`) 🇧🇷 unlock preguiçoso antes de assinar
         result = self._transport.get(f"{self._base}/{node_id}")
         node = DriveNode.model_validate(result["node"])
         context = str(result["security_context"]["value"])
