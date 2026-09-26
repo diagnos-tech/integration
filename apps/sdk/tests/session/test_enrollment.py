@@ -29,7 +29,7 @@ import httpx
 import pytest
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.hybrid import HybridKeyPair, seal_hybrid
-from diagnos.errors import CryptoError, EnrollmentDeniedError, EnrollmentExpiredError
+from diagnos.errors import CryptoError, DiagnosError, EnrollmentDeniedError, EnrollmentExpiredError
 from diagnos.session.enrollment import EnrollmentPrompt, enroll
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport
@@ -313,6 +313,30 @@ def test_wrong_size_group_dek_raises_crypto_error() -> None:
 
     transport = _make_transport(handler)
     with pytest.raises(CryptoError):
+        enroll(
+            transport,
+            _TOKEN,
+            keypair,
+            on_prompt=lambda prompt: None,
+            sleep=lambda seconds: None,
+            now=lambda: 1_700_000_000.0,
+        )
+
+
+def test_an_unknown_poll_status_raises_diagnos_error() -> None:
+    """🇺🇸 A poll `status` outside `pending`/`denied`/`approved` (a future SDK version's vocabulary) fails loudly.
+
+    🇧🇷 Um `status` de poll fora de `pending`/`denied`/`approved` (vocabulário de uma versão futura do SDK) falha alto.
+    """
+    keypair = HybridKeyPair.generate()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == _REGISTRY_PATH and request.method == "POST":
+            return _registration_response(expires_at=1_700_001_000)
+        return _envelope_success({"status": "superseded"}, status=200)
+
+    transport = _make_transport(handler)
+    with pytest.raises(DiagnosError, match="superseded"):
         enroll(
             transport,
             _TOKEN,

@@ -239,6 +239,56 @@ def test_save_writes_b64url_that_decodes_to_the_original_bytes_and_leaves_the_ke
     assert keyring.group_key("sg1").reveal() == bytearray(expected_group_dek)
 
 
+def test_restore_returns_none_for_an_unrecognized_state_version() -> None:
+    """🇺🇸 A saved `"v"` this SDK does not recognize is treated exactly like "nothing saved".
+
+    🇧🇷 Um `"v"` salvo que este SDK não reconhece é tratado exatamente como "nada salvo".
+    """
+    client, kv = _fake_hvac_client_and_kv()
+    store = OpenBaoStore(_settings(), workspace_id="ws_1", account_id="acc_1", client=client)
+    store.save(UnsealedState(keypair=HybridKeyPair.generate(), keyring=_keyring(expires_at=10_000)))
+    raw = kv._store[("secret", "diagnos/ws_1/acc_1")]  # noqa: SLF001 — mutating the fake's raw storage on purpose
+    raw["v"] = 999
+
+    assert store.restore(now=0) is None
+
+
+def test_construction_without_a_client_builds_a_real_hvac_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 Without an injected `client`, `OpenBaoStore` builds a real `hvac.Client` from `settings`.
+
+    `hvac.Client` itself is replaced with a recording double so this proves
+    only `OpenBaoStore`'s own wiring (`url`/`token`/`namespace` from
+    `settings`) — never opening a real socket to an OpenBao server.
+
+    🇧🇷 Sem um `client` injetado, `OpenBaoStore` constrói um `hvac.Client` de
+    verdade a partir de `settings`.
+
+    O próprio `hvac.Client` é substituído por um duplo que grava, para isto
+    provar só a fiação do próprio `OpenBaoStore` (`url`/`token`/`namespace`
+    de `settings`) — nunca abrindo um socket de verdade para um servidor
+    OpenBao.
+    """
+    calls: list[dict[str, Any]] = []
+
+    class _DummyHvacClient:
+        def __init__(self, *, url: str | None, token: str | None, namespace: str | None) -> None:
+            calls.append({"url": url, "token": token, "namespace": namespace})
+
+    monkeypatch.setattr("hvac.Client", _DummyHvacClient)
+
+    settings = Settings(
+        api_token="apikey-test",  # noqa: S106 — fixture, not a real secret
+        openbao_addr="https://bao.example.test",
+        openbao_token="s.supersecrettoken",  # noqa: S106 — fixture, not a real secret
+        openbao_namespace="team-a",
+    )
+
+    store = OpenBaoStore(settings, workspace_id="ws_1", account_id="acc_1")
+
+    assert isinstance(store._client, _DummyHvacClient)  # noqa: SLF001 — the wiring itself is what's under test
+    assert calls == [{"url": "https://bao.example.test", "token": "s.supersecrettoken", "namespace": "team-a"}]
+
+
 def test_restore_returns_secret_boxes_for_every_key() -> None:
     """🇺🇸 `restore()` never hands back raw `bytes`/`bytearray` — every key comes back as a `SecretBox`.
 

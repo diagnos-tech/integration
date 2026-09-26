@@ -99,6 +99,18 @@ def test_parse_non_json_payload_raises_config_error() -> None:
         ServiceAccountToken.parse(f"apikey-{header_b64}.{garbage_payload_b64}.{signature_b64}")
 
 
+def test_parse_non_object_payload_raises_config_error() -> None:
+    """🇺🇸 A payload that is valid base64url JSON but not an object (e.g. a bare list) is rejected.
+
+    🇧🇷 Um payload que é JSON base64url válido mas não é um objeto (por exemplo, uma lista crua) é rejeitado.
+    """
+    header_b64 = b64url_encode(json.dumps({"alg": "EdDSA"}).encode("utf-8"))
+    list_payload_b64 = b64url_encode(json.dumps(["not", "an", "object"]).encode("utf-8"))
+    signature_b64 = b64url_encode(b"sig")
+    with pytest.raises(ConfigError):
+        ServiceAccountToken.parse(f"apikey-{header_b64}.{list_payload_b64}.{signature_b64}")
+
+
 def test_token_repr_never_contains_raw_secret() -> None:
     """🇺🇸 `repr(token)` shows the redacted form, never the raw `apikey-<jwt>`.
 
