@@ -44,9 +44,76 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from diagnos_api.schemas import ErrorResponse
+
 logger = logging.getLogger("diagnos_api")
 
 _Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
+
+
+def _documented(description: str) -> dict[str, Any]:
+    """🇺🇸 One OpenAPI response entry: the uniform envelope, with a bilingual description.
+
+    🇧🇷 Uma entrada de resposta do OpenAPI: o envelope uniforme, com uma descrição bilíngue.
+    """
+    return {"model": ErrorResponse, "description": description}
+
+
+# 🇺🇸 The OpenAPI side of `register_exception_handlers` below — the same statuses and the same envelope, kept
+#    next to the handlers so the documented errors and the real ones cannot drift apart. Without this, FastAPI
+#    would document its own `{"detail": …}` 422, which this API never sends.
+# 🇧🇷 O lado OpenAPI de `register_exception_handlers` abaixo — os mesmos status e o mesmo envelope, ao lado
+#    dos handlers para os erros documentados e os reais não se separarem. Sem isto, o FastAPI documentaria o
+#    próprio 422 `{"detail": …}`, que esta API nunca manda.
+MTLS_RESPONSES: dict[int | str, dict[str, Any]] = {
+    401: _documented(
+        "🇺🇸 No client certificate reached this route (`client_certificate_required`). "
+        "🇧🇷 Nenhum certificado de cliente chegou a esta rota (`client_certificate_required`)."
+    ),
+    403: _documented(
+        "🇺🇸 The client certificate's CN is not in `DIAGNOS_API_ALLOWED_CLIENT_CN` "
+        "(`client_certificate_cn_not_allowed`). "
+        "🇧🇷 O CN do certificado de cliente não está em `DIAGNOS_API_ALLOWED_CLIENT_CN` "
+        "(`client_certificate_cn_not_allowed`)."
+    ),
+}
+ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: _documented("🇺🇸 The vault refused the request as invalid. 🇧🇷 O cofre recusou a requisição como inválida."),
+    401: _documented(
+        "🇺🇸 No client certificate, or the SDK session was rejected or expired (`session_expired`). "
+        "🇧🇷 Sem certificado de cliente, ou a sessão do SDK foi recusada ou expirou (`session_expired`)."
+    ),
+    402: _documented("🇺🇸 The workspace has no credit for this. 🇧🇷 O workspace não tem crédito para isto."),
+    403: _documented(
+        "🇺🇸 CN not allowed, permission denied, or no key for the data's security group "
+        "(`group_key_unavailable`). "
+        "🇧🇷 CN não permitido, permissão negada, ou sem chave para o security group do dado "
+        "(`group_key_unavailable`)."
+    ),
+    404: _documented(
+        "🇺🇸 Not found — also a node read under a group it does not belong to. "
+        "🇧🇷 Não encontrado — também um nó lido sob um grupo ao qual não pertence."
+    ),
+    409: _documented(
+        "🇺🇸 A pending or newer version, a replay, or an upload that never reached storage. "
+        "🇧🇷 Uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento."
+    ),
+    422: _documented(
+        "🇺🇸 The body or query failed validation (`invalid_request`). "
+        "🇧🇷 O corpo ou a query falhou na validação (`invalid_request`)."
+    ),
+    429: _documented(
+        "🇺🇸 Rate limited, after the SDK's own backoff gave up. 🇧🇷 Limite de taxa, depois de o backoff do SDK desistir."
+    ),
+    500: _documented(
+        "🇺🇸 An envelope did not open (`crypto_error`, no detail on purpose). "
+        "🇧🇷 Um envelope não abriu (`crypto_error`, sem detalhe de propósito)."
+    ),
+    502: _documented(
+        "🇺🇸 The vault failed, or answered outside the protocol (`protocol_error`). "
+        "🇧🇷 O cofre falhou, ou respondeu fora do protocolo (`protocol_error`)."
+    ),
+}
 
 
 def _body(code: str, message: str, trace_id: str | None) -> dict[str, Any]:

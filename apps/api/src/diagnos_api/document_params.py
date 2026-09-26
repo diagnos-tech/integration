@@ -30,6 +30,17 @@ from pydantic import BaseModel
 
 SummaryT = TypeVar("SummaryT", bound=BaseModel)
 
+GROUP_QUERY_HELP = (
+    "🇺🇸 Only this security group (default: every group this process may list). "
+    "🇧🇷 Só este security group (padrão: todo grupo que este processo pode listar)."
+)
+DELETED_QUERY_HELP = "🇺🇸 Include documents in the trash. 🇧🇷 Inclui documentos na lixeira."
+LIMIT_QUERY_HELP = "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200."
+CURSOR_QUERY_HELP = "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior."
+VERSION_QUERY_HELP = (
+    "🇺🇸 Read this committed version instead of the newest content. "
+    "🇧🇷 Lê esta versão confirmada em vez do conteúdo mais novo."
+)
 DRAFT_QUERY_HELP = (
     "🇺🇸 Read the web editor's draft when it is newer than the latest version (the web app's rule). "
     "🇧🇷 Lê o rascunho do editor web quando é mais novo que a versão corrente (a regra do app web)."

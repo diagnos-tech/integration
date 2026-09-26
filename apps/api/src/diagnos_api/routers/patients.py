@@ -20,29 +20,43 @@ razão inteira destas ficarem síncronas.
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from diagnos import Diagnos, DocumentIndex, Page, Patient, PatientListItem
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from diagnos_api.deps import get_vault
-from diagnos_api.document_params import DRAFT_QUERY_HELP, SUMMARY_QUERY_HELP, with_summaries
+from diagnos_api.document_params import (
+    CURSOR_QUERY_HELP,
+    DELETED_QUERY_HELP,
+    DRAFT_QUERY_HELP,
+    GROUP_QUERY_HELP,
+    LIMIT_QUERY_HELP,
+    SUMMARY_QUERY_HELP,
+    VERSION_QUERY_HELP,
+    with_summaries,
+)
+from diagnos_api.errors import ERROR_RESPONSES
 from diagnos_api.mtls import ClientIdentity, require_client_certificate
 from diagnos_api.schemas import PatientCreateRequest, PatientUpdateRequest
 
-router = APIRouter(prefix="/v1/patients", tags=["patients"])
+router = APIRouter(prefix="/v1/patients", tags=["patients"], responses=ERROR_RESPONSES)
+
+PatientId = Annotated[str, Path(description="🇺🇸 The patient's document id. 🇧🇷 O id do documento do paciente.")]
 
 
 @router.get(
     "",
     response_model=Page[PatientListItem],
-    summary="List patients · Lista pacientes",
+    summary="🇺🇸 List patients 🇧🇷 Lista pacientes",
     description="🇺🇸 One page of patients; rows are anonymous unless `summary=true`. "
     "🇧🇷 Uma página de pacientes; as linhas são anônimas a menos que `summary=true`.",
 )
 def list_patients(
-    security_group: str | None = None,
-    include_deleted: bool = False,
-    limit: int = Query(50, ge=1, le=200),
-    cursor: str | None = None,
+    security_group: str | None = Query(None, description=GROUP_QUERY_HELP),
+    include_deleted: bool = Query(False, description=DELETED_QUERY_HELP),
+    limit: int = Query(50, ge=1, le=200, description=LIMIT_QUERY_HELP),
+    cursor: str | None = Query(None, description=CURSOR_QUERY_HELP),
     summary: bool = Query(False, description=SUMMARY_QUERY_HELP),
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
@@ -58,7 +72,7 @@ def list_patients(
     "",
     response_model=Patient,
     status_code=201,
-    summary="Create a patient · Cria um paciente",
+    summary="🇺🇸 Create a patient 🇧🇷 Cria um paciente",
     description="🇺🇸 Seals `record` under `security_group` and creates the patient with its first version. "
     "🇧🇷 Sela `record` sob `security_group` e cria o paciente com a primeira versão.",
 )
@@ -76,13 +90,13 @@ def create_patient(
 @router.get(
     "/{patient_id}",
     response_model=Patient,
-    summary="Get one patient · Busca um paciente",
+    summary="🇺🇸 Get one patient 🇧🇷 Busca um paciente",
     description="🇺🇸 Fetches and decrypts one patient: the newest content, or `version_id`. "
     "🇧🇷 Busca e decifra um paciente: o conteúdo mais novo, ou `version_id`.",
 )
 def get_patient(
-    patient_id: str,
-    version_id: str | None = None,
+    patient_id: PatientId,
+    version_id: str | None = Query(None, description=VERSION_QUERY_HELP),
     include_draft: bool = Query(True, description=DRAFT_QUERY_HELP),
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
@@ -94,12 +108,12 @@ def get_patient(
 @router.put(
     "/{patient_id}",
     response_model=Patient,
-    summary="Update a patient · Atualiza um paciente",
+    summary="🇺🇸 Update a patient 🇧🇷 Atualiza um paciente",
     description="🇺🇸 Seals a complete new version of `record`, reusing the patient's DEK. "
     "🇧🇷 Sela uma versão nova e completa de `record`, reusando a DEK do paciente.",
 )
 def update_patient(
-    patient_id: str,
+    patient_id: PatientId,
     body: PatientUpdateRequest,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
@@ -117,11 +131,11 @@ def update_patient(
 @router.post(
     "/{patient_id}/archive",
     response_model=DocumentIndex,
-    summary="Archive a patient · Arquiva um paciente",
+    summary="🇺🇸 Archive a patient 🇧🇷 Arquiva um paciente",
     description="🇺🇸 Sets the archived flag (no new version). 🇧🇷 Liga a flag de arquivado (sem versão nova).",
 )
 def archive_patient(
-    patient_id: str,
+    patient_id: PatientId,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> DocumentIndex:
@@ -132,11 +146,11 @@ def archive_patient(
 @router.post(
     "/{patient_id}/unarchive",
     response_model=DocumentIndex,
-    summary="Unarchive a patient · Desarquiva um paciente",
+    summary="🇺🇸 Unarchive a patient 🇧🇷 Desarquiva um paciente",
     description="🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado.",
 )
 def unarchive_patient(
-    patient_id: str,
+    patient_id: PatientId,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> DocumentIndex:
@@ -147,12 +161,12 @@ def unarchive_patient(
 @router.delete(
     "/{patient_id}",
     response_model=DocumentIndex,
-    summary="Move a patient to the trash · Manda um paciente para a lixeira",
+    summary="🇺🇸 Move a patient to the trash 🇧🇷 Manda um paciente para a lixeira",
     description="🇺🇸 Sets the deleted flag — never a hard delete; `POST .../restore` undoes it. "
     "🇧🇷 Liga a flag de apagado — nunca um apagar de verdade; `POST .../restore` desfaz.",
 )
 def delete_patient(
-    patient_id: str,
+    patient_id: PatientId,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> DocumentIndex:
@@ -163,11 +177,11 @@ def delete_patient(
 @router.post(
     "/{patient_id}/restore",
     response_model=DocumentIndex,
-    summary="Restore a patient from the trash · Restaura um paciente da lixeira",
+    summary="🇺🇸 Restore a patient from the trash 🇧🇷 Restaura um paciente da lixeira",
     description="🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado.",
 )
 def restore_patient(
-    patient_id: str,
+    patient_id: PatientId,
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> DocumentIndex:
