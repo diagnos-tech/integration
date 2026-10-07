@@ -182,8 +182,9 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
         gravação — um `ConflictError` com `code` `"DocumentVersionMismatch"` —
         se outra pessoa confirmou uma versão depois da sua leitura.
         """
+        keyring = self._keyring_provider()  # 🇺🇸 lazy unlock first (see `list`) 🇧🇷 unlock preguiçoso antes
         index = self.get_index(document_id)
-        dek = self._document_dek(index)
+        dek = self._document_dek(index, keyring)
         new_summary = summary(self._open_summary(index, dek))
         plaintext = self._serialize(record)
         body: dict[str, Any] = {
@@ -211,6 +212,7 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
 
         🇧🇷 Troca `is_archived`/`is_deleted` no lugar — uma reserva só de patch: sem versão, sem upload.
         """
+        self._keyring_provider()  # 🇺🇸 lazy unlock before signing (see `list`) 🇧🇷 unlock preguiçoso antes de assinar
         body = {
             name: value
             for name, value in (("is_archived", is_archived), ("is_deleted", is_deleted))

@@ -33,6 +33,10 @@ from datetime import UTC, date, datetime
 from typing import Final, Literal, get_args
 
 TimePrecision = Literal["month", "day", "hour", "minute", "second"]
+"""🇺🇸 A workspace's anonymization precision: every date is truncated to it before sealing (`Settings.time_precision`).
+
+🇧🇷 A precisão de anonimização de um workspace: toda data é truncada nela antes de selar (`Settings.time_precision`).
+"""
 TIME_PRECISIONS: Final[tuple[str, ...]] = get_args(TimePrecision)
 
 # 🇺🇸 `YYYY-MM-DD` is 10 characters; a longer string carries a time and needs an explicit offset.

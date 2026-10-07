@@ -1,9 +1,14 @@
 # 🇺🇸 Static checks: lockfile, lint (Python, Rust, bilingual docstrings, docs
-#    pairs and links) and `mypy --strict`. Tests live in their own workflows so
-#    each README badge answers exactly one question.
+#    pairs and links), `mypy --strict`, and the published docs against the code
+#    (`make docs-check`: fresh reference JSON, the site manifest, anchors,
+#    every runnable example, `diagnos --help` against `cli.json`). Tests live in
+#    their own workflows so each README badge answers exactly one question.
 # 🇧🇷 Checagens estáticas: lockfile, lint (Python, Rust, docstrings bilíngues,
-#    pares e links da documentação) e `mypy --strict`. Os testes têm workflows
-#    próprios para cada badge do README responder exatamente uma pergunta.
+#    pares e links da documentação), `mypy --strict`, e a doc publicada contra o
+#    código (`make docs-check`: JSON de referência em dia, o manifesto do site,
+#    âncoras, todo exemplo executável, `diagnos --help` contra o `cli.json`). Os
+#    testes têm workflows próprios para cada badge do README responder
+#    exatamente uma pergunta.
 name: CI
 
 on:
@@ -32,3 +37,5 @@ jobs:
         run: make lint
       - name: make types
         run: make types
+      - name: make docs-check
+        run: make docs-check

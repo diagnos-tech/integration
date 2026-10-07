@@ -89,7 +89,15 @@ from ._temporal import IsoInstant
 # 🇺🇸 Generic aliases: a list row of one resource, parametrized on its own summary type.
 # 🇧🇷 Aliases genéricos: uma linha de lista de um recurso, parametrizada no próprio tipo de resumo.
 PatientListItem = DocumentListItem[PatientSummary]
+"""🇺🇸 One row of `vault.patients.list()`: the index plus the decrypted `PatientSummary` (names, tags).
+
+🇧🇷 Uma linha de `vault.patients.list()`: o índice mais o `PatientSummary` decifrado (nomes, tags).
+"""
 ExamListItem = DocumentListItem[ExamSummary]
+"""🇺🇸 One row of `vault.exams.list()`: the index plus the decrypted `ExamSummary` (title, modality, date).
+
+🇧🇷 Uma linha de `vault.exams.list()`: o índice mais o `ExamSummary` decifrado (título, modalidade, data).
+"""
 
 __all__ = [
     "TYPO_CUTOFF",

@@ -45,6 +45,11 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
         cujo grupo esta sessão não tem chave fica com `summary=None` em vez
         de derrubar a página inteira.
         """
+        # 🇺🇸 The keyring first: asking for it is what unlocks lazily (`Diagnos._keyring_provider`), and a
+        #    signed request cannot go out before there is a session — so `list()` may be a program's first call.
+        # 🇧🇷 O keyring primeiro: pedi-lo é o que desbloqueia de forma preguiçosa (`Diagnos._keyring_provider`), e
+        #    uma requisição assinada não sai antes de existir sessão — então `list()` pode ser a primeira chamada.
+        keyring = self._keyring_provider()
         query: dict[str, str | int | bool] = {"limit": limit}
         if security_group is not None:
             query["security_group_id"] = security_group
@@ -53,7 +58,6 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
         if cursor is not None:
             query["cursor"] = cursor
         result = self._transport.get(self._base, query=query)
-        keyring = self._keyring_provider()
         items = [self._list_item(DocumentIndex.model_validate(raw), keyring) for raw in result["items"]]
         return Page(items=items, next_cursor=result.get("next_cursor"))
 
@@ -105,12 +109,13 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
         senão a versão corrente. `include_draft=False` sempre lê a última
         versão confirmada.
         """
+        keyring = self._keyring_provider()  # 🇺🇸 lazy unlock first (see `list`) 🇧🇷 unlock preguiçoso antes
         query = self._stream_query() or {}
         if version_id is not None:
             query["version_id"] = version_id
         result = self._transport.get(f"{self._base}/{document_id}", query=query or None)
         index = DocumentIndex.model_validate(result["document"])
-        dek = self._document_dek(index)
+        dek = self._document_dek(index, keyring)
         summary = self._open_summary(index, dek)
 
         if version_id is None and include_draft and index.stream(DATA_STREAM).draft_is_newer:

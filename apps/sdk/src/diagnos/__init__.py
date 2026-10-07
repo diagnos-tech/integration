@@ -6,7 +6,7 @@ types shape what `patients`/`exams` read and write, and the exceptions are
 what a caller catches. Anything not exported here — `diagnos.resources`,
 `diagnos.session`, `diagnos.transport`, `diagnos.crypto` — is internal
 plumbing `cli`/`api` and application code are not meant to import directly
-(`CONVENTIONS.md`): if something in there is missing from this list, that is
+(`CONTRIBUTING.md`): if something in there is missing from this list, that is
 a gap in the SDK's public surface, not a signal to reach past it.
 
 🇧🇷 diagnos — SDK zero-knowledge do cofre diagnos.
@@ -17,7 +17,7 @@ tipos de registro/modelo dão forma ao que `patients`/`exams` leem e
 escrevem, e as exceções são o que quem chama captura. Qualquer coisa não
 exportada aqui — `diagnos.resources`, `diagnos.session`,
 `diagnos.transport`, `diagnos.crypto` — é encanamento interno que `cli`/`api`
-e código de aplicação não devem importar direto (`CONVENTIONS.md`): se algo
+e código de aplicação não devem importar direto (`CONTRIBUTING.md`): se algo
 lá dentro está faltando nesta lista, é uma lacuna na superfície pública do
 SDK, não um sinal para alcançar por cima dela.
 """
@@ -65,6 +65,8 @@ from .models import (
     PersonalIdentifier,
 )
 from .resources.drives import Drive, Drives, UploadSource
+from .resources.exams import Exams
+from .resources.patients import Patients
 from .session.enrollment import EnrollmentPrompt
 from .session.keyring import GroupKeyUnavailable
 from .transport.config import Settings
@@ -90,6 +92,7 @@ __all__ = [
     "EnrollmentPrompt",
     "Exam",
     "ExamListItem",
+    "Exams",
     "ExamRecord",
     "ExamSummary",
     "GroupKeyUnavailable",
@@ -101,6 +104,7 @@ __all__ = [
     "PatientListItem",
     "PatientRecord",
     "PatientSummary",
+    "Patients",
     "PersonalIdentifier",
     "ProtocolError",
     "QuotaError",

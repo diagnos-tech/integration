@@ -67,7 +67,7 @@ substitui.
   sem uma das bandeiras — em todo o `src/`, e nos testes para o módulo e todo teste, fixture, ajudante e classe de
   nível de cima.
 
-  ```python
+  ```python no-run
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
       """🇺🇸 HMAC-SHA512 over the canonical string, hex-encoded.
 

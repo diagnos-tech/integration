@@ -51,5 +51,6 @@ class _NodesBase:
         `_Writing._upload_batch` (que busca um nó confirmado que o cofre
         não ecoou).
         """
+        self._keyring_provider()  # 🇺🇸 lazy unlock before signing (see `list`) 🇧🇷 unlock preguiçoso antes de assinar
         result = self._transport.get(f"{self._base}/{node_id}")
         return DriveNode.model_validate(result["node"])

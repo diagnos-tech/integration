@@ -65,7 +65,7 @@ These rules govern code (`.py` and `.rs` files); they used to live in `CONVENTIO
   (part of `make lint`) fails the build when a docstring or doc comment is missing either flag — everywhere in `src/`,
   and in tests for the module and every top-level test, fixture, helper and class.
 
-  ```python
+  ```python no-run
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
       """🇺🇸 HMAC-SHA512 over the canonical string, hex-encoded.
 

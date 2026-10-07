@@ -9,16 +9,17 @@ from diagnos import Diagnos
 from fastapi import APIRouter, Depends
 
 from diagnos_api.deps import get_vault
+from diagnos_api.errors import MTLS_RESPONSES
 from diagnos_api.mtls import ClientIdentity, require_client_certificate
 from diagnos_api.schemas import ClientIdentityView, SessionInfo
 
-router = APIRouter(prefix="/v1/session", tags=["session"])
+router = APIRouter(prefix="/v1/session", tags=["session"], responses=MTLS_RESPONSES)
 
 
 @router.get(
     "",
     response_model=SessionInfo,
-    summary="Describe this session · Descreve esta sessão",
+    summary="🇺🇸 Describe this session 🇧🇷 Descreve esta sessão",
     description="🇺🇸 This process's workspace/account and unlocked security groups, plus the caller's own "
     "mTLS identity. "
     "🇧🇷 O workspace/conta deste processo e os security groups desbloqueados, mais a identidade mTLS "
@@ -43,7 +44,7 @@ def get_session(
 @router.post(
     "/lock",
     status_code=202,
-    summary="Lock this session · Trava esta sessão",
+    summary="🇺🇸 Lock this session 🇧🇷 Trava esta sessão",
     description="🇺🇸 Ends the SDK session (best-effort server-side, always locally) and wipes its key "
     "material. Every route after this one fails until the process is restarted and re-enrolls (or "
     "restores via OpenBao) — this does not restart the session itself. "

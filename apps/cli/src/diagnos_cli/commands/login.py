@@ -35,8 +35,8 @@ def login(
         None,
         "--auto-unseal/--no-auto-unseal",
         help=(
-            "Save/restore the session via OpenBao · Salva/restaura a sessão via OpenBao "
-            "(default · padrão: on iff OPENBAO_ADDR is set · ligado se OPENBAO_ADDR estiver definida)"
+            "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set) · "
+            "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
         ),
     ),
 ) -> None:
