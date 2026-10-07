@@ -121,7 +121,11 @@ impl Region {
             if libc::mlock(ptr, self.data_len) == 0 {
                 Ok(())
             } else {
-                Err(*libc::__errno_location())
+                // 🇺🇸 `errno` through std: `libc::__errno_location` exists on Linux only (macOS
+                //    spells it `__error`), and std reads the right one on every Unix.
+                // 🇧🇷 `errno` pela std: `libc::__errno_location` só existe no Linux (o macOS o
+                //    chama de `__error`), e a std lê o certo em todo Unix.
+                Err(std::io::Error::last_os_error().raw_os_error().unwrap_or(0))
             }
         }
     }
