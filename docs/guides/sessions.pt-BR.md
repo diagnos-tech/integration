@@ -73,8 +73,9 @@ depende de como você chega ao cofre:
 
 Uma sessão nunca é gravada em disco (a menos que você opte pelo OpenBao) e nunca é compartilhada entre processos:
 
-- **Todo processo faz o próprio enrollment.** Dois workers são dois enrollments; cada invocação da CLI é um processo
-  próprio.
+- **Todo processo faz o próprio enrollment.** Dois workers são dois enrollments. A CLI mantém um processo vivo de
+  propósito: depois do `diagnos login`, o [agente de sessão](cli.pt-BR.md#sem-aprovar-todo-comando) roda os comandos
+  seguintes dentro do processo que guarda a sessão, então as chaves continuam sem cruzar a fronteira de um processo.
 - **Threads compartilham um `Diagnos`.** Desbloqueie-o uma vez antes de entregá-lo às threads — a API REST faz
   exatamente isso na subida — para duas threads nunca disputarem um enrollment.
 - **Um filho de `fork()` começa vazio.** As páginas de chave são zeradas num filho de fork, e usar uma lança erro.
@@ -169,6 +170,7 @@ direto do token, sem tocar a rede.
 | Você roda | Use |
 |---|---|
 | um script no seu notebook | sem OpenBao: aprove cada execução |
+| a CLI no seu terminal | `diagnos login` uma vez: o agente de sessão guarda a sessão até o `diagnos logout` |
 | a CLI a partir do cron | OpenBao, com um token restrito ao path daquela service account |
 | um worker ou pod de longa duração | OpenBao, e uma service account por réplica |
 | a API REST | OpenBao — os [manifestos de deploy](../../apps/api/deploy/README.pt-BR.md) já o trazem, com auto-unseal por KMS para o próprio OpenBao |

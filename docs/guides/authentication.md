@@ -116,7 +116,20 @@ lazily, and `with Diagnos() as vault:` unlocks on entry. It is idempotent either
 
 ### Showing the prompt yourself
 
-By default the link and the code go to `stderr`, as plain text that reads the same in a terminal and in a CI log.
+By default the link and the code go to `stderr`, as plain text that reads the same in a terminal and in a CI log:
+
+```text
+diagnos SDK — enrollment approval needed · aprovação de enrollment necessária
+
+Open this link to approve · Abra este link para aprovar:
+  https://…
+
+Code to type · Código para digitar:
+  4 8 2 9 1 5
+
+Expires at (unix seconds) · Expira em (segundos unix): 1790000000
+```
+
 To send them somewhere else — a chat channel, a pager, your own UI — pass `on_prompt`. It is called once, before the
 wait starts, with an `EnrollmentPrompt`:
 

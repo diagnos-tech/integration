@@ -83,10 +83,11 @@ assinatura nova a cada vez, e só lança quando retentar deixou de fazer sentido
 | um commit perdido na rede ou para um `5xx` | repete depois de 0,5 s e 1 s — commits são idempotentes | `VaultError` |
 | um upload multipart que falha no meio | aborta, para o cofre liberar o espaço | o erro original |
 
-O que sobra para você: `ConflictError` com `DocumentVersionMismatch` significa *alguém salvou no meio-tempo* — leia
-de novo, combine, grave de novo ([exemplo](patients.pt-BR.md#gravações-concorrentes-seguras)). `ConflictError` com
-`UploadIncomplete` significa que os bytes de um arquivo nunca chegaram ao armazenamento — suba aquele arquivo de novo.
-`RateLimitError` e `VaultError` valem mais uma tentativa depois de uma pausa maior.
+Um conflito é uma classe com muitas causas; `code` diz qual. O que sobra para você: `ConflictError` com
+`DocumentVersionMismatch` significa *alguém salvou no meio-tempo* — leia de novo, combine, grave de novo
+([exemplo](patients.pt-BR.md#gravações-concorrentes-seguras)). `ConflictError` com `UploadIncomplete` significa que os
+bytes de um arquivo nunca chegaram ao armazenamento — suba aquele arquivo de novo. `RateLimitError` e `VaultError`
+valem mais uma tentativa depois de uma pausa maior.
 
 ## Diferença de relógio
 
@@ -130,6 +131,9 @@ case $? in
   *) echo "falhou" ;;
 esac
 ```
+
+Um problema de arquivo local — um `-o` para um diretório que não existe, um upload ilegível — não é um
+`DiagnosError`: a CLI imprime `I/O error` e sai com `1`, nunca um traceback.
 
 A API REST responde todo não-2xx com um envelope só, cujo `code` é o do próprio cofre quando a falha veio do cofre:
 

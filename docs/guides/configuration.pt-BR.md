@@ -14,11 +14,12 @@ também; elas só acrescentam as próprias flags e variáveis por cima.
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | onde o cofre mora; mude só para um cofre de staging ou self-hosted |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | o timeout de cada requisição HTTP, em segundos |
 | `DIAGNOS_TIME_PRECISION` | não definida | a precisão de anonimização do workspace — `month`, `day`, `hour`, `minute` ou `second`; as datas são truncadas nela antes de selar ([por quê](patients.pt-BR.md#datas-e-precisão-de-tempo)) |
+| `DIAGNOS_STORAGE_HOSTS` | `diagnosusercontent.com, r2.cloudflarestorage.com` | os hosts, e seus subdomínios, para onde uma URL de armazenamento pré-assinada pode apontar, só HTTPS; o resto é recusado antes de um byte sair, então ciphertext e chaves SSE-C só vão para onde o deployment escolheu |
 | `DIAGNOS_MEMORY_LOCK` | `best-effort` | `require` se recusa a guardar uma chave que o SO não trava na RAM — veja [abaixo](#memória-e-hardening-do-processo) |
 | `DIAGNOS_HARDEN_PROCESS` | `1` | `0` pula desligar core dumps e o attach de debugger no unlock — só enquanto depura |
 
-Um valor inválido lança `ConfigError` nomeando a variável, quando o `Diagnos` é construído — nunca depois, no meio de
-uma requisição.
+Um `DIAGNOS_API_TOKEN` ausente ou um valor inválido lança `ConfigError` nomeando a variável, quando o `Diagnos` é
+construído — antes de qualquer chamada de rede, nunca depois, no meio de uma requisição.
 
 ## OpenBao
 
@@ -82,7 +83,11 @@ token enquanto todo o resto continua vindo do ambiente.
 
 ## A CLI e a API REST
 
-- A **CLI** aceita `--token` e `--vault-url` antes do subcomando, sobrescrevendo `DIAGNOS_API_TOKEN` e
+- A **CLI** aceita `--token` e `--vault-url` em qualquer lugar da linha, sobrescrevendo `DIAGNOS_API_TOKEN` e
   `DIAGNOS_VAULT_URL` para uma invocação; as outras flags globais estão no [guia da CLI](cli.pt-BR.md#opções-globais).
+  Ela também lê `DIAGNOS_GROUP`, o security group sob o qual uma gravação sela quando `--group` não é dado;
+  `DIAGNOS_AGENT`, em que `off` mantém cada comando no próprio processo; e `DIAGNOS_AGENT_IDLE_MINUTES`, quanto tempo
+  o agente de sessão espera sem comando antes de encerrar a sessão (padrão `480`) — veja
+  [Sem aprovar todo comando](cli.pt-BR.md#sem-aprovar-todo-comando).
 - A **API REST** acrescenta as próprias variáveis `DIAGNOS_API_*` — certificados, host, porta, nomes de cliente
   permitidos — listadas em [Implantação](../../apps/api/deploy/README.pt-BR.md#ambiente).

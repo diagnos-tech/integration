@@ -117,9 +117,22 @@ desbloqueia de forma preguiçosa, e `with Diagnos() as vault:` desbloqueia na en
 
 ### Mostrando o prompt você mesmo
 
-Por padrão o link e o código vão para `stderr`, como texto puro que se lê igual num terminal e num log de CI. Para
-mandá-los a outro lugar — um canal de chat, um pager, a sua própria interface — passe `on_prompt`. Ele é chamado uma
-vez, antes de a espera começar, com um `EnrollmentPrompt`:
+Por padrão o link e o código vão para `stderr`, como texto puro que se lê igual num terminal e num log de CI:
+
+```text
+diagnos SDK — enrollment approval needed · aprovação de enrollment necessária
+
+Open this link to approve · Abra este link para aprovar:
+  https://…
+
+Code to type · Código para digitar:
+  4 8 2 9 1 5
+
+Expires at (unix seconds) · Expira em (segundos unix): 1790000000
+```
+
+Para mandá-los a outro lugar — um canal de chat, um pager, a sua própria interface — passe `on_prompt`. Ele é chamado
+uma vez, antes de a espera começar, com um `EnrollmentPrompt`:
 
 ```python
 from diagnos import Diagnos, EnrollmentPrompt

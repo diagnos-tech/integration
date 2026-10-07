@@ -83,10 +83,11 @@ signature each time, and raises only when retrying stopped making sense.
 | a commit lost on the network or to a `5xx` | replays it after 0.5 s and 1 s — commits are idempotent | `VaultError` |
 | a multipart upload failing midway | aborts it, so the vault releases the space | the original error |
 
-What is left for you: `ConflictError` with `DocumentVersionMismatch` means *someone saved in between* — read again,
-merge, write again ([example](patients.md#safe-concurrent-writes)). `ConflictError` with `UploadIncomplete` means a
-file's bytes never reached storage — upload that file again. `RateLimitError` and `VaultError` are worth one more
-try after a longer pause.
+A conflict is one class with many causes; `code` says which. What is left for you: `ConflictError` with
+`DocumentVersionMismatch` means *someone saved in between* — read again, merge, write again
+([example](patients.md#safe-concurrent-writes)). `ConflictError` with `UploadIncomplete` means a file's bytes never
+reached storage — upload that file again. `RateLimitError` and `VaultError` are worth one more try after a longer
+pause.
 
 ## Clock skew
 
@@ -130,6 +131,9 @@ case $? in
   *) echo "failed" ;;
 esac
 ```
+
+A local file problem — an `-o` into a directory that does not exist, an unreadable upload — is not a `DiagnosError`:
+the CLI prints `I/O error` and exits `1`, never a traceback.
 
 The REST API answers every non-2xx with one envelope, whose `code` is the vault's own when the failure came from the
 vault:

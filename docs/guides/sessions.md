@@ -72,7 +72,9 @@ the vault:
 
 A session is never written to disk (unless you opt into OpenBao) and never shared between processes:
 
-- **Every process enrolls on its own.** Two workers are two enrollments; each CLI invocation is its own process.
+- **Every process enrolls on its own.** Two workers are two enrollments. The CLI keeps one process alive on purpose:
+  after `diagnos login`, its [session agent](cli.md#not-approving-every-command) runs the commands that follow inside
+  the process that holds the session, so the keys still never cross a process boundary.
 - **Threads share one `Diagnos`.** Unlock it once before handing it to worker threads — the REST API does exactly
   that at startup — so two threads never race to enroll.
 - **A `fork()` child starts empty.** Key pages are wiped in a forked child, and using one raises. With `gunicorn`,
@@ -167,6 +169,7 @@ two ids straight from the token, without touching the network.
 | You run | Use |
 |---|---|
 | a script on your laptop | no OpenBao: approve each run |
+| the CLI at your terminal | `diagnos login` once: the session agent keeps the session until `diagnos logout` |
 | the CLI from cron | OpenBao, with a token scoped to that service account's path |
 | a long-running worker or pod | OpenBao, and one service account per replica |
 | the REST API | OpenBao — the [deploy manifests](../../apps/api/deploy/README.md) ship it, with KMS auto-unseal for OpenBao itself |

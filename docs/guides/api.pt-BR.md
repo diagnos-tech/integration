@@ -7,6 +7,10 @@ service account, uma sessão viva na memória, e toda rota um invólucro fino so
 `vault.drives`. Ele não acrescenta nenhuma capacidade que o SDK não tenha. Toda rota, parâmetro e schema está na
 [referência da API](../reference/openapi.json); este guia cobre o que fica em volta deles.
 
+Se o seu código é Python, use o SDK direto: sem processo extra, sem certificados, e as chaves ficam na memória
+travada do seu próprio processo. Num shell, use a CLI. Esta API é para todo o resto — Node, Go, Java, .NET, uma
+ferramenta de BI.
+
 ```mermaid
 flowchart LR
     C1["sistema-de-faturamento"] -- "TLS mútuo" --> API
@@ -21,6 +25,21 @@ flowchart LR
 Quem chama envia e recebe **JSON e arquivos em texto claro**; o processo da API os cifra e decifra com a sessão dele,
 exatamente como o SDK faria no processo de quem chama. Isso torna o processo da API parte da sua zona confiável — veja
 [o modelo de segurança](security.pt-BR.md#a-fronteira-da-api-rest).
+
+## Experimente na sua máquina
+
+```sh
+uv run --package diagnos-api diagnos-api dev-certs   # ./certs: uma CA local, um par do servidor localhost, um de cliente
+export DIAGNOS_API_TOKEN="apikey-…"                  # mais os quatro exports que o dev-certs mostra
+uv run --package diagnos-api diagnos-api
+curl --cacert certs/ca.pem --cert certs/client.pem --key certs/client-key.pem https://localhost:8443/healthz
+```
+
+O `dev-certs` é só para a sua máquina: os certificados duram 30 dias e a chave da CA fica ao lado deles. Ele se
+recusa a sobrescrever arquivos existentes (`--force` os substitui) e aceita `--client-cn` para o nome que
+`DIAGNOS_API_ALLOWED_CLIENT_CN` compara. Fora do workspace ele precisa de `pip install "diagnos-api[dev]"`. Para
+qualquer coisa compartilhada, use a CA da sua organização, ou os passos com `openssl` em
+[Certificados](#certificados).
 
 ## Por que TLS mútuo
 
@@ -38,7 +57,8 @@ certificados aceitos, pelo common name.
 
 ## Certificados
 
-Use a CA que a sua organização já opera, quando houver. Para testar, ou para uma CA descartável fora de produção:
+Use a CA que a sua organização já opera, quando houver. Para montar uma CA à mão para um ambiente que não é
+produção — na sua própria máquina, o [`dev-certs`](#experimente-na-sua-máquina) faz tudo isto num passo:
 
 ```sh
 # 1. Uma CA que assina tanto o certificado do servidor quanto todo certificado de cliente.
@@ -77,13 +97,16 @@ docker run --rm -p 8443:8443 --cap-add=IPC_LOCK \
   -v "$PWD/certs:/certs:ro" diagnos-api
 ```
 
-De um checkout, sem Docker:
+A API é um processo Python comum: `diagnos-api` ou `python -m diagnos_api` a roda em qualquer lugar onde Python roda.
+O contêiner roda exatamente o mesmo código e é a forma recomendada para produção — build fixado, usuário não-root,
+`IPC_LOCK` para travar memória, manifests de Kubernetes em `deploy/` — e Python puro serve igualmente bem na sua
+máquina ou numa VM. De um checkout, sem Docker:
 
 ```sh
 export DIAGNOS_API_TOKEN="apikey-…"
 export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
 export DIAGNOS_API_TLS_CERT_FILE=./tls.pem DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
-uv run --package diagnos-api diagnos-api
+uv run --package diagnos-api diagnos-api   # ou: python -m diagnos_api
 ```
 
 `--cap-add=IPC_LOCK` deixa o SDK travar as chaves na RAM além do limite padrão de 64 KiB; sem ele a API ainda roda, em

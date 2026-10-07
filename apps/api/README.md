@@ -29,6 +29,11 @@ curl --cert client.pem --key client-key.pem --cacert clients-ca.pem \
   https://diagnos-api.internal:8443/v1/patients
 ```
 
+It is an ordinary Python process too — `diagnos-api` or `python -m diagnos_api` — and on your own machine
+`diagnos-api dev-certs` writes a throwaway CA, a `localhost` server pair and a client pair in one step; the
+[REST API guide](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/api.md#try-it-on-your-machine)
+walks through it.
+
 | Prefix | What it serves |
 |---|---|
 | `/v1/patients` | encrypted patient records — list, create, read, update, archive, trash, restore |

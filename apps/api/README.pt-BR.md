@@ -30,6 +30,11 @@ curl --cert client.pem --key client-key.pem --cacert clients-ca.pem \
   https://diagnos-api.internal:8443/v1/patients
 ```
 
+É também um processo Python comum — `diagnos-api` ou `python -m diagnos_api` — e, na sua própria máquina, o
+`diagnos-api dev-certs` escreve uma CA descartável, um par de servidor para `localhost` e um par de cliente num passo
+só; o [guia da API REST](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/api.pt-BR.md#experimente-na-sua-máquina)
+mostra o caminho.
+
 | Prefixo | O que serve |
 |---|---|
 | `/v1/patients` | registros de paciente cifrados — listar, criar, ler, atualizar, arquivar, lixeira, restaurar |

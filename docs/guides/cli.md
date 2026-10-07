@@ -13,7 +13,8 @@ diagnos patients create --help  # one command, with examples at the bottom
 
 ## Global options
 
-Global options go **before** the subcommand — `diagnos --json patients list`, not `diagnos patients list --json`.
+Global options go **anywhere** on the line — `diagnos patients list --json` is `diagnos --json patients list`. Only
+what comes after `--` is left alone.
 
 | Option | What it does |
 |---|---|
@@ -21,7 +22,7 @@ Global options go **before** the subcommand — `diagnos --json patients list`, 
 | `--quiet`, `-q` | no spinners or progress bars |
 | `--token TOKEN` | overrides `DIAGNOS_API_TOKEN` for this invocation; never echoed anywhere |
 | `--vault-url URL` | overrides `DIAGNOS_VAULT_URL` for this invocation |
-| `--no-color` | no ANSI colors (so does the `NO_COLOR` environment variable) |
+| `--no-color` | no ANSI escapes at all — colors, bold and dim (so does the `NO_COLOR` environment variable) |
 | `--version` | prints the CLI version and exits |
 
 Everything else — timeouts, time precision, OpenBao — comes from the environment, exactly as for the SDK
@@ -29,8 +30,8 @@ Everything else — timeouts, time precision, OpenBao — comes from the environ
 
 ## Enrollment in the terminal
 
-Each `diagnos` invocation is its own process, and a process needs an approved session before it can decrypt
-anything. The first command that needs one shows a panel on `stderr` and waits:
+A `diagnos` command needs an approved session before it can decrypt anything. The first command that needs one
+shows a panel on `stderr` and waits:
 
 ```text
 ╭────────────────────── diagnos · enrollment ───────────────────────╮
@@ -44,8 +45,8 @@ anything. The first command that needs one shows a panel on `stderr` and waits:
 ⠋ waiting for approval… · aguardando aprovação…
 ```
 
-An admin opens the link, checks the machine described there, types the code and picks the groups. `login` does only
-this, and then shows what was granted:
+An admin opens the link, checks the machine described there, types the code and picks the groups. `login` does
+this, shows what was granted, and keeps the session for the commands that follow:
 
 ```sh
 diagnos login
@@ -59,8 +60,8 @@ Enrolled · Sessão estabelecida
   groups · grupos: sg_oncology, sg_radiology
 ```
 
-`status` parses the token locally and reports OpenBao and the memory enclave without touching the network;
-`status --check` also unlocks and lists the granted groups, and `groups` lists them one per line.
+`status` parses the token locally and reports OpenBao, the memory enclave and the session agent without touching the
+network; `status --check` also unlocks and lists the granted groups, and `groups` lists them one per line.
 
 ```sh
 diagnos status
@@ -70,10 +71,36 @@ diagnos groups
 
 ### Not approving every command
 
-Without OpenBao, **the session dies with the process**: the next invocation enrolls again, with a new link and code.
-That is the right default on a laptop — `login` is for checking a token and seeing what it grants. For anything that
-runs unattended, configure [OpenBao auto-unseal](sessions.md#auto-unseal-with-openbao): the first invocation enrolls
-once and saves the session, and every later one restores it silently until it expires.
+After `login`, the commands that follow reuse that session — no new link, no new code — until you log out:
+
+```sh
+diagnos login                    # approve once
+diagnos patients list            # reuses the session
+diagnos files upload scan.dcm    # …and so on
+diagnos logout                   # revokes it on the vault and wipes the keys
+```
+
+**How it works.** `login` starts a small background process for your token, the *session agent*, and the session is
+unlocked inside it, in the SDK's Rust enclave: locked RAM, left out of core dumps, wiped on exit. Later commands never
+receive the keys. They hand their arguments to the agent over a private Unix socket; the agent runs the command
+itself and streams back its output, its prompts and its exit code. So `--json`, pipes, relative paths like
+`-o out.dcm`, confirmation prompts and exit codes behave exactly as if the command ran in your shell. **Nothing is
+written to disk, and no OS keychain is involved.**
+
+- **It ends** on `diagnos logout`, after `DIAGNOS_AGENT_IDLE_MINUTES` without a command (default `480`, 8 hours), or on
+  `SIGTERM` (a shutdown, say). Every time, the session is revoked on the vault and its keys wiped.
+  `diagnos session lock` revokes the session but keeps the agent: the next command enrolls again.
+- **Only you can use it.** The socket lives in `$XDG_RUNTIME_DIR/diagnos-<uid>/` (else the temp directory), which
+  must be yours with mode `0700` — anything else is refused, never repaired — and on Linux the agent also checks the
+  connecting process's uid. There is one agent per token and vault URL: `--token` with another token never reaches
+  this session.
+- **`diagnos status`** says whether an agent is running and holds a session.
+- **Without `login`** (a script, a CI job), or with `DIAGNOS_AGENT=off`, each command runs in its own process and
+  enrolls on its own the first time it needs the vault; the session dies with that process. Windows has no agent
+  yet and always works this way.
+
+For anything that runs unattended, configure [OpenBao auto-unseal](sessions.md#auto-unseal-with-openbao): the first
+invocation enrolls once and saves the session, and every later one restores it silently until it expires.
 
 ```sh
 export OPENBAO_ADDR="https://openbao.internal:8200"
@@ -118,6 +145,14 @@ diagnos patients create --group sg_oncology --file patient.json
   "address": { "city": "São Paulo", "state": "SP", "country": "BR" }
 }
 ```
+
+A record comes from `--file` or from the inline flags, never both — mixing them is refused, naming the flags.
+`--file -` reads it from stdin, as in `jq '.patient' export.json | diagnos patients create --file -`.
+
+**Which security group a write goes to.** `patients create`, `exams create`, `files upload` and `files mkdir` seal
+under `--group`, else `DIAGNOS_GROUP`, else — for an exam — its patient's group, else the only group this session
+holds (the CLI prints which one it picked). With several groups and none of those, the command stops and lists them:
+it never guesses, since sealing under the wrong group hands the record to the wrong team.
 
 An update writes a complete new version from a file. `--expect-version` makes the vault refuse it if someone saved
 in between (exit code `7`); `--tag` replaces the tags, and omitting it keeps them:
@@ -192,8 +227,9 @@ field cannot break a line. The shapes match the REST API's:
 | `files mkdir` | `{"node_id": …}` |
 | `files download` | `{"node_id": …, "saved_to": …}` |
 | `login` | `{"workspace_id": …, "account_id": …, "security_groups": […]}` |
+| `logout` | `{"logged_out": true}`, or `false` when there was no kept session to end |
 | `groups` | `{"security_groups": […]}` |
-| `status` | `workspace_id`, `account_id`, `openbao_configured`, `sdk_version`, `memory` — and `security_groups` with `--check` |
+| `status` | `workspace_id`, `account_id`, `openbao_configured`, `sdk_version`, `memory`, `agent` — and `security_groups` with `--check` |
 
 ```sh
 diagnos --json patients list --all | jq -r '.items[].index.document_id'
@@ -206,8 +242,8 @@ Errors never go to `stdout`: they go to `stderr` as one line, and the exit code 
 ### Exit codes
 
 `0` is success; `2` a configuration problem; `3` authentication, permission, session or enrollment; `4` not found;
-`5` quota; `6` rate limited; `7` conflict; `1` anything else. The full mapping from each SDK exception is in
-[Errors](errors.md#every-exception).
+`5` quota; `6` rate limited; `7` conflict; `1` anything else, a local file problem included. The full mapping from
+each SDK exception is in [Errors](errors.md#every-exception).
 
 ### Unattended jobs
 
