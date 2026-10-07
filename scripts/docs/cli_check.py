@@ -32,6 +32,7 @@ import re
 import shlex
 from typing import Any
 
+from diagnos_cli.argv import hoist_global_options
 from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
 
@@ -126,16 +127,20 @@ def command_lines(text: str) -> list[tuple[int, str]]:
 def usage_problem(line: str, document: dict[str, Any]) -> str | None:
     """🇺🇸 Why `line` is not a valid `diagnos` invocation (unknown command or flag), or `None`.
 
-    Option values are skipped by the option's type, so a positional value is
-    never mistaken for a subcommand.
+    Global options count wherever they are on the line, moved to the front
+    the way the binary moves them (`diagnos_cli.argv`). Option values are
+    skipped by the option's type, so a positional value is never mistaken
+    for a subcommand.
 
     🇧🇷 Por que `line` não é uma invocação válida do `diagnos` (comando ou flag desconhecida), ou `None`.
 
-    Valores de opção são pulados pelo tipo da opção, então um valor
-    posicional nunca é confundido com um subcomando.
+    Opções globais valem onde quer que estejam na linha, movidas para a
+    frente do jeito que o binário as move (`diagnos_cli.argv`). Valores de
+    opção são pulados pelo tipo da opção, então um valor posicional nunca
+    é confundido com um subcomando.
     """
     try:
-        tokens = shlex.split(line, comments=True)[1:]
+        tokens = hoist_global_options(shlex.split(line, comments=True)[1:])
     except ValueError as error:
         return f"cannot parse · não interpretável ({error})"
     by_path = {tuple(c["path"]): c for c in document["commands"]}

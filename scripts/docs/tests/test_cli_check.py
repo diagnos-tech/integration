@@ -46,13 +46,18 @@ pip install diagnos-cli
         ('diagnos patients create --group sg --legal-name "Jane Doe" --display-name Jane --tag a --tag b', None),
         ("diagnos files download NODE_ID -o scan.dcm", None),
         ("diagnos login --no-auto-unseal", None),
-        ("diagnos patients list --json", "unknown option '--json'"),
+        ("diagnos patients list --json --quiet", None),
+        ("diagnos files upload a.dcm --token TOKEN --group sg", None),
+        ("diagnos patients list --version", "unknown option '--version'"),
         ("diagnos patient list", "unknown command"),
         ("diagnos files upload --grup sg a.dcm", "unknown option '--grup'"),
     ],
 )
 def test_usage_follows_the_real_command_tree(document: dict[str, Any], line: str, problem: str | None) -> None:
-    """🇺🇸 Global options go first; option values are skipped by type. 🇧🇷 Opções globais primeiro; valores pulados."""
+    """🇺🇸 Global options go anywhere, as the binary takes them; option values are skipped by type.
+
+    🇧🇷 Opções globais vão em qualquer lugar, como o binário as aceita; valores de opção são pulados pelo tipo.
+    """
     found = usage_problem(line, document)
     assert (found is None) if problem is None else (found is not None and problem in found)
 
