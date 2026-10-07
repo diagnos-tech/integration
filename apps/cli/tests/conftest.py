@@ -39,6 +39,7 @@ from diagnos import (
     PatientRecord,
     PatientSummary,
 )
+from typer import rich_utils
 from typer.testing import CliRunner
 
 FIXED_NOW = "2026-09-08T12:00:00.000Z"
@@ -349,3 +350,25 @@ def _no_session_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     🇧🇷 Mantém todo teste no próprio processo mesmo se quem os roda tiver um agente no ar para um token real.
     """
     monkeypatch.setenv("DIAGNOS_AGENT", "off")
+
+
+@pytest.fixture(autouse=True)
+def _help_renders_as_to_a_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 `--help` and usage errors render as to a file, wherever the suite runs.
+
+    typer reads `GITHUB_ACTIONS`, `FORCE_COLOR` and `PY_COLORS` once, at
+    import, and forces rich's terminal mode when any of them is set. The
+    captured help then carries bold and dim escapes — `--json` arrives as
+    two styled halves — so a test that looks for a flag in the text passes
+    on a laptop and fails on CI. These tests read the text, not the styling.
+
+    🇧🇷 O `--help` e os erros de uso renderizam como para um arquivo, onde quer que a suíte rode.
+
+    O typer lê `GITHUB_ACTIONS`, `FORCE_COLOR` e `PY_COLORS` uma vez, na
+    importação, e força o modo terminal do rich quando alguma está definida.
+    A ajuda capturada então carrega escapes de negrito e esmaecido — `--json`
+    chega em duas metades estilizadas — e um teste que procura uma flag no
+    texto passa num notebook e falha na CI. Estes testes leem o texto, não o
+    estilo.
+    """
+    monkeypatch.setattr(rich_utils, "FORCE_TERMINAL", False)
