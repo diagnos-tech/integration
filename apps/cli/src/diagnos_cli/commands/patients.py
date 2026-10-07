@@ -10,10 +10,11 @@ from pathlib import Path
 import typer
 
 from diagnos_cli import context
+from diagnos_cli.commands._flags import flip
 from diagnos_cli.context import CliOptions
 from diagnos_cli.group_choice import group_option, resolve_group
 from diagnos_cli.inputs import load_record
-from diagnos_cli.render import get_console, get_err_console, render_document_index, render_index_table, render_patient
+from diagnos_cli.render import get_console, get_err_console, render_index_table, render_patient
 
 app = typer.Typer(help="Patients · Pacientes")
 
@@ -162,25 +163,13 @@ def archive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -
 
     🇧🇷 Marca o paciente arquivado (uma flag, sem versão nova).
     """
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.patients.archive(patient_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.patients.archive(patient_id))
 
 
 @app.command("unarchive", help="Unarchive a patient · Desarquiva um paciente")
 def unarchive_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado."""
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.patients.unarchive(patient_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.patients.unarchive(patient_id))
 
 
 @app.command("delete", help="Move a patient to the trash · Manda um paciente para a lixeira")
@@ -193,28 +182,16 @@ def delete_patient(
 
     🇧🇷 Marca o paciente como apagado — nunca um apagar de verdade; `restore` desfaz.
     """
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
     if not yes:
         confirmed = typer.confirm(
             f"Move patient {patient_id} to the trash? · Mandar o paciente {patient_id} à lixeira?"
         )
         if not confirmed:
             raise typer.Exit(code=0)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.patients.delete(patient_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.patients.delete(patient_id))
 
 
 @app.command("restore", help="Take a patient out of the trash · Tira um paciente da lixeira")
 def restore_patient(ctx: typer.Context, patient_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado."""
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.patients.restore(patient_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.patients.restore(patient_id))

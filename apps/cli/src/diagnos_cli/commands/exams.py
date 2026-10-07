@@ -10,10 +10,11 @@ from pathlib import Path
 import typer
 
 from diagnos_cli import context
+from diagnos_cli.commands._flags import flip
 from diagnos_cli.context import CliOptions
 from diagnos_cli.group_choice import GROUP_ENV_VAR, resolve_group
 from diagnos_cli.inputs import load_record
-from diagnos_cli.render import get_console, get_err_console, render_document_index, render_exam, render_index_table
+from diagnos_cli.render import get_console, get_err_console, render_exam, render_index_table
 
 app = typer.Typer(help="Exams · Exames")
 
@@ -138,25 +139,13 @@ def update_exam(
 @app.command("archive", help="Archive an exam · Arquiva um exame")
 def archive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Marks the exam archived (a flag, no new version). 🇧🇷 Marca o exame arquivado (uma flag, sem versão nova)."""
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.exams.archive(exam_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.exams.archive(exam_id))
 
 
 @app.command("unarchive", help="Unarchive an exam · Desarquiva um exame")
 def unarchive_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Clears the archived flag. 🇧🇷 Tira a flag de arquivado."""
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.exams.unarchive(exam_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.exams.unarchive(exam_id))
 
 
 @app.command("delete", help="Move an exam to the trash · Manda um exame para a lixeira")
@@ -169,26 +158,14 @@ def delete_exam(
 
     🇧🇷 Marca o exame como apagado — nunca um apagar de verdade; `restore` desfaz.
     """
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
     if not yes:
         confirmed = typer.confirm(f"Move exam {exam_id} to the trash? · Mandar o exame {exam_id} à lixeira?")
         if not confirmed:
             raise typer.Exit(code=0)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.exams.delete(exam_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.exams.delete(exam_id))
 
 
 @app.command("restore", help="Take an exam out of the trash · Tira um exame da lixeira")
 def restore_exam(ctx: typer.Context, exam_id: str = typer.Argument(...)) -> None:
     """🇺🇸 Clears the deleted flag. 🇧🇷 Tira a flag de apagado."""
-    opts: CliOptions = ctx.obj
-    console = get_console(opts)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt)
-        index = vault.exams.restore(exam_id)
-    render_document_index(console, index, json_output=opts.json_output)
+    flip(ctx, lambda vault: vault.exams.restore(exam_id))
