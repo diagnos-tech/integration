@@ -15,6 +15,11 @@ version = "0.1.0"
 description = "🇺🇸 Official zero-knowledge SDK for the diagnos vault · 🇧🇷 SDK oficial zero-knowledge do cofre diagnos"
 readme = "README.md"
 license = { text = "Apache-2.0" }
+# 🇺🇸 The license text travels inside every sdist and wheel, as Apache-2.0 §4(a) asks. hatchling picks
+#    `LICENSE` up on its own for the CLI and the API; maturin has to be told.
+# 🇧🇷 O texto da licença viaja dentro de todo sdist e wheel, como pede a Apache-2.0 §4(a). O hatchling
+#    apanha o `LICENSE` sozinho para a CLI e a API; ao maturin é preciso dizer.
+license-files = ["LICENSE"]
 requires-python = ">=3.11,<3.14"
 authors = [{ name = "diagnos" }]
 keywords = ["diagnos", "medical", "zero-knowledge", "e2ee", "dicom"]
