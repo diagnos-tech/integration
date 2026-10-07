@@ -9,6 +9,7 @@ import copy
 from typing import Any
 
 import pytest
+from typer import rich_utils
 
 from scripts.docs import cli
 from scripts.docs.cli_check import command_lines, help_problems, usage_problem
@@ -58,6 +59,17 @@ def test_usage_follows_the_real_command_tree(document: dict[str, Any], line: str
 
 def test_help_agrees_with_the_generated_reference(document: dict[str, Any]) -> None:
     """🇺🇸 Nothing missing either way. 🇧🇷 Nada faltando em nenhum sentido."""
+    assert help_problems(document) == []
+
+
+def test_help_is_read_the_same_when_typer_forces_terminal_styling(
+    document: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """🇺🇸 As under `GITHUB_ACTIONS`: bold and dim escapes around every flag change nothing the check reads.
+
+    🇧🇷 Como sob `GITHUB_ACTIONS`: escapes de negrito e esmaecido em volta de toda flag não mudam o que a checagem lê.
+    """
+    monkeypatch.setattr(rich_utils, "FORCE_TERMINAL", True)
     assert help_problems(document) == []
 
 

@@ -4,7 +4,10 @@
 means the introspection itself missed something the user sees — an
 option rendered but not recorded, a help text or example the generator
 dropped. The help is rendered exactly as a user gets it (`CliRunner`,
-rich panels, 250 columns so nothing wraps) and read panel by panel.
+rich panels, 250 columns so nothing wraps) and read panel by panel, with
+the terminal styling removed: typer forces it on under `GITHUB_ACTIONS`,
+and a bold escape in the middle of `--json` is not part of what the help
+says.
 
 The same map also checks the prose: every `diagnos …` command line in a
 shell block of the docs must name real commands and real flags.
@@ -16,7 +19,8 @@ significa que a própria introspecção perdeu algo que o usuário vê — uma
 opção renderizada mas não registrada, um texto de ajuda ou exemplo que o
 gerador descartou. A ajuda é renderizada exatamente como o usuário a recebe
 (`CliRunner`, painéis rich, 250 colunas para nada quebrar) e lida painel a
-painel.
+painel, sem o estilo de terminal: o typer o força sob `GITHUB_ACTIONS`, e um
+escape de negrito no meio de `--json` não é parte do que a ajuda diz.
 
 O mesmo mapa confere a prosa: toda linha de comando `diagnos …` num bloco
 de shell da doc precisa nomear comandos e flags de verdade.
@@ -35,6 +39,7 @@ from .markdown import fences
 
 SHELLS = {"sh", "bash", "shell", "console", "zsh"}
 _PANEL = re.compile(r"^╭─ (?P<title>[^─]+?) ─")
+_STYLE = re.compile(r"\x1b\[[0-9;]*m")
 _COMMAND_START = re.compile(r"(?:^|[|;&(`]\s*|\$\(\s*)(?:\$ )?(?P<cmd>diagnos(?=\s|$)[^|;&)`]*)")
 
 
@@ -76,7 +81,8 @@ def help_problems(document: dict[str, Any]) -> list[str]:
         if result.exit_code != 0:
             problems.append(f"{where}: --help exited {result.exit_code}")
             continue
-        text, panels = _normalize(result.output), _panels(result.output)
+        output = _STYLE.sub("", result.output)
+        text, panels = _normalize(output), _panels(output)
         expected: list[str] = [command["help"]["en"], command["help"]["pt-br"]]
         for param in command["params"]:
             expected += [*param["flags"], param["help"]["en"], param["help"]["pt-br"]]
