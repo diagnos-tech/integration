@@ -4,7 +4,10 @@ EC P-256 keys (fast to generate, accepted by every TLS stack uvicorn runs
 on), SHA-256 signatures, a five-minute back-dated start for clock skew, and
 the extensions a strict client checks: `BasicConstraints` and `KeyUsage` on
 the CA, `ExtendedKeyUsage` on each leaf, `SubjectAlternativeName` on the
-server — modern clients ignore the CN for host names.
+server — modern clients ignore the CN for host names — and the key
+identifiers: `SubjectKeyIdentifier` on every certificate,
+`AuthorityKeyIdentifier` on each leaf. Python 3.13's default TLS context
+is strict (`VERIFY_X509_STRICT`) and refuses a chain without them.
 
 🇧🇷 O trabalho X.509 por trás do `dev-certs`: uma CA, depois as folhas que ela assina. Importado só por esse comando.
 
@@ -13,7 +16,10 @@ uvicorn roda), assinaturas SHA-256, início recuado em cinco minutos por
 causa de relógio defasado, e as extensões que um cliente estrito confere:
 `BasicConstraints` e `KeyUsage` na CA, `ExtendedKeyUsage` em cada folha,
 `SubjectAlternativeName` no servidor — clientes modernos ignoram o CN para
-nomes de host.
+nomes de host — e os identificadores de chave: `SubjectKeyIdentifier` em
+todo certificado, `AuthorityKeyIdentifier` em cada folha. O contexto TLS
+padrão do Python 3.13 é estrito (`VERIFY_X509_STRICT`) e recusa uma cadeia
+sem eles.
 """
 
 from __future__ import annotations
@@ -102,8 +108,10 @@ def _leaf(
     """🇺🇸 A key and a certificate the CA signs. 🇧🇷 Uma chave e um certificado que a CA assina."""
     ca_key, ca_certificate = ca
     key = ec.generate_private_key(ec.SECP256R1())
-    builder = _builder(_name(common_name), ca_certificate.subject, key, days).add_extension(
-        x509.ExtendedKeyUsage([usage]), critical=False
+    builder = (
+        _builder(_name(common_name), ca_certificate.subject, key, days)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+        .add_extension(x509.ExtendedKeyUsage([usage]), critical=False)
     )
     if names is not None:
         builder = builder.add_extension(names, critical=False)
@@ -113,7 +121,10 @@ def _leaf(
 def _builder(
     subject: x509.Name, issuer: x509.Name, key: ec.EllipticCurvePrivateKey, days: int
 ) -> x509.CertificateBuilder:
-    """🇺🇸 The fields every certificate here shares. 🇧🇷 Os campos que todo certificado daqui compartilha."""
+    """🇺🇸 The fields and the key identifier every certificate here shares.
+
+    🇧🇷 Os campos e o identificador de chave que todo certificado daqui compartilha.
+    """
     now = datetime.datetime.now(datetime.UTC)
     return (
         x509.CertificateBuilder()
@@ -123,6 +134,7 @@ def _builder(
         .serial_number(x509.random_serial_number())
         .not_valid_before(now - datetime.timedelta(minutes=5))
         .not_valid_after(now + datetime.timedelta(days=days))
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
     )
 
 

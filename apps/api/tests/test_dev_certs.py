@@ -58,6 +58,11 @@ def test_generate_writes_a_ca_a_server_and_a_client_the_ca_signed(tmp_path: Path
     server.verify_directly_issued_by(ca)
     client.verify_directly_issued_by(ca)
     assert ca.extensions.get_extension_for_class(x509.BasicConstraints).value.ca is True
+    # 🇺🇸 A strict client — Python 3.13's default context — refuses a chain without the key identifiers.
+    # 🇧🇷 Um cliente estrito — o contexto padrão do Python 3.13 — recusa uma cadeia sem os identificadores de chave.
+    ca_key_id = ca.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value.digest
+    for leaf in (server, client):
+        assert leaf.extensions.get_extension_for_class(x509.AuthorityKeyIdentifier).value.key_identifier == ca_key_id
     names = server.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
     assert "localhost" in names.get_values_for_type(x509.DNSName)
     assert {str(ip) for ip in names.get_values_for_type(x509.IPAddress)} == {"127.0.0.1", "::1"}
