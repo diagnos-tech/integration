@@ -1,0 +1,164 @@
+# 🇺🇸 The release: builds `diagnos`, `diagnos-cli` and `diagnos-api`, tries every
+#    SDK wheel on the platform it was built for, and publishes the three to PyPI.
+#    A `v*` tag publishes; a manual run builds and tests the very same files and
+#    publishes nothing — the rehearsal to do before a tag, since a version on
+#    PyPI can never be uploaded twice.
+#
+#    Publishing uses PyPI Trusted Publishing: no token or password exists
+#    anywhere. Each PyPI project trusts exactly this file (`release.yml`) in
+#    this repository, running in the `pypi` environment — renaming either one
+#    breaks publishing until the PyPI side is changed to match.
+# 🇧🇷 O release: constrói `diagnos`, `diagnos-cli` e `diagnos-api`, experimenta
+#    todo wheel do SDK na plataforma para a qual foi construído, e publica os
+#    três no PyPI. Uma tag `v*` publica; uma execução manual constrói e testa
+#    exatamente os mesmos arquivos e não publica nada — o ensaio a fazer antes
+#    de uma tag, já que uma versão no PyPI nunca pode ser enviada duas vezes.
+#
+#    A publicação usa o Trusted Publishing do PyPI: não existe token nem senha
+#    em lugar nenhum. Cada projeto no PyPI confia exatamente neste arquivo
+#    (`release.yml`) deste repositório, rodando no ambiente `pypi` — renomear
+#    qualquer um dos dois quebra a publicação até o lado do PyPI ser ajustado.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Version · tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      # 🇺🇸 The three packages and the Rust crate are released together, under one number; a tag
+      #    has to be that number, on a commit that is already on `develop`.
+      # 🇧🇷 Os três pacotes e o crate Rust são lançados juntos, sob um número só; uma tag precisa
+      #    ser esse número, num commit que já está na `develop`.
+      - name: One version everywhere, and the tag says it
+        run: python3 scripts/release_version.py
+
+  sdk-wheels:
+    name: SDK wheel · ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: linux-x86_64, runner: ubuntu-latest, target: x86_64, manylinux: auto }
+          - { platform: linux-aarch64, runner: ubuntu-24.04-arm, target: aarch64, manylinux: auto }
+          - { platform: musllinux-x86_64, runner: ubuntu-latest, target: x86_64, manylinux: musllinux_1_2 }
+          - { platform: musllinux-aarch64, runner: ubuntu-24.04-arm, target: aarch64, manylinux: musllinux_1_2 }
+          - { platform: macos-arm64, runner: macos-latest, target: aarch64 }
+          - { platform: macos-x86_64, runner: macos-15-intel, target: x86_64 }
+          - { platform: windows-x86_64, runner: windows-latest, target: x64 }
+    steps:
+      - uses: actions/checkout@v5
+      # 🇺🇸 One abi3 wheel per platform serves every CPython ≥ 3.11. Pinned by commit: this action
+      #    compiles the enclave people install.
+      # 🇧🇷 Um wheel abi3 por plataforma serve todo CPython ≥ 3.11. Fixada por commit: esta action
+      #    compila o enclave que as pessoas instalam.
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: apps/sdk
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux || 'auto' }}
+          args: --release --locked --out dist
+      - uses: astral-sh/setup-uv@v6
+      # 🇺🇸 The wheel just built, installed alone with its real dependencies on the oldest and the
+      #    newest supported CPython: the enclave has to load and say what it guarantees here.
+      # 🇧🇷 O wheel recém-construído, instalado sozinho com as dependências de verdade no CPython
+      #    mais antigo e no mais novo suportados: o enclave precisa carregar e dizer o que garante aqui.
+      - name: The wheel installs and the enclave loads (glibc, macOS, Windows)
+        if: ${{ !startsWith(matrix.platform, 'musllinux') }}
+        shell: bash
+        run: |
+          for python in 3.11 3.13; do
+            uv run --no-project --isolated --python "$python" --with "$(ls apps/sdk/dist/*.whl)" \
+              python scripts/release_smoke.py
+          done
+      - name: The wheel installs and the enclave loads (musl)
+        if: ${{ startsWith(matrix.platform, 'musllinux') }}
+        run: |
+          for python in 3.11 3.13; do
+            docker run --rm -v "$PWD:/repo:ro" "python:${python}-alpine" \
+              sh -c "pip install --quiet /repo/apps/sdk/dist/*.whl && python /repo/scripts/release_smoke.py"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-wheel-${{ matrix.platform }}
+          path: apps/sdk/dist/*.whl
+          if-no-files-found: error
+
+  dists:
+    name: Source distributions · CLI and API wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Build
+        run: |
+          uv build --package diagnos --sdist --out-dir dist/sdk
+          uv build --package diagnos-cli --out-dir dist/cli
+          uv build --package diagnos-api --out-dir dist/api
+      - name: PyPI will accept the metadata and render the README
+        run: uvx twine check --strict dist/sdk/* dist/cli/* dist/api/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-sdist
+          path: dist/sdk/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-dist
+          path: dist/cli/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: dist/api/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish · ${{ matrix.project }}
+    # 🇺🇸 Only a tag publishes, and only after every wheel was built and tried.
+    # 🇧🇷 Só uma tag publica, e só depois de todo wheel ter sido construído e experimentado.
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    needs: [version, sdk-wheels, dists]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/${{ matrix.project }}/
+    permissions:
+      id-token: write # 🇺🇸 the short-lived identity PyPI trusts · 🇧🇷 a identidade de curta duração em que o PyPI confia
+    strategy:
+      # 🇺🇸 The SDK first: the CLI and the API depend on it. 🇧🇷 O SDK primeiro: a CLI e a API dependem dele.
+      max-parallel: 1
+      matrix:
+        include:
+          - { project: diagnos, artifacts: "sdk-*" }
+          - { project: diagnos-cli, artifacts: "cli-*" }
+          - { project: diagnos-api, artifacts: "api-*" }
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ matrix.artifacts }}
+          path: dist
+          merge-multiple: true
+      # 🇺🇸 Pinned by commit: this is the one step that holds publishing rights. It also signs an
+      #    attestation tying each file to this run.
+      # 🇧🇷 Fixada por commit: este é o único passo que tem direito de publicar. Ele também assina
+      #    uma atestação ligando cada arquivo a esta execução.
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist
+          print-hash: true

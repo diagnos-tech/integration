@@ -142,10 +142,20 @@ acrescente `Signed-off-by: Seu Nome <voce@exemplo.com>` à mão) em todo commit;
 
 ## Lançamento de versões
 
-Fora do escopo deste documento por enquanto. Resumindo: ainda não há um processo de release separado a seguir — a
-versão de cada pacote vive no próprio `pyproject.toml` (`apps/sdk/pyproject.toml`, `apps/cli/pyproject.toml`,
-`apps/api/pyproject.toml`), e em tempo de execução `__version__` é lido dos metadados do pacote instalado, em vez de
-fixado no código.
+`diagnos`, `diagnos-cli` e `diagnos-api` são lançados juntos, sob uma versão só, pelo
+`.github/workflows/release.yml`:
+
+1. Ponha a mesma versão nos três `pyproject.toml` e no `apps/sdk/native/Cargo.toml`, e dê a ela uma data no
+   `CHANGELOG.md` no lugar de `Unreleased`. O `python3 scripts/release_version.py` diz se eles concordam.
+2. Ensaie: rode o workflow **Release** à mão (*Run workflow*). Ele constrói toda distribuição, instala cada wheel do
+   SDK na plataforma para a qual foi construído, e não publica nada.
+3. Marque esse commit da `develop` com a tag `v<versão>` e envie a tag. O mesmo workflow roda de novo e publica os
+   três pacotes no PyPI.
+
+Uma versão no PyPI nunca pode ser enviada duas vezes, e por isso o ensaio vem primeiro. A publicação usa o
+[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) do PyPI: não há token para guardar nem trocar. Cada
+projeto no PyPI confia no `release.yml` deste repositório, rodando no ambiente `pypi`. Em tempo de execução, a
+`__version__` é lida dos metadados do pacote instalado em vez de fixa no código.
 
 ## Checklist de pull request
 

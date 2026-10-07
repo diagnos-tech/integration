@@ -139,9 +139,20 @@ Every commit must carry a [DCO](https://developercertificate.org/) sign-off. Use
 
 ## Releasing
 
-Out of scope for this document. In short: there is no separate release process to follow yet — each package's
-version lives in its own `pyproject.toml` (`apps/sdk/pyproject.toml`, `apps/cli/pyproject.toml`, `apps/api/pyproject.toml`), and at
-runtime `__version__` is read from the installed package's metadata rather than hard-coded.
+`diagnos`, `diagnos-cli` and `diagnos-api` are released together, under one version, by
+`.github/workflows/release.yml`:
+
+1. Set the same version in the three `pyproject.toml` and in `apps/sdk/native/Cargo.toml`, and give it a date in
+   `CHANGELOG.md` in place of `Unreleased`. `python3 scripts/release_version.py` says whether they agree.
+2. Rehearse: run the **Release** workflow by hand (*Run workflow*). It builds every distribution, installs each SDK
+   wheel on the platform it was built for, and publishes nothing.
+3. Tag that commit on `develop` as `v<version>` and push the tag. The same workflow runs again and publishes the three
+   packages to PyPI.
+
+A version on PyPI can never be uploaded twice, which is why the rehearsal comes first. Publishing uses PyPI
+[Trusted Publishing](https://docs.pypi.org/trusted-publishers/): there is no token to store or rotate. Each PyPI
+project trusts `release.yml` in this repository, running in the `pypi` environment. At runtime `__version__` is read
+from the installed package's metadata rather than hard-coded.
 
 ## Pull request checklist
 
