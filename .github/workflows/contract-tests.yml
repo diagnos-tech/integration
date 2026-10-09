@@ -28,7 +28,7 @@ jobs:
     name: SDK → vault (Pact consumer)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - name: make contract-check
         run: make contract-check
@@ -36,7 +36,7 @@ jobs:
         if: always()
         run: python3 scripts/contract_summary.py contracts/diagnos-sdk-diagnos-vault.json >> "$GITHUB_STEP_SUMMARY"
       - name: Upload contract
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pact
           path: contracts/diagnos-sdk-diagnos-vault.json
