@@ -6,7 +6,7 @@
 #    como um wheel por plataforma (abi3, CPython ≥ 3.11) — o mesmo layout que o
 #    polars usa.
 [build-system]
-requires = ["maturin>=1.8,<2.0"]
+requires = ["maturin>=1.15.0,<2.0"]
 build-backend = "maturin"
 
 [project]
