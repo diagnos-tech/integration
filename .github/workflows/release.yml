@@ -37,7 +37,7 @@ jobs:
     name: Version · tag
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       # 🇺🇸 The three packages and the Rust crate are released together, under one number; a tag
@@ -62,7 +62,7 @@ jobs:
           - { platform: macos-x86_64, runner: macos-15-intel, target: x86_64 }
           - { platform: windows-x86_64, runner: windows-latest, target: x64 }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # 🇺🇸 One abi3 wheel per platform serves every CPython ≥ 3.11. Pinned by commit: this action
       #    compiles the enclave people install.
       # 🇧🇷 Um wheel abi3 por plataforma serve todo CPython ≥ 3.11. Fixada por commit: esta action
@@ -73,7 +73,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux || 'auto' }}
           args: --release --locked --out dist
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       # 🇺🇸 The wheel just built, installed alone with its real dependencies on the oldest and the
       #    newest supported CPython: the enclave has to load and say what it guarantees here.
       # 🇧🇷 O wheel recém-construído, instalado sozinho com as dependências de verdade no CPython
@@ -93,7 +93,7 @@ jobs:
             docker run --rm -v "$PWD:/repo:ro" "python:${python}-alpine" \
               sh -c "pip install --quiet /repo/apps/sdk/dist/*.whl && python /repo/scripts/release_smoke.py"
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: sdk-wheel-${{ matrix.platform }}
           path: apps/sdk/dist/*.whl
@@ -103,8 +103,8 @@ jobs:
     name: Source distributions · CLI and API wheels
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
       - name: Build
         run: |
           uv build --package diagnos --sdist --out-dir dist/sdk
@@ -112,17 +112,17 @@ jobs:
           uv build --package diagnos-api --out-dir dist/api
       - name: PyPI will accept the metadata and render the README
         run: uvx twine check --strict dist/sdk/* dist/cli/* dist/api/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: sdk-sdist
           path: dist/sdk/*
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cli-dist
           path: dist/cli/*
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: api-dist
           path: dist/api/*
@@ -149,7 +149,7 @@ jobs:
           - { project: diagnos-cli, artifacts: "cli-*" }
           - { project: diagnos-api, artifacts: "api-*" }
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.artifacts }}
           path: dist
