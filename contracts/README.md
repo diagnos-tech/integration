@@ -38,7 +38,7 @@ make contract-check   # runs the suite and fails if the regenerated contract dif
 ```
 
 `make contract` is what you run after changing the SDK's HTTP behaviour or adding an interaction, before committing.
-`make contract-check` is what CI runs (`.github/workflows/contract-tests.yml`) — it never rewrites the file, only
+`make contract-check` is what CI runs (the `checks` job of `.github/workflows/ci.yml`) — it never rewrites the file, only
 compares.
 
 ## How determinism works

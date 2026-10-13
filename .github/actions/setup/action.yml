@@ -1,22 +1,16 @@
-# 🇺🇸 The one setup every CI job shares: the pinned Rust (for the enclave), uv, Python, and a locked `uv sync`
-#    that installs every extra and builds `diagnos._secure` — the same thing `make sync` does locally, so CI never
-#    drifts from a contributor's machine. Caches are restored everywhere but only written from `develop`: a
-#    pull request can never seed what a later run trusts.
-# 🇧🇷 O setup que todo job de CI compartilha: o Rust fixado (para o enclave), uv, Python e um `uv sync` travado
-#    que instala todo extra e constrói o `diagnos._secure` — o mesmo que o `make sync` faz localmente, para a CI
-#    nunca divergir da máquina de quem contribui. Os caches são restaurados em todo lugar, mas só gravados a
-#    partir da `develop`: um pull request nunca semeia o que uma execução posterior confia.
+# The setup every CI job shares: the pinned Rust (for the enclave), uv, Python, and a locked `uv sync` that
+# installs every extra and builds `diagnos._secure`, exactly as `make sync` does locally. Caches are restored
+# everywhere but written only by runs on `develop`, so a pull request can never seed what a later run trusts.
 name: Set up the project
 description: Pinned Rust, uv, Python and a locked `uv sync`.
 inputs:
   python-version:
     description: CPython version to test against.
-    default: "3.12"
+    default: "3.13"
 runs:
   using: composite
   steps:
-    # 🇺🇸 The runner's rustup installs exactly what `rust-toolchain.toml` names, clippy and rustfmt included.
-    # 🇧🇷 O rustup do runner instala exatamente o que o `rust-toolchain.toml` nomeia, clippy e rustfmt inclusos.
+    # The runner's rustup installs exactly what rust-toolchain.toml names, clippy and rustfmt included.
     - name: Rust from rust-toolchain.toml
       shell: bash
       run: rustup toolchain install
@@ -26,8 +20,7 @@ runs:
         save-if: ${{ github.ref == 'refs/heads/develop' }}
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       with:
-        # 🇺🇸 Bump together with `UV_VERSION` in `package.yml` and the `Dockerfile`'s `uv` stage.
-        # 🇧🇷 Atualize junto com o `UV_VERSION` do `package.yml` e o estágio `uv` do `Dockerfile`.
+        # Keep in sync with UV_VERSION in package.yml and the Dockerfile's `uv` stage.
         version: "0.13.0"
         python-version: ${{ inputs.python-version }}
         enable-cache: true

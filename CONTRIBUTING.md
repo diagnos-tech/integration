@@ -46,24 +46,24 @@ Run `make help` at any time to list every target with a one-line description.
 
 ## What CI runs, and how to reproduce it locally
 
-CI is a handful of workflows, each answering one question. `make check` runs the first three's steps in the same
-order, so a green `make check` on your machine means a green PR.
+Pull requests target `develop`. CI runs on every pull request and its `CI` job is the one required check; Package
+runs only on the release pull request from `develop` into `main`, where it decides whether `main` can be released.
 
-| Workflow | Answers | Local equivalent |
-|---|---|---|
-| `CI` (`.github/workflows/ci.yml`) | Does the code pass static checks and type-check? | `make lint` (ruff, `cargo fmt --check`, `cargo clippy -D warnings`, bilingual-docstring check, docs-pairs/links check) + `make types` (`mypy --strict` over the packages, the contract tests and `scripts`) |
-| `Unit tests` (`.github/workflows/unit-tests.yml`) | Do every Python layer and the Rust enclave pass their own tests, on every supported CPython, without the coverage floor slipping? | `make cov` (or `make test` for a faster pass without the combined coverage report) |
-| `Contract tests` (`.github/workflows/contract-tests.yml`) | Does the SDK still speak the HTTP contract the vault verifies? | `make contract-check` |
-| `Package` (`.github/workflows/package.yml`, on packaging changes) | Do the seven wheels and the sdist build, and does each wheel work installed alone on its platform — bare, then with every extra? Do both images build? | `uv build`, then `docker build --target api .` |
-| `Workflow lint` (`.github/workflows/workflow-lint.yml`) | Are the workflows themselves safe and well formed (zizmor, actionlint)? | `uvx zizmor .github/` |
+| Workflow | Runs on | Answers | Local equivalent |
+|---|---|---|---|
+| `CI` (`.github/workflows/ci.yml`) | every pull request, pushes to `main`, weekly on `develop` | Do lint, `mypy --strict`, the docs, the Pact contract and every test pass — on CPython 3.11 and 3.13, with the coverage floor held? Are the workflows themselves safe (zizmor, actionlint)? | `make check`, `make cov`, `uvx zizmor .github/` |
+| `Package` (`.github/workflows/package.yml`) | pull requests into `main`, releases | Do the seven wheels and the sdist build, does each wheel work installed alone on its platform — bare, then with every extra — and do both images build? | `uv build`, then `docker build --target api .` |
+| `Release` (`.github/workflows/release.yml`) | `v*` tags on `main` | Signs and publishes everything; see [Releasing](#releasing). | — |
+| `Auto-merge` (`.github/workflows/auto-merge.yml`) | Dependabot pull requests into `develop` | Queues minor and patch updates to merge once CI passes. | — |
+| `Scorecard` (`.github/workflows/scorecard.yml`) | weekly | How the repository scores on supply-chain practices. | — |
 
-`make check` runs `lint`, `types`, `test` and `contract-check` in that order — exactly what the first three
-workflows run, just in one command on your machine. `Scorecard` scores the repository's supply-chain practices on
-its own schedule.
+`make check` runs `lint`, `types`, `test`, `contract-check` and `docs-check` — the steps of CI's jobs, in one command
+— so a green `make check` on your machine means a green pull request.
 
 ## Code conventions
 
 These rules govern code (`.py` and `.rs` files); they used to live in `CONVENTIONS.md`, which this document replaces.
+Files under `.github/` are the exception to the bilingual rule below: their comments are in English only.
 
 - **Bilingual docstrings.** Every module, class and public function carries a docstring with an English paragraph
   prefixed `🇺🇸` followed by the Portuguese paragraph prefixed `🇧🇷`. Inline comments follow the same pair on
@@ -152,41 +152,57 @@ Every commit must carry a [DCO](https://developercertificate.org/) sign-off. Use
 
 ## Releasing
 
-`diagnos` and its two images are released together, under one version, by `.github/workflows/release.yml`:
+`develop` is where work lands; `main` holds what has been released or is about to be. `diagnos` and its two images
+are released together, under one version, by `.github/workflows/release.yml`:
 
-1. Set the same version in `pyproject.toml` and in `apps/sdk/native/Cargo.toml`, and give it a date in
-   `CHANGELOG.md` in place of `Unreleased`. `python3 scripts/release_version.py` says whether they agree.
-2. Rehearse: run the **Package** workflow by hand (*Run workflow*). It builds every distribution, tries each wheel on
-   the platform it was built for, rebuilds the sdist and builds both images — and publishes nothing.
-3. Tag that commit on `develop` as `v<version>` and push the tag. **Release** runs Package again, then signs every
-   file with cosign and attests its provenance, pushes and signs the two images, publishes to PyPI and creates the
-   GitHub release with every file, bundle and the commands that verify them.
+1. On `develop`, set the same version in `pyproject.toml` and `apps/sdk/native/Cargo.toml`, refresh both lockfiles
+   (`uv lock` and `cargo update --workspace --manifest-path apps/sdk/native/Cargo.toml`), and give the version a date
+   in `CHANGELOG.md` in place of `Unreleased`. `python3 scripts/release_version.py` says whether they agree.
+2. Open a pull request from `develop` into `main`. Besides CI, it runs **Package**: every distribution built, each
+   wheel tried on its platform, the sdist rebuilt and both images built — and nothing published. Merge it with a
+   **merge commit**, never a squash, so `main` and `develop` keep one history.
+3. Tag the merge commit as `v<version>` and push the tag: `git fetch origin && git tag v0.1.0 origin/main && git push
+   origin v0.1.0`. **Release** runs Package again, signs every file with cosign and attests its provenance, pushes
+   and signs the two images, waits for a maintainer to approve the `pypi` environment, publishes to PyPI and creates
+   the GitHub release with every file, bundle and the commands that verify them.
 
-A version on PyPI can never be uploaded twice, which is why the rehearsal comes first. Publishing uses PyPI
-[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) and Sigstore keyless signing: there is no token or key
-to store or rotate — and an API token is deliberately not supported, because it would silently turn off the PEP 740
-attestations. PyPI trusts `release.yml` in this repository, running in the `pypi` environment; renaming either breaks
-publishing until PyPI's trusted publisher is changed to match. At runtime `__version__` is read from the installed
-package's metadata rather than hard-coded.
+A version on PyPI can never be uploaded twice, which is why Package runs on the pull request first. Publishing uses
+PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) and Sigstore keyless signing: there is no token or
+key to store or rotate — and an API token is deliberately not supported, because it would silently turn off the PEP
+740 attestations. PyPI trusts `release.yml` in this repository, running in the `pypi` environment; renaming either
+breaks publishing until PyPI's trusted publisher is changed to match. At runtime `__version__` is read from the
+installed package's metadata rather than hard-coded.
 
-Before the first release, a repository admin sets up what code cannot — in this order, so that PyPI never trusts
-an environment or a tag anyone could use:
+Dependencies update themselves: Dependabot opens grouped pull requests into `develop` once a month, minor and patch
+updates merge on their own once CI passes, and major updates wait for a review. They reach `main` with the next
+release.
 
-1. **Environments**: `release` and `pypi`, each limited to tags `v*`, with a required reviewer on `pypi`.
-2. **Rulesets**: only maintainers create `v*` tags, which can never be moved or deleted; `develop` requires pull
-   requests, a code-owner review and the checks **CI**, **Unit tests**, **Contract tests** and **Workflow lint** —
-   not **Package**, which runs only when packaging changes (a required check must always report); Actions may not
-   approve pull requests.
-3. **PyPI**: a pending trusted publisher for `diagnos` — owner `diagnos-tech`, repository `integration`, workflow
-   `release.yml`, environment `pypi` — and 2FA for every owner. Never an API token.
-4. **Releases**: turn on release immutability.
-5. **GHCR**, during the first release: the run waits for approval before `pypi`, with both images already pushed and
-   signed. Make `diagnos` and `diagnos-api` public and grant only this repository write access, *then* approve —
-   `diagnos setup api` pulls the image as soon as the version is on PyPI.
-
-A release candidate rehearses all of it for real: `0.1.0rc1` in `pyproject.toml`, `0.1.0-rc.1` in `Cargo.toml` (the
+A release candidate rehearses everything for real: `0.1.0rc1` in `pyproject.toml`, `0.1.0-rc.1` in `Cargo.toml` (the
 guard reads both as one version), a `## [0.1.0rc1]` section in `CHANGELOG.md`, and the tag `v0.1.0rc1`. `pip` installs
 a pre-release only when asked for it by version or with `--pre`.
+
+### Repository settings
+
+What code cannot set, a repository admin does once — in this order, so PyPI never trusts an environment or a tag
+anyone could use:
+
+1. **Environments**: `release` and `pypi`, each limited to tags `v*`, with a required reviewer on `pypi` (and *Prevent
+   self-review* off while there is one maintainer).
+2. **Branches**: `main`, created from `develop`.
+3. **Rulesets**:
+   - tags `v*`: only maintainers create them (*Restrict creations*, bypassed by admins only), and nobody moves or
+     deletes them (*Restrict updates* and *Restrict deletions*, no bypass — a second ruleset);
+   - `develop`: pull requests only, the **CI** check required, no force pushes or deletions; require a code-owner
+     review as soon as there are two maintainers;
+   - `main`: pull requests only, the **CI** and **Package** checks required, merge commits only, no force pushes or
+     deletions.
+4. **General**: *Allow auto-merge* on (Dependabot needs it); under Actions, a read-only `GITHUB_TOKEN` and Actions not
+   allowed to create or approve pull requests; release immutability on.
+5. **PyPI**: a pending trusted publisher for `diagnos` — owner `diagnos-tech`, repository `integration`, workflow
+   `release.yml`, environment `pypi` — and 2FA for every owner. Never an API token.
+6. **GHCR**, during the first release: the run waits for approval before `pypi`, with both images already pushed and
+   signed. Make `diagnos` and `diagnos-api` public and grant only this repository write access, *then* approve —
+   `diagnos setup api` pulls the image as soon as the version is on PyPI.
 
 ## Pull request checklist
 

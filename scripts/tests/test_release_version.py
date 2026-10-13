@@ -77,9 +77,7 @@ def test_disagreeing_or_unpublishable_versions_are_refused(
     assert any(reason in line for line in problems(None, tree(tmp_path, package, crate)))
 
 
-def test_a_tag_must_name_the_version_be_dated_and_be_on_develop(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_tag_must_name_the_version_be_dated_and_be_on_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """🇺🇸 Wrong tag, undated changelog, off trunk: three reasons.
 
     🇧🇷 Tag errada, changelog sem data, fora do tronco: três motivos.
@@ -89,7 +87,7 @@ def test_a_tag_must_name_the_version_be_dated_and_be_on_develop(
     assert [line.split(" ")[0] for line in reasons] == ["tag", "CHANGELOG.md:", "the"]
 
 
-def test_a_dated_version_tagged_on_develop_is_released(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_dated_version_tagged_on_main_is_released(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """🇺🇸 Everything in order: no reason left. 🇧🇷 Tudo em ordem: nenhum motivo sobra."""
     monkeypatch.setattr(release_version, "on_trunk", lambda root: True)
     assert problems("v0.2.0rc1", tree(tmp_path, "0.2.0rc1", "0.2.0-rc.1")) == []

@@ -1,0 +1,42 @@
+# Auto-merge: Dependabot's minor and patch updates into `develop` merge by themselves once CI passes.
+#
+# This only queues the merge: GitHub performs it once every check the `develop` ruleset requires is green, so
+# nothing here bypasses CI. fetch-metadata reports an update type only when every commit on the branch is
+# Dependabot's own verified commit, and only a minor or patch type queues the merge, so a push by anyone else to
+# a Dependabot branch, or a major update, always waits for a person. Releases still go through a reviewed pull
+# request from `develop` into `main`.
+name: Auto-merge
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions: {}
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dependabot:
+    name: Dependabot
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'diagnos-tech/integration'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write # Merges the pull request.
+      pull-requests: write # Enables auto-merge on it.
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - name: Queue the merge
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"

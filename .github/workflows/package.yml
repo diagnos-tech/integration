@@ -1,47 +1,20 @@
-# 🇺🇸 Package: do the distributions build, and do they work, on every platform we ship?
+# Package: do the distributions build, and do they work, on every platform we ship?
 #
-#    Seven abi3 wheels (Linux glibc and musl on x86_64 and aarch64, macOS on arm64 and x86_64, Windows x64) and
-#    the sdist, each built on a runner of its own platform. `checksums` hashes all eight before any job that runs
-#    third-party code starts, and publishes the hashes as a job output, which no later job can rewrite. Every
-#    consumer of the files — here and in `release.yml` — checks them against it. Then each wheel is installed
-#    alone on its platform, twice: the bare base with no dependency at all, then with every layer
-#    (`scripts/release_smoke.py`). The sdist must rebuild into a working wheel, and the two images must build
-#    from the run's wheels.
+# Seven abi3 wheels (manylinux and musllinux on x86_64 and aarch64, macOS on arm64 and x86_64, Windows x64) and the
+# sdist, each built on a runner of its own platform. `checksums` hashes all eight before any job that runs
+# third-party code starts, and publishes the hashes as a job output, which no later job can rewrite; every consumer
+# of the files, here and in release.yml, verifies against it. Each wheel is then installed alone on its platform,
+# bare and with every extra (scripts/release_smoke.py); the sdist must rebuild into a working wheel; and both images
+# must build from this run's wheels. `package` turns all of it into the one required check.
 #
-#    It runs on pull requests that touch packaging, on demand (*Run workflow*: the rehearsal before a tag), and
-#    from `release.yml`, which signs and publishes exactly what this produced. Nothing here is cached: a cache is
-#    shared state a tag build must not inherit. Tools are pinned — maturin, Rust (`rust-toolchain.toml`), uv —
-#    so every release is built by the same ones.
-# 🇧🇷 Pacote: as distribuições constroem, e funcionam, em toda plataforma que publicamos?
-#
-#    Sete wheels abi3 (Linux glibc e musl em x86_64 e aarch64, macOS em arm64 e x86_64, Windows x64) e o sdist,
-#    cada um construído num runner da própria plataforma. O `checksums` calcula o hash dos oito antes de qualquer
-#    job que roda código de terceiros começar, e o publica como output de job, que nenhum job posterior consegue
-#    reescrever. Todo consumidor dos arquivos — aqui e no `release.yml` — os confere contra ele. Depois cada
-#    wheel é instalado sozinho na própria plataforma, duas vezes: a base pura sem dependência nenhuma, e então
-#    com toda camada (`scripts/release_smoke.py`). O sdist precisa reconstruir um wheel que funciona, e as duas
-#    imagens precisam construir a partir dos wheels da execução.
-#
-#    Roda em pull requests que mexem no empacotamento, sob demanda (*Run workflow*: o ensaio antes de uma tag), e
-#    a partir do `release.yml`, que assina e publica exatamente o que isto produziu. Nada aqui usa cache: um
-#    cache é estado compartilhado que um build de tag não pode herdar. As ferramentas são fixadas — maturin, Rust
-#    (`rust-toolchain.toml`), uv — para todo release ser construído pelas mesmas.
+# It runs on pull requests into `main`, which is what makes `main` releasable; on demand; and from release.yml,
+# which signs and publishes exactly what it produced. Nothing is cached, because a cache is shared state a release
+# build must not inherit, and every tool is pinned: maturin, Rust (rust-toolchain.toml) and uv.
 name: Package
 
 on:
   pull_request:
-    paths:
-      - pyproject.toml
-      - uv.lock
-      - rust-toolchain.toml
-      - Dockerfile
-      - .dockerignore
-      - "src/**"
-      - "apps/sdk/native/**"
-      - "wrappers/py/README.md"
-      - "scripts/release_*.py"
-      - ".github/workflows/package.yml"
-      - ".github/workflows/release.yml"
+    branches: [main]
   workflow_dispatch:
   workflow_call:
     outputs:
@@ -52,22 +25,18 @@ on:
         description: "`sha256sum` lines of the eight distributions, computed before any third-party code ran."
         value: ${{ jobs.checksums.outputs.sha256sums }}
 
-# 🇺🇸 No permission by default: every job asks for exactly what it uses.
-# 🇧🇷 Nenhuma permissão por padrão: cada job pede exatamente o que usa.
+# No permission by default: every job asks for exactly what it uses.
 permissions: {}
 
 concurrency:
-  # 🇺🇸 `github.workflow` is the caller's name when `release.yml` calls this: a manual run never queues behind it.
-  # 🇧🇷 O `github.workflow` é o nome de quem chama quando o `release.yml` chama isto: uma execução manual nunca
-  #    fica na fila atrás dele.
+  # Under release.yml, `github.workflow` is the caller's name, so a manual run never queues behind a release.
   group: package-${{ github.workflow }}-${{ github.ref }}
-  # 🇺🇸 A pull request run is disposable; a run under a tag never is. 🇧🇷 Uma execução de PR é descartável; a de uma tag nunca.
+  # A pull request run is disposable; a release run never is.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   MATURIN_VERSION: v1.15.0
-  # 🇺🇸 Bump together with `.github/actions/setup` and the `uv` stage of the `Dockerfile`.
-  # 🇧🇷 Atualize junto com o `.github/actions/setup` e o estágio `uv` do `Dockerfile`.
+  # Keep in sync with .github/actions/setup and the Dockerfile's `uv` stage.
   UV_VERSION: "0.13.0"
 
 jobs:
@@ -87,8 +56,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # 🇺🇸 One version in `pyproject.toml` and the crate; on a tag, `v<version>`, on `develop`, dated in the changelog.
-      # 🇧🇷 Uma versão no `pyproject.toml` e no crate; numa tag, `v<versão>`, na `develop`, datada no changelog.
+      # One version in pyproject.toml and the crate; on a tag, also `v<version>`, on `main`, dated in the changelog.
       - name: One version everywhere, and the tag says it
         id: guard
         run: python3 scripts/release_version.py
@@ -118,8 +86,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # 🇺🇸 One abi3 wheel per platform serves every CPython ≥ 3.11; Rust comes from `rust-toolchain.toml`.
-      # 🇧🇷 Um wheel abi3 por plataforma serve todo CPython ≥ 3.11; o Rust vem do `rust-toolchain.toml`.
+      # One abi3 wheel per platform serves every CPython >= 3.11; Rust comes from rust-toolchain.toml.
       - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           maturin-version: ${{ env.MATURIN_VERSION }}
@@ -175,8 +142,7 @@ jobs:
           pattern: dist-*
           path: dist
           merge-multiple: true
-      # 🇺🇸 Exactly seven wheels and one sdist, hashed before anything else touches them.
-      # 🇧🇷 Exatamente sete wheels e um sdist, com hash calculado antes de qualquer outra coisa tocá-los.
+      # Exactly seven wheels and one sdist, hashed before anything else touches them.
       - name: Hash the eight distributions
         id: sum
         working-directory: dist
@@ -184,7 +150,7 @@ jobs:
           shopt -s nullglob
           files=(*) wheels=(*.whl) sdists=(*.tar.gz)
           if (( ${#wheels[@]} != 7 || ${#sdists[@]} != 1 || ${#files[@]} != 8 )); then
-            printf 'unexpected · inesperado: %s\n' "${files[@]}"
+            printf 'unexpected file: %s\n' "${files[@]}"
             exit 1
           fi
           sha256sum -- "${files[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -224,8 +190,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
-      # 🇺🇸 The oldest and the newest supported CPython, each in a throwaway environment: base alone, then every layer.
-      # 🇧🇷 O CPython mais antigo e o mais novo suportados, cada um num ambiente descartável: a base sozinha, depois toda camada.
+      # The oldest and the newest supported CPython, each in a throwaway environment: the base alone, then every
+      # layer.
       - name: Base, then every layer (glibc, macOS, Windows)
         if: ${{ !matrix.musl }}
         shell: bash
@@ -237,8 +203,7 @@ jobs:
             uv run --no-project --isolated --python "$python" --with "diagnos[sdk,cli,api] @ $wheel" \
               python scripts/release_smoke.py full
           done
-      # 🇺🇸 musl has no runner of its own: the official Alpine images, pinned by digest, are the platform.
-      # 🇧🇷 O musl não tem runner próprio: as imagens Alpine oficiais, fixadas por digest, são a plataforma.
+      # musl has no runner of its own: the official Alpine images, pinned by digest, are the platform.
       - name: Base, then every layer (musl)
         if: ${{ matrix.musl }}
         run: |
@@ -274,12 +239,10 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
-      # 🇺🇸 What PyPI will check on upload, checked first: metadata and the README it renders.
-      # 🇧🇷 O que o PyPI vai conferir no envio, conferido antes: metadados e o README que ele renderiza.
+      # What PyPI checks on upload, checked first: the metadata and the README it renders.
       - name: PyPI will accept the metadata and render the README
         run: uvx --from twine==7.0.0 twine check --strict dist/*
-      # 🇺🇸 A file missing from the sdist only shows when someone builds from it — so build from it, and run the result.
-      # 🇧🇷 Um arquivo faltando no sdist só aparece quando alguém constrói a partir dele — então construa, e rode o resultado.
+      # A file missing from the sdist only shows when someone builds from it, so build from it and run the result.
       - name: The sdist alone builds a working wheel
         run: |
           echo "maturin==${MATURIN_VERSION#v}" > "$RUNNER_TEMP/build-constraints.txt"
@@ -291,8 +254,8 @@ jobs:
 
   images:
     name: Images build · ${{ matrix.target }}
-    # 🇺🇸 Release builds and pushes them itself; here they only have to build, for both architectures.
-    # 🇧🇷 O release as constrói e envia sozinho; aqui elas só precisam construir, para as duas arquiteturas.
+    # Skipped under release.yml (a tag push), which builds and pushes the images itself; here they only have to
+    # build, for both architectures.
     if: github.event_name != 'push'
     needs: checksums
     runs-on: ubuntu-24.04
@@ -333,3 +296,24 @@ jobs:
           pull: true
           no-cache: true
           push: false
+
+  package:
+    name: Package
+    if: always()
+    needs: [version, wheels, sdist, checksums, smoke, sdist-rebuild, images]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        # Every job is listed, so a failure upstream is caught where it happened; `skipped` is only ever `images`
+        # under release.yml.
+        run: |
+          for result in $RESULTS; do
+            if [[ "$result" != success && "$result" != skipped ]]; then
+              echo "::error::A required job ended as '$result'."
+              exit 1
+            fi
+          done

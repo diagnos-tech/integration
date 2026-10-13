@@ -4,10 +4,8 @@
 
 [English](README.md) · **Português (Brasil)**
 
-[![Testes unitários](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
-[![Cobertura](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
-[![Testes de contrato](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop)
-[![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Amain)
+[![Cobertura](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Amain)
 [![Pacote](https://github.com/diagnos-tech/integration/actions/workflows/package.yml/badge.svg)](https://github.com/diagnos-tech/integration/actions/workflows/package.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/diagnos-tech/integration/badge)](https://scorecard.dev/viewer/?uri=github.com/diagnos-tech/integration)
 [![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab)](pyproject.toml)
@@ -125,20 +123,17 @@ todo comando, rota e classe. [Como a doc é construída e checada](docs/README.p
 
 ## Portões de qualidade
 
-Todo badge acima é um workflow, e todos menos os dois últimos rodam localmente com um comando.
+Todo badge acima é um workflow ou o que um deles mede; todos menos os dois últimos rodam localmente com um comando.
 
 | Badge | O que prova | Localmente |
 |---|---|---|
-| **Unit tests** | toda camada — base, SDK, CLI, API — no CPython 3.11–3.13, mais o enclave Rust | `make test` |
-| **Coverage** | cobertura de ramos combinada do pacote `diagnos` inteiro, com um piso que só sobe | `make cov` |
-| **Contract tests** | o SDK manda e lê exatamente o que o contrato [Pact](https://pact.io) commitado diz (motor Rust `pact_ffi`) | `make contract` |
-| **CI** | lint (Python, Rust, docstrings bilíngues, documentação), `mypy --strict`, lockfile, e a doc: todo exemplo roda, a referência está em dia | `make lint types docs-check` |
+| **CI** | toda camada — base, SDK, CLI, API — passa nos testes no CPython 3.11 e 3.13, mais o enclave Rust; lint (Python, Rust, docstrings bilíngues, documentação), `mypy --strict`, o lockfile, a doc (todo exemplo roda, a referência está em dia), o contrato [Pact](https://pact.io) que o cofre verifica, e os próprios workflows (zizmor, actionlint) | `make check` |
+| **Cobertura** | cobertura de ramos combinada do pacote `diagnos` inteiro, com um piso que só sobe | `make cov` |
 | **Pacote** | os sete wheels e o sdist constroem, e cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra; as duas imagens constroem | `uv build` |
 | **OpenSSF Scorecard** | as práticas de cadeia de suprimentos: dependências fixadas, tokens com privilégio mínimo, releases assinados, proteção de branch | — |
 
-Os releases saem pelo [`release.yml`](.github/workflows/release.yml): assinaturas Sigstore e proveniência SLSA em todo
-arquivo e imagem, PyPI via Trusted Publishing — nenhum segredo de longa duração em lugar nenhum. O
-[Workflow lint](.github/workflows/workflow-lint.yml) audita os próprios workflows com zizmor e actionlint.
+Os releases saem da `main` pelo [`release.yml`](.github/workflows/release.yml): assinaturas Sigstore e proveniência
+SLSA em todo arquivo e imagem, PyPI via Trusted Publishing — nenhum segredo de longa duração em lugar nenhum.
 
 O contrato é guiado pelo consumidor: os testes do SDK gravam
 [`contracts/diagnos-sdk-diagnos-vault.json`](contracts/diagnos-sdk-diagnos-vault.json), e o cofre verifica esse

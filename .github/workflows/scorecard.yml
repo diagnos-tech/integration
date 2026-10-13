@@ -1,20 +1,13 @@
-# 🇺🇸 OpenSSF Scorecard: how does this repository score on the supply-chain practices users check before they
-#    trust a package — pinned dependencies, token permissions, signed releases, branch protection, and more?
-#    Results land in the Security tab and are published to api.scorecard.dev. With `publish_results`, the job
-#    may only use the actions below and no workflow- or job-level environment, so it stays this small.
-# 🇧🇷 OpenSSF Scorecard: como este repositório se sai nas práticas de cadeia de suprimentos que os usuários
-#    conferem antes de confiar num pacote — dependências fixadas, permissões de token, releases assinados,
-#    proteção de branch, e mais? Os resultados vão para a aba Security e são publicados em api.scorecard.dev. Com
-#    `publish_results`, o job só pode usar as actions abaixo e nenhum ambiente de workflow ou de job, então fica
-#    pequeno assim.
+# OpenSSF Scorecard: how this repository scores on the supply-chain practices users check before they trust a
+# package, such as pinned dependencies, token permissions, signed releases and branch protection. Results land in
+# the Security tab and on api.scorecard.dev. Publishing requires running on the default branch, with only the
+# actions below and no workflow- or job-level `env`, which is why this file stays this small. Weekly is enough:
+# the score moves with settings and releases, not with every commit.
 name: Scorecard
 
 on:
-  push:
-    branches: [develop]
   schedule:
-    - cron: "23 5 * * 1"
-  branch_protection_rule:
+    - cron: "23 5 * * 1" # Mondays at 05:23 UTC.
   workflow_dispatch:
 
 permissions: {}
@@ -29,8 +22,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      security-events: write # 🇺🇸 results in the Security tab · 🇧🇷 resultados na aba Security
-      id-token: write # 🇺🇸 publishes the score to api.scorecard.dev · 🇧🇷 publica a nota em api.scorecard.dev
+      security-events: write # Uploads results to the Security tab.
+      id-token: write # Publishes the score to api.scorecard.dev.
     steps:
       - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:

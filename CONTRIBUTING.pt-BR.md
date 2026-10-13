@@ -46,25 +46,24 @@ Rode `make help` a qualquer momento para listar todo alvo com uma descrição de
 
 ## O que a CI roda, e como reproduzir localmente
 
-A CI é um punhado de workflows, cada um respondendo uma pergunta. `make check` roda os passos dos três primeiros na
-mesma ordem, então um `make check` verde na sua máquina significa um PR verde.
+Pull requests miram a `develop`. A CI roda em todo pull request e o job `CI` dela é o único check obrigatório; o
+Package só roda no pull request de release da `develop` para a `main`, onde decide se a `main` pode ser lançada.
 
-| Workflow | Responde | Equivalente local |
-|---|---|---|
-| `CI` (`.github/workflows/ci.yml`) | O código passa nas checagens estáticas e no type-check? | `make lint` (ruff, `cargo fmt --check`, `cargo clippy -D warnings`, checagem de docstring bilíngue, checagem de pares/links da documentação) + `make types` (`mypy --strict` sobre os pacotes, os testes de contrato e `scripts`) |
-| `Unit tests` (`.github/workflows/unit-tests.yml`) | Toda camada Python e o enclave Rust passam nos próprios testes, em todo CPython suportado, sem o piso de cobertura cair? | `make cov` (ou `make test` para uma passada mais rápida, sem o relatório de cobertura combinado) |
-| `Contract tests` (`.github/workflows/contract-tests.yml`) | O SDK ainda fala o contrato HTTP que o cofre verifica? | `make contract-check` |
-| `Package` (`.github/workflows/package.yml`, em mudanças de empacotamento) | Os sete wheels e o sdist constroem, e cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra? As duas imagens constroem? | `uv build`, depois `docker build --target api .` |
-| `Workflow lint` (`.github/workflows/workflow-lint.yml`) | Os próprios workflows são seguros e bem formados (zizmor, actionlint)? | `uvx zizmor .github/` |
+| Workflow | Roda em | Responde | Equivalente local |
+|---|---|---|---|
+| `CI` (`.github/workflows/ci.yml`) | todo pull request, pushes na `main`, semanalmente na `develop` | Lint, `mypy --strict`, a doc, o contrato Pact e todo teste passam — no CPython 3.11 e 3.13, sem o piso de cobertura cair? Os próprios workflows são seguros (zizmor, actionlint)? | `make check`, `make cov`, `uvx zizmor .github/` |
+| `Package` (`.github/workflows/package.yml`) | pull requests para a `main`, releases | Os sete wheels e o sdist constroem, cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra — e as duas imagens constroem? | `uv build`, depois `docker build --target api .` |
+| `Release` (`.github/workflows/release.yml`) | tags `v*` na `main` | Assina e publica tudo; veja [Lançamento de versões](#lançamento-de-versões). | — |
+| `Auto-merge` (`.github/workflows/auto-merge.yml`) | pull requests do Dependabot para a `develop` | Agenda o merge das atualizações minor e patch para quando a CI passar. | — |
+| `Scorecard` (`.github/workflows/scorecard.yml`) | semanalmente | Como o repositório se sai nas práticas de cadeia de suprimentos. | — |
 
-`make check` roda `lint`, `types`, `test` e `contract-check` nessa ordem — exatamente o que os três primeiros
-workflows rodam, só que num único comando na sua máquina. O `Scorecard` avalia as práticas de cadeia de suprimentos
-do repositório no próprio agendamento.
+O `make check` roda `lint`, `types`, `test`, `contract-check` e `docs-check` — os passos dos jobs da CI, num comando
+só — então um `make check` verde na sua máquina significa um pull request verde.
 
 ## Convenções de código
 
 Estas regras valem para código (arquivos `.py` e `.rs`); moravam antes em `CONVENTIONS.md`, que este documento
-substitui.
+substitui. Os arquivos em `.github/` são a exceção à regra bilíngue abaixo: os comentários deles são só em inglês.
 
 - **Docstrings bilíngues.** Todo módulo, classe e função pública carrega uma docstring com um parágrafo em inglês
   prefixado `🇺🇸` seguido do parágrafo em português prefixado `🇧🇷`. Comentário em linha segue o mesmo par em linhas
@@ -156,41 +155,57 @@ acrescente `Signed-off-by: Seu Nome <voce@exemplo.com>` à mão) em todo commit;
 
 ## Lançamento de versões
 
-O `diagnos` e as duas imagens dele são lançados juntos, sob uma versão só, pelo `.github/workflows/release.yml`:
+A `develop` é onde o trabalho entra; a `main` guarda o que foi lançado ou está para ser. O `diagnos` e as duas
+imagens dele são lançados juntos, sob uma versão só, pelo `.github/workflows/release.yml`:
 
-1. Ponha a mesma versão no `pyproject.toml` e no `apps/sdk/native/Cargo.toml`, e dê a ela uma data no
-   `CHANGELOG.md` no lugar de `Unreleased`. O `python3 scripts/release_version.py` diz se eles concordam.
-2. Ensaie: rode o workflow **Package** à mão (*Run workflow*). Ele constrói toda distribuição, experimenta cada wheel
-   na plataforma para a qual foi construído, reconstrói o sdist e constrói as duas imagens — e não publica nada.
-3. Marque esse commit da `develop` com a tag `v<versão>` e envie a tag. O **Release** roda o Package de novo, depois
-   assina todo arquivo com o cosign e atesta a proveniência dele, envia e assina as duas imagens, publica no PyPI e
-   cria o release no GitHub com todo arquivo, bundle e os comandos que os verificam.
+1. Na `develop`, ponha a mesma versão no `pyproject.toml` e no `apps/sdk/native/Cargo.toml`, atualize os dois
+   lockfiles (`uv lock` e `cargo update --workspace --manifest-path apps/sdk/native/Cargo.toml`), e dê à versão uma
+   data no `CHANGELOG.md` no lugar de `Unreleased`. O `python3 scripts/release_version.py` diz se eles concordam.
+2. Abra um pull request da `develop` para a `main`. Além da CI, ele roda o **Package**: toda distribuição construída,
+   cada wheel experimentado na própria plataforma, o sdist reconstruído e as duas imagens construídas — e nada
+   publicado. Faça o merge com um **merge commit**, nunca squash, para a `main` e a `develop` manterem uma história só.
+3. Marque o merge commit com a tag `v<versão>` e envie a tag: `git fetch origin && git tag v0.1.0 origin/main && git
+   push origin v0.1.0`. O **Release** roda o Package de novo, assina todo arquivo com o cosign e atesta a proveniência
+   dele, envia e assina as duas imagens, espera um mantenedor aprovar o ambiente `pypi`, publica no PyPI e cria o
+   release no GitHub com todo arquivo, bundle e os comandos que os verificam.
 
-Uma versão no PyPI nunca pode ser enviada duas vezes, e por isso o ensaio vem primeiro. A publicação usa o
-[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) do PyPI e a assinatura sem chave do Sigstore: não há
-token nem chave para guardar ou trocar — e um token de API não é suportado de propósito, porque desligaria em
+Uma versão no PyPI nunca pode ser enviada duas vezes, e por isso o Package roda antes, no pull request. A publicação
+usa o [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) do PyPI e a assinatura sem chave do Sigstore:
+não há token nem chave para guardar ou trocar — e um token de API não é suportado de propósito, porque desligaria em
 silêncio as atestações PEP 740. O PyPI confia no `release.yml` deste repositório, rodando no ambiente `pypi`;
 renomear qualquer um dos dois quebra a publicação até o trusted publisher do PyPI ser ajustado. Em tempo de
 execução, a `__version__` é lida dos metadados do pacote instalado em vez de fixa no código.
 
-Antes do primeiro release, um admin do repositório configura o que código não consegue — nesta ordem, para o PyPI
-nunca confiar num ambiente ou numa tag que qualquer um pudesse usar:
+As dependências se atualizam sozinhas: o Dependabot abre pull requests agrupados para a `develop` uma vez por mês, as
+atualizações minor e patch entram sozinhas quando a CI passa, e as major esperam revisão. Elas chegam à `main` com o
+próximo release.
 
-1. **Ambientes**: `release` e `pypi`, cada um limitado a tags `v*`, com um revisor obrigatório no `pypi`.
-2. **Rulesets**: só mantenedores criam tags `v*`, que nunca podem ser movidas nem apagadas; a `develop` exige pull
-   requests, revisão de code owner e os checks **CI**, **Unit tests**, **Contract tests** e **Workflow lint** — não o
-   **Package**, que só roda quando o empacotamento muda (um check obrigatório sempre precisa reportar); o Actions não
-   pode aprovar pull requests.
-3. **PyPI**: um trusted publisher pendente para `diagnos` — dono `diagnos-tech`, repositório `integration`, workflow
+Um release candidate ensaia tudo de verdade: `0.1.0rc1` no `pyproject.toml`, `0.1.0-rc.1` no `Cargo.toml` (a guarda lê
+os dois como uma versão só), uma seção `## [0.1.0rc1]` no `CHANGELOG.md`, e a tag `v0.1.0rc1`. O `pip` só instala um
+pré-release quando pedido pela versão ou com `--pre`.
+
+### Configurações do repositório
+
+O que código não consegue configurar, um admin do repositório faz uma vez — nesta ordem, para o PyPI nunca confiar
+num ambiente ou numa tag que qualquer um pudesse usar:
+
+1. **Ambientes**: `release` e `pypi`, cada um limitado a tags `v*`, com um revisor obrigatório no `pypi` (e o
+   *Prevent self-review* desligado enquanto houver um mantenedor só).
+2. **Branches**: a `main`, criada a partir da `develop`.
+3. **Rulesets**:
+   - tags `v*`: só mantenedores as criam (*Restrict creations*, com bypass só para admins), e ninguém as move nem
+     apaga (*Restrict updates* e *Restrict deletions*, sem bypass — um segundo ruleset);
+   - `develop`: só pull requests, o check **CI** obrigatório, sem force push nem exclusão; exija revisão de code
+     owner assim que houver dois mantenedores;
+   - `main`: só pull requests, os checks **CI** e **Package** obrigatórios, só merge commits, sem force push nem
+     exclusão.
+4. **Geral**: *Allow auto-merge* ligado (o Dependabot precisa); em Actions, um `GITHUB_TOKEN` só de leitura e o
+   Actions sem permissão para criar ou aprovar pull requests; imutabilidade de releases ligada.
+5. **PyPI**: um trusted publisher pendente para `diagnos` — dono `diagnos-tech`, repositório `integration`, workflow
    `release.yml`, ambiente `pypi` — e 2FA para todo dono. Nunca um token de API.
-4. **Releases**: ligue a imutabilidade de releases.
-5. **GHCR**, durante o primeiro release: a execução espera aprovação antes do `pypi`, com as duas imagens já enviadas
+6. **GHCR**, durante o primeiro release: a execução espera aprovação antes do `pypi`, com as duas imagens já enviadas
    e assinadas. Deixe `diagnos` e `diagnos-api` públicos e dê acesso de escrita só a este repositório, *depois*
    aprove — o `diagnos setup api` baixa a imagem assim que a versão chega ao PyPI.
-
-Um release candidate ensaia tudo isso de verdade: `0.1.0rc1` no `pyproject.toml`, `0.1.0-rc.1` no `Cargo.toml` (a
-guarda lê os dois como uma versão só), uma seção `## [0.1.0rc1]` no `CHANGELOG.md`, e a tag `v0.1.0rc1`. O `pip` só
-instala um pré-release quando pedido pela versão ou com `--pre`.
 
 ## Checklist de pull request
 

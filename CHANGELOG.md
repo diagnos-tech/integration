@@ -52,10 +52,12 @@ monorepo.
   [`contracts/README.md`](contracts/README.md).
 - `Makefile` as the single entry point for every check a contributor or CI runs (`sync`, `fmt`, `lint`, `types`,
   `test`, `cov`, `contract`, `contract-check`, `check`).
-- Three GitHub Actions workflows: `CI` (static checks and `mypy --strict`), `Unit tests` (Python 3.11–3.13 plus the
-  Rust enclave, with a coverage floor on every leg), and `Contract tests` (the Pact consumer suite, with a contract
-  summary in the job log).
-- A self-hosted coverage badge, published to the orphan `badges` branch from the `Unit tests` workflow.
+- GitHub Actions: `CI` on every pull request (lint, `mypy --strict`, the docs, the Pact contract, the Rust enclave,
+  every Python suite on CPython 3.11 and 3.13 with a coverage floor, and zizmor and actionlint over the workflows),
+  behind one required check; `Package` on pull requests into `main`; `Release` on `v*` tags on `main`; monthly
+  grouped Dependabot updates into `develop`, whose minor and patch updates merge on their own once CI passes; and a
+  weekly OpenSSF Scorecard.
+- A self-hosted coverage badge, published to the orphan `badges` branch by `CI` on every release.
 - Bilingual (🇺🇸/🇧🇷) documentation across the repository, enforced by `scripts/check_docs.py` (every document ships
   as `NAME.md` + `NAME.pt-BR.md`) and `scripts/check_bilingual.py` (every module, class and public function's
   docstring, Python and Rust).

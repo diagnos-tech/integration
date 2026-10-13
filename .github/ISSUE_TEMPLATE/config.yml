@@ -1,5 +1,4 @@
-# 🇺🇸 Blank issues disabled: every issue starts from a form, so it always carries the fields we need to act on it.
-# 🇧🇷 Issues em branco desabilitadas: toda issue começa de um formulário, para sempre trazer os campos de que precisamos para agir.
+# Blank issues are disabled: every issue starts from a form, so it carries the fields needed to act on it.
 blank_issues_enabled: false
 contact_links:
   - name: "Report a vulnerability · Reportar uma vulnerabilidade"

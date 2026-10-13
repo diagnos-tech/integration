@@ -7,7 +7,7 @@ this before it builds anything:
 - `pyproject.toml` and the crate's `Cargo.toml` agree, on a version PyPI
   and GHCR can hold (no local or `.dev` segment);
 - on a tag, the tag is `v<that version>`, the tagged commit is already on
-  `develop`, and `CHANGELOG.md` gives the version a date instead of
+  `main`, and `CHANGELOG.md` gives the version a date instead of
   `Unreleased`.
 
 It writes the checked version to `$GITHUB_OUTPUT` for the jobs after it.
@@ -26,7 +26,7 @@ pacote roda isto antes de construir qualquer coisa:
 - o `pyproject.toml` e o `Cargo.toml` do crate concordam, numa versão que
   o PyPI e o GHCR podem ter (sem segmento local nem `.dev`);
 - numa tag, a tag é `v<essa versão>`, o commit marcado já está na
-  `develop`, e o `CHANGELOG.md` dá uma data à versão em vez de
+  `main`, e o `CHANGELOG.md` dá uma data à versão em vez de
   `Unreleased`.
 
 Ele grava a versão conferida no `$GITHUB_OUTPUT` para os jobs seguintes.
@@ -58,7 +58,8 @@ RELEASE: Final = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?")
 # 🇧🇷 O Cargo escreve um pré-release do jeito SemVer (`0.2.0-rc.1`), o PyPI do jeito PEP 440 (`0.2.0rc1`):
 #    o mesmo release.
 _SEMVER_PRE: Final = re.compile(r"(?P<core>[0-9]+\.[0-9]+\.[0-9]+)-(?P<kind>a|b|rc)\.?(?P<number>[0-9]+)")
-TRUNK: Final = "origin/develop"
+# 🇺🇸 Releases are cut from `main`. 🇧🇷 Releases saem da `main`.
+TRUNK: Final = "origin/main"
 
 
 def pep440(version: str) -> str:
@@ -104,7 +105,7 @@ def notes(version: str, root: Path = ROOT) -> str:
 
 
 def on_trunk(root: Path = ROOT) -> bool:
-    """🇺🇸 Whether `HEAD` is already part of `develop`. 🇧🇷 Se o `HEAD` já faz parte da `develop`."""
+    """🇺🇸 Whether `HEAD` is already part of `main`. 🇧🇷 Se o `HEAD` já faz parte da `main`."""
     result = subprocess.run(  # noqa: S603 — fixed argv, no shell
         ["git", "merge-base", "--is-ancestor", "HEAD", TRUNK],  # noqa: S607 — git on PATH
         cwd=root,

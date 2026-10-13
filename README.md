@@ -4,10 +4,8 @@
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
-[![Unit tests](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
-[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
-[![Contract tests](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop)
-[![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Amain)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Amain)
 [![Package](https://github.com/diagnos-tech/integration/actions/workflows/package.yml/badge.svg)](https://github.com/diagnos-tech/integration/actions/workflows/package.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/diagnos-tech/integration/badge)](https://scorecard.dev/viewer/?uri=github.com/diagnos-tech/integration)
 [![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab)](pyproject.toml)
@@ -123,20 +121,17 @@ command, route and class. [How the docs are built and checked](docs/README.md).
 
 ## Quality gates
 
-Every badge above is a workflow, and all but the last two run locally with one command.
+Every badge above is a workflow or what one measures; all but the last two run locally with one command.
 
 | Badge | What it proves | Locally |
 |---|---|---|
-| **Unit tests** | every layer — base, SDK, CLI, API — on CPython 3.11–3.13, plus the Rust enclave | `make test` |
+| **CI** | every layer — base, SDK, CLI, API — passes its tests on CPython 3.11 and 3.13, plus the Rust enclave; lint (Python, Rust, bilingual docstrings, docs), `mypy --strict`, the lockfile, the docs (every example runs, the reference is fresh), the [Pact](https://pact.io) contract the vault verifies, and the workflows themselves (zizmor, actionlint) | `make check` |
 | **Coverage** | combined branch coverage of the whole `diagnos` package, with a floor that only goes up | `make cov` |
-| **Contract tests** | the SDK sends and reads exactly what the committed [Pact](https://pact.io) contract says (Rust `pact_ffi` engine) | `make contract` |
-| **CI** | lint (Python, Rust, bilingual docstrings, docs), `mypy --strict`, lockfile, and the docs: every example runs, the reference is fresh | `make lint types docs-check` |
 | **Package** | all seven wheels and the sdist build, and each wheel works installed alone on its platform — bare, then with every extra; both images build | `uv build` |
 | **OpenSSF Scorecard** | the supply-chain practices: pinned dependencies, least-privilege tokens, signed releases, branch protection | — |
 
-Releases are cut by [`release.yml`](.github/workflows/release.yml): Sigstore signatures and SLSA provenance on every
-file and image, PyPI through Trusted Publishing — no long-lived secret anywhere. [Workflow lint](.github/workflows/workflow-lint.yml)
-audits the workflows themselves with zizmor and actionlint.
+Releases are cut from `main` by [`release.yml`](.github/workflows/release.yml): Sigstore signatures and SLSA
+provenance on every file and image, PyPI through Trusted Publishing — no long-lived secret anywhere.
 
 The contract is consumer-driven: the SDK's tests write
 [`contracts/diagnos-sdk-diagnos-vault.json`](contracts/diagnos-sdk-diagnos-vault.json), and the vault verifies that

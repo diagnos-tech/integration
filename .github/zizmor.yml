@@ -1,14 +1,9 @@
-# 🇺🇸 zizmor's configuration (`workflow-lint.yml`). Every audit runs, at every severity, except:
-#    - `self-repository`: GitHub's `uses: $/…` form is not understood by actionlint 1.7.12 yet, and actionlint
-#      is what checks a reusable workflow's inputs and outputs against its callers. Our workflows check out only
-#      this repository, before any local action runs, so the runtime-filesystem risk the rule guards is absent.
-#      TODO(gustavo): switch to `$/…` and drop this once actionlint supports it.
-# 🇧🇷 Configuração do zizmor (`workflow-lint.yml`). Toda auditoria roda, em toda severidade, exceto:
-#    - `self-repository`: a forma `uses: $/…` do GitHub ainda não é entendida pelo actionlint 1.7.12, e é o
-#      actionlint que confere os inputs e outputs de um workflow reutilizável contra quem o chama. Nossos
-#      workflows só fazem checkout deste repositório, antes de qualquer action local rodar, então o risco de
-#      sistema de arquivos em runtime que a regra protege não existe aqui.
-#      TODO(gustavo): trocar para `$/…` e remover isto quando o actionlint suportar.
+# zizmor configuration, used by the `workflows` job in ci.yml. Every audit runs at every severity, except:
+#
+# self-repository: actionlint 1.7.12 does not understand GitHub's `uses: $/...` form yet, and actionlint is what
+#   checks a reusable workflow's inputs and outputs against its callers. Our workflows only ever check out this
+#   repository, before any local action runs, so the runtime-filesystem risk this rule guards against is absent.
+#   TODO(gustavo): Switch to `$/...` and drop this exception once actionlint supports it.
 rules:
   self-repository:
     disable: true
