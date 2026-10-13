@@ -65,7 +65,7 @@ dependencies = []
 sdk = ["httpx>=0.28", "pydantic>=2.9"]
 openbao = ["diagnos[sdk]", "hvac>=2.3"]
 cli = ["diagnos[sdk]", "typer>=0.15", "rich>=13.9"]
-api = ["diagnos[sdk,openbao]", "fastapi>=0.115", "uvicorn[standard]>=0.32", "python-multipart>=0.0.12"]
+api = ["diagnos[sdk,openbao]", "fastapi>=0.115", "uvicorn[standard]>=0.54.0", "python-multipart>=0.0.12"]
 # 🇺🇸 Only `diagnos-api dev-certs` needs it; a production image never generates certificates.
 # 🇧🇷 Só o `diagnos-api dev-certs` precisa; uma imagem de produção nunca gera certificados.
 dev-certs = ["diagnos[api]", "cryptography>=43"]
