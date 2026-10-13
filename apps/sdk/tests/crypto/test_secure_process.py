@@ -27,6 +27,8 @@ import pytest
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from kyber_py.ml_kem import ML_KEM_768
+
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.envelope import EncryptedPayload
 from diagnos.crypto.secure import (
@@ -37,7 +39,6 @@ from diagnos.crypto.secure import (
     memory_status,
     warn_if_unlocked,
 )
-from kyber_py.ml_kem import ML_KEM_768
 
 # 🇺🇸 `imgexam-sdk-hybrid-seal-v1` (`docs/PROTOCOL.md §6`) — the HKDF `info` prefix every hybrid seal uses.
 # 🇧🇷 `imgexam-sdk-hybrid-seal-v1` (`docs/PROTOCOL.md §6`) — o prefixo de `info` do HKDF que todo selo híbrido usa.

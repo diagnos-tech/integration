@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import pytest
+
 from diagnos.crypto.secure import SecretBox
 from diagnos.session.keyring import GroupKeyUnavailable, Keyring, SessionKeys
 

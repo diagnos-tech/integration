@@ -1,164 +1,350 @@
-# 🇺🇸 The release: builds `diagnos`, `diagnos-cli` and `diagnos-api`, tries every
-#    SDK wheel on the platform it was built for, and publishes the three to PyPI.
-#    A `v*` tag publishes; a manual run builds and tests the very same files and
-#    publishes nothing — the rehearsal to do before a tag, since a version on
-#    PyPI can never be uploaded twice.
+# Release: a `v*` tag on `main` publishes what package.yml built, signed, in this order:
 #
-#    Publishing uses PyPI Trusted Publishing: no token or password exists
-#    anywhere. Each PyPI project trusts exactly this file (`release.yml`) in
-#    this repository, running in the `pypi` environment — renaming either one
-#    breaks publishing until the PyPI side is changed to match.
-# 🇧🇷 O release: constrói `diagnos`, `diagnos-cli` e `diagnos-api`, experimenta
-#    todo wheel do SDK na plataforma para a qual foi construído, e publica os
-#    três no PyPI. Uma tag `v*` publica; uma execução manual constrói e testa
-#    exatamente os mesmos arquivos e não publica nada — o ensaio a fazer antes
-#    de uma tag, já que uma versão no PyPI nunca pode ser enviada duas vezes.
+#   package -> sign -> images -> images-sign -> pypi -> github-release
 #
-#    A publicação usa o Trusted Publishing do PyPI: não existe token nem senha
-#    em lugar nenhum. Cada projeto no PyPI confia exatamente neste arquivo
-#    (`release.yml`) deste repositório, rodando no ambiente `pypi` — renomear
-#    qualquer um dos dois quebra a publicação até o lado do PyPI ser ajustado.
+# `sign` signs every distribution and SHA256SUMS with cosign, keylessly, and records SLSA provenance as GitHub
+# attestations. `images` pushes the two multi-arch images to GHCR, built from the very wheels about to be
+# published, with an SBOM and provenance, and `images-sign` signs them by digest. `pypi` uploads through Trusted
+# Publishing, which adds PEP 740 attestations, once a maintainer approves the `pypi` environment.
+# `github-release` attaches everything, with the commands that verify it. The images go out before PyPI because
+# the PyPI upload is the one step that can never be redone, and `diagnos setup api` needs the image to exist as
+# soon as the version is on PyPI.
+#
+# No long-lived secret exists anywhere: PyPI and Sigstore trust the short-lived OIDC identity of this file at the
+# tag being released, and every signature a user verifies names exactly that identity. Renaming this file or the
+# `pypi` environment breaks publishing until PyPI's trusted publisher is updated to match. Every file is checked
+# against the hashes package.yml computed before any third-party code ran; nothing is cached; every action is
+# pinned by commit.
 name: Release
 
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release-${{ github.ref }}
+  # Never stop a release halfway.
   cancel-in-progress: false
 
+env:
+  COSIGN_RELEASE: v3.1.3
+  CERT_ISSUER: https://token.actions.githubusercontent.com
+  CLI_IMAGE: ghcr.io/diagnos-tech/diagnos
+  API_IMAGE: ghcr.io/diagnos-tech/diagnos-api
+
 jobs:
-  version:
-    name: Version · tag
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      # 🇺🇸 The three packages and the Rust crate are released together, under one number; a tag
-      #    has to be that number, on a commit that is already on `develop`.
-      # 🇧🇷 Os três pacotes e o crate Rust são lançados juntos, sob um número só; uma tag precisa
-      #    ser esse número, num commit que já está na `develop`.
-      - name: One version everywhere, and the tag says it
-        run: python3 scripts/release_version.py
-
-  sdk-wheels:
-    name: SDK wheel · ${{ matrix.platform }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { platform: linux-x86_64, runner: ubuntu-latest, target: x86_64, manylinux: auto }
-          - { platform: linux-aarch64, runner: ubuntu-24.04-arm, target: aarch64, manylinux: auto }
-          - { platform: musllinux-x86_64, runner: ubuntu-latest, target: x86_64, manylinux: musllinux_1_2 }
-          - { platform: musllinux-aarch64, runner: ubuntu-24.04-arm, target: aarch64, manylinux: musllinux_1_2 }
-          - { platform: macos-arm64, runner: macos-latest, target: aarch64 }
-          - { platform: macos-x86_64, runner: macos-15-intel, target: x86_64 }
-          - { platform: windows-x86_64, runner: windows-latest, target: x64 }
-    steps:
-      - uses: actions/checkout@v5
-      # 🇺🇸 One abi3 wheel per platform serves every CPython ≥ 3.11. Pinned by commit: this action
-      #    compiles the enclave people install.
-      # 🇧🇷 Um wheel abi3 por plataforma serve todo CPython ≥ 3.11. Fixada por commit: esta action
-      #    compila o enclave que as pessoas instalam.
-      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
-        with:
-          working-directory: apps/sdk
-          target: ${{ matrix.target }}
-          manylinux: ${{ matrix.manylinux || 'auto' }}
-          args: --release --locked --out dist
-      - uses: astral-sh/setup-uv@v6
-      # 🇺🇸 The wheel just built, installed alone with its real dependencies on the oldest and the
-      #    newest supported CPython: the enclave has to load and say what it guarantees here.
-      # 🇧🇷 O wheel recém-construído, instalado sozinho com as dependências de verdade no CPython
-      #    mais antigo e no mais novo suportados: o enclave precisa carregar e dizer o que garante aqui.
-      - name: The wheel installs and the enclave loads (glibc, macOS, Windows)
-        if: ${{ !startsWith(matrix.platform, 'musllinux') }}
-        shell: bash
-        run: |
-          for python in 3.11 3.13; do
-            uv run --no-project --isolated --python "$python" --with "$(ls apps/sdk/dist/*.whl)" \
-              python scripts/release_smoke.py
-          done
-      - name: The wheel installs and the enclave loads (musl)
-        if: ${{ startsWith(matrix.platform, 'musllinux') }}
-        run: |
-          for python in 3.11 3.13; do
-            docker run --rm -v "$PWD:/repo:ro" "python:${python}-alpine" \
-              sh -c "pip install --quiet /repo/apps/sdk/dist/*.whl && python /repo/scripts/release_smoke.py"
-          done
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sdk-wheel-${{ matrix.platform }}
-          path: apps/sdk/dist/*.whl
-          if-no-files-found: error
-
-  dists:
-    name: Source distributions · CLI and API wheels
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
-      - name: Build
-        run: |
-          uv build --package diagnos --sdist --out-dir dist/sdk
-          uv build --package diagnos-cli --out-dir dist/cli
-          uv build --package diagnos-api --out-dir dist/api
-      - name: PyPI will accept the metadata and render the README
-        run: uvx twine check --strict dist/sdk/* dist/cli/* dist/api/*
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sdk-sdist
-          path: dist/sdk/*
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cli-dist
-          path: dist/cli/*
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: api-dist
-          path: dist/api/*
-          if-no-files-found: error
-
-  publish:
-    name: Publish · ${{ matrix.project }}
-    # 🇺🇸 Only a tag publishes, and only after every wheel was built and tried.
-    # 🇧🇷 Só uma tag publica, e só depois de todo wheel ter sido construído e experimentado.
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-    needs: [version, sdk-wheels, dists]
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/project/${{ matrix.project }}/
+  package:
+    name: Package
+    uses: ./.github/workflows/package.yml
     permissions:
-      id-token: write # 🇺🇸 the short-lived identity PyPI trusts · 🇧🇷 a identidade de curta duração em que o PyPI confia
-    strategy:
-      # 🇺🇸 The SDK first: the CLI and the API depend on it. 🇧🇷 O SDK primeiro: a CLI e a API dependem dele.
-      max-parallel: 1
-      matrix:
-        include:
-          - { project: diagnos, artifacts: "sdk-*" }
-          - { project: diagnos-cli, artifacts: "cli-*" }
-          - { project: diagnos-api, artifacts: "api-*" }
+      contents: read
+
+  sign:
+    name: Sign · attest distributions
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      id-token: write # The identity Sigstore certifies.
+      attestations: write # SLSA provenance, stored by GitHub.
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          pattern: ${{ matrix.artifacts }}
+          egress-policy: audit
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
           path: dist
           merge-multiple: true
-      # 🇺🇸 Pinned by commit: this is the one step that holds publishing rights. It also signs an
-      #    attestation tying each file to this run.
-      # 🇧🇷 Fixada por commit: este é o único passo que tem direito de publicar. Ele também assina
-      #    uma atestação ligando cada arquivo a esta execução.
+      # Exactly the files the build hashed: nothing swapped, nothing added.
+      - name: Same files as the build
+        working-directory: dist
+        env:
+          SHA256SUMS: ${{ needs.package.outputs.sha256sums }}
+        run: |
+          printf '%s\n' "$SHA256SUMS" | sha256sum --check --strict -
+          diff <(printf '%s\n' * | LC_ALL=C sort) <(printf '%s\n' "$SHA256SUMS" | awk '{print $2}' | LC_ALL=C sort)
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: ${{ env.COSIGN_RELEASE }}
+      # One Sigstore bundle per file, then each one verified against the identity users will pin.
+      - name: Sign with cosign, keyless
+        working-directory: dist
+        env:
+          SHA256SUMS: ${{ needs.package.outputs.sha256sums }}
+        run: |
+          identity="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}"
+          mkdir ../signed
+          printf '%s\n' "$SHA256SUMS" > ../signed/SHA256SUMS
+          for file in *.whl *.tar.gz ../signed/SHA256SUMS; do
+            cosign sign-blob --yes --bundle "../signed/$(basename "$file").sigstore.json" "$file"
+          done
+          for file in *.whl *.tar.gz ../signed/SHA256SUMS; do
+            cosign verify-blob --bundle "../signed/$(basename "$file").sigstore.json" \
+              --certificate-identity "$identity" --certificate-oidc-issuer "$CERT_ISSUER" \
+              --certificate-github-workflow-trigger push "$file"
+          done
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: signed/SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-dist
+          path: signed/
+          if-no-files-found: error
+
+  images:
+    name: Images · build · push
+    needs: [package, sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: release
+    permissions:
+      contents: read
+      packages: write # Pushes to GHCR.
+    outputs:
+      cli: ${{ steps.cli.outputs.digest }}
+      api: ${{ steps.api.outputs.digest }}
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The two manylinux wheels, x86_64 and aarch64: the images install nothing else of ours.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-linux-*
+          path: wheelhouse
+          merge-multiple: true
+      - name: Same wheels as the build
+        working-directory: wheelhouse
+        env:
+          SHA256SUMS: ${{ needs.package.outputs.sha256sums }}
+        run: |
+          shopt -s nullglob
+          wheels=(*)
+          (( ${#wheels[@]} == 2 )) || { printf 'unexpected file: %s\n' "${wheels[@]}"; exit 1; }
+          for wheel in "${wheels[@]}"; do
+            grep -qxF -- "$(sha256sum -- "$wheel")" <<< "$SHA256SUMS" || { echo "not built by this run: $wheel"; exit 1; }
+          done
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          image: tonistiigi/binfmt:qemu-v10.2.3-68@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          platforms: arm64
+          cache-image: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
+          cache-binary: false
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Metadata · diagnos-api
+        id: api-meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: ${{ env.API_IMAGE }}
+          # PEP 440, like the package: `v0.2.0rc1` tags `0.2.0rc1` and, being a pre-release, nothing else.
+          tags: |
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}.{{minor}}
+      - name: Build and push · diagnos-api
+        id: api
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: api
+          platforms: linux/amd64,linux/arm64
+          build-contexts: wheels=wheelhouse
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          annotations: ${{ steps.api-meta.outputs.annotations }}
+          pull: true
+          no-cache: true
+          provenance: mode=max
+          sbom: true
+          push: true
+      - name: Metadata · diagnos
+        id: cli-meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: ${{ env.CLI_IMAGE }}
+          # PEP 440, like the package: `v0.2.0rc1` tags `0.2.0rc1` and, being a pre-release, nothing else.
+          tags: |
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}.{{minor}}
+      - name: Build and push · diagnos
+        id: cli
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: cli
+          platforms: linux/amd64,linux/arm64
+          build-contexts: wheels=wheelhouse
+          tags: ${{ steps.cli-meta.outputs.tags }}
+          labels: ${{ steps.cli-meta.outputs.labels }}
+          annotations: ${{ steps.cli-meta.outputs.annotations }}
+          pull: true
+          no-cache: true
+          provenance: mode=max
+          sbom: true
+          push: true
+
+  images-sign:
+    name: Images · sign · attest
+    needs: images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      id-token: write # The identity Sigstore certifies.
+      attestations: write # SLSA provenance, stored by GitHub.
+      packages: write # Signatures and attestations are stored next to the image.
+      artifact-metadata: write # The attestation's storage record.
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: ${{ env.COSIGN_RELEASE }}
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # By digest, never by tag: a tag can move, a digest is the content. Then verified the way users will.
+      - name: Sign both images with cosign, keyless
+        env:
+          CLI_DIGEST: ${{ needs.images.outputs.cli }}
+          API_DIGEST: ${{ needs.images.outputs.api }}
+        run: |
+          identity="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}"
+          : > images.txt
+          for ref in "${CLI_IMAGE}@${CLI_DIGEST}" "${API_IMAGE}@${API_DIGEST}"; do
+            [[ "${ref#*@}" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "malformed digest: $ref"; exit 1; }
+            cosign sign --yes "$ref"
+            cosign verify "$ref" --certificate-identity "$identity" --certificate-oidc-issuer "$CERT_ISSUER" \
+              --certificate-github-workflow-trigger push > /dev/null
+            echo "$ref" >> images.txt
+          done
+          cosign sign-blob --yes --bundle images.txt.sigstore.json images.txt
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.API_IMAGE }}
+          subject-digest: ${{ needs.images.outputs.api }}
+          push-to-registry: true
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.CLI_IMAGE }}
+          subject-digest: ${{ needs.images.outputs.cli }}
+          push-to-registry: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-images
+          path: images.txt*
+          if-no-files-found: error
+
+  pypi:
+    name: Publish · PyPI
+    needs: [package, sign, images-sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/project/diagnos/
+    permissions:
+      id-token: write # The short-lived identity PyPI trusts.
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Same files as the build
+        working-directory: dist
+        env:
+          SHA256SUMS: ${{ needs.package.outputs.sha256sums }}
+        run: |
+          printf '%s\n' "$SHA256SUMS" | sha256sum --check --strict -
+          diff <(printf '%s\n' * | LC_ALL=C sort) <(printf '%s\n' "$SHA256SUMS" | awk '{print $2}' | LC_ALL=C sort)
+      # Trusted Publishing only, with no `password:` on purpose: a token would silently turn off PEP 740.
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
-          packages-dir: dist
+          packages-dir: dist/
           print-hash: true
+
+  github-release:
+    name: GitHub release
+    needs: [package, pypi]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: write # Creates the release.
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: release
+          merge-multiple: true
+      - name: Same files as the build
+        working-directory: release
+        env:
+          SHA256SUMS: ${{ needs.package.outputs.sha256sums }}
+        run: printf '%s\n' "$SHA256SUMS" | sha256sum --check --strict -
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: signed-*
+          path: release
+          merge-multiple: true
+      # The changelog section, then how to check every file against this exact release.
+      - name: Release notes
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          python3 scripts/release_version.py --notes > notes.md
+          cat >> notes.md <<EOF
+
+          ## Verify
+
+          \`\`\`sh
+          ID="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/v${VERSION}"
+          ISSUER="https://token.actions.githubusercontent.com"
+          cosign verify-blob --bundle SHA256SUMS.sigstore.json --certificate-identity "\$ID" --certificate-oidc-issuer "\$ISSUER" SHA256SUMS
+          sha256sum --check --ignore-missing SHA256SUMS
+          cosign verify-blob --bundle images.txt.sigstore.json --certificate-identity "\$ID" --certificate-oidc-issuer "\$ISSUER" images.txt
+          cosign verify "\$(grep diagnos-api@ images.txt)" --certificate-identity "\$ID" --certificate-oidc-issuer "\$ISSUER"
+          gh attestation verify <file> --repo ${GITHUB_REPOSITORY} --cert-identity "\$ID"
+          \`\`\`
+          EOF
+      # A draft first, published only once every asset is attached, as immutable releases require.
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "diagnos $VERSION" --notes-file notes.md release/*
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

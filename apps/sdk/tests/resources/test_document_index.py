@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import httpx
+
 from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary
 from diagnos.resources.exams import Exams
 from diagnos.resources.patients import Patients

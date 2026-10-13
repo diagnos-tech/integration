@@ -6,8 +6,9 @@ confirmação respeita `--quiet`/`--json`.
 
 from __future__ import annotations
 
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos.cli.main import typer_app
 
 from .conftest import FakeDiagnos
 

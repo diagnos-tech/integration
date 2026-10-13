@@ -1,20 +1,42 @@
 # Changelog
 
-All notable changes to `diagnos`, `diagnos-cli` and `diagnos-api` are documented in this file.
+All notable changes to `diagnos` — the package, its extras and its images — are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
-[Semantic Versioning](https://semver.org/). The three packages are versioned and released together.
+[Semantic Versioning](https://semver.org/). The package and its two images are versioned and released together.
 
 This file is English-only and exempt from the repository's bilingual-documentation pairing rule
 (`scripts/check_docs.py`).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-13
 
-`0.1.0` is the first version of `diagnos`, `diagnos-cli` and `diagnos-api` ever published under these names — see
+`0.1.0` is the first version of `diagnos` ever published — see
 [`MIGRATING.md`](MIGRATING.md) if you are coming from an internal or from-source checkout of the former `imgexam`
 monorepo.
 
 ### Added
+
+- **One package, `diagnos`, with extras.** `pip install diagnos` is the base: no dependencies at all, and four
+  commands — `diagnos docs` (Help Center, Developer Central, Trust Center), `diagnos version` (version, interpreter,
+  platform and installed extras, `--json` too), `diagnos setup` and `diagnos help`. `diagnos[sdk]` adds the SDK
+  (`from diagnos import Diagnos`), `diagnos[cli]` the full command line, `diagnos[api]` the REST API (`diagnos-api`);
+  `openbao` and `dev-certs` sit on top. `import diagnos` works on the base install, and a missing extra raises
+  `MissingExtraError` naming the command that adds it. `diagnos-cli` and `diagnos-api` are no longer separate
+  packages; [`MIGRATING.md`](MIGRATING.md) maps the old names.
+- `diagnos setup sdk | cli | api`: installs one layer step by step — the SDK into your project with `uv add`, the CLI
+  into the environment that runs `diagnos` (or as a `uv tool`), the API as its signed image with Docker. Every
+  command is shown first and confirmed once (default no); `--dry-run` and `--yes` for scripts. The API image is
+  verified by the pulled digest with cosign (3.1.3+) against the release workflow's identity, and the `docker run` is
+  printed by that digest. A missing `uv` or Docker exits with `69` and its install page — nothing is ever installed
+  behind your back.
+- `wrappers/contract.json`: the language-neutral contract of the four base commands, for wrappers in other
+  languages; the Python base is tested against it.
+- Signed releases: every wheel, the sdist and `SHA256SUMS` carry a cosign keyless signature and a SLSA provenance
+  attestation; PyPI gets PEP 740 attestations through Trusted Publishing; the GitHub release attaches every file,
+  bundle and the commands that verify them ([`SECURITY.md`](SECURITY.md#verifying-a-release)).
+- Images on GHCR, for `linux/amd64` and `linux/arm64`: `ghcr.io/diagnos-tech/diagnos-api` and
+  `ghcr.io/diagnos-tech/diagnos` (the CLI), built from the released wheels, with SBOM and provenance, signed by
+  digest. They run as uid `10001` with root-owned, read-only code and no pip or uv.
 
 - Renamed the project from `imgexam` to `diagnos`, end to end: packages (`imgexam` → `diagnos`, `imgexam-cli` →
   `diagnos-cli`, `imgexam-api` → `diagnos-api`), modules (`imgexam` → `diagnos`, `imgexam_cli` → `diagnos_cli`,
@@ -30,10 +52,12 @@ monorepo.
   [`contracts/README.md`](contracts/README.md).
 - `Makefile` as the single entry point for every check a contributor or CI runs (`sync`, `fmt`, `lint`, `types`,
   `test`, `cov`, `contract`, `contract-check`, `check`).
-- Three GitHub Actions workflows: `CI` (static checks and `mypy --strict`), `Unit tests` (Python 3.11–3.13 plus the
-  Rust enclave, with a coverage floor on every leg), and `Contract tests` (the Pact consumer suite, with a contract
-  summary in the job log).
-- A self-hosted coverage badge, published to the orphan `badges` branch from the `Unit tests` workflow.
+- GitHub Actions: `CI` on every pull request (lint, `mypy --strict`, the docs, the Pact contract, the Rust enclave,
+  every Python suite on CPython 3.11 and 3.13 with a coverage floor, and zizmor and actionlint over the workflows),
+  behind one required check; `Package` on pull requests into `main`; `Release` on `v*` tags on `main`; monthly
+  grouped Dependabot updates into `develop`, whose minor and patch updates merge on their own once CI passes; and a
+  weekly OpenSSF Scorecard.
+- A self-hosted coverage badge, published to the orphan `badges` branch by `CI` on every release.
 - Bilingual (🇺🇸/🇧🇷) documentation across the repository, enforced by `scripts/check_docs.py` (every document ships
   as `NAME.md` + `NAME.pt-BR.md`) and `scripts/check_bilingual.py` (every module, class and public function's
   docstring, Python and Rust).
@@ -70,8 +94,8 @@ monorepo.
 - CLI global options (`--json`, `--quiet`, `--no-color`, `--token`, `--vault-url`) go anywhere on the line:
   `diagnos patients list --json` works.
 - API `diagnos-api dev-certs [DIR]`: a throwaway local CA, a `localhost` server pair and a client pair in one step
-  (keys `0600`, 30 days, never overwritten without `--force`; needs the new `diagnos-api[dev]` extra outside the
-  workspace). `python -m diagnos_api` runs the API like `diagnos-api`.
+  (keys `0600`, 30 days, never overwritten without `--force`; needs the `diagnos[dev-certs]` extra outside a
+  checkout). `python -m diagnos.api` runs the API like `diagnos-api`.
 - `diagnos.UploadSource`, exported at the top level. A `.dcm` file is typed `application/dicom`, so the vault
   classifies it.
 

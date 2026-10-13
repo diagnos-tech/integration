@@ -27,6 +27,7 @@ from collections.abc import Callable, Mapping
 
 import httpx
 import pytest
+
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.hybrid import HybridKeyPair, seal_hybrid
 from diagnos.errors import CryptoError, DiagnosError, EnrollmentDeniedError, EnrollmentExpiredError

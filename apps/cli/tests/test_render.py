@@ -1,4 +1,4 @@
-"""🇺🇸 `diagnos_cli.render` called directly — the table/panel branches no fixed fake ever produces on its own.
+"""🇺🇸 `diagnos.cli.render` called directly — the table/panel branches no fixed fake ever produces on its own.
 
 `test_patients.py`/`test_exams.py`/`test_files.py` drive these functions
 through real commands, but the fakes in `conftest.py` always hand back the
@@ -8,7 +8,7 @@ empty page, never a `next_cursor`). Calling `render_index_table`,
 the drive-node renderers directly is what reaches those branches without
 growing the fakes into something nobody else needs.
 
-🇧🇷 `diagnos_cli.render` chamado direto — os ramos de tabela/painel que
+🇧🇷 `diagnos.cli.render` chamado direto — os ramos de tabela/painel que
 nenhum fake fixo produz sozinho.
 
 `test_patients.py`/`test_exams.py`/`test_files.py` exercitam estas funções
@@ -26,16 +26,17 @@ import io
 import json
 
 import pytest
+from rich.console import Console
+
 from diagnos import DocumentListItem, DocumentStream, ExamRecord, ExamSummary, PatientRecord, PatientSummary
-from diagnos_cli.render.documents import (
+from diagnos.cli.render.documents import (
     render_document_index,
     render_exam,
     render_index_table,
     render_patient,
     report_text,
 )
-from diagnos_cli.render.drives import human_size, render_drive_node, render_drive_node_table
-from rich.console import Console
+from diagnos.cli.render.drives import human_size, render_drive_node, render_drive_node_table
 
 from .conftest import DRIVE_NODE, EXAM, EXAM_INDEX, EXAM_ITEM, PATIENT, PATIENT_ITEM
 

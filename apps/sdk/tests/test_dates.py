@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
+
 from diagnos.dates import TIME_PRECISIONS, to_iso_instant, truncate_timestamp
 
 

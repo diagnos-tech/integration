@@ -1,0 +1,10 @@
+# 🇺🇸 One Rust for every build of the enclave — `make sync`, CI, the release wheels and the images — so a release
+#    is never compiled by whatever happened to be "stable" that day. Bump it on purpose, with the Dockerfile's
+#    `RUST_IMAGE` in the same commit.
+# 🇧🇷 Um Rust para todo build do enclave — `make sync`, CI, os wheels de release e as imagens — para um release
+#    nunca ser compilado pelo que calhou de ser "stable" naquele dia. Suba de propósito, junto com o `RUST_IMAGE`
+#    do Dockerfile no mesmo commit.
+[toolchain]
+channel = "1.99.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

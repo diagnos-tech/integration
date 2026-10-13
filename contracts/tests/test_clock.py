@@ -6,8 +6,9 @@
 from __future__ import annotations
 
 import httpx
-from diagnos.transport.timesync import ClockSync
 from pact import Pact
+
+from diagnos.transport.timesync import ClockSync
 
 from _wire import SERVER_TIME_MS, declare_clock
 

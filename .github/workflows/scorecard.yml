@@ -1,0 +1,41 @@
+# OpenSSF Scorecard: how this repository scores on the supply-chain practices users check before they trust a
+# package, such as pinned dependencies, token permissions, signed releases and branch protection. Results land in
+# the Security tab and on api.scorecard.dev. Publishing requires running on the default branch, with only the
+# actions below and no workflow- or job-level `env`, which is why this file stays this small. Weekly is enough:
+# the score moves with settings and releases, not with every commit.
+name: Scorecard
+
+on:
+  schedule:
+    - cron: "23 5 * * 1" # Mondays at 05:23 UTC.
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      security-events: write # Uploads results to the Security tab.
+      id-token: write # Publishes the score to api.scorecard.dev.
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: results.sarif

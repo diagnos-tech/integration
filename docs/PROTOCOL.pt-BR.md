@@ -229,7 +229,7 @@ de fio embutidas em todo ciphertext já gravado — renomear uma tornaria dado
 existente ilegível. Nunca reaproveite um rótulo para um significado novo;
 uma derivação alterada ganha uma string nova, versionada à parte (`-v2`).
 Código que usa um destes aponta de volta para cá pelo nome — ver
-`apps/sdk/src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` e `hkdf.py`.
+`src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` e `hkdf.py`.
 
 | Rótulo | Propósito | Seção |
 |---|---|---|

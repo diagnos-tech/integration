@@ -9,6 +9,7 @@ import json
 from typing import Any
 
 import pytest
+
 from diagnos.crypto import (
     DOCUMENT_DEK_INFO,
     INDEX_INFO,

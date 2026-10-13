@@ -17,6 +17,7 @@ inchar um já grande.
 from __future__ import annotations
 
 import pytest
+
 from diagnos.session.enrollment import EnrollmentPrompt
 from diagnos.session.manager import default_prompt
 

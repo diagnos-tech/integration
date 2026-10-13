@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+
 from diagnos.errors import ConfigError, ProtocolError
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport

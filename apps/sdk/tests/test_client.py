@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
+
 from diagnos.client import Diagnos, _print_enrollment_prompt_fallback, _resolve_settings
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.secure import SecretBox

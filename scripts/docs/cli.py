@@ -3,7 +3,7 @@
 The tree is the one `diagnos --help` renders, so the reference cannot
 describe a flag the binary does not have. Help text is `English · Português`
 (`bilingual.split_cli_help`); examples come from each command's epilog,
-where `diagnos_cli.examples` writes them as `$ <command>` lines followed by
+where `diagnos.cli.examples` writes them as `$ <command>` lines followed by
 their description — the same lines a user sees at the bottom of `--help`.
 
 🇧🇷 `cli.json`: todo comando, opção e exemplo do `diagnos`, lidos da árvore `typer` viva.
@@ -11,7 +11,7 @@ their description — the same lines a user sees at the bottom of `--help`.
 A árvore é a mesma que o `diagnos --help` renderiza, então a referência não
 consegue descrever uma flag que o binário não tem. O texto de ajuda é
 `English · Português` (`bilingual.split_cli_help`); os exemplos vêm do epílogo
-de cada comando, onde `diagnos_cli.examples` os escreve como linhas
+de cada comando, onde `diagnos.cli.examples` os escreve como linhas
 `$ <comando>` seguidas da descrição — as mesmas linhas que um usuário vê no
 fim do `--help`.
 """
@@ -23,9 +23,10 @@ from importlib.metadata import version
 from typing import Any
 
 import typer
-from diagnos_cli.main import typer_app
 from typer.core import TyperArgument, TyperGroup, TyperOption
 from typer.main import get_command
+
+from diagnos.cli.main import typer_app
 
 from .bilingual import l10n_field
 from .output import SCHEMA_VERSION, generated_from
@@ -154,7 +155,7 @@ def build() -> dict[str, Any]:
     help_text, _ = l10n_field(root.help, cli=True)
     return {
         "schemaVersion": SCHEMA_VERSION,
-        "generatedFrom": generated_from("diagnos-cli"),
-        "program": {"name": PROGRAM, "help": help_text, "version": version("diagnos-cli")},
+        "generatedFrom": generated_from("diagnos"),
+        "program": {"name": PROGRAM, "help": help_text, "version": version("diagnos")},
         "commands": [command_entry(path, command) for path, command in walk(root, [])],
     }

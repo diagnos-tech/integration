@@ -16,8 +16,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos.cli.main import typer_app
 
 from .conftest import PATIENT_INDEX, FakeDiagnos
 

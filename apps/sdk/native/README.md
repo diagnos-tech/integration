@@ -6,8 +6,8 @@ A small Rust crate, built into the `diagnos` wheel by maturin, that holds
 every secret the SDK ever has — session keys, group DEKs, document keys, the
 SDK's own X25519 + ML-KEM-768 identity, the entropy pool — and performs every
 operation that needs one. Python only ever holds a handle, `SecretBox`. The
-same guarantees reach `diagnos-cli` and `diagnos-api` for free: they never
-touch a key, they call the SDK.
+same guarantees reach the command line and the REST API (`diagnos[cli]`,
+`diagnos[api]`) for free: they never touch a key, they call the SDK.
 
 ## Why Rust, why here
 
@@ -75,7 +75,7 @@ policy with `DIAGNOS_MEMORY_LOCK`:
 To make locking succeed as a non-root user: raise `ulimit -l`, or grant
 `CAP_IPC_LOCK` (`docker run --cap-add IPC_LOCK`, Kubernetes
 `capabilities.add: [IPC_LOCK]`) *and* give the interpreter the file
-capability `cap_ipc_lock=+p` (`apps/api/Dockerfile` does). `+p`, not `+ep`: a
+capability `cap_ipc_lock=+p` (the root `Dockerfile` does). `+p`, not `+ep`: a
 binary with the effective bit set is refused by the kernel (`EPERM` at
 `exec`) whenever the container was not granted the capability, so one
 forgotten `cap_add` would become a crash-loop. With `+p` the process always

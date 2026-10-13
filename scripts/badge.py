@@ -1,14 +1,14 @@
 """🇺🇸 Turns `coverage.json` into a shields.io endpoint badge (`{"schemaVersion": 1, ...}`) on stdout.
 
 The README's coverage badge reads this JSON from the `badges` branch, which
-`unit-tests.yml` updates on every push to `develop` — no third-party
+`ci.yml` updates on every push to `main` — no third-party
 coverage service, no token, nothing to sign up for.
 Run: `python3 scripts/badge.py coverage.json`.
 
 🇧🇷 Transforma o `coverage.json` num badge de endpoint do shields.io (`{"schemaVersion": 1, ...}`) no stdout.
 
 O badge de cobertura do README lê este JSON da branch `badges`, que o
-`unit-tests.yml` atualiza a cada push na `develop` — sem serviço de
+`ci.yml` atualiza a cada push na `main` — sem serviço de
 cobertura de terceiros, sem token, sem cadastro.
 Rode: `python3 scripts/badge.py coverage.json`.
 """

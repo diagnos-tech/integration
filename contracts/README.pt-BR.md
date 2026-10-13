@@ -38,7 +38,7 @@ make contract-check   # roda a suíte e falha se o contrato regenerado diferir d
 ```
 
 `make contract` é o que você roda depois de mudar o comportamento HTTP do SDK ou adicionar uma interação, antes de
-commitar. `make contract-check` é o que a CI roda (`.github/workflows/contract-tests.yml`) — nunca reescreve o
+commitar. `make contract-check` é o que a CI roda (o job `checks` do `.github/workflows/ci.yml`) — nunca reescreve o
 arquivo, só compara.
 
 ## Como funciona o determinismo

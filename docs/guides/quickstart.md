@@ -21,8 +21,8 @@ ciphertext.
 ## 1. Install
 
 ```sh
-pip install diagnos          # the SDK
-pipx install diagnos-cli     # optional: the `diagnos` command
+pip install "diagnos[sdk]"        # the SDK
+uv tool install "diagnos[cli]"    # optional: the full `diagnos` command
 ```
 
 Until the first PyPI release, install from source — [Install](install.md) has the exact commands, including the

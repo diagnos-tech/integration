@@ -9,8 +9,9 @@ import json
 import sys
 
 import pytest
-from diagnos_cli import main
-from diagnos_cli.argv import hoist_global_options
+
+from diagnos.cli import main
+from diagnos.cli.argv import hoist_global_options
 
 from .conftest import FakeDiagnos
 

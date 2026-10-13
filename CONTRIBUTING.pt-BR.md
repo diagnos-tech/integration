@@ -2,8 +2,8 @@
 
 [English](CONTRIBUTING.md) · **Português (Brasil)**
 
-Obrigado por considerar contribuir com `diagnos`, `diagnos-cli` ou `diagnos-api`. Este documento é o guia prático:
-como preparar o workspace, o ciclo que você roda enquanto trabalha, o que a CI verifica e como reproduzir cada
+Obrigado por considerar contribuir com o `diagnos` — a base, o SDK, a CLI, a API ou os wrappers. Este documento é o
+guia prático: como preparar o projeto, o ciclo que você roda enquanto trabalha, o que a CI verifica e como reproduzir cada
 checagem localmente, as convenções de código herdadas do histórico deste repositório, e a checklist de pull request.
 Para os padrões de comportamento que valem para todo mundo, veja [`CODE_OF_CONDUCT.pt-BR.md`](CODE_OF_CONDUCT.pt-BR.md).
 Para reportar uma vulnerabilidade, veja [`SECURITY.pt-BR.md`](SECURITY.pt-BR.md) em vez de abrir uma issue.
@@ -12,18 +12,22 @@ Para reportar uma vulnerabilidade, veja [`SECURITY.pt-BR.md`](SECURITY.pt-BR.md)
 
 | Você precisa | Por quê |
 |---|---|
-| [uv](https://docs.astral.sh/uv/) | um venv para o workspace inteiro (`apps/sdk`, `apps/cli`, `apps/api`) |
+| [uv](https://docs.astral.sh/uv/) | um venv para o pacote inteiro, com todo extra instalado editável |
 | Python 3.11 – 3.13 | as três versões de CPython contra as quais a CI testa |
-| [Rust](https://rustup.rs/) stable | só para construir o `apps/sdk/native` (o enclave de memória) a partir do fonte — os wheels do PyPI vêm prontos |
+| [rustup](https://rustup.rs/) | só para construir o `apps/sdk/native` (o enclave de memória) a partir do fonte — ele instala o Rust que o `rust-toolchain.toml` fixa; os wheels do PyPI vêm prontos |
 
-Você não precisa de Rust instalado para usar os pacotes a partir do PyPI; precisa dele para construir o `diagnos` a
-partir de um checkout, porque o `make sync` compila o `apps/sdk/native` para você.
+Você não precisa de Rust instalado para usar o `diagnos` a partir do PyPI; precisa dele para construir a partir de um
+checkout, porque o `make sync` compila o `apps/sdk/native` para você.
+
+O código é um pacote só, `src/diagnos`: a base (`_wrapper/`, `_entry.py`, `_extras.py`), o SDK no topo do pacote,
+`cli/` e `api/`. Cada camada guarda o README, os testes e os recursos dela em `apps/<camada>/`, e os da base em
+`wrappers/py/`.
 
 ## Primeira preparação
 
 ```sh
 git clone https://github.com/diagnos-tech/integration && cd integration
-make sync    # instala tudo e constrói o enclave Rust
+make sync    # instala todo extra, editável, e constrói o enclave Rust
 make check   # lint + tipos + testes + checagem de contrato — o que a CI roda
 ```
 
@@ -33,7 +37,7 @@ Se `make check` fica verde num clone recém-feito, seu ambiente bate com o da CI
 
 ```sh
 make fmt        # formata e corrige automaticamente Python (ruff) e Rust (cargo fmt)
-make test       # testes unitários: os três pacotes Python + o enclave Rust
+make test       # testes unitários: toda camada Python + o enclave Rust
 make cov        # testes unitários com um relatório de cobertura combinado (htmlcov/)
 make contract   # testes de consumidor Pact; regera contracts/*.json
 ```
@@ -42,22 +46,24 @@ Rode `make help` a qualquer momento para listar todo alvo com uma descrição de
 
 ## O que a CI roda, e como reproduzir localmente
 
-A CI é três workflows, cada um respondendo uma pergunta. `make check` roda os mesmos quatro passos na mesma ordem,
-então um `make check` verde na sua máquina significa um PR verde.
+Pull requests miram a `develop`. A CI roda em todo pull request e o job `CI` dela é o único check obrigatório; o
+Package só roda no pull request de release da `develop` para a `main`, onde decide se a `main` pode ser lançada.
 
-| Workflow | Responde | Equivalente local |
-|---|---|---|
-| `CI` (`.github/workflows/ci.yml`) | O código passa nas checagens estáticas e no type-check? | `make lint` (ruff, `cargo fmt --check`, `cargo clippy -D warnings`, checagem de docstring bilíngue, checagem de pares/links da documentação) + `make types` (`mypy --strict` sobre os pacotes, os testes de contrato e `scripts`) |
-| `Unit tests` (`.github/workflows/unit-tests.yml`) | Os três pacotes Python e o enclave Rust passam nos próprios testes, em todo CPython suportado, sem o piso de cobertura cair? | `make cov` (ou `make test` para uma passada mais rápida, sem o relatório de cobertura combinado) |
-| `Contract tests` (`.github/workflows/contract-tests.yml`) | O SDK ainda fala o contrato HTTP que o cofre verifica? | `make contract-check` |
+| Workflow | Roda em | Responde | Equivalente local |
+|---|---|---|---|
+| `CI` (`.github/workflows/ci.yml`) | todo pull request, pushes na `main`, semanalmente na `develop` | Lint, `mypy --strict`, a doc, o contrato Pact e todo teste passam — no CPython 3.11 e 3.13, sem o piso de cobertura cair? Os próprios workflows são seguros (zizmor, actionlint)? | `make check`, `make cov`, `uvx zizmor .github/` |
+| `Package` (`.github/workflows/package.yml`) | pull requests para a `main`, releases | Os sete wheels e o sdist constroem, cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra — e as duas imagens constroem? | `uv build`, depois `docker build --target api .` |
+| `Release` (`.github/workflows/release.yml`) | tags `v*` na `main` | Assina e publica tudo; veja [Lançamento de versões](#lançamento-de-versões). | — |
+| `Auto-merge` (`.github/workflows/auto-merge.yml`) | pull requests do Dependabot para a `develop` | Agenda o merge das atualizações minor e patch para quando a CI passar. | — |
+| `Scorecard` (`.github/workflows/scorecard.yml`) | semanalmente | Como o repositório se sai nas práticas de cadeia de suprimentos. | — |
 
-`make check` roda `lint`, `types`, `test` e `contract-check` nessa ordem — é exatamente o que os três workflows
-rodam, só que num único comando na sua máquina.
+O `make check` roda `lint`, `types`, `test`, `contract-check` e `docs-check` — os passos dos jobs da CI, num comando
+só — então um `make check` verde na sua máquina significa um pull request verde.
 
 ## Convenções de código
 
 Estas regras valem para código (arquivos `.py` e `.rs`); moravam antes em `CONVENTIONS.md`, que este documento
-substitui.
+substitui. Os arquivos em `.github/` são a exceção à regra bilíngue abaixo: os comentários deles são só em inglês.
 
 - **Docstrings bilíngues.** Todo módulo, classe e função pública carrega uma docstring com um parágrafo em inglês
   prefixado `🇺🇸` seguido do parágrafo em português prefixado `🇧🇷`. Comentário em linha segue o mesmo par em linhas
@@ -86,8 +92,15 @@ substitui.
   `transport/`); um módulo que passa de uma responsabilidade vira pacote (`models/`, `resources/_documents/`). Mire em
   ~250 linhas. `scripts/check_file_size.py` (parte do `make lint`) derruba o build acima de 300 linhas em fonte e 500
   em teste (o módulo `#[cfg(test)]` embutido num arquivo Rust não conta).
-- **`cli` e `api` importam só `diagnos`.** Se precisam de algo que o SDK não expõe, o SDK cresce — as cascas nunca
-  reimplementam criptografia, assinatura ou lógica de retentativa.
+- **`diagnos.cli` e `diagnos.api` importam só `diagnos`.** Se precisam de algo que o SDK não expõe, o SDK cresce — as
+  cascas nunca reimplementam criptografia, assinatura ou lógica de retentativa.
+- **A base não precisa de nada além da biblioteca padrão.** `diagnos._wrapper`, `_entry`, `_extras` e o topo do
+  `diagnos/__init__.py` rodam só com o `pip install diagnos`: nunca importam o SDK, a CLI ou a API, e um nome público
+  novo do SDK entra nas duas listas do `diagnos/__init__.py` (os imports de `TYPE_CHECKING` e o `_SDK`). Os quatro
+  comandos da base são um contrato compartilhado por todo wrapper de linguagem (`wrappers/contract.json`) — mude-o
+  lá primeiro.
+- **Extras continuam simples.** Todo `Requires-Dist` de um extra é um marcador `extra == "…"` simples, sobre uma
+  distribuição que o `wrappers/py/tests/test_extras.py` permite; uma nova é uma mudança revisada nessa lista.
 - **Decisão pendente é `TODO(gustavo): ...`.** Sem `FIXME`, sem `HACK`.
 - **Segredos nunca vivem em `bytearray` ou `bytes` Python.** Chaves de sessão, DEKs e chaves privadas vivem em
   `diagnos._secure.SecretBox` — memória Rust travada em página (`apps/sdk/native`), zerada ao descartar. A única saída é
@@ -95,7 +108,7 @@ substitui.
 - **`unsafe` em Rust fica confinado.** Vive só em `native/src/locked/` (memória e capabilities),
   `native/src/buffer.rs` e `native/src/process.rs` (rlimit/prctl) — os lugares que de fato tocam memória crua. Todo
   bloco `unsafe` carrega um comentário `SAFETY:` dizendo o invariante que o torna correto.
-- **Rótulos de fio congelados nunca são renomeados.** Os rótulos HKDF/AAD `imgexam-*-v1` (`apps/sdk/src/diagnos/crypto/`)
+- **Rótulos de fio congelados nunca são renomeados.** Os rótulos HKDF/AAD `imgexam-*-v1` (`src/diagnos/crypto/`)
   e o id de chave de seal estático do OpenBao `imgexam-static-v1` (`apps/api/deploy/`) são constantes criptográficas
   persistidas. Renomear qualquer um tornaria todo ciphertext armazenado, ou uma instalação existente do OpenBao,
   ilegível. Veja [`MIGRATING.pt-BR.md`](MIGRATING.pt-BR.md) para a explicação completa.
@@ -123,7 +136,7 @@ correspondente — ele compara o arquivo commitado contra uma rodada completa e 
 
 `fail_under` no `pyproject.toml` da raiz (`[tool.coverage.report]`) é um piso, não uma meta: suba quando a cobertura
 geral subir, nunca baixe para um pull request passar. `make cov` imprime o número combinado atual (cobertura de
-ramos, os três pacotes).
+ramos, o pacote inteiro).
 
 Para olhar uma área, mantenha a fonte no nível do pacote e leia as linhas dela: `pytest apps/sdk/tests --cov=diagnos
 --cov-report=term-missing`. Uma fonte pontuada como `--cov=diagnos.crypto` faz o coverage importar o pacote
@@ -142,20 +155,57 @@ acrescente `Signed-off-by: Seu Nome <voce@exemplo.com>` à mão) em todo commit;
 
 ## Lançamento de versões
 
-`diagnos`, `diagnos-cli` e `diagnos-api` são lançados juntos, sob uma versão só, pelo
-`.github/workflows/release.yml`:
+A `develop` é onde o trabalho entra; a `main` guarda o que foi lançado ou está para ser. O `diagnos` e as duas
+imagens dele são lançados juntos, sob uma versão só, pelo `.github/workflows/release.yml`:
 
-1. Ponha a mesma versão nos três `pyproject.toml` e no `apps/sdk/native/Cargo.toml`, e dê a ela uma data no
-   `CHANGELOG.md` no lugar de `Unreleased`. O `python3 scripts/release_version.py` diz se eles concordam.
-2. Ensaie: rode o workflow **Release** à mão (*Run workflow*). Ele constrói toda distribuição, instala cada wheel do
-   SDK na plataforma para a qual foi construído, e não publica nada.
-3. Marque esse commit da `develop` com a tag `v<versão>` e envie a tag. O mesmo workflow roda de novo e publica os
-   três pacotes no PyPI.
+1. Na `develop`, ponha a mesma versão no `pyproject.toml` e no `apps/sdk/native/Cargo.toml`, atualize os dois
+   lockfiles (`uv lock` e `cargo update --workspace --manifest-path apps/sdk/native/Cargo.toml`), e dê à versão uma
+   data no `CHANGELOG.md` no lugar de `Unreleased`. O `python3 scripts/release_version.py` diz se eles concordam.
+2. Abra um pull request da `develop` para a `main`. Além da CI, ele roda o **Package**: toda distribuição construída,
+   cada wheel experimentado na própria plataforma, o sdist reconstruído e as duas imagens construídas — e nada
+   publicado. Faça o merge com um **merge commit**, nunca squash, para a `main` e a `develop` manterem uma história só.
+3. Marque o merge commit com a tag `v<versão>` e envie a tag: `git fetch origin && git tag v0.1.0 origin/main && git
+   push origin v0.1.0`. O **Release** roda o Package de novo, assina todo arquivo com o cosign e atesta a proveniência
+   dele, envia e assina as duas imagens, espera um mantenedor aprovar o ambiente `pypi`, publica no PyPI e cria o
+   release no GitHub com todo arquivo, bundle e os comandos que os verificam.
 
-Uma versão no PyPI nunca pode ser enviada duas vezes, e por isso o ensaio vem primeiro. A publicação usa o
-[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) do PyPI: não há token para guardar nem trocar. Cada
-projeto no PyPI confia no `release.yml` deste repositório, rodando no ambiente `pypi`. Em tempo de execução, a
-`__version__` é lida dos metadados do pacote instalado em vez de fixa no código.
+Uma versão no PyPI nunca pode ser enviada duas vezes, e por isso o Package roda antes, no pull request. A publicação
+usa o [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) do PyPI e a assinatura sem chave do Sigstore:
+não há token nem chave para guardar ou trocar — e um token de API não é suportado de propósito, porque desligaria em
+silêncio as atestações PEP 740. O PyPI confia no `release.yml` deste repositório, rodando no ambiente `pypi`;
+renomear qualquer um dos dois quebra a publicação até o trusted publisher do PyPI ser ajustado. Em tempo de
+execução, a `__version__` é lida dos metadados do pacote instalado em vez de fixa no código.
+
+As dependências se atualizam sozinhas: o Dependabot abre pull requests agrupados para a `develop` uma vez por mês, as
+atualizações minor e patch entram sozinhas quando a CI passa, e as major esperam revisão. Elas chegam à `main` com o
+próximo release.
+
+Um release candidate ensaia tudo de verdade: `0.1.0rc1` no `pyproject.toml`, `0.1.0-rc.1` no `Cargo.toml` (a guarda lê
+os dois como uma versão só), uma seção `## [0.1.0rc1]` no `CHANGELOG.md`, e a tag `v0.1.0rc1`. O `pip` só instala um
+pré-release quando pedido pela versão ou com `--pre`.
+
+### Configurações do repositório
+
+O que código não consegue configurar, um admin do repositório faz uma vez — nesta ordem, para o PyPI nunca confiar
+num ambiente ou numa tag que qualquer um pudesse usar:
+
+1. **Ambientes**: `release` e `pypi`, cada um limitado a tags `v*`, com um revisor obrigatório no `pypi` (e o
+   *Prevent self-review* desligado enquanto houver um mantenedor só).
+2. **Branches**: a `main`, criada a partir da `develop`.
+3. **Rulesets**:
+   - tags `v*`: só mantenedores as criam (*Restrict creations*, com bypass só para admins), e ninguém as move nem
+     apaga (*Restrict updates* e *Restrict deletions*, sem bypass — um segundo ruleset);
+   - `develop`: só pull requests, o check **CI** obrigatório, sem force push nem exclusão; exija revisão de code
+     owner assim que houver dois mantenedores;
+   - `main`: só pull requests, os checks **CI** e **Package** obrigatórios, só merge commits, sem force push nem
+     exclusão.
+4. **Geral**: *Allow auto-merge* ligado (o Dependabot precisa); em Actions, um `GITHUB_TOKEN` só de leitura e o
+   Actions sem permissão para criar ou aprovar pull requests; imutabilidade de releases ligada.
+5. **PyPI**: um trusted publisher pendente para `diagnos` — dono `diagnos-tech`, repositório `integration`, workflow
+   `release.yml`, ambiente `pypi` — e 2FA para todo dono. Nunca um token de API.
+6. **GHCR**, durante o primeiro release: a execução espera aprovação antes do `pypi`, com as duas imagens já enviadas
+   e assinadas. Deixe `diagnos` e `diagnos-api` públicos e dê acesso de escrita só a este repositório, *depois*
+   aprove — o `diagnos setup api` baixa a imagem assim que a versão chega ao PyPI.
 
 ## Checklist de pull request
 

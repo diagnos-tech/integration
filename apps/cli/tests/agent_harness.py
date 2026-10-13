@@ -27,10 +27,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from diagnos_cli.agent import client
-from diagnos_cli.agent.host import SessionHost
-from diagnos_cli.agent.server import AgentServer
-from diagnos_cli.main import run
+from diagnos.cli.agent import client
+from diagnos.cli.agent.host import SessionHost
+from diagnos.cli.agent.server import AgentServer
+from diagnos.cli.main import run
 
 
 @dataclass

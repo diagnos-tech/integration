@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from diagnos_api.settings import DEFAULT_HOST, DEFAULT_PORT, ApiConfigError, ApiSettings
+from diagnos.api.settings import DEFAULT_HOST, DEFAULT_PORT, ApiConfigError, ApiSettings
 
 
 def _base_env() -> dict[str, str]:

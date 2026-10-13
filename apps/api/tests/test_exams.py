@@ -19,8 +19,9 @@ roteador ser de fato chamado.
 from __future__ import annotations
 
 import pytest
-from diagnos import QuotaError
 from fastapi.testclient import TestClient
+
+from diagnos import QuotaError
 
 from conftest import FakeDiagnos
 

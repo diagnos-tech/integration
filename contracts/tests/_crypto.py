@@ -46,8 +46,9 @@ import nacl.bindings as nb
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from diagnos.crypto.hybrid import HybridKeyPair
 from kyber_py.ml_kem import ML_KEM_768
+
+from diagnos.crypto.hybrid import HybridKeyPair
 
 # 🇺🇸 Frozen wire constant (`docs/PROTOCOL.md §6`) — the `imgexam-` prefix is historical.
 # 🇧🇷 Constante de fio congelada (`docs/PROTOCOL.md §6`) — o prefixo `imgexam-` é histórico.

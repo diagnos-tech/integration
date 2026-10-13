@@ -1,35 +1,46 @@
-# 🇺🇸 Static checks: lockfile, lint (Python, Rust, bilingual docstrings, docs
-#    pairs and links), `mypy --strict`, and the published docs against the code
-#    (`make docs-check`: fresh reference JSON, the site manifest, anchors,
-#    every runnable example, `diagnos --help` against `cli.json`). Tests live in
-#    their own workflows so each README badge answers exactly one question.
-# 🇧🇷 Checagens estáticas: lockfile, lint (Python, Rust, docstrings bilíngues,
-#    pares e links da documentação), `mypy --strict`, e a doc publicada contra o
-#    código (`make docs-check`: JSON de referência em dia, o manifesto do site,
-#    âncoras, todo exemplo executável, `diagnos --help` contra o `cli.json`). Os
-#    testes têm workflows próprios para cada badge do README responder
-#    exatamente uma pergunta.
+# CI: the checks every change must pass before it merges.
+#
+# Four jobs run in parallel, and a fifth turns them into one result:
+#   checks     lockfile, lint (Python, Rust, docs), mypy --strict, the docs against the code, the Pact contract,
+#              and the Rust enclave's tests
+#   python     every Python suite with the coverage floor, on the oldest and the newest supported CPython
+#   workflows  zizmor and actionlint over .github/
+#   ci         the one required check: green only when every job above is
+#
+# A change is tested once, on its pull request; merging it does not test it again. The other runs each have a
+# single purpose: a push to `main` (a release) publishes the coverage badge, and the weekly run on `develop`
+# catches drift in runners and toolchains and refreshes the caches pull requests restore from.
 name: CI
 
 on:
-  push:
-    branches: [develop]
   pull_request:
+    branches: [develop, main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1" # Mondays at 06:17 UTC.
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
-    name: Lint · types
-    runs-on: ubuntu-latest
+  checks:
+    name: Checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - name: uv lock --check
         run: uv lock --check
@@ -39,3 +50,120 @@ jobs:
         run: make types
       - name: make docs-check
         run: make docs-check
+      - name: make contract-check
+        run: make contract-check
+      - name: make test-rust
+        run: make test-rust
+      - name: Contract summary
+        if: always()
+        run: python3 scripts/contract_summary.py contracts/diagnos-sdk-diagnos-vault.json >> "$GITHUB_STEP_SUMMARY"
+
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # The bounds of `requires-python`, where incompatibilities show up first.
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          python-version: ${{ matrix.python }}
+      - name: make cov
+        run: make cov
+      - name: Coverage summary
+        if: always()
+        env:
+          PYTHON_VERSION: ${{ matrix.python }}
+        run: |
+          {
+            echo "### Coverage on Python $PYTHON_VERSION"
+            uv run coverage report --format=markdown
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the report for the badge
+        if: github.event_name == 'push' && matrix.python == '3.13'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: coverage.json
+          if-no-files-found: error
+
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Findings become annotations and fail the job; no GitHub Advanced Security needed.
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: 1.30.1
+          advanced-security: false
+          annotations: true
+      - name: actionlint
+        run: >-
+          docker run --rm --network none -v "$PWD:/repo:ro" -w /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
+
+  ci:
+    name: CI
+    if: always()
+    needs: [checks, python, workflows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if [[ "$result" != success ]]; then
+              echo "::error::A required job ended as '$result'."
+              exit 1
+            fi
+          done
+
+  badge:
+    name: Publish coverage badge
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # Pushes to the `badges` branch.
+    concurrency:
+      group: badges
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      # The only job that keeps the checkout credential, which scripts/publish-badge.sh needs to push. It runs
+      # only on `main`, after every check, and executes nothing but this repository's own scripts.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true # zizmor: ignore[artipacked]
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage
+      - name: Write the badge JSON
+        run: python3 scripts/badge.py coverage.json > "$RUNNER_TEMP/coverage.json"
+      - name: Push to the badges branch
+        run: scripts/publish-badge.sh "$RUNNER_TEMP/coverage.json" coverage.json

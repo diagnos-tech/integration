@@ -1,7 +1,7 @@
 """🇺🇸 Shared fixtures: a fake `Diagnos` (no network) and the `typer.testing.CliRunner`.
 
-Every test monkeypatches `diagnos_cli.context.build_client` — never
-`diagnos_cli.commands.<module>.build_client` — because every command module
+Every test monkeypatches `diagnos.cli.context.build_client` — never
+`diagnos.cli.commands.<module>.build_client` — because every command module
 calls it as `context.build_client(...)` (an attribute lookup on the module,
 not a name bound at import time). Patching the name inside a command module
 would silently miss whichever commands import `context` a different way; one
@@ -10,8 +10,8 @@ patch point covers every command.
 🇧🇷 Fixtures compartilhadas: uma `Diagnos` falsa (sem rede) e o
 `typer.testing.CliRunner`.
 
-Todo teste faz monkeypatch de `diagnos_cli.context.build_client` — nunca de
-`diagnos_cli.commands.<module>.build_client` — porque todo módulo de comando
+Todo teste faz monkeypatch de `diagnos.cli.context.build_client` — nunca de
+`diagnos.cli.commands.<module>.build_client` — porque todo módulo de comando
 chama isto como `context.build_client(...)` (uma busca de atributo no
 módulo, não um nome vinculado na importação). Aplicar o patch no nome dentro
 de um módulo de comando passaria batido, em silêncio, por qualquer comando
@@ -25,6 +25,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from typer import rich_utils
+from typer.testing import CliRunner
+
 from diagnos import (
     DocumentIndex,
     DocumentListItem,
@@ -39,8 +42,6 @@ from diagnos import (
     PatientRecord,
     PatientSummary,
 )
-from typer import rich_utils
-from typer.testing import CliRunner
 
 FIXED_NOW = "2026-09-08T12:00:00.000Z"
 
@@ -324,11 +325,11 @@ def fake_vault() -> FakeDiagnos:
 
 @pytest.fixture
 def patched_build_client(monkeypatch: pytest.MonkeyPatch, fake_vault: FakeDiagnos) -> FakeDiagnos:
-    """🇺🇸 Patches `diagnos_cli.context.build_client` to always hand back `fake_vault`, ignoring every argument.
+    """🇺🇸 Patches `diagnos.cli.context.build_client` to always hand back `fake_vault`, ignoring every argument.
 
-    🇧🇷 Aplica patch em `diagnos_cli.context.build_client` para sempre devolver `fake_vault`, ignorando todo argumento.
+    🇧🇷 Aplica patch em `diagnos.cli.context.build_client` para sempre devolver `fake_vault`, ignorando todo argumento.
     """
-    import diagnos_cli.context as context_module
+    import diagnos.cli.context as context_module
 
     monkeypatch.setattr(context_module, "build_client", lambda *args, **kwargs: fake_vault)
     return fake_vault

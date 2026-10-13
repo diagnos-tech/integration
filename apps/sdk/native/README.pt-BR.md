@@ -6,8 +6,9 @@ Um crate Rust pequeno, embarcado no wheel `diagnos` pelo maturin, que guarda
 todo segredo que o SDK algum dia tem — chaves de sessão, DEKs de grupo,
 chaves de documento, a própria identidade X25519 + ML-KEM-768 do SDK, o pool
 de entropia — e executa toda operação que precisa de um. O Python só segura
-um handle, `SecretBox`. As mesmas garantias chegam a `diagnos-cli` e
-`diagnos-api` de graça: eles nunca tocam uma chave, chamam o SDK.
+um handle, `SecretBox`. As mesmas garantias chegam à linha de comando e à
+API REST (`diagnos[cli]`, `diagnos[api]`) de graça: elas nunca tocam uma
+chave, chamam o SDK.
 
 ## Por que Rust, por que aqui
 
@@ -78,7 +79,7 @@ política com `DIAGNOS_MEMORY_LOCK`:
 Para o travamento dar certo como usuário sem root: aumente `ulimit -l`,
 ou conceda `CAP_IPC_LOCK` (`docker run --cap-add IPC_LOCK`, Kubernetes
 `capabilities.add: [IPC_LOCK]`) *e* dê ao interpretador a capability de
-arquivo `cap_ipc_lock=+p` (`apps/api/Dockerfile` faz). `+p`, não `+ep`: um
+arquivo `cap_ipc_lock=+p` (o `Dockerfile` da raiz faz). `+p`, não `+ep`: um
 binário com o bit effective ligado é recusado pelo kernel (`EPERM` no
 `exec`) sempre que o container não recebeu a capability, então um `cap_add`
 esquecido viraria crash-loop. Com `+p` o processo sempre sobe e o enclave

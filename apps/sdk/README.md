@@ -1,17 +1,18 @@
-# diagnos
+# diagnos · SDK
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
 The official zero-knowledge Python SDK for the diagnos vault (`vault.diagnos.health`). Patients, exams and files are
 encrypted in this process, in RAM, before a single byte reaches the network — the vault only ever sees ciphertext,
-signed requests and presigned URLs. This package is the one place that complexity lives; `diagnos-cli` and
-`diagnos-api` are thin shells over it.
+signed requests and presigned URLs. The SDK is the one place that complexity lives; the command line and the REST API
+are thin shells over it. It is the `sdk` extra of the one `diagnos` package: its code is the top of `src/diagnos`, and
+`from diagnos import Diagnos` loads it on first use.
 
 > [!NOTE]
 > **Status: 0.1.0 preview.** Enrollment, session keys, request signing, the clock, the lock, `vault.patients`,
 > `vault.exams` and `vault.drives` speak the vault's current protocol and are verified against it by the Pact
 > contract tests. Known limits:
-> [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
+> [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.md).
 
 The goal is for your code to read like this:
 
@@ -27,15 +28,17 @@ with Diagnos() as vault:
 ## Install
 
 ```sh
-pip install diagnos
-pip install "diagnos[openbao]"          # with OpenBao auto-unseal, for servers
+uv add "diagnos[sdk]"                   # or: pip install "diagnos[sdk]" — or let `diagnos setup sdk` do it
+uv add "diagnos[sdk,openbao]"           # with OpenBao auto-unseal, for servers
 export DIAGNOS_API_TOKEN="apikey-…"     # issued by a workspace admin
 ```
 
+Without the `sdk` extra, `import diagnos` still works (it is the base install), and `from diagnos import Diagnos`
+raises `MissingExtraError` with the command that adds it.
+
 > [!NOTE]
-> Not on PyPI yet. Until the first release, install from source — building the enclave needs a
-> [Rust toolchain](https://rustup.rs/):
-> `pip install "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"`
+> Until `0.1.0` is on PyPI, install from source — building the enclave needs a [Rust toolchain](https://rustup.rs/):
+> `pip install "diagnos[sdk] @ git+https://github.com/diagnos-tech/integration@develop"`
 
 ## Your first session
 
@@ -68,29 +71,29 @@ server that must restart without a person uses OpenBao auto-unseal, a deliberate
 
 | Guide | |
 |---|---|
-| [Quickstart](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/quickstart.md) | token to first encrypted patient and file |
-| [Concepts](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/concepts.md) | workspaces, groups, keys, versions, drafts, nodes |
-| [Authentication](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/authentication.md) | the token, the enrollment link and code, the approval |
-| [Sessions](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/sessions.md) | unlock, lock, expiry, OpenBao auto-unseal |
-| [Patients](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/patients.md) · [Exams](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/exams.md) · [Files](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/files.md) | the three resources |
-| [Errors](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/errors.md) | every exception, what is retried, clock skew |
-| [Configuration](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/configuration.md) | every environment variable and `Settings` |
-| [Security model](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/security.md) | what the vault sees, what the enclave protects |
-| [SDK reference](https://github.com/diagnos-tech/integration/blob/develop/docs/reference/sdk.json) | every public class and function, generated from the code |
+| [Quickstart](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.md) | token to first encrypted patient and file |
+| [Concepts](https://github.com/diagnos-tech/integration/blob/main/docs/guides/concepts.md) | workspaces, groups, keys, versions, drafts, nodes |
+| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, the enrollment link and code, the approval |
+| [Sessions](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.md) | unlock, lock, expiry, OpenBao auto-unseal |
+| [Patients](https://github.com/diagnos-tech/integration/blob/main/docs/guides/patients.md) · [Exams](https://github.com/diagnos-tech/integration/blob/main/docs/guides/exams.md) · [Files](https://github.com/diagnos-tech/integration/blob/main/docs/guides/files.md) | the three resources |
+| [Errors](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.md) | every exception, what is retried, clock skew |
+| [Configuration](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.md) | every environment variable and `Settings` |
+| [Security model](https://github.com/diagnos-tech/integration/blob/main/docs/guides/security.md) | what the vault sees, what the enclave protects |
+| [SDK reference](https://github.com/diagnos-tech/integration/blob/main/docs/reference/sdk.json) | every public class and function, generated from the code |
 
 The enclave's own threat model is in [`native/README.md`](native/README.md), and the normative wire contract in
-[PROTOCOL.md](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.md).
+[PROTOCOL.md](https://github.com/diagnos-tech/integration/blob/main/docs/PROTOCOL.md).
 
 ## Development
 
 ```sh
-make sync                       # installs everything and builds the Rust enclave (needs cargo)
-uv run --package diagnos pytest apps/sdk/tests
+make sync                       # installs every extra and builds the Rust enclave (needs rustup)
+uv run pytest apps/sdk/tests
 make lint                       # ruff, cargo fmt/clippy, docs
 make types                      # mypy --strict
 ```
 
 Run `make help` from the repository root for every target. Installing from PyPI needs no Rust: wheels ship the
-compiled enclave for each platform (abi3, CPython ≥ 3.11). Building from source needs a stable Rust toolchain
-(`rustup`), which `uv sync` invokes through maturin; after a Rust edit, `uv sync --reinstall-package diagnos`
-rebuilds it.
+compiled enclave for each platform (abi3, CPython ≥ 3.11). Building from source needs the Rust that
+`rust-toolchain.toml` pins (`rustup` installs it), which `uv sync` invokes through maturin; it rebuilds the enclave
+whenever its sources change.

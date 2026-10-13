@@ -28,6 +28,7 @@ from typing import Any
 
 import hvac.exceptions
 import pytest
+
 from diagnos.crypto.encoding import b64url_decode
 from diagnos.crypto.hybrid import HybridKeyPair
 from diagnos.crypto.secure import SecretBox

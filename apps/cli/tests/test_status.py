@@ -9,9 +9,10 @@ from __future__ import annotations
 import json
 
 import pytest
-from diagnos_cli import commands
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos.cli import commands
+from diagnos.cli.main import typer_app
 
 from .conftest import FakeDiagnos
 
@@ -20,14 +21,14 @@ from .conftest import FakeDiagnos
 def fixed_memory_status(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """🇺🇸 A deterministic `memory_status()` stand-in — the real one depends on this host's `mlock` limits.
 
-    Patched onto `diagnos_cli.commands.status` (the name that module bound
+    Patched onto `diagnos.cli.commands.status` (the name that module bound
     at import time), not `diagnos`, for the same reason `conftest.py`
     patches `context.build_client` rather than a per-command alias.
 
     🇧🇷 Um substituto determinístico de `memory_status()` — o de verdade
     depende dos limites de `mlock` deste host.
 
-    Aplicado em `diagnos_cli.commands.status` (o nome que aquele módulo
+    Aplicado em `diagnos.cli.commands.status` (o nome que aquele módulo
     vinculou na importação), não em `diagnos`, pela mesma razão de
     `conftest.py` aplicar o patch em `context.build_client` em vez de um
     alias por comando.

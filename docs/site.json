@@ -143,8 +143,8 @@
           "id": "cli",
           "source": "apps/cli/README.md",
           "description": {
-            "en": "diagnos-cli: the zero-knowledge diagnos vault from your terminal, built on the SDK, with JSON output and stable exit codes.",
-            "pt-br": "diagnos-cli: o cofre diagnos zero-knowledge no seu terminal, construído sobre o SDK, com saída JSON e códigos de saída estáveis."
+            "en": "diagnos[cli]: the zero-knowledge diagnos vault from your terminal, built on the SDK, with JSON output and stable exit codes.",
+            "pt-br": "diagnos[cli]: o cofre diagnos zero-knowledge no seu terminal, construído sobre o SDK, com saída JSON e códigos de saída estáveis."
           }
         },
         {

@@ -42,12 +42,13 @@ from typing import Any
 
 import httpx
 import pytest
+from pact import Pact, match
+
 from diagnos.crypto import EntropyMixer
 from diagnos.crypto.secure import SecretBox
 from diagnos.resources.drives import Drives
 from diagnos.resources.drives._nodes import _writing as nodes_module
 from diagnos.session.keyring import Keyring
-from pact import Pact, match
 
 from _crypto import (
     NODE_DEK_INFO,

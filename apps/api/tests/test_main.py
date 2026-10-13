@@ -27,10 +27,10 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from diagnos import ConfigError
 
-from diagnos_api import main as main_module
-from diagnos_api.mtls import ClientCertH11Protocol
+from diagnos import ConfigError
+from diagnos.api import main as main_module
+from diagnos.api.mtls import ClientCertH11Protocol
 
 _TLS_ENV = {
     "DIAGNOS_API_MTLS_CA_FILE": "/ca.pem",
@@ -63,7 +63,7 @@ def _restore_logger_state() -> Iterator[None]:
     """
     snapshots = {
         name: (list(logging.getLogger(name).handlers), logging.getLogger(name).level, logging.getLogger(name).propagate)
-        for name in ("diagnos_api", "diagnos")
+        for name in ("diagnos.api", "diagnos")
     }
     yield
     for name, (handlers, level, propagate) in snapshots.items():

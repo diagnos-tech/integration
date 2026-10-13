@@ -27,8 +27,9 @@ documentação.
 from __future__ import annotations
 
 import pytest
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos.cli.main import typer_app
 
 from .conftest import FakeDiagnos
 
@@ -74,7 +75,7 @@ ALL_COMMAND_PATHS: list[list[str]] = [
 def test_help_exits_zero_and_is_bilingual(runner: CliRunner, command_path: list[str]) -> None:
     """🇺🇸 `<command> --help` exits `0` and its help text carries the `·` bilingual separator.
 
-    Every `help=` string in `apps/cli/src/diagnos_cli` is written as
+    Every `help=` string in `apps/cli/src/diagnos.cli` is written as
     `"English · Português"`; asserting on the separator (rather than
     hard-coding one language's words here) is what catches *any* command
     whose help lost its Portuguese half, not just the ones this test
@@ -83,7 +84,7 @@ def test_help_exits_zero_and_is_bilingual(runner: CliRunner, command_path: list[
     🇧🇷 `<comando> --help` sai com `0` e seu texto de ajuda carrega o
     separador bilíngue `·`.
 
-    Toda string `help=` em `apps/cli/src/diagnos_cli` é escrita como
+    Toda string `help=` em `apps/cli/src/diagnos.cli` é escrita como
     `"Inglês · Português"`; checar o separador (em vez de fixar as palavras
     de uma língua aqui) é o que pega *qualquer* comando cuja ajuda perdeu a
     metade em português, não só os que este teste por acaso cita.

@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+
 from diagnos.crypto.hybrid import HybridKeyPair
 from diagnos.crypto.secure import SecretBox
 from diagnos.errors import SessionExpiredError

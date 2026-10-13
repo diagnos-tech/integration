@@ -5,8 +5,9 @@
 
 from __future__ import annotations
 
-from diagnos import ConflictError, QuotaError
 from fastapi.testclient import TestClient
+
+from diagnos import ConflictError, QuotaError
 
 from conftest import FakeDiagnos
 

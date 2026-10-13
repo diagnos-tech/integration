@@ -12,12 +12,14 @@ body:
   - type: dropdown
     id: package
     attributes:
-      label: "Package · Pacote"
-      description: "🇺🇸 Which package is affected? · 🇧🇷 Qual pacote é afetado?"
+      label: "Layer · Camada"
+      description: "🇺🇸 Which layer is affected? · 🇧🇷 Qual camada é afetada?"
       options:
-        - diagnos
-        - diagnos-cli
-        - diagnos-api
+        - "diagnos — base (docs, version, setup, help)"
+        - "diagnos[sdk] — SDK"
+        - "diagnos[cli] — CLI"
+        - "diagnos[api] — REST API"
+        - "images (ghcr.io/diagnos-tech) · imagens"
         - docs
         - other · outro
     validations:
@@ -27,7 +29,7 @@ body:
     id: version
     attributes:
       label: "Package version(s) · Versão(ões) do pacote"
-      description: "🇺🇸 From `pip show <package>` or your lockfile. · 🇧🇷 De `pip show <pacote>` ou do seu lockfile."
+      description: "🇺🇸 From `diagnos version` (paste `--json` if you can). · 🇧🇷 Do `diagnos version` (cole o `--json` se puder)."
       placeholder: "e.g. diagnos 0.1.0 · ex.: diagnos 0.1.0"
     validations:
       required: true

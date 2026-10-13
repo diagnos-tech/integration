@@ -10,9 +10,10 @@ import sys
 from pathlib import Path
 
 import pytest
-from diagnos_cli import main as main_module
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos.cli import main as main_module
+from diagnos.cli.main import typer_app
 
 from .conftest import DRIVE_NODE, FakeDiagnos
 

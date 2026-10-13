@@ -20,7 +20,7 @@ contrato quando o SDK já fala, para ela, o protocolo atual do cofre.
 | Pacientes, exames | `vault.patients`, `vault.exams` (documentos versionados) | ✅ Compatível | contrato + vetores do app web |
 | Arquivos e pastas | `vault.drives` (`/nodes`: reservar, `PUT`, confirmar, multipart, listar, ler, pastas) | ✅ Compatível | contrato + vetores do app web |
 
-A CLI (`diagnos-cli`) e a API (`diagnos-api`) são cascas finas sobre o SDK: todo comando e rota herda a sua linha.
+A CLI (`diagnos[cli]`) e a API (`diagnos[api]`) são cascas finas sobre o SDK: todo comando e rota herda a sua linha.
 
 "Verificado por contrato" significa que o lado do SDK está travado em
 [`contracts/diagnos-sdk-diagnos-vault.json`](../contracts/diagnos-sdk-diagnos-vault.json) e o cofre o reproduz no

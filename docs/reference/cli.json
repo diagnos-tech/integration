@@ -260,6 +260,185 @@
       ]
     },
     {
+      "examples": [
+        {
+          "command": "diagnos docs",
+          "description": {
+            "en": "The three sites, one per line",
+            "pt-br": "Os três sites, um por linha"
+          }
+        },
+        {
+          "command": "diagnos docs dev --open",
+          "description": {
+            "en": "Open Developer Central in the browser",
+            "pt-br": "Abre a Developer Central no navegador"
+          }
+        }
+      ],
+      "help": {
+        "en": "Help Center, Developer Central and Trust Center links",
+        "pt-br": "Links da Central de Ajuda, Developer Central e Trust Center"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "Print only this URL",
+            "pt-br": "Imprime só esta URL"
+          },
+          "kind": "argument",
+          "name": "topic",
+          "required": false,
+          "type": "choice"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--open"
+          ],
+          "help": {
+            "en": "Open it in the browser",
+            "pt-br": "Abre no navegador"
+          },
+          "kind": "option",
+          "name": "open",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "docs"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos version",
+          "description": {
+            "en": "Version, interpreter, platform, extras",
+            "pt-br": "Versão, interpretador, plataforma, extras"
+          }
+        },
+        {
+          "command": "diagnos --json version",
+          "description": {
+            "en": "The same, as JSON for bug reports",
+            "pt-br": "O mesmo, em JSON para relatos de bug"
+          }
+        }
+      ],
+      "help": {
+        "en": "This installation: version, Python, extras",
+        "pt-br": "Esta instalação: versão, Python, extras"
+      },
+      "params": [],
+      "path": [
+        "version"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos setup api",
+          "description": {
+            "en": "Pull and verify the API image",
+            "pt-br": "Baixa e verifica a imagem da API"
+          }
+        },
+        {
+          "command": "diagnos setup sdk --dry-run",
+          "description": {
+            "en": "Only show what would run",
+            "pt-br": "Só mostra o que rodaria"
+          }
+        }
+      ],
+      "help": {
+        "en": "Install the SDK, the CLI or the API, step by step",
+        "pt-br": "Instala o SDK, a CLI ou a API, passo a passo"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "What to install",
+            "pt-br": "O que instalar"
+          },
+          "kind": "argument",
+          "name": "target",
+          "required": true,
+          "type": "choice"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--yes",
+            "-y"
+          ],
+          "help": {
+            "en": "Run without asking",
+            "pt-br": "Roda sem perguntar"
+          },
+          "kind": "option",
+          "name": "yes",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "default": "false",
+          "flags": [
+            "--dry-run"
+          ],
+          "help": {
+            "en": "Only print the plan",
+            "pt-br": "Só imprime o plano"
+          },
+          "kind": "option",
+          "name": "dry-run",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "setup"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos help patients list",
+          "description": {
+            "en": "The same as `diagnos patients list --help`",
+            "pt-br": "O mesmo que `--help`"
+          }
+        }
+      ],
+      "help": {
+        "en": "This help, or a command's",
+        "pt-br": "Esta ajuda, ou a de um comando"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [],
+          "help": {
+            "en": "A command",
+            "pt-br": "Um comando"
+          },
+          "kind": "argument",
+          "name": "command",
+          "required": false,
+          "type": "list[str]"
+        }
+      ],
+      "path": [
+        "help"
+      ]
+    },
+    {
       "help": {
         "en": "Patients",
         "pt-br": "Pacientes"
@@ -1748,8 +1927,8 @@
     }
   ],
   "generatedFrom": {
-    "commit": "9a751e1",
-    "package": "diagnos-cli",
+    "commit": "df1f5e3",
+    "package": "diagnos",
     "version": "0.1.0"
   },
   "program": {

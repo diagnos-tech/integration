@@ -103,7 +103,7 @@ reference says, change the code:
 | File | Generated from | Text comes from |
 |---|---|---|
 | `openapi.json` | the FastAPI app, `app.openapi()` | route `summary`/`description` and parameter descriptions, written `🇺🇸 … 🇧🇷 …` |
-| `cli.json` | the `typer` command tree of `diagnos` | `help=` texts written `English · Português`; examples from each command's epilog (`diagnos_cli.examples`) |
+| `cli.json` | the `typer` command tree of `diagnos` | `help=` texts written `English · Português`; examples from each command's epilog (`diagnos.cli.examples`) |
 | `sdk.json` | `diagnos.__all__`, read with `inspect` | docstrings, with the 🇺🇸/🇧🇷 paragraphs; fields documented by a string literal right under them |
 
 The 🇺🇸/🇧🇷 split follows one rule, shared with the site (`scripts/docs/bilingual.py`): from 🇺🇸 to 🇧🇷 is English,

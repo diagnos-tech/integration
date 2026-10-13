@@ -19,8 +19,8 @@ from collections.abc import Iterator
 from typing import Any, cast
 
 from diagnos import Diagnos
-from diagnos_api.app import create_app
-from diagnos_api.settings import ApiSettings
+from diagnos.api.app import create_app
+from diagnos.api.settings import ApiSettings
 
 from .bilingual import EN_FLAG, PT_FLAG
 

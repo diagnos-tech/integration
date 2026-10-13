@@ -23,6 +23,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from diagnos.errors import ConfigError
 from diagnos.transport.config import Settings
 

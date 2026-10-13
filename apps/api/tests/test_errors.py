@@ -32,11 +32,11 @@ from __future__ import annotations
 import asyncio
 import json
 
-from diagnos import ConfigError, CryptoError, GroupKeyUnavailable, ProtocolError, SessionExpiredError
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from diagnos_api.errors import _http_exception_handler
+from diagnos import ConfigError, CryptoError, GroupKeyUnavailable, ProtocolError, SessionExpiredError
+from diagnos.api.errors import _http_exception_handler
 
 from conftest import FakeDiagnos
 

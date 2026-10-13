@@ -9,6 +9,7 @@ import getpass
 import socket
 
 import pytest
+
 from diagnos.session import runtime as runtime_module
 from diagnos.session.runtime import collect_runtime
 

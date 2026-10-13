@@ -46,8 +46,9 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-import diagnos.client
 import httpx
+
+import diagnos.client
 from diagnos.crypto.hybrid import seal_hybrid
 from diagnos.transport.http import VaultTransport
 

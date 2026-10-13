@@ -33,8 +33,9 @@ nem parte do contrato: `make_transport(storage=...)` o substitui em memória.
 from __future__ import annotations
 
 import pytest
-from diagnos import ConflictError, PatientSummary
 from pact import Pact, match
+
+from diagnos import ConflictError, PatientSummary
 
 from _crypto import (
     DOCUMENT_DEK_INFO,

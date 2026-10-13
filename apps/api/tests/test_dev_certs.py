@@ -31,10 +31,10 @@ import uvicorn
 from cryptography import x509
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from diagnos_api import dev_certs, main
-from diagnos_api.app import create_app
-from diagnos_api.mtls import ClientCertH11Protocol, ssl_config_for_uvicorn
-from diagnos_api.settings import ApiSettings
+from diagnos.api import dev_certs, main
+from diagnos.api.app import create_app
+from diagnos.api.mtls import ClientCertH11Protocol, ssl_config_for_uvicorn
+from diagnos.api.settings import ApiSettings
 
 from conftest import FakeDiagnos
 
@@ -91,11 +91,11 @@ def test_generate_says_how_to_get_cryptography(monkeypatch: pytest.MonkeyPatch, 
 
     🇧🇷 Sem a dependência opcional, o erro nomeia o extra a instalar.
     """
-    import diagnos_api
+    import diagnos.api
 
-    monkeypatch.setitem(sys.modules, "diagnos_api._pki", None)
-    monkeypatch.delattr(diagnos_api, "_pki", raising=False)
-    with pytest.raises(dev_certs.DevCertsError, match=r"diagnos-api\[dev\]"):
+    monkeypatch.setitem(sys.modules, "diagnos.api._pki", None)
+    monkeypatch.delattr(diagnos.api, "_pki", raising=False)
+    with pytest.raises(dev_certs.DevCertsError, match=r"diagnos\[dev-certs\]"):
         dev_certs.generate(tmp_path)
     assert not list(tmp_path.iterdir())
 

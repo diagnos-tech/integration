@@ -23,6 +23,7 @@ from collections.abc import Callable, Mapping
 import httpx
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.secure import SecretBox
 from diagnos.errors import QuotaError, RateLimitError, VaultError

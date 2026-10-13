@@ -1,30 +1,32 @@
-# diagnos-cli
+# diagnos · command line
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
 The `diagnos` command line — the zero-knowledge diagnos vault, from your terminal, built on the
-[`diagnos`](https://github.com/diagnos-tech/integration/blob/develop/apps/sdk/README.md) SDK. Every byte of
+[`diagnos`](https://github.com/diagnos-tech/integration/blob/main/apps/sdk/README.md) SDK. Every byte of
 cryptography, signing and retry logic lives in the SDK; this package only parses arguments and renders what the SDK
-returns — tables for people, JSON for scripts, stable exit codes for both.
+returns — tables for people, JSON for scripts, stable exit codes for both. It is the `cli` extra of the one
+`diagnos` package; its code lives in `src/diagnos/cli`.
 
 > [!NOTE]
-> **Not on PyPI yet.** `pipx install diagnos-cli` below is the intended, permanent install command — but until the
-> first release, install from source instead (building the SDK needs a [Rust toolchain](https://rustup.rs/); `cli`
-> depends on the not-yet-published `diagnos` SDK, so both come from git in one command):
+> **Until `0.1.0` is on PyPI**, install from the repository (building the SDK needs a
+> [Rust toolchain](https://rustup.rs/)):
 > ```sh
-> pipx install "diagnos-cli @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/cli" \
->   --preinstall "diagnos @ git+https://github.com/diagnos-tech/integration@develop#subdirectory=apps/sdk"
+> uv tool install "diagnos[cli] @ git+https://github.com/diagnos-tech/integration@develop"
 > ```
-> Coming from `imgexam-cli`? Versions restart at `0.1.0` under the new name — read
-> [MIGRATING.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.md) before upgrading.
+> Coming from `imgexam-cli` or `diagnos-cli`? Read
+> [MIGRATING.md](https://github.com/diagnos-tech/integration/blob/main/MIGRATING.md) before upgrading.
 
 ## Install
 
 ```sh
-pipx install diagnos-cli
-pipx install "diagnos-cli[openbao]"   # with OpenBao auto-unseal, for cron jobs and servers
-export DIAGNOS_API_TOKEN="apikey-…"   # issued by a workspace admin
+uv tool install "diagnos[cli]"            # or: pipx install "diagnos[cli]"
+uv tool install "diagnos[cli,openbao]"    # with OpenBao auto-unseal, for cron jobs and servers
+export DIAGNOS_API_TOKEN="apikey-…"       # issued by a workspace admin
 ```
+
+Already have the base (`pip install diagnos`)? `diagnos setup cli` adds the rest to that same `diagnos`. Without
+Python, the image works too: `docker run --rm -e DIAGNOS_API_TOKEN ghcr.io/diagnos-tech/diagnos patients list`.
 
 `--token` on any command overrides the environment for that one invocation, and is never echoed — not in `--help`,
 not in output, not in `--json`.
@@ -48,26 +50,26 @@ unattended configures OpenBao auto-unseal instead, as the CLI guide shows.
 
 | | |
 |---|---|
-| [CLI guide](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/cli.md) | every command with real examples, JSON output, scripting and cron |
-| [CLI reference](https://github.com/diagnos-tech/integration/blob/develop/docs/reference/cli.json) | every command and option, generated from the code — also `diagnos <command> --help` |
-| [Authentication](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/authentication.md) | the token, the enrollment panel, the approval |
-| [Sessions](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/sessions.md#auto-unseal-with-openbao) | OpenBao auto-unseal, and what it trades |
-| [Errors](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/errors.md#every-exception) | the exit code of every failure |
-| [Configuration](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/configuration.md) | every environment variable |
+| [CLI guide](https://github.com/diagnos-tech/integration/blob/main/docs/guides/cli.md) | every command with real examples, JSON output, scripting and cron |
+| [CLI reference](https://github.com/diagnos-tech/integration/blob/main/docs/reference/cli.json) | every command and option, generated from the code — also `diagnos <command> --help` |
+| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, the enrollment panel, the approval |
+| [Sessions](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.md#auto-unseal-with-openbao) | OpenBao auto-unseal, and what it trades |
+| [Errors](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.md#every-exception) | the exit code of every failure |
+| [Configuration](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.md) | every environment variable |
 
 Known limits and the questions still open on the vault side:
-[Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
+[Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.md).
 
 ## Development
 
 ```sh
 make sync
-uv run --package diagnos-cli pytest apps/cli/tests -q
-uv run ruff check apps/cli && uv run ruff format --check apps/cli
-uv run mypy apps/cli/src
+uv run pytest apps/cli/tests -q
+uv run ruff check src/diagnos/cli apps/cli && uv run ruff format --check src/diagnos/cli apps/cli
+uv run mypy src
 ```
 
-A command's examples live next to it, in its `epilog` (`diagnos_cli.examples`): they show at the bottom of `--help`
+A command's examples live next to it, in its `epilog` (`diagnos.cli.examples`): they show at the bottom of `--help`
 and in the generated reference, and `make docs-check` fails if the two ever disagree. See
-[CONTRIBUTING.md](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.md) for the bilingual-docstring
-rule and the "`cli` imports only `diagnos`" boundary.
+[CONTRIBUTING.md](https://github.com/diagnos-tech/integration/blob/main/CONTRIBUTING.md) for the bilingual-docstring
+rule and the "`diagnos.cli` imports only `diagnos`" boundary.

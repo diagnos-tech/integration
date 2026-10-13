@@ -1,3 +1,17 @@
-# 🇺🇸 Every pull request asks the maintainer for review; add owners per path as the team grows.
-# 🇧🇷 Todo pull request pede revisão ao mantenedor; acrescente donos por caminho conforme o time crescer.
+# The maintainer reviews every pull request; add owners per path as the team grows. The entries after the first
+# cover the files that decide what is built, signed and published: keep code-owner review required on them, and
+# add a second owner as soon as there is one.
 * @aquelegustavo
+
+/.github/ @aquelegustavo
+/pyproject.toml @aquelegustavo
+/uv.lock @aquelegustavo
+/rust-toolchain.toml @aquelegustavo
+/Dockerfile @aquelegustavo
+/.dockerignore @aquelegustavo
+/apps/sdk/native/Cargo.toml @aquelegustavo
+/apps/sdk/native/Cargo.lock @aquelegustavo
+/scripts/release_*.py @aquelegustavo
+/wrappers/contract.json @aquelegustavo
+/SECURITY.md @aquelegustavo
+/SECURITY.pt-BR.md @aquelegustavo

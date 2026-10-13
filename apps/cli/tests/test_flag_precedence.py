@@ -31,10 +31,11 @@ import json
 from pathlib import Path
 
 import pytest
-from diagnos import Page
-from diagnos_cli import context as context_module
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos import Page
+from diagnos.cli import context as context_module
+from diagnos.cli.main import typer_app
 
 from .conftest import DRIVE_NODE, PATIENT_ITEM, FakeDiagnos
 

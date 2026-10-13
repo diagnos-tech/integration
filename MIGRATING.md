@@ -2,14 +2,13 @@
 
 **English** · [Português (Brasil)](MIGRATING.pt-BR.md)
 
-This project was renamed from `imgexam` to `diagnos`. The packages were never published to PyPI under either name —
-if you only ever installed `diagnos`, `diagnos-cli` or `diagnos-api`, there is nothing here for you. This guide is
-for anyone who ran an internal or from-source checkout of the former `imgexam` monorepo (packages, a vendored copy,
-or a deployment built from source) and is moving that checkout to this repository.
+This project was renamed from `imgexam` to `diagnos`, and its three packages became one, `diagnos`, with extras.
+Nothing was published to PyPI under any of the old names. This guide is for anyone who ran an internal or
+from-source checkout of the former `imgexam` monorepo, or of the short-lived three-package `diagnos` layout
+(packages, a vendored copy, or a deployment built from source), and is moving that checkout to this repository.
 
-`0.1.0` is the first version of `diagnos`, `diagnos-cli` and `diagnos-api` ever published as such — see
-[`CHANGELOG.md`](CHANGELOG.md). All three restart their versioning at `0.1.0` regardless of what `imgexam`'s
-internal version numbers were.
+`0.1.0` is the first version of `diagnos` ever published — see [`CHANGELOG.md`](CHANGELOG.md). It restarts the
+versioning at `0.1.0` regardless of what `imgexam`'s internal version numbers were.
 
 ## What changed
 
@@ -17,12 +16,12 @@ internal version numbers were.
 
 | Before (`imgexam`) | After (`diagnos`) |
 |---|---|
-| package `imgexam` | package `diagnos` |
-| package `imgexam-cli` | package `diagnos-cli` |
-| package `imgexam-api` | package `diagnos-api` |
+| package `imgexam` | package `diagnos[sdk]` |
+| package `imgexam-cli` | package `diagnos[cli]` |
+| package `imgexam-api` | package `diagnos[api]` |
 | import `imgexam` | import `diagnos` |
-| import `imgexam_cli` | import `diagnos_cli` |
-| import `imgexam_api` | import `diagnos_api` |
+| import `imgexam_cli` | import `diagnos.cli` |
+| import `imgexam_api` | import `diagnos.api` |
 | class `Imgexam` | class `Diagnos` |
 | exception `ImgexamError` | exception `DiagnosError` |
 | exception `ImgexamPermissionError` | exception `DiagnosPermissionError` |
@@ -40,7 +39,24 @@ from diagnos import Diagnos, DiagnosError
 | Before | After |
 |---|---|
 | `imgexam` (command) | `diagnos` (command) |
-| `imgexam-api` (Docker image) | `diagnos-api` (Docker image) |
+| `imgexam-api` (Docker image) | `ghcr.io/diagnos-tech/diagnos-api` (Docker image) |
+
+### From three packages to one
+
+Before `0.1.0` shipped, the project was briefly three packages — `diagnos` (the SDK), `diagnos-cli` and
+`diagnos-api`. It is now one, `diagnos`, whose base installs no dependency at all and whose layers are extras. Code
+that only does `from diagnos import …` keeps working unchanged, as long as the `sdk` extra is installed.
+
+| Before | After |
+|---|---|
+| `pip install diagnos` (it was the SDK) | `pip install "diagnos[sdk]"` — plain `diagnos` is now the base, with no dependencies |
+| `pipx install diagnos-cli`, `diagnos-cli[openbao]` | `uv tool install "diagnos[cli]"` or `pipx install "diagnos[cli]"`, `diagnos[cli,openbao]` |
+| `diagnos-api`, `diagnos-api[dev]` | `diagnos[api]`, `diagnos[dev-certs]` |
+| import `diagnos_cli`, `diagnos_api` | import `diagnos.cli`, `diagnos.api` |
+| `python -m diagnos_api` | `python -m diagnos.api` (or `diagnos-api`) |
+| logger `diagnos_api` | logger `diagnos.api` |
+| `docker build -f apps/api/Dockerfile .` | `docker build --target api .` — or the signed `ghcr.io/diagnos-tech/diagnos-api` |
+| `uv sync --all-packages`, `uv run --package …` | `uv sync`, `uv run …` — every extra is installed for development |
 
 ### Default vault URL
 
@@ -60,12 +76,12 @@ values:
 | `IMGEXAM_SSE_C` | — (removed: files always use SSE-C, like the web app; documents never do) | — |
 | `IMGEXAM_HARDEN_PROCESS` | `DIAGNOS_HARDEN_PROCESS` | SDK (`transport/config.py`), Rust enclave (`apps/sdk/native`) |
 | `IMGEXAM_MEMORY_LOCK` | `DIAGNOS_MEMORY_LOCK` | Rust enclave (`apps/sdk/native/src/locked/mod.rs`, `error.rs`) |
-| `IMGEXAM_API_MTLS_CA_FILE` | `DIAGNOS_API_MTLS_CA_FILE` | API (`diagnos_api/settings.py`), deploy manifests |
-| `IMGEXAM_API_TLS_CERT_FILE` | `DIAGNOS_API_TLS_CERT_FILE` | API (`diagnos_api/settings.py`), deploy manifests |
-| `IMGEXAM_API_TLS_KEY_FILE` | `DIAGNOS_API_TLS_KEY_FILE` | API (`diagnos_api/settings.py`), deploy manifests |
-| `IMGEXAM_API_HOST` | `DIAGNOS_API_HOST` | API (`diagnos_api/settings.py`) |
-| `IMGEXAM_API_PORT` | `DIAGNOS_API_PORT` | API (`diagnos_api/settings.py`), deploy manifests |
-| `IMGEXAM_API_ALLOWED_CLIENT_CN` | `DIAGNOS_API_ALLOWED_CLIENT_CN` | API (`diagnos_api/settings.py`) |
+| `IMGEXAM_API_MTLS_CA_FILE` | `DIAGNOS_API_MTLS_CA_FILE` | API (`diagnos/api/settings.py`), deploy manifests |
+| `IMGEXAM_API_TLS_CERT_FILE` | `DIAGNOS_API_TLS_CERT_FILE` | API (`diagnos/api/settings.py`), deploy manifests |
+| `IMGEXAM_API_TLS_KEY_FILE` | `DIAGNOS_API_TLS_KEY_FILE` | API (`diagnos/api/settings.py`), deploy manifests |
+| `IMGEXAM_API_HOST` | `DIAGNOS_API_HOST` | API (`diagnos/api/settings.py`) |
+| `IMGEXAM_API_PORT` | `DIAGNOS_API_PORT` | API (`diagnos/api/settings.py`), deploy manifests |
+| `IMGEXAM_API_ALLOWED_CLIENT_CN` | `DIAGNOS_API_ALLOWED_CLIENT_CN` | API (`diagnos/api/settings.py`) |
 | `IMGEXAM_WORKSPACE_ID` | `DIAGNOS_WORKSPACE_ID` | deploy-time only — OpenBao policy bootstrap (`apps/api/deploy/k8s/openbao/`, `apps/api/deploy/compose/openbao/`) |
 | `IMGEXAM_ACCOUNT_ID` | `DIAGNOS_ACCOUNT_ID` | deploy-time only — OpenBao policy bootstrap (`apps/api/deploy/k8s/openbao/`, `apps/api/deploy/compose/openbao/`) |
 
@@ -76,7 +92,7 @@ product with its own naming. One of them changes behaviour, though: see the next
 ### OpenBao auto-unseal: the default KV path prefix
 
 The **default** value of the OpenBao KV path prefix (`DEFAULT_OPENBAO_PATH_PREFIX` in
-`apps/sdk/src/diagnos/transport/config.py`) changed from `"imgexam"` to `"diagnos"`. It is still overridden by the
+`src/diagnos/transport/config.py`) changed from `"imgexam"` to `"diagnos"`. It is still overridden by the
 `OPENBAO_PATH_PREFIX` environment variable, whose name did not change.
 
 If you already run OpenBao auto-unseal against an `imgexam` deployment and upgrade in place without setting
@@ -94,7 +110,7 @@ Either is safe — there is no silent data loss, only a saved session that needs
 Two categories of constant were deliberately **not** renamed, because they are persisted cryptographic wire
 constants rather than product names:
 
-- The `imgexam-*-v1` HKDF/AAD labels (`apps/sdk/src/diagnos/crypto/hkdf.py`, `hybrid.py`, `keys.py`,
+- The `imgexam-*-v1` HKDF/AAD labels (`src/diagnos/crypto/hkdf.py`, `hybrid.py`, `keys.py`,
   `apps/sdk/native/src/hybrid/`) — for example `imgexam-sdk-hybrid-seal-v1`, `imgexam-patient-dek-v1`,
   `imgexam-drive-node-key-v1`.
 - The OpenBao static seal key id `imgexam-static-v1` (`apps/api/deploy/k8s/autounseal/static/seal.hcl`).
@@ -108,16 +124,18 @@ next to their definitions and in [`CONTRIBUTING.md`](CONTRIBUTING.md); do not re
 Going through a checkout or a downstream fork, in roughly the order that will catch the most with the least risk of
 a false match:
 
-- [ ] Package names in your own `pyproject.toml`/`requirements`: `imgexam` → `diagnos`, `imgexam-cli` →
-      `diagnos-cli`, `imgexam-api` → `diagnos-api`.
-- [ ] Python imports: `from imgexam` / `import imgexam` → `diagnos` (and the `_cli`/`_api` variants). Careful with a
+- [ ] Package names in your own `pyproject.toml`/`requirements`: `imgexam` → `diagnos[sdk]`, `imgexam-cli` →
+      `diagnos[cli]`, `imgexam-api` → `diagnos[api]`.
+- [ ] Python imports: `from imgexam` / `import imgexam` → `diagnos` (and `imgexam_cli`/`imgexam_api` →
+      `diagnos.cli`/`diagnos.api`). Careful with a
       plain substring replace here — do it as import statements, not free text, or you will also touch the frozen
       `imgexam-*-v1` labels below.
 - [ ] `Imgexam` → `Diagnos`, `ImgexamError` → `DiagnosError`, `ImgexamPermissionError` → `DiagnosPermissionError`.
 - [ ] Every `IMGEXAM_*` environment variable in your shell profiles, `.env` files, CI secrets, Kubernetes
       `ConfigMap`/`Secret` manifests and Docker Compose files, per the table above.
 - [ ] The `imgexam` CLI command → `diagnos` in scripts, cron jobs, systemd units, shell aliases.
-- [ ] The `imgexam-api` Docker image reference → `diagnos-api` in Compose files, Kubernetes manifests, CI.
+- [ ] The `imgexam-api` Docker image reference → `ghcr.io/diagnos-tech/diagnos-api`, pinned by digest, in Compose
+      files, Kubernetes manifests, CI.
 - [ ] If you pin the vault URL: confirm it still points where you intend — the default changed, per above.
 - [ ] If you use OpenBao auto-unseal: decide between the two options in the section above (`OPENBAO_PATH_PREFIX` or
       re-enroll) **before** deploying the rename, not after.
@@ -137,7 +155,7 @@ grep -rlZ --include='*.py' --include='*.toml' --include='*.md' \
   -e 'imgexam' -e 'Imgexam' . \
   --exclude-dir={.git,crypto,native,vectors,autounseal} \
   | xargs -0 perl -pi -e '
-      s/\bimgexam_(cli|api)\b/diagnos_$1/g;
+      s/\bimgexam_(cli|api)\b/diagnos.$1/g;
       s/\bImgexam(PermissionError|Error)?\b/Diagnos$1/g;
       s/\bimgexam\b(?!-[a-z0-9-]*-v\d)/diagnos/g'
 git diff   # review before committing — this is a blunt instrument

@@ -28,8 +28,9 @@ import json
 from pathlib import Path
 
 import pytest
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos.cli.main import typer_app
 
 from .conftest import EXAM_INDEX, PATIENT_INDEX, FakeDiagnos
 

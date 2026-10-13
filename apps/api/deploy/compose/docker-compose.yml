@@ -108,12 +108,12 @@ services:
     entrypoint: ["sh", "/bootstrap/bootstrap.sh"]
     # 🇺🇸 Root inside its own throwaway container, on purpose: the `state`
     # volume is created root-owned by Docker, and the token it writes has to
-    # end up owned by the API's uid (10001, `apps/api/Dockerfile`) so a `0600`
+    # end up owned by the API's uid (10001, the root `Dockerfile`) so a `0600`
     # file is readable there and by nobody else — `bootstrap.sh` does that
     # `chown`. The image's `openbao` user could do neither.
     # 🇧🇷 Root dentro do próprio container descartável, de propósito: o volume
     # `state` é criado pelo Docker com dono root, e o token que ele escreve
-    # precisa terminar com o uid da API (10001, `apps/api/Dockerfile`) para um
+    # precisa terminar com o uid da API (10001, o `Dockerfile` da raiz) para um
     # arquivo `0600` ser legível lá e por mais ninguém — o `bootstrap.sh` faz
     # esse `chown`. O usuário `openbao` da imagem não conseguiria nenhum dos
     # dois.
@@ -141,15 +141,19 @@ services:
 
   api:
     build:
-      # 🇺🇸 Context is the repository root, matching `apps/api/Dockerfile`'s
-      # own header comment — the image needs `apps/sdk` and `apps/cli`
-      # alongside `apps/api` to install `diagnos-api` from source.
-      # 🇧🇷 O contexto é a raiz do repositório, igual ao comentário de
-      # cabeçalho do próprio `apps/api/Dockerfile` — a imagem precisa de
-      # `apps/sdk` e `apps/cli` ao lado de `apps/api` para instalar o
-      # `diagnos-api` a partir do fonte.
+      # 🇺🇸 Context is the repository root, as the root `Dockerfile`'s header
+      # says: its `api` target compiles the `diagnos` wheel from this checkout
+      # and installs it with `diagnos[api]`'s locked dependencies. To run the
+      # published, signed image instead, replace `build:` with
+      # `image: ghcr.io/diagnos-tech/diagnos-api@sha256:<digest>`.
+      # 🇧🇷 O contexto é a raiz do repositório, como diz o cabeçalho do
+      # `Dockerfile` da raiz: o alvo `api` compila o wheel `diagnos` deste
+      # checkout e o instala com as dependências travadas do `diagnos[api]`.
+      # Para rodar a imagem publicada e assinada, troque `build:` por
+      # `image: ghcr.io/diagnos-tech/diagnos-api@sha256:<digest>`.
       context: ../../../..
-      dockerfile: apps/api/Dockerfile
+      dockerfile: Dockerfile
+      target: api
     cap_add: [IPC_LOCK]
     ulimits:
       memlock:

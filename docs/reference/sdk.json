@@ -1,14 +1,14 @@
 {
   "generatedFrom": {
-    "commit": "9a751e1",
+    "commit": "df1f5e3",
     "package": "diagnos",
     "version": "0.1.0"
   },
   "modules": [
     {
       "doc": {
-        "en": "diagnos — zero-knowledge SDK for the diagnos vault.\n\nEverything an application needs is reachable from this top-level package:\n`Diagnos` is the entry point, `Settings` configures it, the record/model\ntypes shape what `patients`/`exams` read and write, and the exceptions are\nwhat a caller catches. Anything not exported here — `diagnos.resources`,\n`diagnos.session`, `diagnos.transport`, `diagnos.crypto` — is internal\nplumbing `cli`/`api` and application code are not meant to import directly\n(`CONTRIBUTING.md`): if something in there is missing from this list, that is\na gap in the SDK's public surface, not a signal to reach past it.",
-        "pt-br": "diagnos — SDK zero-knowledge do cofre diagnos.\n\nTudo que uma aplicação precisa é alcançável a partir deste pacote de\nprimeiro nível: `Diagnos` é o ponto de entrada, `Settings` o configura, os\ntipos de registro/modelo dão forma ao que `patients`/`exams` leem e\nescrevem, e as exceções são o que quem chama captura. Qualquer coisa não\nexportada aqui — `diagnos.resources`, `diagnos.session`,\n`diagnos.transport`, `diagnos.crypto` — é encanamento interno que `cli`/`api`\ne código de aplicação não devem importar direto (`CONTRIBUTING.md`): se algo\nlá dentro está faltando nesta lista, é uma lacuna na superfície pública do\nSDK, não um sinal para alcançar por cima dela."
+        "en": "diagnos — the diagnos vault from Python: zero-knowledge SDK, command line and REST API, in one package.\n\n`import diagnos` is cheap and always works, even on the base install: the\nSDK's public names below are loaded on first use, so `pip install diagnos`\n(the `diagnos docs | version | setup | help` wrapper) never pays for — or\nneeds — httpx, pydantic or the Rust enclave. With `diagnos[sdk]` installed,\n`from diagnos import Diagnos` behaves exactly as an eager import would;\nwithout it, it raises `MissingExtraError` naming the command that adds it.\n\nEverything an application needs is reachable from here: `Diagnos` is the\nentry point, `Settings` configures it, the record/model types shape what\n`patients`/`exams` read and write, and the exceptions are what a caller\ncatches. Anything not exported here — `diagnos.resources`,\n`diagnos.session`, `diagnos.transport`, `diagnos.crypto` — is internal\nplumbing `diagnos.cli`/`diagnos.api` and application code are not meant to\nimport directly (`CONTRIBUTING.md`): if something in there is missing from\nthis list, that is a gap in the SDK's public surface, not a signal to reach\npast it.",
+        "pt-br": "diagnos — o cofre diagnos no Python: SDK zero-knowledge, linha de comando e API REST, num pacote só.\n\n`import diagnos` é barato e sempre funciona, mesmo na instalação base: os\nnomes públicos do SDK abaixo são carregados no primeiro uso, então o\n`pip install diagnos` (o wrapper `diagnos docs | version | setup | help`)\nnunca paga por — nem precisa de — httpx, pydantic ou o enclave Rust. Com o\n`diagnos[sdk]` instalado, `from diagnos import Diagnos` se comporta\nexatamente como um import imediato; sem ele, lança `MissingExtraError`\nnomeando o comando que o soma.\n\nTudo que uma aplicação precisa é alcançável daqui: `Diagnos` é o ponto de\nentrada, `Settings` o configura, os tipos de registro/modelo dão forma ao\nque `patients`/`exams` leem e escrevem, e as exceções são o que quem chama\ncaptura. Qualquer coisa não exportada aqui — `diagnos.resources`,\n`diagnos.session`, `diagnos.transport`, `diagnos.crypto` — é encanamento\ninterno que `diagnos.cli`/`diagnos.api` e código de aplicação não devem\nimportar direto (`CONTRIBUTING.md`): se algo lá dentro está faltando nesta\nlista, é uma lacuna na superfície pública do SDK, não um sinal para alcançar\npor cima dela."
       },
       "members": [
         {
@@ -1421,6 +1421,19 @@
           "kind": "exception",
           "members": [],
           "name": "MemoryLockWarning"
+        },
+        {
+          "bases": [
+            "ImportError"
+          ],
+          "doc": {
+            "en": "A feature was used without its extra; the message is the command that adds it.\n\nAn `ImportError`, so the usual \"is this optional dependency here?\"\nhandling keeps working.",
+            "pt-br": "Um recurso foi usado sem o extra dele; a mensagem é o comando que o soma.\n\nUm `ImportError`, para o tratamento usual de \"esta dependência opcional\nestá aqui?\" continuar funcionando."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "MissingExtraError",
+          "signature": "(extra: str, feature: str)"
         },
         {
           "bases": [

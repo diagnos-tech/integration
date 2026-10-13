@@ -1,33 +1,44 @@
-# 🇺🇸 Weekly, grouped updates for every ecosystem this repository ships or
-#    builds with. Grouping keeps it to one pull request per ecosystem, so
-#    updates get reviewed instead of piling up.
-# 🇧🇷 Atualizações semanais e agrupadas para todo ecossistema que este
-#    repositório publica ou usa no build. Agrupar mantém um pull request por
-#    ecossistema, para as atualizações serem revisadas em vez de acumularem.
+# Dependabot: monthly version updates into `develop`, one pull request per ecosystem.
+#
+# Minor and patch updates are grouped and merge by themselves once CI passes (workflows/auto-merge.yml). Major
+# updates are left out of the groups, so each one gets its own pull request and waits for a review. Security
+# updates do not wait for this schedule: Dependabot opens them as soon as an advisory is published. The cooldown
+# skips releases younger than seven days, which gives the community time to catch a compromised one first.
+# Actions and images are pinned by digest; the `# vX.Y.Z` comment beside each pin lets Dependabot move both.
 version: 2
 updates:
   - package-ecosystem: uv
     directory: /
-    schedule: { interval: weekly }
+    target-branch: develop
+    schedule: { interval: monthly }
+    cooldown: { default-days: 7 }
     groups:
-      python: { patterns: ["*"] }
+      python: { patterns: ["*"], update-types: [minor, patch] }
     commit-message: { prefix: "build(deps)" }
 
   - package-ecosystem: cargo
     directory: /apps/sdk/native
-    schedule: { interval: weekly }
+    target-branch: develop
+    schedule: { interval: monthly }
+    cooldown: { default-days: 7 }
     groups:
-      rust: { patterns: ["*"] }
+      rust: { patterns: ["*"], update-types: [minor, patch] }
     commit-message: { prefix: "build(deps)" }
 
   - package-ecosystem: github-actions
-    directory: /
-    schedule: { interval: weekly }
+    directories: ["/", "/.github/actions/*"]
+    target-branch: develop
+    schedule: { interval: monthly }
+    cooldown: { default-days: 7 }
     groups:
-      actions: { patterns: ["*"] }
+      actions: { patterns: ["*"], update-types: [minor, patch] }
     commit-message: { prefix: "ci(deps)" }
 
   - package-ecosystem: docker
-    directory: /apps/api
-    schedule: { interval: weekly }
+    directory: /
+    target-branch: develop
+    schedule: { interval: monthly }
+    cooldown: { default-days: 7 }
+    groups:
+      images: { patterns: ["*"], update-types: [minor, patch] }
     commit-message: { prefix: "build(deps)" }

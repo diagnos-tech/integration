@@ -11,8 +11,9 @@ import threading
 from collections.abc import Iterator
 
 import pytest
-from diagnos_cli.agent import protocol
-from diagnos_cli.agent.streams import InputStream, OutputStream
+
+from diagnos.cli.agent import protocol
+from diagnos.cli.agent.streams import InputStream, OutputStream
 
 
 @pytest.fixture
