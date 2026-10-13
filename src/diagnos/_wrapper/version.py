@@ -22,7 +22,7 @@ from typing import TypedDict
 from .._extras import extras, install_hint, installed
 from .._version import __version__
 from .exit_codes import EXIT_OK
-from .output import Output, table
+from .output import Output, printable, table
 
 
 class Installation(TypedDict):
@@ -61,7 +61,7 @@ def version(*, out: Output) -> int:
         out.data(info)
         return EXIT_OK
     out.line(out.style(f"diagnos {info['diagnos']}", "bold"))
-    out.line(f"  python    {info['python']} ({info['implementation']}) · {info['executable']}")
+    out.line(f"  python    {info['python']} ({info['implementation']}) · {printable(info['executable'])}")
     out.line(f"  platform  {info['platform']}")
     found = info["extras"]
     if not found:

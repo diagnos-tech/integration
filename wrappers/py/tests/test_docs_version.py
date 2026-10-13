@@ -68,7 +68,7 @@ def test_version_shows_what_is_missing_and_how_to_add_it(
     assert version(out=Output()) == EXIT_OK
     text = capsys.readouterr().out
     assert text.startswith("diagnos ") and "  sdk  " in text
-    assert "diagnos setup cli" in text and 'pip install "diagnos[openbao]"' in text
+    assert "diagnos setup cli" in text and 'pip install "diagnos[openbao]' in text
 
 
 def test_version_json_is_the_installation(packages: Packages, capsys: pytest.CaptureFixture[str]) -> None:

@@ -35,8 +35,10 @@ Rules every wrapper keeps:
 - **No shell, no surprises on `PATH`.** Programs run from an argv list, resolved once to an absolute path; relative
   `PATH` entries are ignored.
 - **Verifies what it pulls.** `setup api` reads the digest Docker pulled, verifies that digest with `cosign`
-  (≥ 3.1.3) against the release workflow's identity, and prints the `docker run` by digest. Without cosign it says
-  *NOT verified*, loudly.
+  (≥ 3.1.3) against the `signer` in the contract — the release workflow at this version's tag, run by a `push` — and
+  prints the `docker run` by digest. Without cosign it says *NOT verified*, loudly.
+- **Escapes what it did not write.** Paths and other outside text are printed with control characters escaped, so
+  nothing can recolor or rewrite the plan a person approves; every version it writes into a command is pinned.
 - **Same output.** `--json` prints exactly the shapes the Python base prints; text output is bilingual
   (`English · Português`) and honors `NO_COLOR`.
 

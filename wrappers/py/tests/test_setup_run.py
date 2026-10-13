@@ -38,6 +38,11 @@ def test_shown_is_what_a_person_would_type() -> None:
     assert shown(("/usr/local/bin/uv", "add", "diagnos[sdk]>=1")) == "uv add 'diagnos[sdk]>=1'"
 
 
+def test_shown_cannot_be_rewritten_by_an_argument() -> None:
+    """🇺🇸 A folder named with an escape shows the escape. 🇧🇷 Uma pasta com escape no nome mostra o escape."""
+    assert "\x1b" not in shown(("/usr/bin/uv", "init", "/srv/\x1b[1A\x1b[2Kok"))
+
+
 def test_dry_run_prints_the_plan_and_runs_nothing(programs: Programs, capsys: pytest.CaptureFixture[str]) -> None:
     """🇺🇸 Every step and its command, nothing executed. 🇧🇷 Todo passo e seu comando, nada executado."""
     assert carry_out(_plan(), Output(), assume_yes=False, dry_run=True, stdin=io.StringIO()) == EXIT_OK

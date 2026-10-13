@@ -31,7 +31,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Final
 
-from ..output import Output
+from ..output import Output, printable
 
 INSTALL_PAGES: Final = {
     "uv": "https://docs.astral.sh/uv/getting-started/installation/",
@@ -77,7 +77,7 @@ def docker_running(docker: str) -> bool:
 
 def found(out: Output, name: str, path: str) -> None:
     """🇺🇸 One line saying which `name` will run. 🇧🇷 Uma linha dizendo qual `name` vai rodar."""
-    out.line(f"{out.style(name, 'green')} found · encontrado: {path}")
+    out.line(f"{out.style(name, 'green')} found · encontrado: {printable(path)}")
 
 
 def missing(out: Output, name: str, *, otherwise: str | None = None) -> None:

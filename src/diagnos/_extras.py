@@ -27,6 +27,8 @@ from functools import cache
 from importlib.metadata import PackageNotFoundError, distribution
 from typing import Final
 
+from ._version import __version__, is_release
+
 DISTRIBUTION: Final = "diagnos"
 # 🇺🇸 The extras `diagnos setup` walks through; the others are one `pip install` away.
 # 🇧🇷 Os extras que o `diagnos setup` conduz passo a passo; os outros estão a um `pip install`.
@@ -61,8 +63,12 @@ class MissingExtraError(ImportError):
 
 
 def install_hint(extra: str) -> str:
-    """🇺🇸 How to add `extra`, as one line to copy. 🇧🇷 Como somar `extra`, numa linha para copiar."""
-    command = f'pip install "{DISTRIBUTION}[{extra}]"'
+    """🇺🇸 How to add `extra` to this very version, as one line to copy.
+
+    🇧🇷 Como somar `extra` a esta mesma versão, numa linha para copiar.
+    """
+    pin = f"=={__version__}" if is_release(__version__) else ""
+    command = f'pip install "{DISTRIBUTION}[{extra}]{pin}"'
     return f"{command} (or · ou: diagnos setup {extra})" if extra in GUIDED else command
 
 

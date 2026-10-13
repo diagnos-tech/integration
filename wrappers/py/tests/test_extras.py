@@ -82,10 +82,11 @@ def test_guided_extras_come_first(packages: Packages) -> None:
     assert extras() == ("sdk", "cli", "api", "dev-certs", "openbao")
 
 
-def test_require_names_the_command_that_adds_the_layer(packages: Packages) -> None:
-    """🇺🇸 The error is the fix. 🇧🇷 O erro é a correção."""
+def test_require_names_the_command_that_adds_the_layer(packages: Packages, monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 The error is the fix, at this very version. 🇧🇷 O erro é a correção, nesta mesma versão."""
+    monkeypatch.setattr(_extras, "__version__", "1.2.3")
     with pytest.raises(
-        MissingExtraError, match=re.escape('pip install "diagnos[cli]" (or · ou: diagnos setup cli)')
+        MissingExtraError, match=re.escape('pip install "diagnos[cli]==1.2.3" (or · ou: diagnos setup cli)')
     ) as error:
         require("cli", "diagnos.cli")
     assert isinstance(error.value, ImportError) and error.value.extra == "cli"
@@ -93,9 +94,16 @@ def test_require_names_the_command_that_adds_the_layer(packages: Packages) -> No
     require("sdk", "diagnos.Diagnos")
 
 
-def test_only_guided_extras_mention_setup() -> None:
+def test_only_guided_extras_mention_setup(monkeypatch: pytest.MonkeyPatch) -> None:
     """🇺🇸 `diagnos setup openbao` does not exist. 🇧🇷 O `diagnos setup openbao` não existe."""
-    assert install_hint("openbao") == 'pip install "diagnos[openbao]"'
+    monkeypatch.setattr(_extras, "__version__", "1.2.3")
+    assert install_hint("openbao") == 'pip install "diagnos[openbao]==1.2.3"'
+
+
+def test_a_development_build_names_no_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 `0.0.0+unknown` is not on PyPI. 🇧🇷 `0.0.0+unknown` não está no PyPI."""
+    monkeypatch.setattr(_extras, "__version__", "0.0.0+unknown")
+    assert install_hint("cli") == 'pip install "diagnos[cli]" (or · ou: diagnos setup cli)'
 
 
 def test_the_real_metadata_keeps_markers_the_parser_reads() -> None:

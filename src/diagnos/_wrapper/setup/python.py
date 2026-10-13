@@ -5,8 +5,9 @@ code someone is writing, so it goes into their project (`uv add`, which also
 locks it) — or, outside any project, into the virtual environment they run
 `diagnos` from, or a new project created right here. The CLI is a command,
 so it goes where this `diagnos` runs, and the same `diagnos` gains every
-command; from a `uv tool` (or a system Python that must not be written to)
-it is installed as a `uv tool`.
+command; from a `uv tool`, or from a Python outside any virtual environment
+(never written to — PEP 668, and possibly root), it is installed as a
+`uv tool`.
 
 🇧🇷 `diagnos setup sdk` e `diagnos setup cli` — as camadas Python, instaladas com `uv`.
 
@@ -15,8 +16,9 @@ que alguém escreve, então vai para o projeto dessa pessoa (`uv add`, que
 também o trava) — ou, fora de qualquer projeto, para o ambiente virtual de
 onde ela roda o `diagnos`, ou para um projeto novo criado aqui mesmo. A CLI
 é um comando, então vai para onde este `diagnos` roda, e o mesmo `diagnos`
-ganha todo comando; a partir de um `uv tool` (ou de um Python de sistema que
-não pode ser escrito) ela é instalada como `uv tool`.
+ganha todo comando; a partir de um `uv tool`, ou de um Python fora de
+qualquer ambiente virtual (nunca escrito — PEP 668, e talvez root), ela é
+instalada como `uv tool`.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ from pathlib import Path
 
 from ..._extras import DISTRIBUTION, installed
 from ..exit_codes import EXIT_FAILED, EXIT_OK, EXIT_UNAVAILABLE
-from ..output import Output
+from ..output import Output, printable
 from .environment import Environment, project_name, project_root
 from .run import Plan, command
 from .tools import find, found, missing
@@ -76,7 +78,8 @@ def sdk(out: Output, *, cwd: Path) -> Plan | int:
     floor = f"{DISTRIBUTION}[sdk]>={env.version}" if env.release else f"{DISTRIBUTION}[sdk]"
     if project is not None:
         add = (uv, "add", "--project", str(project), floor)
-        summary = f"Add the SDK to {project / 'pyproject.toml'} · Soma o SDK ao {project / 'pyproject.toml'}"
+        manifest = printable(str(project / "pyproject.toml"))
+        summary = f"Add the SDK to {manifest} · Soma o SDK ao {manifest}"
         return Plan(title, (command(summary, add),), (f"uv run {_PROBE}", _QUICKSTART))
     if env.virtual and not env.uv_tool:
         if installed("sdk"):
@@ -85,9 +88,10 @@ def sdk(out: Output, *, cwd: Path) -> Plan | int:
         install = (uv, "pip", "install", "--python", env.python, env.requirement("sdk"))
         summary = "Add the SDK to this virtual environment · Soma o SDK a este ambiente virtual"
         return Plan(title, (command(summary, install),), (_PROBE, _QUICKSTART))
+    here = printable(str(cwd))
     steps = (
         command(
-            f"Create a Python project in {cwd} · Cria um projeto Python em {cwd}",
+            f"Create a Python project in {here} · Cria um projeto Python em {here}",
             (uv, "init", "--bare", "--no-workspace", str(cwd)),
         ),
         command(
@@ -115,7 +119,7 @@ def cli(out: Output) -> Plan | int:
         return EXIT_UNAVAILABLE
     title = "Setup · cli — the full command line · a linha de comando completa"
     install: tuple[str, ...]
-    if env.uv_tool or env.externally_managed:
+    if env.uv_tool or not env.virtual:
         install = (uv, "tool", "install", env.requirement("cli"))
         summary = "Install the CLI as a uv tool · Instala a CLI como ferramenta do uv"
     else:

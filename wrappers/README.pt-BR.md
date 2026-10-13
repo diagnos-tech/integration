@@ -36,8 +36,10 @@ Regras que todo wrapper mantém:
 - **Sem shell, sem surpresas no `PATH`.** Programas rodam de uma lista argv, resolvidos uma vez para um caminho
   absoluto; entradas relativas do `PATH` são ignoradas.
 - **Verifica o que baixa.** O `setup api` lê o digest que o Docker baixou, verifica esse digest com o `cosign`
-  (≥ 3.1.3) contra a identidade do workflow de release, e imprime o `docker run` pelo digest. Sem cosign ele diz
-  *NÃO verificada*, em alto e bom som.
+  (≥ 3.1.3) contra o `signer` do contrato — o workflow de release na tag desta versão, rodado por um `push` — e
+  imprime o `docker run` pelo digest. Sem cosign ele diz *NÃO verificada*, em alto e bom som.
+- **Escapa o que não escreveu.** Caminhos e outros textos de fora saem com os caracteres de controle escapados, para
+  nada recolorir nem reescrever o plano que a pessoa aprova; toda versão que ele escreve num comando é fixada.
 - **Mesma saída.** O `--json` imprime exatamente os formatos que a base Python imprime; a saída de texto é bilíngue
   (`English · Português`) e respeita o `NO_COLOR`.
 

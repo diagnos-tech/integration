@@ -1,6 +1,6 @@
-"""🇺🇸 Where `diagnos` runs: uv tool, externally managed, editable, release or not — and the nearest project.
+"""🇺🇸 Where `diagnos` runs: uv tool, virtual or system, editable, release or not — and the nearest project.
 
-🇧🇷 Onde o `diagnos` roda: uv tool, gerenciado externamente, editável, release ou não — e o projeto mais próximo.
+🇧🇷 Onde o `diagnos` roda: uv tool, virtual ou de sistema, editável, release ou não — e o projeto mais próximo.
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ def _env(**changes: object) -> Environment:
         "version": "1.2.3",
         "editable": False,
         "uv_tool": False,
-        "externally_managed": False,
         "virtual": True,
     }
     return Environment(**{**fields, **changes})  # type: ignore[arg-type]
@@ -31,7 +30,14 @@ def _env(**changes: object) -> Environment:
 
 @pytest.mark.parametrize(
     ("version", "release"),
-    [("1.2.3", True), ("1.2.3rc1", True), ("0.0.0+unknown", False), ("1.2.3.dev4", False), ("1.2", False)],
+    [
+        ("1.2.3", True),
+        ("1.2.3rc1", True),
+        ("0.0.0+unknown", False),
+        ("1.2.3.dev4", False),
+        ("1.2", False),
+        ("1.2.3\n", False),
+    ],
 )
 def test_only_versions_a_registry_can_hold_are_releases(version: str, release: bool) -> None:
     """🇺🇸 Local and dev segments never reach a command. 🇧🇷 Segmentos locais e de dev nunca chegam a um comando."""
@@ -49,6 +55,11 @@ def test_requirement_pins_this_version() -> None:
     assert _env().requirement("cli") == "diagnos[cli]==1.2.3"
 
 
+def test_requirement_of_a_development_build_names_no_version() -> None:
+    """🇺🇸 `0.0.0+unknown` is never written into a command. 🇧🇷 `0.0.0+unknown` nunca entra num comando."""
+    assert _env(version="0.0.0+unknown").requirement("cli") == "diagnos[cli]"
+
+
 def test_current_reads_this_process(packages: Packages, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """🇺🇸 A uv tool receipt, a venv, a PyPI install. 🇧🇷 Um recibo de uv tool, um venv, uma instalação do PyPI."""
     (tmp_path / "uv-receipt.toml").write_text("")
@@ -57,19 +68,17 @@ def test_current_reads_this_process(packages: Packages, monkeypatch: pytest.Monk
     assert packages.diagnos is not None
     packages.diagnos.direct_url = '{"url": "https://files.pythonhosted.org/x.whl", "archive_info": {}}'
     env = Environment.current()
-    assert env.uv_tool and env.virtual and not env.editable and not env.externally_managed
+    assert env.uv_tool and env.virtual and not env.editable
     assert env.python == sys.executable
 
 
-def test_a_system_python_marked_externally_managed(
-    packages: Packages, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """🇺🇸 PEP 668 outside a venv. 🇧🇷 PEP 668 fora de um venv."""
-    (tmp_path / "EXTERNALLY-MANAGED").write_text("")
+@pytest.mark.usefixtures("packages")
+def test_a_system_python_is_not_virtual(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 Outside a venv, with no receipt. 🇧🇷 Fora de um venv, sem recibo."""
     monkeypatch.setattr(sys, "prefix", "/usr")
     monkeypatch.setattr(sys, "base_prefix", "/usr")
-    monkeypatch.setattr(environment.sysconfig, "get_path", lambda _name: str(tmp_path))
-    assert Environment.current().externally_managed
+    env = Environment.current()
+    assert not env.virtual and not env.uv_tool
 
 
 @pytest.mark.parametrize(

@@ -77,10 +77,12 @@ def test_messages_name_the_tool_and_where_to_get_it(capsys: pytest.CaptureFixtur
     🇧🇷 Achado no stdout; ausente no stderr.
     """
     found(Output(), "uv", "/usr/bin/uv")
+    found(Output(), "cosign", "/opt/\x1b[32mbin/cosign")
     missing(Output(), "uv", otherwise="pip install x")
     missing(Output(), "docker")
     captured = capsys.readouterr()
     assert "uv found" in captured.out and "/usr/bin/uv" in captured.out
+    assert "\x1b" not in captured.out and "/opt/\\x1b[32mbin/cosign" in captured.out
     assert (
         INSTALL_PAGES["uv"] in captured.err
         and "pip install x" in captured.err

@@ -92,6 +92,25 @@ class Output:
         return f"\x1b[{';'.join(_CODES[name] for name in styles)}m{text}{_RESET}"
 
 
+def printable(text: str) -> str:
+    r"""🇺🇸 `text` with every character a terminal would act on written as its escape (`\x1b`, `\n`, `\u202e`).
+
+    For text this program did not write — a folder name, a `PATH` entry: an
+    escape sequence or a bidirectional override in it could otherwise recolor,
+    hide or reorder the very line a person is asked to approve.
+
+    🇧🇷 `text` com todo caractere que um terminal interpretaria escrito como escape (`\x1b`, `\n`, `\u202e`).
+
+    Para texto que este programa não escreveu — um nome de pasta, uma entrada
+    do `PATH`: uma sequência de escape ou um override bidirecional nele
+    poderia recolorir, esconder ou reordenar a própria linha que alguém deve
+    aprovar.
+    """
+    if text.isprintable():
+        return text
+    return "".join(char if char.isprintable() else char.encode("unicode_escape").decode("ascii") for char in text)
+
+
 def table(rows: Sequence[tuple[str, ...]], *, indent: int = 2) -> list[str]:
     """🇺🇸 `rows` as aligned columns (the last one left ragged), one string per row.
 

@@ -25,21 +25,22 @@ import subprocess
 from typing import Final
 
 from ..exit_codes import EXIT_FAILED, EXIT_OK, EXIT_UNAVAILABLE
-from ..output import Output
+from ..output import Output, printable
 from .environment import Environment
-from .image import IMAGE, MIN_COSIGN, cosign_version, pulled_reference, run_lines, verify_argv
+from .image import IMAGE, MIN_COSIGN, cosign_version, pulled_reference, run_lines, superuser, verify_argv
 from .run import Plan, Step, command, shown
 from .tools import INSTALL_PAGES, docker_running, find, found, missing
 
 DEPLOY_GUIDE: Final = "https://github.com/diagnos-tech/integration/tree/develop/apps/api/deploy"
-_CERTIFICATES: Final = 'uvx --from "diagnos[dev-certs]" diagnos-api dev-certs certs'
 
 
-def _pin_and_verify(docker: str, cosign: str | None, tagged: str, version: str) -> Step:
+def _pin_and_verify(docker: str, cosign: str | None, tagged: str, env: Environment) -> Step:
     """🇺🇸 The step after the pull: read the digest, verify it (with cosign), print how to run it by digest.
 
     🇧🇷 O passo depois do download: ler o digest, verificá-lo (com cosign), imprimir como rodá-lo pelo digest.
     """
+    version = env.version
+    certificates = f'uvx --from "{env.requirement("dev-certs")}" diagnos-api dev-certs certs'
 
     def action(out: Output) -> int:
         """🇺🇸 Pins, verifies, prints the run by digest. 🇧🇷 Fixa, verifica, imprime o run pelo digest."""
@@ -62,9 +63,9 @@ def _pin_and_verify(docker: str, cosign: str | None, tagged: str, version: str) 
             out.line(
                 out.style(f"Verified: signed by the v{version} release · Verificada: assinada pelo release", "green")
             )
-        out.line(f"Certificates for a local run · Certificados para rodar local: {_CERTIFICATES}")
+        out.line(f"Certificates for a local run · Certificados para rodar local: {certificates}")
         out.line("Run it, by digest · Rode, pelo digest:")
-        for line in run_lines(reference):
+        for line in run_lines(reference, root=superuser()):
             out.line(f"  {line}")
         return EXIT_OK
 
@@ -101,12 +102,14 @@ def api(out: Output) -> Plan | int:
     env = Environment.current()
     if not env.release:
         out.error(
-            f"No published image for a development version · Sem imagem publicada para versão de dev: {env.version}"
+            "No published image for a development version · Sem imagem publicada para versão de dev: "
+            + printable(env.version)
         )
         return EXIT_FAILED
     docker = find("docker")
     if docker is None:
-        missing(out, "docker", otherwise='uv tool install "diagnos[api]"  (diagnos-api, no container · sem container)')
+        without = f'uv tool install "{env.requirement("api")}"  (diagnos-api, no container · sem container)'
+        missing(out, "docker", otherwise=without)
         return EXIT_UNAVAILABLE
     if not docker_running(docker):
         out.error("Docker is installed but not running · O Docker está instalado, mas parado.")
@@ -116,6 +119,6 @@ def api(out: Output) -> Plan | int:
     tagged = f"{IMAGE}:{env.version}"
     steps = (
         command(f"Pull the API image · Baixa a imagem da API ({tagged})", (docker, "pull", tagged)),
-        _pin_and_verify(docker, _cosign(out), tagged, env.version),
+        _pin_and_verify(docker, _cosign(out), tagged, env),
     )
     return Plan("Setup · api — the REST API, as a container · a API REST, como container", steps, (DEPLOY_GUIDE,))

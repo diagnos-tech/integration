@@ -9,7 +9,7 @@ import io
 
 import pytest
 
-from diagnos._wrapper.output import Output, color_wanted, table
+from diagnos._wrapper.output import Output, color_wanted, printable, table
 
 
 class _Terminal(io.StringIO):
@@ -73,6 +73,23 @@ def test_lines_errors_and_json_go_to_their_streams() -> None:
     out.error("b")
     out.data({"ç": 1})
     assert stdout.getvalue() == 'a\n{\n  "ç": 1\n}\n' and stderr.getvalue() == "b\n"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("/home/ana/clínica", "/home/ana/clínica"),
+        ("/srv/\x1b[2Kx", "/srv/\\x1b[2Kx"),
+        ("a\nb\rc", "a\\nb\\rc"),
+        ("evil\u202etxt.exe", "evil\\u202etxt.exe"),
+    ],
+)
+def test_printable_escapes_what_a_terminal_would_act_on(text: str, expected: str) -> None:
+    """🇺🇸 Escapes, line breaks and bidi overrides come out as text.
+
+    🇧🇷 Escapes, quebras e overrides bidi saem como texto.
+    """
+    assert printable(text) == expected
 
 
 def test_table_aligns_every_column_but_the_last() -> None:

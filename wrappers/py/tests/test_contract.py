@@ -17,7 +17,7 @@ from diagnos._wrapper import exit_codes
 from diagnos._wrapper.app import COMMANDS, _parser
 from diagnos._wrapper.docs import LINKS
 from diagnos._wrapper.setup import TARGETS
-from diagnos._wrapper.setup.image import IMAGE, ISSUER, MIN_COSIGN, identity
+from diagnos._wrapper.setup.image import IMAGE, ISSUER, MIN_COSIGN, TRIGGER, identity
 from diagnos._wrapper.setup.tools import INSTALL_PAGES
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -58,6 +58,7 @@ def test_setup_targets_image_signer_and_install_pages() -> None:
     assert set(TARGETS) == set(setup) and setup["api"]["image"] == IMAGE
     assert setup["api"]["signer"]["identity"].format(version="9.9.9") == identity("9.9.9")
     assert setup["api"]["signer"]["issuer"] == ISSUER
+    assert setup["api"]["signer"]["trigger"] == TRIGGER
     assert setup["api"]["minimumCosign"] == ".".join(map(str, MIN_COSIGN))
     assert CONTRACT["installPages"] == INSTALL_PAGES
 

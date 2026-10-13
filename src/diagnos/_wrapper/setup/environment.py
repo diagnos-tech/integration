@@ -3,40 +3,35 @@
 Installing an extra means "into the environment that runs `diagnos`", so
 the new commands appear on the very `diagnos` that was typed. Three cases
 change how: a `uv tool` environment (re-installed through `uv tool`, so its
-receipt keeps the extra across upgrades), an externally managed system
-Python (PEP 668 — never written to; a `uv tool` instead), and a
-development checkout (an editable install — `uv sync` already gives it
-every extra, and a release from PyPI must not replace it).
+receipt keeps the extra across upgrades), a system interpreter outside any
+virtual environment (never written to — PEP 668, and possibly root; a
+`uv tool` instead), and a development build (an editable install or a
+version no release carries — `uv sync` already gives it every extra, and a
+release from PyPI must not replace it).
 
 🇧🇷 Onde este `diagnos` roda — os fatos que decidem como o `setup` instala uma camada.
 
 Instalar um extra significa "no ambiente que roda o `diagnos`", para os
 comandos novos aparecerem no próprio `diagnos` digitado. Três casos mudam o
 como: um ambiente `uv tool` (reinstalado pelo `uv tool`, para o recibo dele
-manter o extra entre upgrades), um Python de sistema gerenciado
-externamente (PEP 668 — nunca escrito; um `uv tool` no lugar), e um
-checkout de desenvolvimento (uma instalação editável — o `uv sync` já lhe dá
-todo extra, e um release do PyPI não pode substituí-la).
+manter o extra entre upgrades), um interpretador de sistema fora de
+qualquer ambiente virtual (nunca escrito — PEP 668, e talvez root; um
+`uv tool` no lugar), e um build de desenvolvimento (uma instalação editável
+ou uma versão que nenhum release tem — o `uv sync` já lhe dá todo extra, e
+um release do PyPI não pode substituí-lo).
 """
 
 from __future__ import annotations
 
 import json
-import re
 import sys
-import sysconfig
 import tomllib
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
-from typing import Final
 
 from ..._extras import DISTRIBUTION
-from ..._version import __version__
-
-# 🇺🇸 A version PyPI and GHCR can have: no local (`+…`) or `.dev` segment. Anything else never goes into a command.
-# 🇧🇷 Uma versão que o PyPI e o GHCR podem ter: sem segmento local (`+…`) nem `.dev`. Outra nunca entra num comando.
-RELEASE: Final = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?$")
+from ..._version import __version__, is_release
 
 
 @dataclass(frozen=True)
@@ -50,7 +45,6 @@ class Environment:
     version: str
     editable: bool
     uv_tool: bool
-    externally_managed: bool
     virtual: bool
 
     @classmethod
@@ -65,14 +59,13 @@ class Environment:
             # 🇺🇸 `uv tool install` writes this receipt at the root of every tool environment.
             # 🇧🇷 O `uv tool install` grava este recibo na raiz de todo ambiente de ferramenta.
             uv_tool=(prefix / "uv-receipt.toml").is_file(),
-            externally_managed=not virtual and Path(sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED").is_file(),
             virtual=virtual,
         )
 
     @property
     def release(self) -> bool:
         """🇺🇸 Whether PyPI and GHCR can have this version. 🇧🇷 Se o PyPI e o GHCR podem ter esta versão."""
-        return RELEASE.match(self.version) is not None
+        return is_release(self.version)
 
     @property
     def development(self) -> bool:
@@ -83,11 +76,11 @@ class Environment:
         return self.editable or not self.release
 
     def requirement(self, extra: str) -> str:
-        """🇺🇸 `diagnos[extra]==<this version>`: adds the layer and leaves the version alone.
+        """🇺🇸 `diagnos[extra]==<this version>`: adds the layer and leaves the version alone (unpinned on a dev build).
 
-        🇧🇷 `diagnos[extra]==<esta versão>`: soma a camada e deixa a versão como está.
+        🇧🇷 `diagnos[extra]==<esta versão>`: soma a camada e deixa a versão como está (sem fixar num build de dev).
         """
-        return f"{DISTRIBUTION}[{extra}]=={self.version}"
+        return f"{DISTRIBUTION}[{extra}]=={self.version}" if self.release else f"{DISTRIBUTION}[{extra}]"
 
 
 def _editable() -> bool:

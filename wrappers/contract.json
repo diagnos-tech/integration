@@ -37,7 +37,8 @@
       "image": "ghcr.io/diagnos-tech/diagnos-api",
       "signer": {
         "identity": "https://github.com/diagnos-tech/integration/.github/workflows/release.yml@refs/tags/v{version}",
-        "issuer": "https://token.actions.githubusercontent.com"
+        "issuer": "https://token.actions.githubusercontent.com",
+        "trigger": "push"
       },
       "minimumCosign": "3.1.3"
     }

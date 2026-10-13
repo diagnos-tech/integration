@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import TextIO
 
 from ..exit_codes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
-from ..output import Output
+from ..output import Output, printable
 
 
 @dataclass(frozen=True)
@@ -56,10 +56,16 @@ class Plan:
 def shown(argv: Sequence[str]) -> str:
     """🇺🇸 `argv` as a person would type it: the program by its bare name, the rest quoted for their shell.
 
+    Control characters come out escaped (`output.printable`): a folder name
+    must not be able to rewrite the command shown for approval.
+
     🇧🇷 `argv` como uma pessoa digitaria: o programa pelo nome, o resto entre aspas para o shell dela.
+
+    Caracteres de controle saem escapados (`output.printable`): um nome de
+    pasta não pode reescrever o comando mostrado para aprovação.
     """
     words = [Path(argv[0]).stem, *argv[1:]]
-    return subprocess.list2cmdline(words) if os.name == "nt" else shlex.join(words)
+    return printable(subprocess.list2cmdline(words) if os.name == "nt" else shlex.join(words))
 
 
 def command(summary: str, argv: Sequence[str]) -> Step:

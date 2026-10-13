@@ -50,7 +50,7 @@ def test_diagnos_api_without_its_extra_prints_the_fix(packages: Packages, capsys
     with pytest.raises(SystemExit) as stopped:
         _entry.api()
     assert stopped.value.code == EXIT_UNAVAILABLE
-    assert 'pip install "diagnos[api]"' in capsys.readouterr().err
+    assert 'pip install "diagnos[api]' in capsys.readouterr().err
 
 
 def test_diagnos_api_with_its_extra_serves(monkeypatch: pytest.MonkeyPatch) -> None:

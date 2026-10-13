@@ -31,7 +31,6 @@ def env(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         "version": "1.2.3",
         "editable": False,
         "uv_tool": False,
-        "externally_managed": False,
         "virtual": True,
     }
     monkeypatch.setattr(Environment, "current", classmethod(lambda _cls: Environment(**fields)))  # type: ignore[arg-type]
@@ -117,11 +116,11 @@ def test_cli_goes_into_the_environment_that_runs_diagnos(env: dict[str, object])
 
 
 @pytest.mark.usefixtures("packages")
-@pytest.mark.parametrize("change", [{"uv_tool": True}, {"externally_managed": True}])
-def test_cli_from_a_tool_or_managed_python_is_a_uv_tool(env: dict[str, object], change: dict[str, object]) -> None:
-    """🇺🇸 The receipt keeps the extra; the system Python is never written.
+@pytest.mark.parametrize("change", [{"uv_tool": True}, {"virtual": False}])
+def test_cli_from_a_tool_or_a_system_python_is_a_uv_tool(env: dict[str, object], change: dict[str, object]) -> None:
+    """🇺🇸 The receipt keeps the extra; a Python outside a venv is never written.
 
-    🇧🇷 O recibo guarda o extra; o Python do sistema não é escrito.
+    🇧🇷 O recibo guarda o extra; um Python fora de um venv nunca é escrito.
     """
     env.update(change)
     assert _argv(python.cli(Output())) == ["uv tool install 'diagnos[cli]==1.2.3'"]

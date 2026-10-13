@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 
 import pytest
 
@@ -29,7 +31,7 @@ def tools(monkeypatch: pytest.MonkeyPatch, programs: Programs) -> dict[str, str]
     🇧🇷 Docker rodando, cosign 3.1.3, versão 1.2.3; remova uma chave para tirar uma ferramenta.
     """
     found = dict(TOOLS)
-    release = Environment("/venv/bin/python", "1.2.3", False, False, False, True)
+    release = Environment("/venv/bin/python", "1.2.3", editable=False, uv_tool=False, virtual=True)
     monkeypatch.setattr(Environment, "current", classmethod(lambda _cls: release))
     monkeypatch.setattr(api, "find", found.get)
     programs.answer("docker", "info", stdout="29.0.0")
@@ -48,10 +50,11 @@ def _run(plan: Plan | int) -> int:
 
 
 def test_identity_is_the_release_workflow_at_this_tag() -> None:
-    """🇺🇸 One signer, one tag, GitHub's issuer. 🇧🇷 Um assinante, uma tag, o emissor do GitHub."""
+    """🇺🇸 One signer, one tag, pushed, GitHub's issuer. 🇧🇷 Um assinante, uma tag, por push, o emissor do GitHub."""
     argv = image.verify_argv("cosign", PINNED, "1.2.3")
     assert argv[argv.index("--certificate-identity") + 1].endswith("/.github/workflows/release.yml@refs/tags/v1.2.3")
     assert argv[argv.index("--certificate-oidc-issuer") + 1] == image.ISSUER and argv[-1] == PINNED
+    assert argv[argv.index("--certificate-github-workflow-trigger") + 1] == "push"
 
 
 def test_a_verified_image_is_run_by_its_digest(
@@ -66,6 +69,27 @@ def test_a_verified_image_is_run_by_its_digest(
     assert programs.ran("cosign", "verify") and programs.calls[-1][-1] == PINNED
     text = capsys.readouterr().out
     assert "Verified" in text and f'-v "$PWD/certs:/certs:ro" {PINNED}' in text and "--read-only" in text
+    assert 'uvx --from "diagnos[dev-certs]==1.2.3"' in text
+
+
+def test_root_hands_the_certificates_to_the_image_user_and_never_runs_as_root() -> None:
+    """🇺🇸 No `--user 0:0`: the image's own user, owning the certificates.
+
+    🇧🇷 Nada de `--user 0:0`: o usuário da própria imagem, dono dos certificados.
+    """
+    as_root = "\n".join(image.run_lines(PINNED, root=True))
+    assert as_root.startswith(f"chown -R {image.IMAGE_USER} certs && docker run") and "--user" not in as_root
+    assert '--user "$(id -u):$(id -g)"' in "\n".join(image.run_lines(PINNED))
+
+
+@pytest.mark.parametrize(("platform", "uid", "root"), [("linux", 0, True), ("linux", 1000, False), ("win32", 0, False)])
+def test_superuser_is_uid_zero_off_windows(
+    monkeypatch: pytest.MonkeyPatch, platform: str, uid: int, root: bool
+) -> None:
+    """🇺🇸 Windows has no uid to ask. 🇧🇷 O Windows não tem uid a perguntar."""
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(os, "geteuid", lambda: uid, raising=False)
+    assert image.superuser() is root
 
 
 def test_a_bad_signature_removes_the_image(
@@ -102,6 +126,7 @@ def test_without_a_trustworthy_cosign_the_image_is_not_verified(
         json.dumps([]),
         json.dumps([PINNED, f"{image.IMAGE}@sha256:{'b' * 64}"]),
         json.dumps([f"{image.IMAGE}@sha256:short"]),
+        json.dumps([f"{PINNED}\n"]),
         "not json",
     ],
 )
@@ -121,7 +146,7 @@ def test_docker_missing_offers_the_pip_way(tools: dict[str, str], capsys: pytest
     """
     del tools["docker"]
     assert api.api(Output()) == EXIT_UNAVAILABLE
-    assert 'uv tool install "diagnos[api]"' in capsys.readouterr().err
+    assert 'uv tool install "diagnos[api]==1.2.3"' in capsys.readouterr().err
 
 
 def test_docker_stopped_is_unavailable(
@@ -135,7 +160,7 @@ def test_docker_stopped_is_unavailable(
 
 def test_a_development_version_has_no_image(tools: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     """🇺🇸 `0.0.0+unknown` was never published. 🇧🇷 `0.0.0+unknown` nunca foi publicada."""
-    dev = Environment("/venv/bin/python", "0.0.0+unknown", True, False, False, True)
+    dev = Environment("/venv/bin/python", "0.0.0+unknown", editable=True, uv_tool=False, virtual=True)
     monkeypatch.setattr(Environment, "current", classmethod(lambda _cls: dev))
     assert api.api(Output()) == EXIT_FAILED
 
