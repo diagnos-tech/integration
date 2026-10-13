@@ -1,21 +1,23 @@
 # 🇺🇸 One entry point for everything a contributor or CI runs. `make` alone
 #    lists the targets. `make check` is exactly what CI runs — green here means
 #    green there. The Rust enclave (`apps/sdk/native`) is built by `make sync` and
-#    linted/tested alongside the Python packages; `PYO3_PYTHON` points cargo at
-#    the workspace interpreter so `cargo test` links the same CPython the wheel
-#    is built for.
+#    linted/tested alongside the Python package; `PYO3_PYTHON` points cargo at
+#    the project's interpreter so `cargo test` links the same CPython the wheel
+#    is built for. Each test suite runs in its own pytest process: they import
+#    their helpers by bare name, and two `conftest.py` in one run would collide.
 # 🇧🇷 Um ponto de entrada para tudo que quem contribui ou a CI roda. `make`
 #    sozinho lista os alvos. `make check` é exatamente o que a CI roda — verde
 #    aqui é verde lá. O enclave Rust (`apps/sdk/native`) é construído pelo `make
-#    sync` e lintado/testado junto com os pacotes Python; `PYO3_PYTHON` aponta
-#    o cargo para o interpretador do workspace, para o `cargo test` linkar o
-#    mesmo CPython para o qual o wheel é construído.
+#    sync` e lintado/testado junto com o pacote Python; `PYO3_PYTHON` aponta
+#    o cargo para o interpretador do projeto, para o `cargo test` linkar o
+#    mesmo CPython para o qual o wheel é construído. Cada suíte de teste roda no
+#    próprio processo do pytest: elas importam os helpers pelo nome, e dois
+#    `conftest.py` numa execução só colidiriam.
 
 .DEFAULT_GOAL := help
 .PHONY: help sync fmt lint lint-py lint-rust lint-docs types test test-py test-rust cov contract contract-check docs docs-check check hooks clean
 
 NATIVE := apps/sdk/native/Cargo.toml
-PYTHON_PACKAGES := apps/sdk/src apps/cli/src apps/api/src
 CARGO_ENV = PYO3_PYTHON="$$(uv run python -c 'import sys; print(sys.executable)')"
 
 help: ## 🇺🇸 List the targets · 🇧🇷 Lista os alvos
@@ -23,8 +25,8 @@ help: ## 🇺🇸 List the targets · 🇧🇷 Lista os alvos
 		/^[a-z][a-z-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf "\n"
 
-sync: ## 🇺🇸 Install everything and build the Rust enclave · 🇧🇷 Instala tudo e constrói o enclave Rust
-	uv sync --all-packages
+sync: ## 🇺🇸 Install every extra, editable, and build the Rust enclave · 🇧🇷 Instala todo extra e constrói o enclave
+	uv sync --locked
 
 fmt: ## 🇺🇸 Auto-format and auto-fix Python and Rust · 🇧🇷 Formata e corrige Python e Rust
 	uv run ruff check --fix .
@@ -36,7 +38,7 @@ lint: lint-py lint-rust lint-docs ## 🇺🇸 Every static check (no tests) · �
 lint-py:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts
+	uv run python scripts/check_bilingual.py src apps wrappers contracts scripts
 	uv run python scripts/check_file_size.py
 
 lint-rust:
@@ -46,15 +48,16 @@ lint-rust:
 lint-docs:
 	uv run python scripts/check_docs.py
 
-types: ## 🇺🇸 mypy --strict: packages, contract tests, scripts · 🇧🇷 mypy --strict: pacotes, contrato, scripts
-	uv run mypy $(PYTHON_PACKAGES) contracts/tests scripts
+types: ## 🇺🇸 mypy --strict: the package, contract tests, scripts · 🇧🇷 mypy --strict: o pacote, contrato, scripts
+	uv run mypy src contracts/tests scripts
 
-test: test-py test-rust ## 🇺🇸 Unit tests: Python (3 packages) and Rust · 🇧🇷 Testes unitários: Python (3 pacotes) e Rust
+test: test-py test-rust ## 🇺🇸 Unit tests: every Python layer and Rust · 🇧🇷 Testes unitários: toda camada Python e Rust
 
 test-py:
-	uv run --package diagnos pytest apps/sdk/tests
-	uv run --package diagnos-cli pytest apps/cli/tests
-	uv run --package diagnos-api pytest apps/api/tests
+	uv run pytest wrappers/py/tests
+	uv run pytest apps/sdk/tests
+	uv run pytest apps/cli/tests
+	uv run pytest apps/api/tests
 	uv run pytest scripts/docs/tests
 
 test-rust:
@@ -62,9 +65,10 @@ test-rust:
 
 cov: ## 🇺🇸 Unit tests with one combined coverage report (htmlcov/) · 🇧🇷 Testes com um relatório de cobertura combinado
 	rm -f .coverage coverage.xml coverage.json
-	uv run --package diagnos pytest apps/sdk/tests --cov --cov-report= --cov-fail-under=0
-	uv run --package diagnos-cli pytest apps/cli/tests --cov --cov-append --cov-report= --cov-fail-under=0
-	uv run --package diagnos-api pytest apps/api/tests --cov --cov-append --cov-report= --cov-fail-under=0
+	uv run pytest wrappers/py/tests --cov --cov-report= --cov-fail-under=0
+	uv run pytest apps/sdk/tests --cov --cov-append --cov-report= --cov-fail-under=0
+	uv run pytest apps/cli/tests --cov --cov-append --cov-report= --cov-fail-under=0
+	uv run pytest apps/api/tests --cov --cov-append --cov-report= --cov-fail-under=0
 	uv run pytest scripts/docs/tests
 	uv run coverage html --quiet --fail-under=0
 	uv run coverage xml --quiet --fail-under=0
@@ -72,10 +76,10 @@ cov: ## 🇺🇸 Unit tests with one combined coverage report (htmlcov/) · 🇧
 	uv run coverage report
 
 contract: ## 🇺🇸 Pact consumer tests; regenerates contracts/*.json · 🇧🇷 Testes Pact do consumidor; regera contracts/*.json
-	uv run --package diagnos pytest contracts/tests
+	uv run pytest contracts/tests
 
 contract-check: ## 🇺🇸 Fail if the committed contract is stale (CI) · 🇧🇷 Falha se o contrato commitado estiver velho (CI)
-	uv run --package diagnos pytest contracts/tests --contract-check
+	uv run pytest contracts/tests --contract-check
 
 docs: ## 🇺🇸 Regenerate docs/reference/*.json from the code · 🇧🇷 Regera docs/reference/*.json a partir do código
 	uv run python -m scripts.docs.generate

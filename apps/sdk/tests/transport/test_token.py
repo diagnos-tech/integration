@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 
 import pytest
+
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.errors import ConfigError
 from diagnos.transport.config import Settings

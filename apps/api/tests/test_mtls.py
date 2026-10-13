@@ -17,8 +17,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from diagnos_api.mtls import ClientCertH11Protocol, _identity_from_request, ssl_config_for_uvicorn
-from diagnos_api.settings import ApiConfigError, ApiSettings
+from diagnos.api.mtls import ClientCertH11Protocol, _identity_from_request, ssl_config_for_uvicorn
+from diagnos.api.settings import ApiConfigError, ApiSettings
 
 from conftest import TRUSTED_IDENTITY, FakeDiagnos, build_app
 

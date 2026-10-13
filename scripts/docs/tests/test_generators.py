@@ -55,7 +55,7 @@ def sdk_document() -> dict[str, Any]:
 def test_cli_json_has_the_contract_shape(cli_document: dict[str, Any]) -> None:
     """🇺🇸 `CliReference`, `CliCommand`, `CliParam`, `CliExample`. 🇧🇷 As formas da CLI no contrato."""
     assert cli_document["schemaVersion"] == 1
-    assert_generated_from(cli_document["generatedFrom"], "diagnos-cli")
+    assert_generated_from(cli_document["generatedFrom"], "diagnos")
     assert cli_document["program"]["name"] == "diagnos"
     assert_l10n(cli_document["program"]["help"])
     paths = [tuple(command["path"]) for command in cli_document["commands"]]

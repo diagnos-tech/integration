@@ -29,6 +29,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.secure import SecretBox
 from diagnos.errors import SessionExpiredError, VaultError

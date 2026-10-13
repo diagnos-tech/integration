@@ -19,6 +19,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+
 from diagnos.crypto import (
     NODE_DEK_INFO,
     NODE_NAME_INFO,

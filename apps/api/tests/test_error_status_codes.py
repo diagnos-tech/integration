@@ -33,8 +33,9 @@ que compartilha um helper.
 
 from __future__ import annotations
 
-from diagnos import AuthenticationError, DiagnosPermissionError, RateLimitError, ValidationError, VaultError
 from fastapi.testclient import TestClient
+
+from diagnos import AuthenticationError, DiagnosPermissionError, RateLimitError, ValidationError, VaultError
 
 from conftest import FakeDiagnos
 

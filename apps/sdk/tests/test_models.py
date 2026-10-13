@@ -8,6 +8,8 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
+
 from diagnos import (
     DocumentIndex,
     DocumentStream,
@@ -19,7 +21,6 @@ from diagnos import (
     PersonalIdentifier,
 )
 from diagnos.models import vault_context
-from pydantic import ValidationError
 
 _SEALED = "secret:v1:c2FsdA:aXY:cGF5bG9hZA"
 

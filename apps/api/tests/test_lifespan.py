@@ -23,7 +23,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from diagnos_api.settings import ApiSettings
+from diagnos.api.settings import ApiSettings
 
 from conftest import FakeDiagnos, build_app
 

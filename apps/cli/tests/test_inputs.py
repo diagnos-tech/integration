@@ -22,7 +22,8 @@ from pathlib import Path
 
 import pytest
 import typer
-from diagnos_cli.inputs import load_record
+
+from diagnos.cli.inputs import load_record
 
 
 def test_file_and_inline_fields_together_are_refused(tmp_path: Path) -> None:

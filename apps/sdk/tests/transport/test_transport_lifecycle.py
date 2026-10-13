@@ -24,6 +24,7 @@ from collections.abc import Callable
 
 import httpx
 import pytest
+
 from diagnos.crypto.secure import SecretBox
 from diagnos.errors import AuthenticationError
 from diagnos.session.keyring import SessionKeys

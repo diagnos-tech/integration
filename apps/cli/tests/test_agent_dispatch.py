@@ -15,10 +15,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from diagnos_cli.agent import client
-from diagnos_cli.agent import dispatch as dispatch_module
-from diagnos_cli.agent.dispatch import agent_status, dispatch
-from diagnos_cli.agent.paths import AgentUnavailable, identity, socket_path
+
+from diagnos.cli.agent import client
+from diagnos.cli.agent import dispatch as dispatch_module
+from diagnos.cli.agent.dispatch import agent_status, dispatch
+from diagnos.cli.agent.paths import AgentUnavailable, identity, socket_path
 
 from .agent_harness import RunningAgent, running_agent, socket_directory
 from .conftest import FakeDiagnos
@@ -187,12 +188,12 @@ def test_agent_status(env: dict[str, str]) -> None:
 
 
 def test_a_real_detached_agent_starts_answers_and_stops_on_sigterm(env: dict[str, str]) -> None:
-    """🇺🇸 `client.start` spawns `python -m diagnos_cli.agent`; `SIGTERM` removes its socket on the way out.
+    """🇺🇸 `client.start` spawns `python -m diagnos.cli.agent`; `SIGTERM` removes its socket on the way out.
 
     Nothing here reaches a vault: the SDK client is only built by the first
     command, and this test only pings.
 
-    🇧🇷 `client.start` sobe `python -m diagnos_cli.agent`; o `SIGTERM` remove o socket na saída.
+    🇧🇷 `client.start` sobe `python -m diagnos.cli.agent`; o `SIGTERM` remove o socket na saída.
 
     Nada aqui chega a um cofre: o client do SDK só é construído pelo primeiro
     comando, e este teste só pinga.

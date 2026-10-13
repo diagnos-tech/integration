@@ -1,17 +1,136 @@
-# 🇺🇸 uv workspace for the three public Python packages. `sdk` is the base;
-#    `cli` and `api` are thin shells over it and never talk HTTP themselves.
-# 🇧🇷 Workspace uv dos três pacotes Python públicos. `sdk` é a base; `cli` e
-#    `api` são cascas finas sobre ele e nunca falam HTTP por conta própria.
+# 🇺🇸 `diagnos` — the one Python distribution this repository publishes. `pip install diagnos` is the base: a
+#    standard-library-only command (`diagnos docs | version | setup | help`) with no dependency at all. Each extra
+#    adds the dependencies of one layer whose code already ships in the wheel: `sdk` (the zero-knowledge client,
+#    `from diagnos import Diagnos`), `cli` (the full `diagnos` command line) and `api` (the REST facade,
+#    `diagnos-api`). Built by maturin: the Python package in `src/diagnos` plus the Rust memory enclave in
+#    `apps/sdk/native` (`diagnos._secure`), one abi3 wheel per platform for every CPython ≥ 3.11 — the layout
+#    polars uses.
+# 🇧🇷 `diagnos` — a única distribuição Python que este repositório publica. `pip install diagnos` é a base: um
+#    comando só com a biblioteca padrão (`diagnos docs | version | setup | help`) sem dependência nenhuma. Cada
+#    extra soma as dependências de uma camada cujo código já vem no wheel: `sdk` (o client zero-knowledge,
+#    `from diagnos import Diagnos`), `cli` (a linha de comando `diagnos` completa) e `api` (a fachada REST,
+#    `diagnos-api`). Construído pelo maturin: o pacote Python em `src/diagnos` mais o enclave de memória em Rust
+#    em `apps/sdk/native` (`diagnos._secure`), um wheel abi3 por plataforma para todo CPython ≥ 3.11 — o layout
+#    que o polars usa.
+[build-system]
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "diagnos"
+version = "0.1.0"
+description = "🇺🇸 The diagnos vault from Python: zero-knowledge SDK, CLI and REST API · 🇧🇷 O cofre diagnos no Python: SDK zero-knowledge, CLI e API REST"
+readme = "wrappers/py/README.md"
+license = { text = "Apache-2.0" }
+# 🇺🇸 The license text travels inside every sdist and wheel, as Apache-2.0 §4(a) asks; maturin has to be told.
+# 🇧🇷 O texto da licença viaja dentro de todo sdist e wheel, como pede a Apache-2.0 §4(a); ao maturin é preciso dizer.
+license-files = ["LICENSE"]
+requires-python = ">=3.11,<3.14"
+authors = [{ name = "diagnos" }]
+keywords = ["diagnos", "medical", "zero-knowledge", "e2ee", "dicom", "cli", "fastapi", "mtls"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Healthcare Industry",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Rust",
+  "Topic :: Security :: Cryptography",
+  "Typing :: Typed",
+]
+# 🇺🇸 None, on purpose: the base runs on the standard library alone, so `pip install diagnos` always works and
+#    always installs in seconds. Everything heavier is behind an extra.
+# 🇧🇷 Nenhuma, de propósito: a base roda só com a biblioteca padrão, então `pip install diagnos` sempre funciona e
+#    sempre instala em segundos. Tudo que pesa mais fica atrás de um extra.
+dependencies = []
+
+# 🇺🇸 One extra per layer, each naming the layers it stands on (`diagnos[sdk]`), so a requirement never lists a
+#    dependency twice. `diagnos._extras` reads these lines back from the installed metadata to tell which layers
+#    are present — keep every marker a plain `extra == "…"` (`wrappers/py/tests` checks it).
+# 🇧🇷 Um extra por camada, cada um nomeando as camadas sobre as quais se apoia (`diagnos[sdk]`), para um requisito
+#    nunca listar uma dependência duas vezes. O `diagnos._extras` lê estas linhas de volta dos metadados instalados
+#    para saber quais camadas estão presentes — mantenha todo marcador um `extra == "…"` simples (o
+#    `wrappers/py/tests` confere).
+[project.optional-dependencies]
+# 🇺🇸 Every cryptographic primitive lives in the Rust enclave; the SDK's Python side needs only an HTTP client and
+#    a validator.
+# 🇧🇷 Toda primitiva criptográfica vive no enclave em Rust; o lado Python do SDK só precisa de um client HTTP e de
+#    um validador.
+sdk = ["httpx>=0.28", "pydantic>=2.9"]
+openbao = ["diagnos[sdk]", "hvac>=2.3"]
+cli = ["diagnos[sdk]", "typer>=0.15", "rich>=13.9"]
+api = ["diagnos[sdk,openbao]", "fastapi>=0.115", "uvicorn[standard]>=0.32", "python-multipart>=0.0.12"]
+# 🇺🇸 Only `diagnos-api dev-certs` needs it; a production image never generates certificates.
+# 🇧🇷 Só o `diagnos-api dev-certs` precisa; uma imagem de produção nunca gera certificados.
+dev-certs = ["diagnos[api]", "cryptography>=43"]
+
+[project.scripts]
+# 🇺🇸 Both point at `diagnos._entry`, which needs nothing beyond the standard library: a missing extra becomes a
+#    one-line hint on how to add it, never a traceback.
+# 🇧🇷 Os dois apontam para o `diagnos._entry`, que não precisa de nada além da biblioteca padrão: um extra ausente
+#    vira uma dica de uma linha de como somá-lo, nunca um traceback.
+diagnos = "diagnos._entry:main"
+diagnos-api = "diagnos._entry:api"
+
+[project.urls]
+Homepage = "https://dev.diagnos.health"
+Documentation = "https://dev.diagnos.health"
+"Help Center" = "https://docs.diagnos.health"
+"Trust Center" = "https://trust.diagnos.health"
+Source = "https://github.com/diagnos-tech/integration"
+Issues = "https://github.com/diagnos-tech/integration/issues"
+Changelog = "https://github.com/diagnos-tech/integration/blob/develop/CHANGELOG.md"
+
+[dependency-groups]
+# 🇺🇸 A contributor works on every layer at once, so the dev group pulls in every extra: a plain `uv sync` (or any
+#    `uv run`) installs all of them, editable. `pynacl`, `cryptography` and `kyber-py` are independent
+#    implementations the SDK's tests use as oracles against the Rust enclave — never runtime dependencies.
+# 🇧🇷 Quem contribui mexe em todas as camadas ao mesmo tempo, então o grupo dev puxa todo extra: um `uv sync`
+#    simples (ou qualquer `uv run`) instala todos, editáveis. `pynacl`, `cryptography` e `kyber-py` são
+#    implementações independentes que os testes do SDK usam como oráculos contra o enclave em Rust — nunca
+#    dependências de runtime.
+dev = [
+  "diagnos[cli,api,dev-certs]",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=6.0",
+  "ruff>=0.7",
+  "mypy>=1.13",
+  "pynacl>=1.5",
+  "cryptography>=43",
+  "kyber-py>=1.0",
+  "pact-python>=3.4,<4",
+]
+
+[tool.maturin]
+python-source = "src"
+module-name = "diagnos._secure"
+manifest-path = "apps/sdk/native/Cargo.toml"
+features = ["pyo3/extension-module"]
+strip = true
+
 [tool.uv]
 # 🇺🇸 `uv.lock` uses lock revision 3; an older uv fails with an obscure error instead of this clear one.
 # 🇧🇷 O `uv.lock` usa a revisão 3 do lock; um uv mais antigo falha com um erro obscuro em vez deste, claro.
 required-version = ">=0.8"
+# 🇺🇸 uv rebuilds the editable install when one of these changes — the Rust sources included, so `make sync` after
+#    an edit in `apps/sdk/native` never leaves a stale enclave behind.
+# 🇧🇷 O uv reconstrói a instalação editável quando um destes muda — as fontes Rust inclusive, para o `make sync`
+#    depois de uma edição em `apps/sdk/native` nunca deixar um enclave velho para trás.
+cache-keys = [
+  { file = "pyproject.toml" },
+  { file = "apps/sdk/native/Cargo.toml" },
+  { file = "apps/sdk/native/Cargo.lock" },
+  { file = "apps/sdk/native/src/**/*.rs" },
+]
 
-[tool.uv.workspace]
-members = ["apps/sdk", "apps/cli", "apps/api"]
-
-[tool.uv.sources]
-diagnos = { workspace = true }
+[tool.pytest.ini_options]
+addopts = "-ra -q"
 
 [tool.ruff]
 line-length = 120
@@ -23,17 +142,28 @@ ignore = ["D203", "D213", "ANN401", "S101"]
 
 [tool.ruff.lint.per-file-ignores]
 # 🇺🇸 B008 (function call in a default) is the documented `typer` pattern for
-# every option/argument in `apps/cli/src/diagnos_cli/commands/`; there is no
+# every option/argument in `src/diagnos/cli/commands/`; there is no
 # alternative spelling. Tests get a docstring pass on trivial one-line fake
 # methods (`apps/cli/tests/conftest.py`'s stand-ins) — the "why" they exist is on
 # the class, not worth repeating per accessor.
 # 🇧🇷 B008 (chamada de função num default) é o padrão documentado do `typer`
-# para toda option/argument em `apps/cli/src/diagnos_cli/commands/`; não há outra
+# para toda option/argument em `src/diagnos/cli/commands/`; não há outra
 # forma de escrever isso. Testes ganham dispensa de docstring em métodos
 # falsos triviais de uma linha (os substitutos de `apps/cli/tests/conftest.py`) —
 # o "porquê" deles está na classe, não vale repetir por acessor.
-"apps/cli/src/diagnos_cli/commands/*.py" = ["B008"]
+"src/diagnos/cli/commands/*.py" = ["B008"]
 "apps/cli/tests/*.py" = ["D102", "D103", "D107"]
+
+[tool.ruff.lint.flake8-bugbear]
+# 🇺🇸 FastAPI's `Depends(...)`/`File(...)`/`Form(...)` as a parameter default
+# is the framework's own documented pattern, not the mutable-default footgun
+# B008 exists to catch — FastAPI calls each one once per request, from the
+# signature, by design.
+# 🇧🇷 `Depends(...)`/`File(...)`/`Form(...)` como valor padrão de parâmetro é
+# o próprio padrão documentado do FastAPI, não a armadilha de valor padrão
+# mutável que o B008 existe para pegar — o FastAPI chama cada um uma vez por
+# requisição, a partir da assinatura, de propósito.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -43,6 +173,7 @@ convention = "google"
 #    `sys.path`) sort as local code, after `diagnos` and third-party imports.
 # 🇧🇷 Helpers de teste importados pelo nome (o pytest põe cada pasta de teste
 #    no `sys.path`) ordenam como código local, depois de `diagnos` e terceiros.
+known-first-party = ["diagnos"]
 known-local-folder = ["_crypto", "_documents", "_documents_common", "_wire", "conftest", "fakes", "fakes_drives", "vault_double"]
 
 [tool.mypy]
@@ -69,15 +200,15 @@ follow_imports = "silent"
 module = ["kyber_py.*"]
 ignore_missing_imports = true
 
-# 🇺🇸 One combined coverage number for the three packages (`make cov`), with
+# 🇺🇸 One combined coverage number for the whole package (`make cov`), with
 #    branch coverage. `fail_under` is a ratchet: raise it when coverage goes
 #    up, never lower it to make a pull request pass.
-# 🇧🇷 Um número de cobertura combinado dos três pacotes (`make cov`), com
+# 🇧🇷 Um número de cobertura combinado do pacote inteiro (`make cov`), com
 #    cobertura de ramos. `fail_under` é uma catraca: suba quando a cobertura
 #    subir, nunca baixe para um pull request passar.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["diagnos", "diagnos_cli", "diagnos_api"]
+source_pkgs = ["diagnos"]
 relative_files = true
 
 [tool.coverage.report]

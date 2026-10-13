@@ -23,6 +23,9 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+from pact import Pact, match
+from pydantic import BaseModel
+
 from diagnos import ExamRecord, ExamSummary, PatientRecord, PatientSummary
 from diagnos.crypto import EntropyMixer
 from diagnos.crypto.secure import SecretBox
@@ -31,8 +34,6 @@ from diagnos.resources._documents import VersionedDocuments
 from diagnos.resources.exams import Exams
 from diagnos.resources.patients import Patients
 from diagnos.session.keyring import Keyring
-from pact import Pact, match
-from pydantic import BaseModel
 
 from _crypto import (
     DOCUMENT_DEK_INFO,

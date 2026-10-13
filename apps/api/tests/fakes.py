@@ -1,7 +1,7 @@
 """🇺🇸 A fake `Diagnos` (`diagnos` is never touched over the network here) and the `TestClient` it wires to.
 
 Every fake resource below only has to satisfy the same duck-typed shape
-`vault.py`'s dependency (`diagnos_api.deps.get_vault`) hands routers — the
+`vault.py`'s dependency (`diagnos.api.deps.get_vault`) hands routers — the
 real `Diagnos`, `Patients`, `Exams`, `Drives` classes are never
 subclassed or imported for their behavior, only their public method
 signatures are mirrored (`apps/sdk/src/diagnos/resources/*.py`). That keeps
@@ -18,7 +18,7 @@ imported here only for `FakeDiagnos.drives`'s default.
 🇧🇷 Um `Diagnos` falso (`diagnos` nunca é tocado pela rede aqui) e o `TestClient` que ele conecta.
 
 Todo recurso falso abaixo só precisa satisfazer a mesma forma duck-typed que
-a dependência de `vault.py` (`diagnos_api.deps.get_vault`) entrega às rotas
+a dependência de `vault.py` (`diagnos.api.deps.get_vault`) entrega às rotas
 — as classes de verdade `Diagnos`, `Patients`, `Exams`, `Drives` nunca são
 subclassificadas nem importadas pelo comportamento, só as assinaturas de
 método público são espelhadas (`apps/sdk/src/diagnos/resources/*.py`). Isso
@@ -40,6 +40,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
 from diagnos import (
     DocumentIndex,
     DocumentListItem,
@@ -52,12 +55,9 @@ from diagnos import (
     PatientRecord,
     PatientSummary,
 )
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from diagnos_api.app import create_app
-from diagnos_api.mtls import ClientIdentity
-from diagnos_api.settings import ApiSettings
+from diagnos.api.app import create_app
+from diagnos.api.mtls import ClientIdentity
+from diagnos.api.settings import ApiSettings
 
 from fakes_drives import FakeDrive, FakeDrives  # noqa: F401 — re-exported for `conftest.py`
 

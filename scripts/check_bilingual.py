@@ -5,7 +5,7 @@ Every module, class and public function must carry a docstring with both the
 enforces that they speak both languages. The same rule applies to `native/`'s
 Rust doc comments (`//!` module docs, `///` item docs) — `rustdoc`/clippy have
 no equivalent of this check, so it lives here too.
-Run: `uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts`.
+Run: `uv run python scripts/check_bilingual.py src apps wrappers contracts scripts`.
 
 🇧🇷 Guarda da regra de docstring bilíngue de `CONVENTIONS.md`.
 
@@ -109,22 +109,18 @@ def check(path: Path, *, top_level_only: bool = False) -> list[str]:
 
 def main(argv: list[str]) -> int:
     """🇺🇸 Exit 1 when any source file breaks the rule. 🇧🇷 Sai com 1 quando algum arquivo quebra a regra."""
-    roots = [Path(arg) for arg in argv] or [Path("apps/sdk"), Path("apps/cli"), Path("apps/api")]
+    roots = [Path(arg) for arg in argv] or [Path("src"), Path("apps"), Path("wrappers")]
     problems: list[str] = []
     for root in roots:
-        # 🇺🇸 A package root is checked through `src/` (fully) and `tests/` (top level); any other folder as a whole.
-        # 🇧🇷 A raiz de um pacote é checada pelo `src/` (inteiro) e `tests/` (nível de cima); outra pasta, inteira.
-        python_root = root / "src" if (root / "src").is_dir() else root
-        for path in sorted(python_root.rglob("*.py")):
-            problems.extend(check(path))
-        if python_root != root and (root / "tests").is_dir():
-            for path in sorted((root / "tests").rglob("*.py")):
-                problems.extend(check(path, top_level_only=True))
-        native = root / "native"
-        if native.is_dir():
-            for sub in ("src", "tests"):
-                for path in sorted((native / sub).rglob("*.rs")):
-                    problems.extend(check_rust(path))
+        # 🇺🇸 Python under a `tests/` folder is checked at the top level; everything else in full. Rust is checked
+        #    wherever a crate keeps it, never inside its `target/` build output.
+        # 🇧🇷 Python dentro de uma pasta `tests/` é checado no nível de cima; o resto, inteiro. Rust é checado onde
+        #    um crate o guarda, nunca dentro da saída de build `target/`.
+        for path in sorted(root.rglob("*.py")):
+            problems.extend(check(path, top_level_only="tests" in path.parts))
+        for path in sorted(root.rglob("*.rs")):
+            if "target" not in path.parts:
+                problems.extend(check_rust(path))
     for line in problems:
         print(line)
     print(f"{len(problems)} problem(s)")

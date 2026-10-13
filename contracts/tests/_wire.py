@@ -40,11 +40,12 @@ from __future__ import annotations
 import json
 from typing import Any, cast
 
+from pact import Pact, generate, match
+from pact.match.matcher import GenericMatcher
+
 from diagnos.crypto.secure import SecretBox
 from diagnos.session.keyring import SessionKeys
 from diagnos.transport.token import ServiceAccountToken
-from pact import Pact, generate, match
-from pact.match.matcher import GenericMatcher
 
 from _crypto import b64url, fixed_bytes, random_seed
 

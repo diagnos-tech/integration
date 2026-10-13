@@ -1,0 +1,51 @@
+{
+  "$comment": "The contract every diagnos wrapper implements, in any language: the same four commands, links, setup targets and exit codes. The Python base (src/diagnos/_wrapper) is checked against this file by wrappers/py/tests/test_contract.py; a wrapper in another language ships its own conformance test against it. See wrappers/README.md.",
+  "schemaVersion": 1,
+  "program": "diagnos",
+  "package": {
+    "pypi": "diagnos",
+    "extras": ["sdk", "cli", "api", "dev-certs", "openbao"]
+  },
+  "commands": {
+    "docs": {
+      "arguments": { "topic": ["help", "dev", "trust"] },
+      "options": ["--open", "--json", "--no-color"]
+    },
+    "version": {
+      "arguments": {},
+      "options": ["--json", "--no-color"]
+    },
+    "setup": {
+      "arguments": { "target": ["sdk", "cli", "api"] },
+      "options": ["--yes", "-y", "--dry-run", "--no-color"]
+    },
+    "help": {
+      "arguments": { "command": ["docs", "version", "setup", "help"] },
+      "options": ["--no-color"]
+    }
+  },
+  "links": {
+    "help": { "name": "Help Center", "url": "https://docs.diagnos.health" },
+    "dev": { "name": "Developer Central", "url": "https://dev.diagnos.health" },
+    "trust": { "name": "Trust Center", "url": "https://trust.diagnos.health" }
+  },
+  "setup": {
+    "sdk": { "requires": "uv" },
+    "cli": { "requires": "uv" },
+    "api": {
+      "requires": "docker",
+      "image": "ghcr.io/diagnos-tech/diagnos-api",
+      "signer": {
+        "identity": "https://github.com/diagnos-tech/integration/.github/workflows/release.yml@refs/tags/v{version}",
+        "issuer": "https://token.actions.githubusercontent.com"
+      },
+      "minimumCosign": "3.1.3"
+    }
+  },
+  "installPages": {
+    "uv": "https://docs.astral.sh/uv/getting-started/installation/",
+    "docker": "https://docs.docker.com/get-started/get-docker/",
+    "cosign": "https://docs.sigstore.dev/cosign/system_config/installation/"
+  },
+  "exitCodes": { "ok": 0, "failed": 1, "usage": 2, "unavailable": 69 }
+}

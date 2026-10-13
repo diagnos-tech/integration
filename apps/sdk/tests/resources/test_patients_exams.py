@@ -9,10 +9,11 @@ import json
 from datetime import date
 
 import pytest
+from pydantic import ValidationError
+
 from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary
 from diagnos.resources.exams import Exams
 from diagnos.resources.patients import Patients
-from pydantic import ValidationError
 
 from vault_double import (  # noqa: F401 — `harness` is a fixture, used by name as a parameter
     Harness,

@@ -26,6 +26,7 @@ import json
 
 import httpx
 import pytest
+
 from diagnos.client import Diagnos
 from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.secure import SecretBox

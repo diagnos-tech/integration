@@ -23,6 +23,7 @@ apontava sumiu quando o segundo `GET` dele chega).
 from __future__ import annotations
 
 import pytest
+
 from diagnos.crypto import DOCUMENT_DEK_INFO, derive_content_key, unwrap_key
 from diagnos.crypto.content import DRAFT_CONTENT_INFO, seal_bytes
 from diagnos.crypto.secure import SecretBox

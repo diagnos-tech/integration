@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 
 import pytest
+
 from diagnos.crypto import INDEX_INFO, SEALED_OVERHEAD_BYTES, decrypt_content, open_version_content
 from diagnos.errors import ProtocolError
 from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary

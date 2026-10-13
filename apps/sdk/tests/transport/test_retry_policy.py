@@ -27,6 +27,7 @@ from collections.abc import Callable
 
 import httpx
 import pytest
+
 from diagnos.errors import RateLimitError
 from diagnos.transport._retry import (
     MAX_RATE_LIMIT_RETRIES,

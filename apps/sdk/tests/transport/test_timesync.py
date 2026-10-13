@@ -16,6 +16,7 @@ offset estar perto do relógio de verdade do cofre.
 from __future__ import annotations
 
 import httpx
+
 from diagnos.transport.timesync import ClockSync
 
 # 🇺🇸 A fixed local clock (t0 == t1 on every round trip) turns "offset =

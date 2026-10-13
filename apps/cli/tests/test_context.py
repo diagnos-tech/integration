@@ -25,10 +25,11 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-from diagnos import EnrollmentPrompt
-from diagnos_cli import context
-from diagnos_cli.context import CliOptions
 from rich.console import Console
+
+from diagnos import EnrollmentPrompt
+from diagnos.cli import context
+from diagnos.cli.context import CliOptions
 
 
 def _fake_token(*, workspace_id: str = "ws_ctx", account_id: str = "acct_ctx") -> str:

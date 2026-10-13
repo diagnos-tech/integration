@@ -2,13 +2,6 @@ version = 1
 revision = 3
 requires-python = ">=3.11, <3.14"
 
-[manifest]
-members = [
-    "diagnos",
-    "diagnos-api",
-    "diagnos-cli",
-]
-
 [[package]]
 name = "annotated-doc"
 version = "0.0.5"
@@ -344,21 +337,46 @@ wheels = [
 [[package]]
 name = "diagnos"
 version = "0.1.0"
-source = { editable = "apps/sdk" }
-dependencies = [
-    { name = "httpx" },
-    { name = "pydantic" },
-]
+source = { editable = "." }
 
 [package.optional-dependencies]
-openbao = [
+api = [
+    { name = "fastapi" },
+    { name = "httpx" },
     { name = "hvac" },
+    { name = "pydantic" },
+    { name = "python-multipart" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+cli = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "typer" },
+]
+dev-certs = [
+    { name = "cryptography" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "hvac" },
+    { name = "pydantic" },
+    { name = "python-multipart" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+openbao = [
+    { name = "httpx" },
+    { name = "hvac" },
+    { name = "pydantic" },
+]
+sdk = [
+    { name = "httpx" },
+    { name = "pydantic" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "cryptography" },
-    { name = "hvac" },
+    { name = "diagnos", extra = ["api", "cli", "dev-certs"] },
     { name = "kyber-py" },
     { name = "mypy" },
     { name = "pact-python" },
@@ -371,16 +389,26 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", specifier = ">=0.28" },
+    { name = "cryptography", marker = "extra == 'dev-certs'", specifier = ">=43" },
+    { name = "diagnos", extras = ["api"], marker = "extra == 'dev-certs'" },
+    { name = "diagnos", extras = ["sdk"], marker = "extra == 'cli'" },
+    { name = "diagnos", extras = ["sdk"], marker = "extra == 'openbao'" },
+    { name = "diagnos", extras = ["sdk", "openbao"], marker = "extra == 'api'" },
+    { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.115" },
+    { name = "httpx", marker = "extra == 'sdk'", specifier = ">=0.28" },
     { name = "hvac", marker = "extra == 'openbao'", specifier = ">=2.3" },
-    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pydantic", marker = "extra == 'sdk'", specifier = ">=2.9" },
+    { name = "python-multipart", marker = "extra == 'api'", specifier = ">=0.0.12" },
+    { name = "rich", marker = "extra == 'cli'", specifier = ">=13.9" },
+    { name = "typer", marker = "extra == 'cli'", specifier = ">=0.15" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.32" },
 ]
-provides-extras = ["openbao"]
+provides-extras = ["sdk", "openbao", "cli", "api", "dev-certs"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "cryptography", specifier = ">=43" },
-    { name = "hvac", specifier = ">=2.3" },
+    { name = "diagnos", extras = ["cli", "api", "dev-certs"] },
     { name = "kyber-py", specifier = ">=1.0" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pact-python", specifier = ">=3.4,<4" },
@@ -388,88 +416,6 @@ dev = [
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "pytest-cov", specifier = ">=6.0" },
-    { name = "ruff", specifier = ">=0.7" },
-]
-
-[[package]]
-name = "diagnos-api"
-version = "0.1.0"
-source = { editable = "apps/api" }
-dependencies = [
-    { name = "diagnos", extra = ["openbao"] },
-    { name = "fastapi" },
-    { name = "python-multipart" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "cryptography" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "cryptography" },
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cryptography", marker = "extra == 'dev'", specifier = ">=43" },
-    { name = "diagnos", extras = ["openbao"], editable = "apps/sdk" },
-    { name = "fastapi", specifier = ">=0.115" },
-    { name = "python-multipart", specifier = ">=0.0.12" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
-]
-provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "cryptography", specifier = ">=43" },
-    { name = "httpx", specifier = ">=0.28" },
-    { name = "mypy", specifier = ">=1.13" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "ruff", specifier = ">=0.7" },
-]
-
-[[package]]
-name = "diagnos-cli"
-version = "0.1.0"
-source = { editable = "apps/cli" }
-dependencies = [
-    { name = "diagnos" },
-    { name = "rich" },
-    { name = "typer" },
-]
-
-[package.optional-dependencies]
-openbao = [
-    { name = "diagnos", extra = ["openbao"] },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "diagnos", editable = "apps/sdk" },
-    { name = "diagnos", extras = ["openbao"], marker = "extra == 'openbao'", editable = "apps/sdk" },
-    { name = "rich", specifier = ">=13.9" },
-    { name = "typer", specifier = ">=0.15" },
-]
-provides-extras = ["openbao"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.13" },
-    { name = "pytest", specifier = ">=8.3" },
     { name = "ruff", specifier = ">=0.7" },
 ]
 

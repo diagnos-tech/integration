@@ -31,6 +31,7 @@ from __future__ import annotations
 import secrets
 
 import pytest
+
 from diagnos.crypto.secretstream import (
     ABYTES,
     HEADER_BYTES,

@@ -20,13 +20,14 @@ import json
 from collections.abc import Callable, Iterator
 
 import pytest
+from pact import Pact, match
+
 from diagnos import EnrollmentDeniedError, EnrollmentExpiredError, EnrollmentPrompt
 from diagnos.crypto.secure import SecretBox
 from diagnos.session import runtime as runtime_module
 from diagnos.session.enrollment import enroll
 from diagnos.session.manager import SessionManager
 from diagnos.transport.config import Settings
-from pact import Pact, match
 
 from _crypto import b64url, fixed_bytes, sdk_keypair, seal_to
 from _wire import (

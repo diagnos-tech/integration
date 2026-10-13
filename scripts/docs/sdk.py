@@ -40,17 +40,21 @@ def origins(package: str) -> dict[str, str]:
     """🇺🇸 `{name: defining module}` from the package's `from .x import name` lines.
 
     A type alias carries no `__module__` of its own (`typing` owns it), so
-    the import line is the only reliable record of where it was written.
+    the import line is the only reliable record of where it was written. The
+    SDK's names are imported under `if TYPE_CHECKING:` (they load on first
+    use), so the whole tree is walked, not just the top level.
 
     🇧🇷 `{nome: módulo que o define}` a partir das linhas `from .x import nome` do pacote.
 
     Um alias de tipo não carrega `__module__` próprio (é do `typing`), então a
-    linha de import é o único registro confiável de onde ele foi escrito.
+    linha de import é o único registro confiável de onde ele foi escrito. Os
+    nomes do SDK são importados sob `if TYPE_CHECKING:` (carregam no primeiro
+    uso), então a árvore inteira é percorrida, não só o nível de cima.
     """
     module = importlib.import_module(package)
     tree = ast.parse(inspect.getsource(module))
     found: dict[str, str] = {}
-    for node in tree.body:
+    for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
             for alias in node.names:
                 found[alias.asname or alias.name] = f"{package}.{node.module}"

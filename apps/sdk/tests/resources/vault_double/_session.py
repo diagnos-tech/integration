@@ -17,6 +17,8 @@ from typing import TypeVar
 
 import httpx
 import pytest
+from pydantic import BaseModel
+
 from diagnos.crypto import EntropyMixer
 from diagnos.crypto.secure import SecretBox
 from diagnos.models import ResourceKind
@@ -25,7 +27,6 @@ from diagnos.session.keyring import Keyring, SessionKeys
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport
 from diagnos.transport.token import ServiceAccountToken
-from pydantic import BaseModel
 
 from ._core import FakeVault
 from ._wire import VAULT_URL, WORKSPACE_ID

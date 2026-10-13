@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+
 from diagnos.errors import ConflictError, ProtocolError, VaultError
 from diagnos.models import PatientRecord, PatientSummary
 

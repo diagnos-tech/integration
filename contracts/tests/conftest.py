@@ -43,11 +43,12 @@ from typing import Any
 
 import httpx
 import pytest
+from pact import Pact
+
 from diagnos.crypto.secure import SecretBox
 from diagnos.session.keyring import SessionKeys
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport
-from pact import Pact
 
 from _wire import API_TOKEN, CONSUMER, PROVIDER, TOKEN, session_keys
 

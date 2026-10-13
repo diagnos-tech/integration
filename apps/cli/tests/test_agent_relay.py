@@ -14,11 +14,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from diagnos import EnrollmentPrompt
-from diagnos_cli import context
-from diagnos_cli.agent import client, protocol
-from diagnos_cli.exit_codes import EXIT_NOT_FOUND
-from diagnos_cli.main import run
+from diagnos.cli import context
+from diagnos.cli.agent import client, protocol
+from diagnos.cli.exit_codes import EXIT_NOT_FOUND
+from diagnos.cli.main import run
 
 from .agent_harness import running_agent, socket_directory
 from .conftest import FakeDiagnos

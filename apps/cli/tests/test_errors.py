@@ -1,6 +1,6 @@
 """🇺🇸 `main.app()`'s exception wrapper: an SDK `NotFoundError` becomes exit code 4, no traceback.
 
-These go through `diagnos_cli.main.app` (the console-script entry point),
+These go through `diagnos.cli.main.app` (the console-script entry point),
 not `typer_app` directly — `exit_codes.classify` only ever runs inside
 `app`'s `except DiagnosError` (`main.py`'s own docstring explains why
 `CliRunner.invoke(typer_app, ...)` would not exercise it: click's test
@@ -10,7 +10,7 @@ before it would ever reach our wrapper).
 🇧🇷 O wrapper de exceção de `main.app()`: um `NotFoundError` do SDK vira
 código de saída 4, sem traceback.
 
-Estes passam por `diagnos_cli.main.app` (o ponto de entrada do
+Estes passam por `diagnos.cli.main.app` (o ponto de entrada do
 console-script), não por `typer_app` direto — `exit_codes.classify` só roda
 dentro do `except DiagnosError` do `app` (a própria docstring de `main.py`
 explica o porquê: o runner de teste do click seta `standalone_mode=False` e
@@ -22,6 +22,7 @@ from __future__ import annotations
 import sys
 
 import pytest
+
 from diagnos import (
     AuthenticationError,
     ConfigError,
@@ -37,8 +38,8 @@ from diagnos import (
     SessionExpiredError,
     ValidationError,
 )
-from diagnos_cli import main as main_module
-from diagnos_cli.exit_codes import (
+from diagnos.cli import main as main_module
+from diagnos.cli.exit_codes import (
     EXIT_AUTH,
     EXIT_CONFIG,
     EXIT_CONFLICT,

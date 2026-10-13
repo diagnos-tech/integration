@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from diagnos_api.routers.files import _content_disposition
+from diagnos.api.routers.files import _content_disposition
 
 from conftest import FakeDiagnos
 

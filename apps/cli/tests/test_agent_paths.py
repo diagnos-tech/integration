@@ -12,7 +12,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from diagnos_cli.agent.paths import (
+
+from diagnos.cli.agent.paths import (
     DEFAULT_IDLE_MINUTES,
     AgentUnavailable,
     agent_enabled,

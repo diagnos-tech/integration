@@ -5,9 +5,10 @@
 
 from __future__ import annotations
 
-from diagnos_cli import __version__
-from diagnos_cli.main import typer_app
 from typer.testing import CliRunner
+
+from diagnos import __version__
+from diagnos.cli.main import typer_app
 
 
 def test_version_flag(runner: CliRunner) -> None:
