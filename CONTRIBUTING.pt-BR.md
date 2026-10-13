@@ -46,14 +46,16 @@ Rode `make help` a qualquer momento para listar todo alvo com uma descrição de
 
 ## O que a CI roda, e como reproduzir localmente
 
-Pull requests miram a `develop`. A CI roda em todo pull request e o job `CI` dela é o único check obrigatório; o
-Package só roda no pull request de release da `develop` para a `main`, onde decide se a `main` pode ser lançada.
+Pull requests miram a `develop` e entram como um commit só, via squash. A CI roda em todo pull request e o job `CI`
+dela é o único check obrigatório; o Package roda quando a `main` anda, e decide se ela pode receber a tag.
 
 | Workflow | Roda em | Responde | Equivalente local |
 |---|---|---|---|
 | `CI` (`.github/workflows/ci.yml`) | todo pull request, pushes na `main`, semanalmente na `develop` | Lint, `mypy --strict`, a doc, o contrato Pact e todo teste passam — no CPython 3.11 e 3.13, sem o piso de cobertura cair? Os próprios workflows são seguros (zizmor, actionlint)? | `make check`, `make cov`, `uvx zizmor .github/` |
-| `Package` (`.github/workflows/package.yml`) | pull requests para a `main`, releases | Os sete wheels e o sdist constroem, cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra — e as duas imagens constroem? | `uv build`, depois `docker build --target api .` |
+| `CodeQL` (`.github/workflows/codeql.yml`) | todo pull request, semanalmente | A análise estática acha um bug de segurança no Python, no Rust ou nos workflows? | — |
+| `Package` (`.github/workflows/package.yml`) | pushes na `main`, releases | Os sete wheels e o sdist constroem, cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra — e as duas imagens constroem? | `uv build`, depois `docker build --target api .` |
 | `Release` (`.github/workflows/release.yml`) | tags `v*` na `main` | Assina e publica tudo; veja [Lançamento de versões](#lançamento-de-versões). | — |
+| `Fuzz` (`.github/workflows/fuzz.yml`) | semanalmente | O libFuzzer derruba os parsers de AEAD, secretstream ou selo híbrido do enclave? | `make fuzz FUZZ_TARGET=<alvo>` |
 | `Auto-merge` (`.github/workflows/auto-merge.yml`) | pull requests do Dependabot para a `develop` | Agenda o merge das atualizações minor e patch para quando a CI passar. | — |
 | `Scorecard` (`.github/workflows/scorecard.yml`) | semanalmente | Como o repositório se sai nas práticas de cadeia de suprimentos. | — |
 
@@ -155,21 +157,26 @@ acrescente `Signed-off-by: Seu Nome <voce@exemplo.com>` à mão) em todo commit;
 
 ## Lançamento de versões
 
-A `develop` é onde o trabalho entra; a `main` guarda o que foi lançado ou está para ser. O `diagnos` e as duas
-imagens dele são lançados juntos, sob uma versão só, pelo `.github/workflows/release.yml`:
+A `develop` é onde o trabalho entra, um commit por pull request via squash; a `main` só anda para a frente, até um
+commit que já está na `develop`. Nenhuma das duas recebe merge commits, e todo commit que entra nelas é assinado: o
+GitHub assina os merges via squash, com o autor do pull request como autor do commit. O `diagnos` e as duas imagens dele são
+lançados juntos, sob uma versão só, pelo `.github/workflows/release.yml`:
 
-1. Na `develop`, ponha a mesma versão no `pyproject.toml` e no `apps/sdk/native/Cargo.toml`, atualize os dois
-   lockfiles (`uv lock` e `cargo update --workspace --manifest-path apps/sdk/native/Cargo.toml`), e dê à versão uma
-   data no `CHANGELOG.md` no lugar de `Unreleased`. O `python3 scripts/release_version.py` diz se eles concordam.
-2. Abra um pull request da `develop` para a `main`. Além da CI, ele roda o **Package**: toda distribuição construída,
-   cada wheel experimentado na própria plataforma, o sdist reconstruído e as duas imagens construídas — e nada
-   publicado. Faça o merge com um **merge commit**, nunca squash, para a `main` e a `develop` manterem uma história só.
-3. Marque o merge commit com a tag `v<versão>` e envie a tag: `git fetch origin && git tag v0.1.0 origin/main && git
-   push origin v0.1.0`. O **Release** roda o Package de novo, assina todo arquivo com o cosign e atesta a proveniência
-   dele, envia e assina as duas imagens, espera um mantenedor aprovar o ambiente `pypi`, publica no PyPI e cria o
-   release no GitHub com todo arquivo, bundle e os comandos que os verificam.
+1. Num pull request para a `develop`, ponha a mesma versão no `pyproject.toml` e no `apps/sdk/native/Cargo.toml`,
+   atualize os dois lockfiles (`uv lock` e `cargo update --workspace --manifest-path apps/sdk/native/Cargo.toml`), e
+   dê à versão uma data no `CHANGELOG.md` no lugar de `Unreleased`. O `python3 scripts/release_version.py` diz se
+   eles concordam.
+2. Avance a `main` até esse commit: `git fetch origin && git push origin origin/develop:main`. Um fast-forward, nunca
+   um merge: o push falha se a `main` tiver algo que a `develop` não tem. Ele roda o **Package** — toda distribuição
+   construída, cada wheel experimentado na própria plataforma, o sdist reconstruído e as duas imagens construídas — e
+   não publica nada.
+3. Com o Package verde, marque esse commit com a tag e envie a tag: `git tag -s v0.1.0 origin/main -m "diagnos 0.1.0"
+   && git push origin v0.1.0` (`-a` no lugar de `-s` se você não tiver chave de assinatura). O **Release** roda o
+   Package de novo, assina todo arquivo com o cosign e atesta a proveniência dele, envia e assina as duas imagens,
+   espera um mantenedor aprovar o ambiente `pypi`, publica no PyPI e cria o release no GitHub com todo arquivo,
+   bundle, a proveniência, o SBOM e os comandos que os verificam.
 
-Uma versão no PyPI nunca pode ser enviada duas vezes, e por isso o Package roda antes, no pull request. A publicação
+Uma versão no PyPI nunca pode ser enviada duas vezes, e por isso o Package roda na `main` antes da tag. A publicação
 usa o [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) do PyPI e a assinatura sem chave do Sigstore:
 não há token nem chave para guardar ou trocar — e um token de API não é suportado de propósito, porque desligaria em
 silêncio as atestações PEP 740. O PyPI confia no `release.yml` deste repositório, rodando no ambiente `pypi`;
@@ -180,8 +187,8 @@ As dependências se atualizam sozinhas: o Dependabot abre pull requests agrupado
 atualizações minor e patch entram sozinhas quando a CI passa, e as major esperam revisão. Elas chegam à `main` com o
 próximo release.
 
-Um release candidate ensaia tudo de verdade: `0.1.0rc1` no `pyproject.toml`, `0.1.0-rc.1` no `Cargo.toml` (a guarda lê
-os dois como uma versão só), uma seção `## [0.1.0rc1]` no `CHANGELOG.md`, e a tag `v0.1.0rc1`. O `pip` só instala um
+Um release candidate ensaia tudo de verdade: `0.2.0rc1` no `pyproject.toml`, `0.2.0-rc.1` no `Cargo.toml` (a guarda lê
+os dois como uma versão só), uma seção `## [0.2.0rc1]` no `CHANGELOG.md`, e a tag `v0.2.0rc1`. O `pip` só instala um
 pré-release quando pedido pela versão ou com `--pre`.
 
 ### Configurações do repositório
@@ -191,21 +198,23 @@ num ambiente ou numa tag que qualquer um pudesse usar:
 
 1. **Ambientes**: `release` e `pypi`, cada um limitado a tags `v*`, com um revisor obrigatório no `pypi` (e o
    *Prevent self-review* desligado enquanto houver um mantenedor só).
-2. **Branches**: a `main`, criada a partir da `develop`.
-3. **Rulesets**:
+2. **Pull requests** (Settings → General): permita só **squash merging** — sem merge commits, sem rebase merging — e
+   ligue *Allow auto-merge* (o Dependabot precisa) e *Automatically delete head branches*.
+3. **Rulesets**, sem lista de bypass salvo onde um passo abaixo nomeia uma:
+   - `develop`: exija pull request, o check **CI** e histórico linear; bloqueie force push e exclusão. Exija uma
+     aprovação e revisão de code owner assim que houver dois mantenedores.
+   - `main`: exija histórico linear; bloqueie force push e exclusão; restrinja atualizações, com *Repository admin*
+     como único bypass, para só mantenedores a avançarem. Sem exigir pull request: a `main` nunca recebe merge.
    - tags `v*`: só mantenedores as criam (*Restrict creations*, com bypass só para admins), e ninguém as move nem
-     apaga (*Restrict updates* e *Restrict deletions*, sem bypass — um segundo ruleset);
-   - `develop`: só pull requests, o check **CI** obrigatório, sem force push nem exclusão; exija revisão de code
-     owner assim que houver dois mantenedores;
-   - `main`: só pull requests, os checks **CI** e **Package** obrigatórios, só merge commits, sem force push nem
-     exclusão.
-4. **Geral**: *Allow auto-merge* ligado (o Dependabot precisa); em Actions, um `GITHUB_TOKEN` só de leitura e o
-   Actions sem permissão para criar ou aprovar pull requests; imutabilidade de releases ligada.
+     apaga (*Restrict updates* e *Restrict deletions*, sem bypass — um segundo ruleset).
+4. **Actions**: um `GITHUB_TOKEN` só de leitura, e o Actions sem permissão para criar ou aprovar pull requests.
+   **Code security**: deixe o *default setup* do CodeQL desligado — o `codeql.yml` é o setup avançado, e os dois não
+   convivem. **Releases**: imutabilidade ligada.
 5. **PyPI**: um trusted publisher pendente para `diagnos` — dono `diagnos-tech`, repositório `integration`, workflow
-   `release.yml`, ambiente `pypi` — e 2FA para todo dono. Nunca um token de API.
-6. **GHCR**, durante o primeiro release: a execução espera aprovação antes do `pypi`, com as duas imagens já enviadas
-   e assinadas. Deixe `diagnos` e `diagnos-api` públicos e dê acesso de escrita só a este repositório, *depois*
-   aprove — o `diagnos setup api` baixa a imagem assim que a versão chega ao PyPI.
+   `release.yml`, ambiente `pypi` — 2FA para todo dono, e um segundo dono assim que houver. Nunca um token de API.
+6. **GHCR**, só no primeiro release: a execução espera aprovação antes do `pypi`, com as duas imagens já enviadas e
+   assinadas. Deixe `diagnos` e `diagnos-api` públicos e dê acesso de escrita só a este repositório, *depois* aprove
+   — o `diagnos setup api` baixa a imagem assim que a versão chega ao PyPI.
 
 ## Checklist de pull request
 

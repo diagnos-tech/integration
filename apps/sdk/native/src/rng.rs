@@ -13,6 +13,8 @@
 //! RNG do SO é irrecuperável: [`csprng`] entra em panic em vez de devolver
 //! bytes mais fracos.
 
+use std::mem::MaybeUninit;
+
 use rand_core::{TryCryptoRng, TryRng, UnwrapErr};
 
 use crate::error::Error;
@@ -53,9 +55,10 @@ pub fn fill(dest: &mut [u8]) -> Result<(), Error> {
     getrandom::fill(dest).map_err(Error::from)
 }
 
-/// 🇺🇸 `N` fresh random bytes. 🇧🇷 `N` bytes aleatórios novos.
+/// 🇺🇸 `N` fresh random bytes, written once, straight from the OS RNG into an uninitialized buffer.
+/// 🇧🇷 `N` bytes aleatórios novos, escritos uma vez, direto do RNG do SO num buffer não inicializado.
 pub fn random_array<const N: usize>() -> Result<[u8; N], Error> {
-    let mut out = [0u8; N];
-    fill(&mut out)?;
-    Ok(out)
+    let mut buffer = [const { MaybeUninit::<u8>::uninit() }; N];
+    let filled = getrandom::fill_uninit(&mut buffer)?;
+    <[u8; N]>::try_from(&*filled).map_err(|_| Error::Random)
 }

@@ -19,7 +19,7 @@ build-backend = "maturin"
 [project]
 name = "diagnos"
 version = "0.1.0"
-description = "🇺🇸 The diagnos vault from Python: zero-knowledge SDK, CLI and REST API · 🇧🇷 O cofre diagnos no Python: SDK zero-knowledge, CLI e API REST"
+description = "SDK, CLI & API to integrate with diagnos.health"
 readme = "wrappers/py/README.md"
 license = { text = "Apache-2.0" }
 # 🇺🇸 The license text travels inside every sdist and wheel, as Apache-2.0 §4(a) asks; maturin has to be told.
@@ -27,6 +27,7 @@ license = { text = "Apache-2.0" }
 license-files = ["LICENSE"]
 requires-python = ">=3.11,<3.14"
 authors = [{ name = "diagnos" }]
+maintainers = [{ name = "Gustavo Simões", email = "gustavo@diagnos.health" }]
 keywords = ["diagnos", "medical", "zero-knowledge", "e2ee", "dicom", "cli", "fastapi", "mtls"]
 classifiers = [
   "Development Status :: 4 - Beta",

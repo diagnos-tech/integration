@@ -133,7 +133,8 @@ Todo badge acima é um workflow ou o que um deles mede; todos menos os dois últ
 | **OpenSSF Scorecard** | as práticas de cadeia de suprimentos: dependências fixadas, tokens com privilégio mínimo, releases assinados, proteção de branch | — |
 
 Os releases saem da `main` pelo [`release.yml`](.github/workflows/release.yml): assinaturas Sigstore e proveniência
-SLSA em todo arquivo e imagem, PyPI via Trusted Publishing — nenhum segredo de longa duração em lugar nenhum.
+SLSA em todo arquivo e imagem, um SBOM, PyPI via Trusted Publishing — nenhum segredo de longa duração em lugar nenhum.
+O CodeQL analisa todo pull request, e o libFuzzer exercita os parsers do enclave toda semana.
 
 O contrato é guiado pelo consumidor: os testes do SDK gravam
 [`contracts/diagnos-sdk-diagnos-vault.json`](contracts/diagnos-sdk-diagnos-vault.json), e o cofre verifica esse

@@ -85,7 +85,10 @@ Sempre fixe a identidade (`--certificate-identity` / `--cert-identity`): o `gh a
 aceita uma atestação de qualquer branch do repositório. Para aceitar qualquer release em vez de uma versão, use um
 `--certificate-identity-regexp '^https://github\.com/diagnos-tech/integration/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$'`
 ancorado. O `images.txt` de cada release no GitHub lista os dois digests das imagens, assinado do mesmo jeito; o
-`diagnos setup api` faz a checagem da imagem para você e imprime o `docker run` pelo digest verificado.
+`diagnos setup api` faz a checagem da imagem para você e imprime o `docker run` pelo digest verificado. Cada release
+também traz a proveniência SLSA como `diagnos-$V.intoto.jsonl`, para checagens sem a API do GitHub
+(`gh attestation verify "$FILE" --bundle "diagnos-$V.intoto.jsonl" --repo diagnos-tech/integration --cert-identity "$ID"`),
+e um SBOM CycloneDX das dependências Python, `diagnos-$V.cdx.json`, assinado como todo outro arquivo.
 
 ## O que incluir em um relato
 

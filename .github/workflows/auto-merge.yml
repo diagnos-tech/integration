@@ -3,8 +3,8 @@
 # This only queues the merge: GitHub performs it once every check the `develop` ruleset requires is green, so
 # nothing here bypasses CI. fetch-metadata reports an update type only when every commit on the branch is
 # Dependabot's own verified commit, and only a minor or patch type queues the merge, so a push by anyone else to
-# a Dependabot branch, or a major update, always waits for a person. Releases still go through a reviewed pull
-# request from `develop` into `main`.
+# a Dependabot branch, or a major update, always waits for a person. Nothing reaches `main` this way: only a
+# maintainer fast-forwards it, at release time.
 name: Auto-merge
 
 on:

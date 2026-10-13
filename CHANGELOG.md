@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This file is English-only and exempt from the repository's bilingual-documentation pairing rule
 (`scripts/check_docs.py`).
 
+## [Unreleased]
+
+### Fixed
+
+- The Rust enclave's secretstream panicked (a `PanicException` in Python) on associated data longer than 16 bytes,
+  instead of authenticating it: the padding arithmetic underflowed. Found by the new fuzz targets. The SDK's own file
+  encryption passes no associated data and was not affected.
+
+### Added
+
+- cargo-fuzz targets for the enclave's AEAD, secretstream and hybrid-seal parsers, run weekly (`make fuzz` locally).
+- CodeQL analysis of the Python package, the Rust enclave and the workflows on every pull request.
+- Every release carries its SLSA provenance (`diagnos-<version>.intoto.jsonl`) and a signed CycloneDX SBOM of its
+  Python dependencies (`diagnos-<version>.cdx.json`).
+
+### Changed
+
+- The PyPI summary is now "SDK, CLI & API to integrate with diagnos.health".
+- Releases: `main` is fast-forwarded to the `develop` commit being released, never merged into, so both branches keep
+  one linear history; Package runs on that push.
+
 ## [0.1.0] - 2026-10-13
 
 `0.1.0` is the first version of `diagnos` ever published — see

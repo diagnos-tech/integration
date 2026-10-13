@@ -131,3 +131,11 @@ make test-rust    # cargo test (testes unitários + tests/vectors.rs); PYO3_PYTH
 `PYO3_PYTHON` precisa apontar para um CPython ≥ 3.11 para o `cargo test`;
 o wheel é `abi3-py311`, um build por plataforma. O `.so` não é reconstruído
 pelo `uv sync` depois de editar Rust — rode `uv sync --reinstall-package diagnos`.
+
+O `fuzz/` guarda os alvos do [cargo-fuzz](https://rust-fuzz.github.io/book/)
+para tudo aqui que interpreta bytes que um atacante pode escolher —
+`aead_open`, `secretstream_pull`, `hybrid_open` — cada um afirmando que uma
+entrada hostil falha limpa e que uma entrada real volta inteira. Eles rodam por
+cinco minutos toda semana (`.github/workflows/fuzz.yml`); o
+`make fuzz FUZZ_TARGET=<alvo>` roda um por um minuto localmente, com
+`cargo install cargo-fuzz` e o nightly que o Makefile nomeia.

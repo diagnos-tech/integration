@@ -1,0 +1,67 @@
+# Fuzz: libFuzzer against everything in the Rust enclave that parses bytes an attacker can choose (an AEAD
+# ciphertext, a secretstream chunk, a hybrid seal), with the targets in apps/sdk/native/fuzz. Each target runs for
+# five minutes a week on a pinned nightly, which cargo-fuzz requires; pull requests are left alone, since a fixed
+# time budget would only slow review. A crash fails the job and keeps the input that caused it as an artifact;
+# reproduce it with `make fuzz FUZZ_TARGET=<target>` and the file under fuzz/artifacts/.
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "29 7 * * 1" # Mondays at 07:29 UTC.
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep FUZZ_TOOLCHAIN in sync with the Makefile, and UV_VERSION with package.yml.
+  FUZZ_TOOLCHAIN: nightly-2026-10-12
+  CARGO_FUZZ_VERSION: 0.13.2
+  UV_VERSION: "0.13.0"
+
+jobs:
+  fuzz:
+    name: Fuzz · ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aead_open, secretstream_pull, hybrid_open]
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      # The enclave links against libpython (pyo3), so the build needs an interpreter that ships it.
+      - name: Nightly Rust, cargo-fuzz and Python
+        run: |
+          rustup toolchain install "$FUZZ_TOOLCHAIN" --profile minimal
+          cargo "+$FUZZ_TOOLCHAIN" install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked
+          uv python install 3.13
+      - name: Fuzz for five minutes
+        working-directory: apps/sdk/native
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          PYO3_PYTHON="$(uv python find 3.13)"
+          export PYO3_PYTHON
+          cargo "+$FUZZ_TOOLCHAIN" fuzz run "$TARGET" -- -max_total_time=300
+      - name: Keep the crashing input
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: crash-${{ matrix.target }}
+          path: apps/sdk/native/fuzz/artifacts/
+          if-no-files-found: ignore
