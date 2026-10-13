@@ -83,7 +83,10 @@ Always pin the identity (`--certificate-identity` / `--cert-identity`): `gh atte
 an attestation from any branch of the repository. To accept any release instead of one version, use an anchored
 `--certificate-identity-regexp '^https://github\.com/diagnos-tech/integration/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$'`.
 `images.txt` in each GitHub release lists the two image digests, signed the same way; `diagnos setup api` runs the
-image check for you and prints the `docker run` by the verified digest.
+image check for you and prints the `docker run` by the verified digest. Each release also carries its SLSA
+provenance as `diagnos-$V.intoto.jsonl`, for checks without GitHub's API
+(`gh attestation verify "$FILE" --bundle "diagnos-$V.intoto.jsonl" --repo diagnos-tech/integration --cert-identity "$ID"`),
+and a CycloneDX SBOM of its Python dependencies, `diagnos-$V.cdx.json`, signed like every other file.
 
 ## What to include in a report
 

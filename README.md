@@ -131,7 +131,8 @@ Every badge above is a workflow or what one measures; all but the last two run l
 | **OpenSSF Scorecard** | the supply-chain practices: pinned dependencies, least-privilege tokens, signed releases, branch protection | — |
 
 Releases are cut from `main` by [`release.yml`](.github/workflows/release.yml): Sigstore signatures and SLSA
-provenance on every file and image, PyPI through Trusted Publishing — no long-lived secret anywhere.
+provenance on every file and image, an SBOM, PyPI through Trusted Publishing — no long-lived secret anywhere. CodeQL
+analyzes every pull request, and libFuzzer exercises the enclave's parsers every week.
 
 The contract is consumer-driven: the SDK's tests write
 [`contracts/diagnos-sdk-diagnos-vault.json`](contracts/diagnos-sdk-diagnos-vault.json), and the vault verifies that
