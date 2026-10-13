@@ -7,13 +7,14 @@
 # bare and with every extra (scripts/release_smoke.py); the sdist must rebuild into a working wheel; and both images
 # must build from this run's wheels. `package` turns all of it into the one required check.
 #
-# It runs on pull requests into `main`, which is what makes `main` releasable; on demand; and from release.yml,
-# which signs and publishes exactly what it produced. Nothing is cached, because a cache is shared state a release
+# It runs on every push to `main` (a fast-forward to the `develop` commit about to be released, which a tag
+# follows only once this is green), on demand, and from release.yml, which signs and publishes exactly what it
+# produced. Nothing is cached, because a cache is shared state a release
 # build must not inherit, and every tool is pinned: maturin, Rust (rust-toolchain.toml) and uv.
 name: Package
 
 on:
-  pull_request:
+  push:
     branches: [main]
   workflow_dispatch:
   workflow_call:
@@ -31,8 +32,8 @@ permissions: {}
 concurrency:
   # Under release.yml, `github.workflow` is the caller's name, so a manual run never queues behind a release.
   group: package-${{ github.workflow }}-${{ github.ref }}
-  # A pull request run is disposable; a release run never is.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # A newer push to `main` supersedes an older one; a release run is never cancelled.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
 env:
   MATURIN_VERSION: v1.15.0
@@ -125,6 +126,39 @@ jobs:
           path: dist/*.tar.gz
           if-no-files-found: error
 
+  sbom:
+    name: SBOM
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      # A CycloneDX SBOM of every Python dependency any extra can install, straight from uv.lock. The Rust crates
+      # compiled into the wheels are pinned by apps/sdk/native/Cargo.lock, which ships in the sdist.
+      - name: CycloneDX from uv.lock
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          mkdir sbom
+          uv export --frozen --no-dev --all-extras --preview-features sbom-export --format cyclonedx1.5 \
+            --output-file "sbom/diagnos-$VERSION.cdx.json" > /dev/null
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: sbom/
+          if-no-files-found: error
+
   checksums:
     name: Checksums
     needs: [wheels, sdist]
@@ -186,7 +220,6 @@ jobs:
           name: dist-${{ matrix.platform }}
           path: dist
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        if: ${{ !matrix.musl }}
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
@@ -203,17 +236,21 @@ jobs:
             uv run --no-project --isolated --python "$python" --with "diagnos[sdk,cli,api] @ $wheel" \
               python scripts/release_smoke.py full
           done
-      # musl has no runner of its own: the official Alpine images, pinned by digest, are the platform.
+      # musl has no runner of its own: the official Alpine images, pinned by digest, are the platform. pip installs
+      # the dependencies from uv.lock, every one checked against its hash, then the wheel itself without any.
       - name: Base, then every layer (musl)
         if: ${{ matrix.musl }}
         run: |
+          uv export --frozen --no-dev --no-emit-project --extra sdk --extra cli --extra api \
+            --format requirements-txt --output-file smoke-requirements.txt
           for image in \
             python:3.11-alpine@sha256:d9368b3a5ac59afea7b5d4f2e2aea0941dbf9fdee9c369c5bec00b98244bc929 \
             python:3.13-alpine@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a; do
             docker run --rm -v "$PWD:/repo:ro" -e PIP_ROOT_USER_ACTION=ignore "$image" sh -euc '
-              wheel=$(ls /repo/dist/*.whl)
-              pip install --quiet --no-cache-dir "$wheel" && python /repo/scripts/release_smoke.py base
-              pip install --quiet --no-cache-dir "$wheel[sdk,cli,api]" && python /repo/scripts/release_smoke.py full'
+              pip install --no-deps --quiet --no-cache-dir /repo/dist/*.whl
+              python /repo/scripts/release_smoke.py base
+              pip install --require-hashes --quiet --no-cache-dir -r /repo/smoke-requirements.txt
+              python /repo/scripts/release_smoke.py full'
           done
 
   sdist-rebuild:
@@ -300,7 +337,7 @@ jobs:
   package:
     name: Package
     if: always()
-    needs: [version, wheels, sdist, checksums, smoke, sdist-rebuild, images]
+    needs: [version, wheels, sdist, sbom, checksums, smoke, sdist-rebuild, images]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
