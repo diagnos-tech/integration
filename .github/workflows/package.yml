@@ -291,9 +291,9 @@ jobs:
 
   images:
     name: Images build · ${{ matrix.target }}
-    # Skipped under release.yml (a tag push), which builds and pushes the images itself; here they only have to
-    # build, for both architectures.
-    if: github.event_name != 'push'
+    # Skipped under release.yml (a tag), which builds and pushes the images itself; on `main` and on demand they
+    # only have to build, for both architectures.
+    if: github.ref_type != 'tag'
     needs: checksums
     runs-on: ubuntu-24.04
     timeout-minutes: 45
