@@ -52,32 +52,49 @@ def relay(
     forwarded = {key: env[key] for key in FORWARDED_ENV if key in env}
     if stdout.isatty() and "COLUMNS" not in forwarded:
         forwarded["COLUMNS"] = str(shutil.get_terminal_size().columns)
-    protocol.send(
-        conn,
-        {
-            "type": "run",
-            "argv": argv,
-            "cwd": os.getcwd(),
-            "env": forwarded,
-            "stdout_tty": stdout.isatty(),
-            "stderr_tty": stderr.isatty(),
-        },
-    )
+    request = {
+        "type": "run",
+        "argv": argv,
+        "cwd": os.getcwd(),
+        "env": forwarded,
+        "stdout_tty": stdout.isatty(),
+        "stderr_tty": stderr.isatty(),
+    }
+    if not _send(conn, request):
+        return _stopped(stderr)
     reader = protocol.Reader(conn)
     while True:
         frame = reader.next()
         if frame is None:
-            stderr.write("diagnos agent stopped mid-command · o agente do diagnos parou no meio do comando\n")
-            return 1
+            return _stopped(stderr)
         kind = frame["type"]
         if kind in ("out", "err"):
             stream = stdout if kind == "out" else stderr
             stream.write(str(frame.get("data", "")))
             stream.flush()
         elif kind == "prompt":
-            protocol.send(conn, {"type": "input", "line": stdin.readline()})
+            if not _send(conn, {"type": "input", "line": stdin.readline()}):
+                return _stopped(stderr)
         elif kind == "exit":
             return int(frame.get("code", 1))
+
+
+def _send(conn: socket.socket, message: dict[str, Any]) -> bool:
+    """🇺🇸 Sends `message`; `False` when the agent already closed the connection (it refused us, or died).
+
+    🇧🇷 Envia `message`; `False` quando o agente já fechou a conexão (nos recusou, ou morreu).
+    """
+    try:
+        protocol.send(conn, message)
+    except (BrokenPipeError, ConnectionResetError):
+        return False
+    return True
+
+
+def _stopped(stderr: IO[str]) -> int:
+    """🇺🇸 Says the agent went away mid-command; exit code 1. 🇧🇷 Diz que o agente sumiu no meio do comando; código 1."""
+    stderr.write("diagnos agent stopped mid-command · o agente do diagnos parou no meio do comando\n")
+    return 1
 
 
 def ping(path: Path) -> dict[str, Any] | None:

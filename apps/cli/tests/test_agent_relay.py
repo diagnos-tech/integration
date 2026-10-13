@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import socket
@@ -246,6 +247,42 @@ def test_another_users_connection_is_turned_away() -> None:
         assert "stopped mid-command" in err
         assert agent.run(["groups"])[0] == 0
     assert vault.security_groups == []
+
+
+def test_an_agent_that_already_hung_up_is_a_stopped_agent() -> None:
+    """🇺🇸 The agent closed before the command was sent (it refused us): a message and `1`, not a traceback.
+
+    🇧🇷 O agente fechou antes de o comando ser enviado (nos recusou): uma mensagem e `1`, não um traceback.
+    """
+    ours, agents = socket.socketpair()
+    agents.close()
+    err = io.StringIO()
+    with ours:
+        code = client.relay(ours, ["groups"], env={}, stdin=io.StringIO(), stdout=io.StringIO(), stderr=err)
+    assert code == 1
+    assert "stopped mid-command" in err.getvalue()
+
+
+def test_an_agent_that_hangs_up_before_the_answer_is_a_stopped_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 The connection breaks while answering a prompt: the same message and `1`.
+
+    🇧🇷 A conexão cai ao responder um prompt: a mesma mensagem e `1`.
+    """
+    sent: list[dict[str, Any]] = []
+
+    def send(_conn: socket.socket, message: dict[str, Any]) -> None:
+        if message["type"] == "input":
+            raise BrokenPipeError
+        sent.append(message)
+
+    monkeypatch.setattr(protocol, "send", send)
+    ours, agents = socket.socketpair()
+    agents.sendall(b'{"type":"prompt"}\n')
+    err = io.StringIO()
+    with ours, agents:
+        code = client.relay(ours, ["delete"], env={}, stdin=io.StringIO("y\n"), stdout=io.StringIO(), stderr=err)
+    assert code == 1 and [message["type"] for message in sent] == ["run"]
+    assert "stopped mid-command" in err.getvalue()
 
 
 def test_ping_reports_the_session() -> None:
