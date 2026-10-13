@@ -142,6 +142,12 @@ impl Mac {
     }
 }
 
+/// 🇺🇸 Zero bytes that pad `len` to a multiple of 16: libsodium's `(0x10 - len) & 0xf`, which wraps in C.
+/// 🇧🇷 Bytes zero que completam `len` até múltiplo de 16: o `(0x10 - len) & 0xf` do libsodium, que dá a volta em C.
+fn pad16(len: usize) -> usize {
+    (0x10 - (len & 0xf)) & 0xf
+}
+
 fn lengths(ad_len: usize, body_len: usize) -> [u8; 16] {
     let mut out = [0u8; 16];
     out[..8].copy_from_slice(&(ad_len as u64).to_le_bytes());
@@ -186,7 +192,7 @@ pub fn push(state: &mut [u8], message: &[u8], ad: &[u8], tag: u8) -> Result<Vec<
     block[0] = tag;
     keystream(k, nonce, 1, &mut block[..], true)?;
     mac.update(ad);
-    mac.zeros((0x10 - ad.len()) & 0xf);
+    mac.zeros(pad16(ad.len()));
     mac.update(&block[..]);
 
     let mut out = Vec::with_capacity(message.len() + ABYTES);
@@ -220,7 +226,7 @@ pub fn pull(state: &mut [u8], input: &[u8], ad: &[u8]) -> Result<(Vec<u8>, u8), 
     let tag = block[0];
     block[0] = input[0];
     mac.update(ad);
-    mac.zeros((0x10 - ad.len()) & 0xf);
+    mac.zeros(pad16(ad.len()));
     mac.update(&block[..]);
 
     let ciphertext = &input[1..=body_len];
