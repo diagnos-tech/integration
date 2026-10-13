@@ -6,7 +6,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/diagnos?color=3776ab)](https://pypi.org/project/diagnos/)
 [![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab)](https://pypi.org/project/diagnos/)
-[![Licença: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-64748b)](https://github.com/diagnos-tech/integration/blob/develop/LICENSE)
+[![Licença: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-64748b)](https://github.com/diagnos-tech/integration/blob/main/LICENSE)
 
 Tudo que é clínico é cifrado **dentro do seu processo** antes de tocar a rede — o cofre só vê texto cifrado. Um
 pacote traz todas as portas de entrada; você instala só as camadas que usa.
@@ -66,7 +66,7 @@ with Diagnos() as vault:  # faz enrollment na entrada: imprime o link de aprova�
 ```
 
 Defina o `DIAGNOS_API_TOKEN` antes — um admin do workspace o emite no app web do diagnos. O
-[início rápido](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/quickstart.pt-BR.md) vai daqui
+[início rápido](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.pt-BR.md) vai daqui
 até o seu primeiro paciente e arquivo cifrados.
 
 ## Verifique o que você instala
@@ -96,5 +96,5 @@ Ou com o GitHub CLI: `gh attestation verify diagnos-0.1.0.tar.gz --repo diagnos-
 - **Trust Center** — <https://trust.diagnos.health>
 - **Código, issues e changelog** — <https://github.com/diagnos-tech/integration>
 
-Licenciado sob [Apache-2.0](https://github.com/diagnos-tech/integration/blob/develop/LICENSE). Reporte uma
+Licenciado sob [Apache-2.0](https://github.com/diagnos-tech/integration/blob/main/LICENSE). Reporte uma
 vulnerabilidade em privado pelo [GitHub Security Advisories](https://github.com/diagnos-tech/integration/security/advisories/new).

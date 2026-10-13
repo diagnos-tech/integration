@@ -3,7 +3,7 @@
 **English** · [Português (Brasil)](README.pt-BR.md)
 
 The `diagnos` command line — the zero-knowledge diagnos vault, from your terminal, built on the
-[`diagnos`](https://github.com/diagnos-tech/integration/blob/develop/apps/sdk/README.md) SDK. Every byte of
+[`diagnos`](https://github.com/diagnos-tech/integration/blob/main/apps/sdk/README.md) SDK. Every byte of
 cryptography, signing and retry logic lives in the SDK; this package only parses arguments and renders what the SDK
 returns — tables for people, JSON for scripts, stable exit codes for both. It is the `cli` extra of the one
 `diagnos` package; its code lives in `src/diagnos/cli`.
@@ -15,7 +15,7 @@ returns — tables for people, JSON for scripts, stable exit codes for both. It 
 > uv tool install "diagnos[cli] @ git+https://github.com/diagnos-tech/integration@develop"
 > ```
 > Coming from `imgexam-cli` or `diagnos-cli`? Read
-> [MIGRATING.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.md) before upgrading.
+> [MIGRATING.md](https://github.com/diagnos-tech/integration/blob/main/MIGRATING.md) before upgrading.
 
 ## Install
 
@@ -50,15 +50,15 @@ unattended configures OpenBao auto-unseal instead, as the CLI guide shows.
 
 | | |
 |---|---|
-| [CLI guide](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/cli.md) | every command with real examples, JSON output, scripting and cron |
-| [CLI reference](https://github.com/diagnos-tech/integration/blob/develop/docs/reference/cli.json) | every command and option, generated from the code — also `diagnos <command> --help` |
-| [Authentication](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/authentication.md) | the token, the enrollment panel, the approval |
-| [Sessions](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/sessions.md#auto-unseal-with-openbao) | OpenBao auto-unseal, and what it trades |
-| [Errors](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/errors.md#every-exception) | the exit code of every failure |
-| [Configuration](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/configuration.md) | every environment variable |
+| [CLI guide](https://github.com/diagnos-tech/integration/blob/main/docs/guides/cli.md) | every command with real examples, JSON output, scripting and cron |
+| [CLI reference](https://github.com/diagnos-tech/integration/blob/main/docs/reference/cli.json) | every command and option, generated from the code — also `diagnos <command> --help` |
+| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, the enrollment panel, the approval |
+| [Sessions](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.md#auto-unseal-with-openbao) | OpenBao auto-unseal, and what it trades |
+| [Errors](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.md#every-exception) | the exit code of every failure |
+| [Configuration](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.md) | every environment variable |
 
 Known limits and the questions still open on the vault side:
-[Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
+[Compatibility with the vault](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.md).
 
 ## Development
 
@@ -71,5 +71,5 @@ uv run mypy src
 
 A command's examples live next to it, in its `epilog` (`diagnos.cli.examples`): they show at the bottom of `--help`
 and in the generated reference, and `make docs-check` fails if the two ever disagree. See
-[CONTRIBUTING.md](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.md) for the bilingual-docstring
+[CONTRIBUTING.md](https://github.com/diagnos-tech/integration/blob/main/CONTRIBUTING.md) for the bilingual-docstring
 rule and the "`diagnos.cli` imports only `diagnos`" boundary.

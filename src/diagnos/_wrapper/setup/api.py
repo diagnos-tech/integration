@@ -31,7 +31,7 @@ from .image import IMAGE, MIN_COSIGN, cosign_version, pulled_reference, run_line
 from .run import Plan, Step, command, shown
 from .tools import INSTALL_PAGES, docker_running, find, found, missing
 
-DEPLOY_GUIDE: Final = "https://github.com/diagnos-tech/integration/tree/develop/apps/api/deploy"
+DEPLOY_GUIDE: Final = "https://github.com/diagnos-tech/integration/tree/main/apps/api/deploy"
 
 
 def _pin_and_verify(docker: str, cosign: str | None, tagged: str, env: Environment) -> Step:

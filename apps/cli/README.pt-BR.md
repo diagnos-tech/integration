@@ -3,7 +3,7 @@
 [English](README.md) · **Português (Brasil)**
 
 A linha de comando `diagnos` — o cofre diagnos zero-knowledge, do seu terminal, construída sobre o SDK
-[`diagnos`](https://github.com/diagnos-tech/integration/blob/develop/apps/sdk/README.pt-BR.md). Todo byte de
+[`diagnos`](https://github.com/diagnos-tech/integration/blob/main/apps/sdk/README.pt-BR.md). Todo byte de
 criptografia, assinatura e lógica de retentativa mora no SDK; este pacote só interpreta argumentos e renderiza o que o
 SDK devolve — tabelas para pessoas, JSON para scripts, códigos de saída estáveis para os dois. Ela é o extra `cli` do
 pacote único `diagnos`; o código dela mora em `src/diagnos/cli`.
@@ -15,7 +15,7 @@ pacote único `diagnos`; o código dela mora em `src/diagnos/cli`.
 > uv tool install "diagnos[cli] @ git+https://github.com/diagnos-tech/integration@develop"
 > ```
 > Vindo do `imgexam-cli` ou do `diagnos-cli`? Leia o
-> [MIGRATING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.pt-BR.md) antes de atualizar.
+> [MIGRATING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/main/MIGRATING.pt-BR.md) antes de atualizar.
 
 ## Instalação
 
@@ -50,15 +50,15 @@ que roda sem ninguém olhando configura o auto-unseal com OpenBao, como o guia d
 
 | | |
 |---|---|
-| [Guia da CLI](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/cli.pt-BR.md) | todo comando com exemplos reais, saída JSON, scripts e cron |
-| [Referência da CLI](https://github.com/diagnos-tech/integration/blob/develop/docs/reference/cli.json) | todo comando e opção, gerados a partir do código — também `diagnos <comando> --help` |
-| [Autenticação](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/authentication.pt-BR.md) | o token, o painel de enrollment, a aprovação |
-| [Sessões](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/sessions.pt-BR.md#auto-unseal-com-openbao) | o auto-unseal com OpenBao, e o que ele troca |
-| [Erros](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/errors.pt-BR.md#toda-exceção) | o código de saída de toda falha |
-| [Configuração](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/configuration.pt-BR.md) | toda variável de ambiente |
+| [Guia da CLI](https://github.com/diagnos-tech/integration/blob/main/docs/guides/cli.pt-BR.md) | todo comando com exemplos reais, saída JSON, scripts e cron |
+| [Referência da CLI](https://github.com/diagnos-tech/integration/blob/main/docs/reference/cli.json) | todo comando e opção, gerados a partir do código — também `diagnos <comando> --help` |
+| [Autenticação](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.pt-BR.md) | o token, o painel de enrollment, a aprovação |
+| [Sessões](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.pt-BR.md#auto-unseal-com-openbao) | o auto-unseal com OpenBao, e o que ele troca |
+| [Erros](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.pt-BR.md#toda-exceção) | o código de saída de toda falha |
+| [Configuração](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.pt-BR.md) | toda variável de ambiente |
 
 Limites conhecidos e as questões ainda em aberto do lado do cofre:
-[Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
+[Compatibilidade com o cofre](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.pt-BR.md).
 
 ## Desenvolvimento
 
@@ -71,5 +71,5 @@ uv run mypy src
 
 Os exemplos de um comando moram ao lado dele, no `epilog` (`diagnos.cli.examples`): aparecem no fim do `--help` e na
 referência gerada, e o `make docs-check` falha se os dois divergirem. Veja o
-[CONTRIBUTING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/CONTRIBUTING.pt-BR.md) para a regra de
+[CONTRIBUTING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/main/CONTRIBUTING.pt-BR.md) para a regra de
 docstring bilíngue e a fronteira "o `diagnos.cli` só importa `diagnos`".

@@ -12,7 +12,7 @@ cascas finas sobre ele. Ele é o extra `sdk` do pacote único `diagnos`: o códi
 > **Situação: prévia 0.1.0.** Enrollment, chaves de sessão, assinatura de requisições, o relógio, o lock,
 > `vault.patients`, `vault.exams` e `vault.drives` falam o protocolo atual do cofre e são verificados contra ele pelos
 > testes de contrato Pact. Limites conhecidos:
-> [COMPATIBILITY.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.pt-BR.md).
+> [COMPATIBILITY.pt-BR.md](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.pt-BR.md).
 
 O objetivo é o seu código ler assim:
 
@@ -72,18 +72,18 @@ que o guia de sessões detalha.
 
 | Guia | |
 |---|---|
-| [Início rápido](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/quickstart.pt-BR.md) | do token ao primeiro paciente e arquivo cifrados |
-| [Conceitos](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/concepts.pt-BR.md) | workspaces, grupos, chaves, versões, rascunhos, nós |
-| [Autenticação](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/authentication.pt-BR.md) | o token, o link e o código de enrollment, a aprovação |
-| [Sessões](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/sessions.pt-BR.md) | unlock, lock, expiração, auto-unseal com OpenBao |
-| [Pacientes](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/patients.pt-BR.md) · [Exames](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/exams.pt-BR.md) · [Arquivos](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/files.pt-BR.md) | os três recursos |
-| [Erros](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/errors.pt-BR.md) | toda exceção, o que é retentado, diferença de relógio |
-| [Configuração](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/configuration.pt-BR.md) | toda variável de ambiente e o `Settings` |
-| [Modelo de segurança](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/security.pt-BR.md) | o que o cofre vê, o que o enclave protege |
-| [Referência do SDK](https://github.com/diagnos-tech/integration/blob/develop/docs/reference/sdk.json) | toda classe e função pública, gerada a partir do código |
+| [Início rápido](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.pt-BR.md) | do token ao primeiro paciente e arquivo cifrados |
+| [Conceitos](https://github.com/diagnos-tech/integration/blob/main/docs/guides/concepts.pt-BR.md) | workspaces, grupos, chaves, versões, rascunhos, nós |
+| [Autenticação](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.pt-BR.md) | o token, o link e o código de enrollment, a aprovação |
+| [Sessões](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.pt-BR.md) | unlock, lock, expiração, auto-unseal com OpenBao |
+| [Pacientes](https://github.com/diagnos-tech/integration/blob/main/docs/guides/patients.pt-BR.md) · [Exames](https://github.com/diagnos-tech/integration/blob/main/docs/guides/exams.pt-BR.md) · [Arquivos](https://github.com/diagnos-tech/integration/blob/main/docs/guides/files.pt-BR.md) | os três recursos |
+| [Erros](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.pt-BR.md) | toda exceção, o que é retentado, diferença de relógio |
+| [Configuração](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.pt-BR.md) | toda variável de ambiente e o `Settings` |
+| [Modelo de segurança](https://github.com/diagnos-tech/integration/blob/main/docs/guides/security.pt-BR.md) | o que o cofre vê, o que o enclave protege |
+| [Referência do SDK](https://github.com/diagnos-tech/integration/blob/main/docs/reference/sdk.json) | toda classe e função pública, gerada a partir do código |
 
 O modelo de ameaça do próprio enclave está em [`native/README.pt-BR.md`](native/README.pt-BR.md), e o contrato de fio
-normativo no [PROTOCOL.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.pt-BR.md).
+normativo no [PROTOCOL.pt-BR.md](https://github.com/diagnos-tech/integration/blob/main/docs/PROTOCOL.pt-BR.md).
 
 ## Desenvolvimento
 

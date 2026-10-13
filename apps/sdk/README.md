@@ -12,7 +12,7 @@ are thin shells over it. It is the `sdk` extra of the one `diagnos` package: its
 > **Status: 0.1.0 preview.** Enrollment, session keys, request signing, the clock, the lock, `vault.patients`,
 > `vault.exams` and `vault.drives` speak the vault's current protocol and are verified against it by the Pact
 > contract tests. Known limits:
-> [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/develop/docs/COMPATIBILITY.md).
+> [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.md).
 
 The goal is for your code to read like this:
 
@@ -71,18 +71,18 @@ server that must restart without a person uses OpenBao auto-unseal, a deliberate
 
 | Guide | |
 |---|---|
-| [Quickstart](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/quickstart.md) | token to first encrypted patient and file |
-| [Concepts](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/concepts.md) | workspaces, groups, keys, versions, drafts, nodes |
-| [Authentication](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/authentication.md) | the token, the enrollment link and code, the approval |
-| [Sessions](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/sessions.md) | unlock, lock, expiry, OpenBao auto-unseal |
-| [Patients](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/patients.md) · [Exams](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/exams.md) · [Files](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/files.md) | the three resources |
-| [Errors](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/errors.md) | every exception, what is retried, clock skew |
-| [Configuration](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/configuration.md) | every environment variable and `Settings` |
-| [Security model](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/security.md) | what the vault sees, what the enclave protects |
-| [SDK reference](https://github.com/diagnos-tech/integration/blob/develop/docs/reference/sdk.json) | every public class and function, generated from the code |
+| [Quickstart](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.md) | token to first encrypted patient and file |
+| [Concepts](https://github.com/diagnos-tech/integration/blob/main/docs/guides/concepts.md) | workspaces, groups, keys, versions, drafts, nodes |
+| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, the enrollment link and code, the approval |
+| [Sessions](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.md) | unlock, lock, expiry, OpenBao auto-unseal |
+| [Patients](https://github.com/diagnos-tech/integration/blob/main/docs/guides/patients.md) · [Exams](https://github.com/diagnos-tech/integration/blob/main/docs/guides/exams.md) · [Files](https://github.com/diagnos-tech/integration/blob/main/docs/guides/files.md) | the three resources |
+| [Errors](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.md) | every exception, what is retried, clock skew |
+| [Configuration](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.md) | every environment variable and `Settings` |
+| [Security model](https://github.com/diagnos-tech/integration/blob/main/docs/guides/security.md) | what the vault sees, what the enclave protects |
+| [SDK reference](https://github.com/diagnos-tech/integration/blob/main/docs/reference/sdk.json) | every public class and function, generated from the code |
 
 The enclave's own threat model is in [`native/README.md`](native/README.md), and the normative wire contract in
-[PROTOCOL.md](https://github.com/diagnos-tech/integration/blob/develop/docs/PROTOCOL.md).
+[PROTOCOL.md](https://github.com/diagnos-tech/integration/blob/main/docs/PROTOCOL.md).
 
 ## Development
 

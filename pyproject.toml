@@ -84,7 +84,7 @@ Documentation = "https://dev.diagnos.health"
 "Trust Center" = "https://trust.diagnos.health"
 Source = "https://github.com/diagnos-tech/integration"
 Issues = "https://github.com/diagnos-tech/integration/issues"
-Changelog = "https://github.com/diagnos-tech/integration/blob/develop/CHANGELOG.md"
+Changelog = "https://github.com/diagnos-tech/integration/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 # 🇺🇸 A contributor works on every layer at once, so the dev group pulls in every extra: a plain `uv sync` (or any
