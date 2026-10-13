@@ -33,7 +33,7 @@ aes-gcm = "0.11"
 # 🇧🇷 `xchacha` expõe o HChaCha20, o passo de subchave do secretstream do libsodium.
 chacha20 = { version = "0.10", features = ["xchacha"] }
 poly1305 = "0.9"
-base64 = "0.22"
+base64 = "0.23"
 x25519-dalek = { version = "3.0", features = ["static_secrets", "zeroize"] }
 ml-kem = { version = "0.3", features = ["zeroize"] }
 rand_core = "0.10"
