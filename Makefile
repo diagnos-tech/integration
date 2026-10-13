@@ -15,9 +15,12 @@
 #    `conftest.py` numa execução só colidiriam.
 
 .DEFAULT_GOAL := help
-.PHONY: help sync fmt lint lint-py lint-rust lint-docs types test test-py test-rust cov contract contract-check docs docs-check check hooks clean
+.PHONY: help sync fmt lint lint-py lint-rust lint-docs types test test-py test-rust cov contract contract-check docs docs-check check fuzz hooks clean
 
 NATIVE := apps/sdk/native/Cargo.toml
+# 🇺🇸 Keep in sync with FUZZ_TOOLCHAIN in .github/workflows/fuzz.yml. 🇧🇷 Mantenha igual ao FUZZ_TOOLCHAIN do fuzz.yml.
+FUZZ_TOOLCHAIN := nightly-2026-10-12
+FUZZ_TARGET ?= secretstream_pull
 CARGO_ENV = PYO3_PYTHON="$$(uv run python -c 'import sys; print(sys.executable)')"
 
 help: ## 🇺🇸 List the targets · 🇧🇷 Lista os alvos
@@ -88,6 +91,9 @@ docs-check: ## 🇺🇸 Fail if the docs drifted from the code (CI) · 🇧🇷 
 	uv run python -m scripts.docs.check
 
 check: lint types test contract-check docs-check ## 🇺🇸 Everything CI runs · 🇧🇷 Tudo que a CI roda
+
+fuzz: ## 🇺🇸 Fuzz one enclave target for a minute (FUZZ_TARGET=…, needs cargo-fuzz) · 🇧🇷 Fuzz de um alvo do enclave por um minuto
+	cd apps/sdk/native && $(CARGO_ENV) cargo +$(FUZZ_TOOLCHAIN) fuzz run $(FUZZ_TARGET) -- -max_total_time=60
 
 hooks: ## 🇺🇸 Run `make lint` before every commit · 🇧🇷 Roda `make lint` antes de todo commit
 	uvx pre-commit install
