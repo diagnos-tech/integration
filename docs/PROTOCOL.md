@@ -227,7 +227,7 @@ baked into every ciphertext already stored — renaming one would make
 existing data unreadable. Never repurpose a label for a new meaning; a
 changed derivation gets a new, separately versioned string (`-v2`) instead.
 Code that uses one of these points back here by name — see
-`apps/sdk/src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` and `hkdf.py`.
+`src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` and `hkdf.py`.
 
 | Label | Purpose | Section |
 |---|---|---|

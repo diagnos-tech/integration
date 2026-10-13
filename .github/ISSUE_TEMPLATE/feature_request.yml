@@ -6,20 +6,22 @@ body:
   - type: markdown
     attributes:
       value: |
-        🇺🇸 Thanks for the suggestion. Note that `cli` and `api` only ever wrap what `diagnos` (the SDK) exposes —
-        a feature that needs new capability usually belongs in the SDK first.
-        🇧🇷 Obrigado pela sugestão. Note que `cli` e `api` só envolvem o que `diagnos` (o SDK) expõe — uma
-        funcionalidade que precisa de capacidade nova geralmente entra primeiro no SDK.
+        🇺🇸 Thanks for the suggestion. Note that the CLI and the API only ever wrap what the SDK exposes — a
+        feature that needs new capability usually belongs in the SDK first.
+        🇧🇷 Obrigado pela sugestão. Note que a CLI e a API só envolvem o que o SDK expõe — uma funcionalidade que
+        precisa de capacidade nova geralmente entra primeiro no SDK.
 
   - type: dropdown
     id: package
     attributes:
-      label: "Package · Pacote"
-      description: "🇺🇸 Which package would this affect? · 🇧🇷 Qual pacote isso afetaria?"
+      label: "Layer · Camada"
+      description: "🇺🇸 Which layer would this affect? · 🇧🇷 Qual camada isso afetaria?"
       options:
-        - diagnos
-        - diagnos-cli
-        - diagnos-api
+        - "diagnos — base (docs, version, setup, help)"
+        - "diagnos[sdk] — SDK"
+        - "diagnos[cli] — CLI"
+        - "diagnos[api] — REST API"
+        - "images (ghcr.io/diagnos-tech) · imagens"
         - docs
         - other · outro
     validations:

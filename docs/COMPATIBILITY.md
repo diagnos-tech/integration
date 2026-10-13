@@ -20,7 +20,7 @@ SDK speaks the vault's current protocol for it.
 | Patients, exams | `vault.patients`, `vault.exams` (versioned documents) | ✅ Compatible | contract + web-app vectors |
 | Files and folders | `vault.drives` (`/nodes`: reserve, `PUT`, confirm, multipart, list, read, folders) | ✅ Compatible | contract + web-app vectors |
 
-The CLI (`diagnos-cli`) and the API (`diagnos-api`) are thin shells over the SDK: every command and route inherits
+The CLI (`diagnos[cli]`) and the API (`diagnos[api]`) are thin shells over the SDK: every command and route inherits
 its row.
 
 "Verified by contract" means the SDK's side is pinned in

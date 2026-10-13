@@ -8,15 +8,18 @@
 [![Cobertura](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
 [![Testes de contrato](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop)
 [![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Pacote](https://github.com/diagnos-tech/integration/actions/workflows/package.yml/badge.svg)](https://github.com/diagnos-tech/integration/actions/workflows/package.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/diagnos-tech/integration/badge)](https://scorecard.dev/viewer/?uri=github.com/diagnos-tech/integration)
 [![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab)](pyproject.toml)
 [![Licença: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-64748b)](LICENSE)
 
-**[SDK](apps/sdk/README.pt-BR.md)** · **[CLI](apps/cli/README.pt-BR.md)** · **[API](apps/api/README.pt-BR.md)** · [Protocolo](docs/PROTOCOL.pt-BR.md) ·
+**[Instalação](docs/guides/install.pt-BR.md)** · **[SDK](apps/sdk/README.pt-BR.md)** · **[CLI](apps/cli/README.pt-BR.md)** ·
+**[API](apps/api/README.pt-BR.md)** · [Wrappers](wrappers/README.pt-BR.md) · [Protocolo](docs/PROTOCOL.pt-BR.md) ·
 [Testes de contrato](contracts/README.pt-BR.md) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Segurança](SECURITY.pt-BR.md)
 
-Três pacotes Python de código aberto para falar com o cofre diagnos sem nunca lidar com URL assinada, HMAC ou envelope
-de chave. Tudo que é clínico é cifrado **dentro do seu processo** antes de tocar a rede — o cofre só vê ciphertext.
-Estes pacotes fazem disso o caminho *fácil*.
+Um pacote Python de código aberto, `diagnos`, para falar com o cofre diagnos sem nunca lidar com URL assinada, HMAC ou
+envelope de chave. Tudo que é clínico é cifrado **dentro do seu processo** antes de tocar a rede — o cofre só vê
+ciphertext. Este pacote faz disso o caminho *fácil*.
 
 > [!NOTE]
 > **Situação: prévia 0.1.0.** Toda superfície — enrollment, sessões, assinatura de requisições, pacientes, exames,
@@ -24,20 +27,32 @@ Estes pacotes fazem disso o caminho *fácil*.
 > [testes de contrato](contracts/README.pt-BR.md). Limites conhecidos, e as questões ainda em aberto do lado do cofre,
 > estão em [docs/COMPATIBILITY.pt-BR.md](docs/COMPATIBILITY.pt-BR.md).
 
-## Escolha seu pacote
+## Instale o que você precisa
 
-| Pacote | Use quando | Instalação |
+| Instale | Você ganha | Use quando |
 |---|---|---|
-| [**`diagnos`**](apps/sdk/README.pt-BR.md) — SDK | Seu código é Python. | `pip install diagnos` |
-| [**`diagnos-cli`**](apps/cli/README.pt-BR.md) — CLI | Scripts, operação, uma olhada rápida. | `pipx install diagnos-cli` |
-| [**`diagnos-api`**](apps/api/README.pt-BR.md) — API REST | Seu sistema fala HTTP, não Python. | [Docker / Kubernetes](apps/api/deploy/README.pt-BR.md) |
+| `pip install diagnos` | `diagnos docs`, `version`, `setup`, `help` — sem dependências | uma primeira olhada; ela instala o resto para você |
+| `pip install "diagnos[sdk]"` | [o SDK](apps/sdk/README.pt-BR.md) — `from diagnos import Diagnos` | seu código é Python |
+| `pip install "diagnos[cli]"` | [a CLI](apps/cli/README.pt-BR.md) — `diagnos login`, `diagnos patients list`, … | scripts, operação, uma olhada rápida |
+| `pip install "diagnos[api]"` | [a API REST](apps/api/README.pt-BR.md) — `diagnos-api`, ou a imagem assinada dela | seu sistema fala HTTP, não Python |
 
-Mesmo token, mesmo fluxo de aprovação, mesmas garantias. A CLI e a API são cascas finas sobre o SDK — nunca
-reimplementam um único byte de criptografia.
+Mesmo token, mesmo fluxo de aprovação, mesmas garantias: a CLI e a API são cascas finas sobre o SDK — nunca
+reimplementam um único byte de criptografia. Um pacote traz os três; um extra só soma as dependências de uma camada.
+Ou deixe a base fazer, passo a passo:
+
+```sh
+uv tool install diagnos   # ou: pipx install diagnos
+diagnos setup sdk         # o SDK no projeto Python daqui, com uv
+diagnos setup cli         # todos os comandos para este `diagnos`, com uv
+diagnos setup api         # a imagem da API, baixada e verificada pelo digest, com Docker e cosign
+```
+
+Todo release é assinado com Sigstore e traz proveniência de build — [verifique](SECURITY.pt-BR.md#verificando-um-release).
+Quem programa em outras linguagens ganha os mesmos quatro comandos da base pelos [wrappers](wrappers/README.pt-BR.md).
 
 > [!NOTE]
-> Ainda não está no PyPI. Até o primeiro release, instale do código-fonte — [Instalação](docs/guides/install.pt-BR.md)
-> tem os comandos, e o [toolchain Rust](https://rustup.rs/) que o build precisa.
+> Até a `0.1.0` estar no PyPI, instale do código-fonte — [Instalação](docs/guides/install.pt-BR.md) tem os comandos,
+> e o [toolchain Rust](https://rustup.rs/) que o build precisa.
 
 ## Começando
 
@@ -110,14 +125,20 @@ todo comando, rota e classe. [Como a doc é construída e checada](docs/README.p
 
 ## Portões de qualidade
 
-Todo badge acima é um workflow que você roda localmente com um comando.
+Todo badge acima é um workflow, e todos menos os dois últimos rodam localmente com um comando.
 
 | Badge | O que prova | Localmente |
 |---|---|---|
-| **Unit tests** | os três pacotes no CPython 3.11–3.13, mais o enclave Rust | `make test` |
-| **Coverage** | cobertura de ramos combinada de `diagnos`, `diagnos-cli` e `diagnos-api`, com um piso que só sobe | `make cov` |
+| **Unit tests** | toda camada — base, SDK, CLI, API — no CPython 3.11–3.13, mais o enclave Rust | `make test` |
+| **Coverage** | cobertura de ramos combinada do pacote `diagnos` inteiro, com um piso que só sobe | `make cov` |
 | **Contract tests** | o SDK manda e lê exatamente o que o contrato [Pact](https://pact.io) commitado diz (motor Rust `pact_ffi`) | `make contract` |
 | **CI** | lint (Python, Rust, docstrings bilíngues, documentação), `mypy --strict`, lockfile, e a doc: todo exemplo roda, a referência está em dia | `make lint types docs-check` |
+| **Pacote** | os sete wheels e o sdist constroem, e cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra; as duas imagens constroem | `uv build` |
+| **OpenSSF Scorecard** | as práticas de cadeia de suprimentos: dependências fixadas, tokens com privilégio mínimo, releases assinados, proteção de branch | — |
+
+Os releases saem pelo [`release.yml`](.github/workflows/release.yml): assinaturas Sigstore e proveniência SLSA em todo
+arquivo e imagem, PyPI via Trusted Publishing — nenhum segredo de longa duração em lugar nenhum. O
+[Workflow lint](.github/workflows/workflow-lint.yml) audita os próprios workflows com zizmor e actionlint.
 
 O contrato é guiado pelo consumidor: os testes do SDK gravam
 [`contracts/diagnos-sdk-diagnos-vault.json`](contracts/diagnos-sdk-diagnos-vault.json), e o cofre verifica esse
@@ -133,26 +154,30 @@ flowchart LR
 
 ```
 integration/
-├── apps/
-│   ├── sdk/           diagnos          a biblioteca — tudo vive aqui
-│   │   └── native/    diagnos._secure  enclave de memória em Rust
-│   ├── cli/           diagnos-cli      `diagnos …` no seu terminal
-│   └── api/           diagnos-api      fachada REST (FastAPI), só mTLS
-│       └── deploy/    compose · k8s    manifestos prontos para rodar
+├── src/diagnos/       diagnos          o pacote único — `pip install diagnos[…]`
+│   ├── _wrapper/      (base)           docs · version · setup · help, só biblioteca padrão
+│   ├── …              [sdk]            o SDK: client, crypto, session, transport, resources, models
+│   ├── cli/           [cli]            `diagnos …` no seu terminal
+│   └── api/           [api]            fachada REST (FastAPI), só mTLS
+├── apps/              (por camada)     o guia, os testes e os recursos de cada camada
+│   ├── sdk/native/    diagnos._secure  enclave de memória em Rust
+│   └── api/deploy/    compose · k8s    manifestos prontos para rodar
+├── wrappers/          contract.json    os quatro comandos da base, para toda linguagem · py/: o de Python
 ├── contracts/         Pact             contrato do consumidor com o cofre + os testes dele
 ├── docs/              guides/          a documentação · reference/ gerada a partir do código
 │                      PROTOCOL.md      formatos de bytes normativos · COMPATIBILITY.md · site.json
-└── scripts/           docs/            as checagens por trás do `make lint`, do `make docs-check` e da CI
+├── scripts/           docs/            as checagens por trás do `make lint`, do `make docs-check` e da CI
+└── Dockerfile         api · cli        as duas imagens, construídas a partir do wheel
 ```
 
 ## Como contribuir
 
 Você precisa de [uv](https://docs.astral.sh/uv/), Python 3.11–3.13 e, para construir o enclave do fonte,
-[Rust](https://rustup.rs/) stable.
+[rustup](https://rustup.rs/) — ele instala o Rust que o `rust-toolchain.toml` fixa.
 
 ```sh
 git clone https://github.com/diagnos-tech/integration && cd integration
-make sync    # instala tudo e constrói o enclave Rust
+make sync    # instala todo extra, editável, e constrói o enclave Rust
 make check   # exatamente o que a CI roda: lint, tipos, testes unitários e de contrato, doc
 make         # lista todos os outros alvos
 ```

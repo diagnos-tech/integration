@@ -29,15 +29,15 @@ exatamente como o SDK faria no processo de quem chama. Isso torna o processo da 
 ## Experimente na sua máquina
 
 ```sh
-uv run --package diagnos-api diagnos-api dev-certs   # ./certs: uma CA local, um par do servidor localhost, um de cliente
+uv run diagnos-api dev-certs   # ./certs: uma CA local, um par do servidor localhost, um de cliente
 export DIAGNOS_API_TOKEN="apikey-…"                  # mais os quatro exports que o dev-certs mostra
-uv run --package diagnos-api diagnos-api
+uv run diagnos-api
 curl --cacert certs/ca.pem --cert certs/client.pem --key certs/client-key.pem https://localhost:8443/healthz
 ```
 
 O `dev-certs` é só para a sua máquina: os certificados duram 30 dias e a chave da CA fica ao lado deles. Ele se
 recusa a sobrescrever arquivos existentes (`--force` os substitui) e aceita `--client-cn` para o nome que
-`DIAGNOS_API_ALLOWED_CLIENT_CN` compara. Fora do workspace ele precisa de `pip install "diagnos-api[dev]"`. Para
+`DIAGNOS_API_ALLOWED_CLIENT_CN` compara. Fora de um checkout ele precisa de `pip install "diagnos[dev-certs]"`. Para
 qualquer coisa compartilhada, use a CA da sua organização, ou os passos com `openssl` em
 [Certificados](#certificados).
 
@@ -89,28 +89,29 @@ Quatro variáveis são obrigatórias — o token e três arquivos PEM; todo o re
 [Implantação](../../apps/api/deploy/README.pt-BR.md#ambiente).
 
 ```sh
-docker build -f apps/api/Dockerfile -t diagnos-api .   # da raiz do repositório
-docker run --rm -p 8443:8443 --cap-add=IPC_LOCK \
-  -e DIAGNOS_API_TOKEN=apikey-… \
+docker build --target api -t diagnos-api .   # da raiz do repositório — ou: diagnos setup api
+docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  --ulimit memlock=-1:-1 -p 127.0.0.1:8443:8443 --user "$(id -u):$(id -g)" \
+  -e DIAGNOS_API_TOKEN \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
   -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
   -v "$PWD/certs:/certs:ro" diagnos-api
 ```
 
-A API é um processo Python comum: `diagnos-api` ou `python -m diagnos_api` a roda em qualquer lugar onde Python roda.
+A API é um processo Python comum: `diagnos-api` ou `python -m diagnos.api` a roda em qualquer lugar onde Python roda.
 O contêiner roda exatamente o mesmo código e é a forma recomendada para produção — build fixado, usuário não-root,
-`IPC_LOCK` para travar memória, manifests de Kubernetes em `deploy/` — e Python puro serve igualmente bem na sua
+um `RLIMIT_MEMLOCK` maior para travar memória, uma imagem assinada fixada por digest, manifests de Kubernetes em `deploy/` — e Python puro serve igualmente bem na sua
 máquina ou numa VM. De um checkout, sem Docker:
 
 ```sh
 export DIAGNOS_API_TOKEN="apikey-…"
 export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
 export DIAGNOS_API_TLS_CERT_FILE=./tls.pem DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
-uv run --package diagnos-api diagnos-api   # ou: python -m diagnos_api
+uv run diagnos-api   # ou: python -m diagnos.api — fora de um checkout: pip install "diagnos[api]"
 ```
 
-`--cap-add=IPC_LOCK` deixa o SDK travar as chaves na RAM além do limite padrão de 64 KiB; sem ele a API ainda roda, em
-modo best-effort. Docker Compose, Kubernetes e OpenBao estão em [Implantação](../../apps/api/deploy/README.pt-BR.md).
+`--ulimit memlock=-1:-1` deixa o SDK travar as chaves na RAM além do limite padrão de 64 KiB; sem ele a API ainda
+roda, em modo best-effort. O `--user` casa com o dono das chaves `0600` que o `dev-certs` grava. Docker Compose, Kubernetes e OpenBao estão em [Implantação](../../apps/api/deploy/README.pt-BR.md).
 Uma variável ausente ou um arquivo de certificado ilegível param o processo na hora com código de saída `2` e uma
 mensagem que o nomeia.
 
@@ -246,7 +247,7 @@ códigos de TLS mútuo também estão listados lá.
 
 - **Uma réplica por service account.** Uma sessão pertence a um processo. Para escalar, dê a cada réplica a própria
   service account e o próprio path no OpenBao.
-- **Os logs são linhas JSON** em `stdout`, para os loggers `diagnos_api` e `diagnos` — nunca um corpo de requisição,
+- **Os logs são linhas JSON** em `stdout`, para os loggers `diagnos.api` e `diagnos` — nunca um corpo de requisição,
   um token ou um nome de arquivo.
 - **O schema também é servido**: `/docs` (Swagger UI) e `/openapi.json`, atrás de TLS mútuo como todo o resto. O
   mesmo documento é a [referência da API](../reference/openapi.json).

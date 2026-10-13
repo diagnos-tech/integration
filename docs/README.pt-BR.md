@@ -95,7 +95,7 @@ a referência diz, mude o código:
 | Arquivo | Gerado a partir de | O texto vem de |
 |---|---|---|
 | `openapi.json` | o app FastAPI, `app.openapi()` | `summary`/`description` das rotas e descrições de parâmetro, escritos `🇺🇸 … 🇧🇷 …` |
-| `cli.json` | a árvore de comandos `typer` do `diagnos` | textos `help=` escritos `English · Português`; exemplos do epílogo de cada comando (`diagnos_cli.examples`) |
+| `cli.json` | a árvore de comandos `typer` do `diagnos` | textos `help=` escritos `English · Português`; exemplos do epílogo de cada comando (`diagnos.cli.examples`) |
 | `sdk.json` | `diagnos.__all__`, lido com `inspect` | docstrings, com os parágrafos 🇺🇸/🇧🇷; campos documentados por uma string literal logo abaixo deles |
 
 A divisão 🇺🇸/🇧🇷 segue uma regra só, compartilhada com o site (`scripts/docs/bilingual.py`): do 🇺🇸 até o 🇧🇷 é

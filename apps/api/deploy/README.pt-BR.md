@@ -7,6 +7,22 @@ servir HTTPS, e a CA que assina os certificados de **cliente** — mTLS é a ún
 requisição sem certificado de cliente válido nunca chega ao código da aplicação. Com OpenBao configurado, reiniciar
 um pod retoma a sessão do SDK sem nova aprovação humana.
 
+## A imagem
+
+Todo release publica `ghcr.io/diagnos-tech/diagnos-api` para `linux/amd64` e `linux/arm64`, construída pelo workflow
+de release a partir dos mesmos wheels que ele envia ao PyPI, com SBOM e proveniência de build, e assinada com cosign
+pelo digest. Faça o deploy **pelo digest**, depois de verificar esse digest — o `diagnos setup api` faz as duas
+coisas e imprime o `docker run` (veja o [SECURITY.pt-BR.md](../../../SECURITY.pt-BR.md#verificando-um-release) para
+os comandos à mão):
+
+```sh
+diagnos setup api                     # baixa, verifica o digest baixado, imprime o run pelo digest
+docker build --target api -t diagnos-api .   # ou construa a partir de um checkout, na raiz do repositório
+```
+
+A imagem roda como uid/gid `10001` com o código do root e só leitura, não tem ferramenta de shell para instalar nada,
+e informa a saúde pela porta 8443 aceitar conexões (`HEALTHCHECK`; o mTLS recusa uma sonda HTTP simples).
+
 ## Ambiente
 
 | Variável | Obrigatória | Significado |
@@ -91,12 +107,16 @@ O SDK chama `mlock()` em chaves de sessão e DEKs de grupo para o kernel nunca p
 pudesse ainda assim acabar num bloco de disco. Três coisas precisam se alinhar para essa chamada funcionar num
 container:
 
-1. **`CAP_IPC_LOCK`** — o `capabilities.add: [IPC_LOCK]` de `deploy/k8s/deployment.yaml` e o `cap_add: [IPC_LOCK]`
-   de `deploy/compose` concedem os dois; a própria imagem carrega `cap_ipc_lock` como file capability para um
-   processo não-root conseguir usar.
-2. **`RLIMIT_MEMLOCK`** — o padrão de 64 KiB não é suficiente; o `ulimits.memlock: { soft: -1, hard: -1 }` do
-   `deploy/compose` remove o limite por completo (o Kubernetes não tem campo de ulimit por container, exatamente
-   por isso a capability acima importa mais lá).
+1. **`RLIMIT_MEMLOCK`** — o padrão de 64 KiB não é suficiente; o `ulimits.memlock: { soft: -1, hard: -1 }` do
+   `deploy/compose` (ou `docker run --ulimit memlock=-1:-1`) remove o limite por completo. Este é o mecanismo
+   confiável.
+2. **`CAP_IPC_LOCK`** — o `capabilities.add: [IPC_LOCK]` de `deploy/k8s/deployment.yaml` e o `cap_add: [IPC_LOCK]`
+   de `deploy/compose` a concedem, e a imagem carrega `cap_ipc_lock` como file capability. Mas os dois manifestos
+   também ligam o `no-new-privileges` (`allowPrivilegeEscalation: false` no Kubernetes), sob o qual o kernel ignora
+   file capabilities — então, para um processo não-root, a capability é um recurso de reserva, não o mecanismo. O
+   Kubernetes não tem campo de ulimit por container: travar além de 64 KiB lá depende do `RLIMIT_MEMLOCK` que o
+   runtime de containers dos seus nós concede. Confira o `diagnos status` (ou o `memory_status()`) uma vez por
+   cluster.
 3. **`DIAGNOS_MEMORY_LOCK=require`** (comentado em `deploy/k8s/configmap.yaml`) — faz o processo se recusar a subir
    se `mlock` falhar em vez de continuar em silêncio com chaves que podem ir para swap; descomente assim que os dois
    primeiros estiverem confirmados funcionando nos seus nós.

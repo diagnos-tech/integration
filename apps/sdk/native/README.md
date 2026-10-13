@@ -6,8 +6,8 @@ A small Rust crate, built into the `diagnos` wheel by maturin, that holds
 every secret the SDK ever has — session keys, group DEKs, document keys, the
 SDK's own X25519 + ML-KEM-768 identity, the entropy pool — and performs every
 operation that needs one. Python only ever holds a handle, `SecretBox`. The
-same guarantees reach `diagnos-cli` and `diagnos-api` for free: they never
-touch a key, they call the SDK.
+same guarantees reach the command line and the REST API (`diagnos[cli]`,
+`diagnos[api]`) for free: they never touch a key, they call the SDK.
 
 ## Why Rust, why here
 

@@ -6,8 +6,9 @@ Um crate Rust pequeno, embarcado no wheel `diagnos` pelo maturin, que guarda
 todo segredo que o SDK algum dia tem — chaves de sessão, DEKs de grupo,
 chaves de documento, a própria identidade X25519 + ML-KEM-768 do SDK, o pool
 de entropia — e executa toda operação que precisa de um. O Python só segura
-um handle, `SecretBox`. As mesmas garantias chegam a `diagnos-cli` e
-`diagnos-api` de graça: eles nunca tocam uma chave, chamam o SDK.
+um handle, `SecretBox`. As mesmas garantias chegam à linha de comando e à
+API REST (`diagnos[cli]`, `diagnos[api]`) de graça: elas nunca tocam uma
+chave, chamam o SDK.
 
 ## Por que Rust, por que aqui
 

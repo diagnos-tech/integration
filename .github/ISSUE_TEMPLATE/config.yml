@@ -7,4 +7,4 @@ contact_links:
     about: "🇺🇸 Security issues go here privately, never as a public issue — see SECURITY.md. · 🇧🇷 Questões de segurança vão para cá em privado, nunca como issue pública — veja SECURITY.pt-BR.md."
   - name: "Usage questions · Dúvidas de uso"
     url: https://github.com/diagnos-tech/integration#readme
-    about: "🇺🇸 Not a bug or a feature request? Start with the README — it covers install, quick start and where each package lives. · 🇧🇷 Não é um bug nem um pedido de funcionalidade? Comece pelo README — ele cobre instalação, início rápido e onde cada pacote mora."
+    about: "🇺🇸 Not a bug or a feature request? Start with the README — it covers install, quick start and where each layer lives. · 🇧🇷 Não é um bug nem um pedido de funcionalidade? Comece pelo README — ele cobre instalação, início rápido e onde cada camada mora."

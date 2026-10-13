@@ -1,36 +1,37 @@
-# diagnos-api
+# diagnos · API REST
 
 [English](README.md) · **Português (Brasil)**
 
 Uma fachada REST (FastAPI) sobre o SDK [`diagnos`](https://github.com/diagnos-tech/integration/tree/develop/apps/sdk): um
 processo, uma service account, uma sessão `Diagnos` viva na RAM, exposta a sistemas internos que preferem falar HTTP a
 importar Python. Ela nunca acrescenta capacidade que o SDK já não tenha — toda rota é um invólucro fino sobre
-`vault.patients`, `vault.exams` ou `vault.drives` — e TLS mútuo é a única autenticação que ela aceita.
+`vault.patients`, `vault.exams` ou `vault.drives` — e TLS mútuo é a única autenticação que ela aceita. Ela é o
+extra `api` do pacote único `diagnos` (`pip install "diagnos[api]"`, comando `diagnos-api`); o código dela mora em
+`src/diagnos/api`.
+
+O jeito suportado de rodá-la é a imagem assinada `ghcr.io/diagnos-tech/diagnos-api`, implantada pelo digest: o
+`diagnos setup api` a baixa, verifica o digest baixado com cosign e imprime o run abaixo com esse digest. A
+[Implantação](https://github.com/diagnos-tech/integration/blob/develop/apps/api/deploy/README.pt-BR.md#a-imagem) tem os
+detalhes, e `docker build --target api -t diagnos-api .` constrói a mesma imagem a partir de um checkout.
 
 > [!NOTE]
-> **Ainda não está no PyPI** — o `diagnos-api` (e o SDK `diagnos` de que depende) não tem wheel publicado. A imagem
-> Docker construída a partir de `apps/api/Dockerfile` é a forma suportada de rodá-lo hoje: ela constrói o SDK, a CLI e
-> a API do código-fonte dentro da imagem, então não precisa de nada do PyPI. Rodar com `uv` a partir de um checkout
-> também funciona.
->
-> Vindo do `imgexam-api`? As versões recomeçam em `0.1.0` sob o nome e a imagem novos — leia o
+> Vindo do `imgexam-api` ou do `diagnos-api`? Leia o
 > [MIGRATING.pt-BR.md](https://github.com/diagnos-tech/integration/blob/develop/MIGRATING.pt-BR.md) antes de atualizar.
 
 ## De relance
 
 ```sh
-docker build -f apps/api/Dockerfile -t diagnos-api .   # da raiz do repositório
-docker run --rm -p 8443:8443 --cap-add=IPC_LOCK \
-  -e DIAGNOS_API_TOKEN=apikey-… \
+docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  --ulimit memlock=-1:-1 -p 8443:8443 -e DIAGNOS_API_TOKEN \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
   -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
-  -v "$PWD/certs:/certs:ro" diagnos-api
+  -v "$PWD/certs:/certs:ro" ghcr.io/diagnos-tech/diagnos-api@sha256:…
 
 curl --cert client.pem --key client-key.pem --cacert clients-ca.pem \
   https://diagnos-api.internal:8443/v1/patients
 ```
 
-É também um processo Python comum — `diagnos-api` ou `python -m diagnos_api` — e, na sua própria máquina, o
+É também um processo Python comum — `diagnos-api` ou `python -m diagnos.api` — e, na sua própria máquina, o
 `diagnos-api dev-certs` escreve uma CA descartável, um par de servidor para `localhost` e um par de cliente num passo
 só; o [guia da API REST](https://github.com/diagnos-tech/integration/blob/develop/docs/guides/api.pt-BR.md#experimente-na-sua-máquina)
 mostra o caminho.
@@ -63,8 +64,8 @@ Limites conhecidos e as questões ainda em aberto do lado do cofre:
 
 ```sh
 make sync
-uv run --package diagnos-api pytest apps/api/tests -q
-uv run mypy apps/api/src
+uv run pytest apps/api/tests -q
+uv run mypy src
 make docs   # regera docs/reference/openapi.json depois de mudar uma rota
 ```
 

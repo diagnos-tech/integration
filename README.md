@@ -8,35 +8,50 @@
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdiagnos-tech%2Fintegration%2Fbadges%2Fcoverage.json)](https://github.com/diagnos-tech/integration/actions/workflows/unit-tests.yml?query=branch%3Adevelop)
 [![Contract tests](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/contract-tests.yml?query=branch%3Adevelop)
 [![CI](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/diagnos-tech/integration/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Package](https://github.com/diagnos-tech/integration/actions/workflows/package.yml/badge.svg)](https://github.com/diagnos-tech/integration/actions/workflows/package.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/diagnos-tech/integration/badge)](https://scorecard.dev/viewer/?uri=github.com/diagnos-tech/integration)
 [![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776ab)](pyproject.toml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-64748b)](LICENSE)
 
-**[SDK](apps/sdk/README.md)** · **[CLI](apps/cli/README.md)** · **[API](apps/api/README.md)** · [Protocol](docs/PROTOCOL.md) ·
+**[Install](docs/guides/install.md)** · **[SDK](apps/sdk/README.md)** · **[CLI](apps/cli/README.md)** ·
+**[API](apps/api/README.md)** · [Wrappers](wrappers/README.md) · [Protocol](docs/PROTOCOL.md) ·
 [Contract tests](contracts/README.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-Three open-source Python packages for talking to the diagnos vault without ever handling a signed URL, an HMAC or a
-key envelope yourself. Everything clinical is encrypted **inside your process** before it touches the network — the
-vault only ever sees ciphertext. These packages make that the *easy* path.
+One open-source Python package, `diagnos`, for talking to the diagnos vault without ever handling a signed URL, an
+HMAC or a key envelope yourself. Everything clinical is encrypted **inside your process** before it touches the network — the
+vault only ever sees ciphertext. This package makes that the *easy* path.
 
 > [!NOTE]
 > **Status: 0.1.0 preview.** Every surface — enrollment, sessions, request signing, patients, exams, files and
 > folders — speaks the vault's current protocol and is verified against it by the [contract tests](contracts/README.md).
 > Known limits, and the questions still open on the vault side, are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
-## Pick your package
+## Install what you need
 
-| Package | Use it when | Install |
+| Install | You get | Use it when |
 |---|---|---|
-| [**`diagnos`**](apps/sdk/README.md) — SDK | Your code is Python. | `pip install diagnos` |
-| [**`diagnos-cli`**](apps/cli/README.md) — CLI | Scripts, operations, a quick look. | `pipx install diagnos-cli` |
-| [**`diagnos-api`**](apps/api/README.md) — REST API | Your system speaks HTTP, not Python. | [Docker / Kubernetes](apps/api/deploy/README.md) |
+| `pip install diagnos` | `diagnos docs`, `version`, `setup`, `help` — no dependencies | a first look; it installs the rest for you |
+| `pip install "diagnos[sdk]"` | [the SDK](apps/sdk/README.md) — `from diagnos import Diagnos` | your code is Python |
+| `pip install "diagnos[cli]"` | [the CLI](apps/cli/README.md) — `diagnos login`, `diagnos patients list`, … | scripts, operations, a quick look |
+| `pip install "diagnos[api]"` | [the REST API](apps/api/README.md) — `diagnos-api`, or its signed image | your system speaks HTTP, not Python |
 
-Same token, same approval flow, same guarantees. The CLI and the API are thin shells over the SDK — they never
-reimplement a single byte of cryptography.
+Same token, same approval flow, same guarantees: the CLI and the API are thin shells over the SDK — they never
+reimplement a single byte of cryptography. One package carries all three; an extra only adds a layer's
+dependencies. Or let the base do it, step by step:
+
+```sh
+uv tool install diagnos   # or: pipx install diagnos
+diagnos setup sdk         # the SDK in the Python project here, with uv
+diagnos setup cli         # every command for this `diagnos`, with uv
+diagnos setup api         # the API image, pulled and verified by digest, with Docker and cosign
+```
+
+Every release is signed with Sigstore and carries build provenance — [verify it](SECURITY.md#verifying-a-release).
+Developers in other languages get the same four base commands through [wrappers](wrappers/README.md).
 
 > [!NOTE]
-> Not on PyPI yet. Until the first release, install from source — [Install](docs/guides/install.md) has the commands,
-> and the [Rust toolchain](https://rustup.rs/) the build needs.
+> Until `0.1.0` is on PyPI, install from source — [Install](docs/guides/install.md) has the commands, and the
+> [Rust toolchain](https://rustup.rs/) the build needs.
 
 ## Quick start
 
@@ -108,14 +123,20 @@ command, route and class. [How the docs are built and checked](docs/README.md).
 
 ## Quality gates
 
-Every badge above is a workflow you can run locally with one command.
+Every badge above is a workflow, and all but the last two run locally with one command.
 
 | Badge | What it proves | Locally |
 |---|---|---|
-| **Unit tests** | the three packages on CPython 3.11–3.13, plus the Rust enclave | `make test` |
-| **Coverage** | combined branch coverage of `diagnos`, `diagnos-cli` and `diagnos-api`, with a floor that only goes up | `make cov` |
+| **Unit tests** | every layer — base, SDK, CLI, API — on CPython 3.11–3.13, plus the Rust enclave | `make test` |
+| **Coverage** | combined branch coverage of the whole `diagnos` package, with a floor that only goes up | `make cov` |
 | **Contract tests** | the SDK sends and reads exactly what the committed [Pact](https://pact.io) contract says (Rust `pact_ffi` engine) | `make contract` |
 | **CI** | lint (Python, Rust, bilingual docstrings, docs), `mypy --strict`, lockfile, and the docs: every example runs, the reference is fresh | `make lint types docs-check` |
+| **Package** | all seven wheels and the sdist build, and each wheel works installed alone on its platform — bare, then with every extra; both images build | `uv build` |
+| **OpenSSF Scorecard** | the supply-chain practices: pinned dependencies, least-privilege tokens, signed releases, branch protection | — |
+
+Releases are cut by [`release.yml`](.github/workflows/release.yml): Sigstore signatures and SLSA provenance on every
+file and image, PyPI through Trusted Publishing — no long-lived secret anywhere. [Workflow lint](.github/workflows/workflow-lint.yml)
+audits the workflows themselves with zizmor and actionlint.
 
 The contract is consumer-driven: the SDK's tests write
 [`contracts/diagnos-sdk-diagnos-vault.json`](contracts/diagnos-sdk-diagnos-vault.json), and the vault verifies that
@@ -131,26 +152,30 @@ flowchart LR
 
 ```
 integration/
-├── apps/
-│   ├── sdk/           diagnos          the library — everything lives here
-│   │   └── native/    diagnos._secure  Rust memory enclave
-│   ├── cli/           diagnos-cli      `diagnos …` in your terminal
-│   └── api/           diagnos-api      REST facade (FastAPI), mTLS only
-│       └── deploy/    compose · k8s    ready-to-run manifests
+├── src/diagnos/       diagnos          the one package — `pip install diagnos[…]`
+│   ├── _wrapper/      (base)           docs · version · setup · help, standard library only
+│   ├── …              [sdk]            the SDK: client, crypto, session, transport, resources, models
+│   ├── cli/           [cli]            `diagnos …` in your terminal
+│   └── api/           [api]            REST facade (FastAPI), mTLS only
+├── apps/              (per layer)      each layer's guide, tests and assets
+│   ├── sdk/native/    diagnos._secure  Rust memory enclave
+│   └── api/deploy/    compose · k8s    ready-to-run manifests
+├── wrappers/          contract.json    the four base commands, for every language · py/: the Python one
 ├── contracts/         Pact             consumer contract with the vault + its tests
 ├── docs/              guides/          the documentation · reference/ generated from the code
 │                      PROTOCOL.md      normative byte formats · COMPATIBILITY.md · site.json
-└── scripts/           docs/            the checks behind `make lint`, `make docs-check` and CI
+├── scripts/           docs/            the checks behind `make lint`, `make docs-check` and CI
+└── Dockerfile         api · cli        the two images, built from the wheel
 ```
 
 ## Contributing
 
 You need [uv](https://docs.astral.sh/uv/), Python 3.11–3.13 and, to build the enclave from source,
-[Rust](https://rustup.rs/) stable.
+[rustup](https://rustup.rs/) — it installs the Rust that `rust-toolchain.toml` pins.
 
 ```sh
 git clone https://github.com/diagnos-tech/integration && cd integration
-make sync    # installs everything and builds the Rust enclave
+make sync    # installs every extra, editable, and builds the Rust enclave
 make check   # exactly what CI runs: lint, types, unit and contract tests, docs
 make         # lists every other target
 ```
