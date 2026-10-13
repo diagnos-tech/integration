@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This file is English-only and exempt from the repository's bilingual-documentation pairing rule
 (`scripts/check_docs.py`).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-13
 
 `0.1.0` is the first version of `diagnos` ever published — see
 [`MIGRATING.md`](MIGRATING.md) if you are coming from an internal or from-source checkout of the former `imgexam`
