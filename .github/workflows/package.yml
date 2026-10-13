@@ -57,12 +57,17 @@ on:
 permissions: {}
 
 concurrency:
-  group: package-${{ github.ref }}
+  # 🇺🇸 `github.workflow` is the caller's name when `release.yml` calls this: a manual run never queues behind it.
+  # 🇧🇷 O `github.workflow` é o nome de quem chama quando o `release.yml` chama isto: uma execução manual nunca
+  #    fica na fila atrás dele.
+  group: package-${{ github.workflow }}-${{ github.ref }}
   # 🇺🇸 A pull request run is disposable; a run under a tag never is. 🇧🇷 Uma execução de PR é descartável; a de uma tag nunca.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   MATURIN_VERSION: v1.15.0
+  # 🇺🇸 Bump together with `.github/actions/setup` and the `uv` stage of the `Dockerfile`.
+  # 🇧🇷 Atualize junto com o `.github/actions/setup` e o estágio `uv` do `Dockerfile`.
   UV_VERSION: "0.13.0"
 
 jobs:

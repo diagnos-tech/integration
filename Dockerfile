@@ -20,15 +20,18 @@
 #    (`--build-context wheels=<dir>`), então a imagem leva exatamente os bytes publicados no PyPI. Toda imagem
 #    base é fixada por digest; o Dependabot move tag e digest juntos.
 
-ARG PYTHON_IMAGE=python:3.13-slim-trixie@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.0@sha256:cdc6093146eb3ff6a40107b38f008b789e050e77ad87865e381d9917da55a168
-ARG RUST_IMAGE=rust:1.99.0-slim-trixie@sha256:2752b332db73fdbb7dc576f06c82ed1f312005784ef913d7e04a28f5f55dc581
+# 🇺🇸 Each base image once, as a literal `FROM image:tag@sha256:…` — the only form Dependabot reads and updates.
+#    The uv here is the one CI pins too (`UV_VERSION` in `package.yml`, `.github/actions/setup`): bump them together.
+# 🇧🇷 Cada imagem base uma vez, como um `FROM imagem:tag@sha256:…` literal — a única forma que o Dependabot lê e
+#    atualiza. O uv daqui é o mesmo que a CI fixa (`UV_VERSION` no `package.yml`, `.github/actions/setup`): suba juntos.
+FROM python:3.13-slim-trixie@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f AS python
+FROM ghcr.io/astral-sh/uv:0.13.0@sha256:cdc6093146eb3ff6a40107b38f008b789e050e77ad87865e381d9917da55a168 AS uv
 
-FROM ${UV_IMAGE} AS uv
-
-# 🇺🇸 Local builds only: the wheel compiled from this checkout, by the same maturin build `uv build` runs.
-# 🇧🇷 Só builds locais: o wheel compilado a partir deste checkout, pelo mesmo build do maturin que o `uv build` roda.
-FROM ${RUST_IMAGE} AS compile
+# 🇺🇸 Local builds only: the wheel compiled from this checkout, by the same maturin build `uv build` runs. The Rust
+#    image's version is `rust-toolchain.toml`'s.
+# 🇧🇷 Só builds locais: o wheel compilado a partir deste checkout, pelo mesmo build do maturin que o `uv build` roda. A
+#    versão da imagem Rust é a do `rust-toolchain.toml`.
+FROM rust:1.99.0-slim-trixie@sha256:2752b332db73fdbb7dc576f06c82ed1f312005784ef913d7e04a28f5f55dc581 AS compile
 COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /src
 COPY pyproject.toml uv.lock LICENSE rust-toolchain.toml ./
@@ -46,7 +49,7 @@ COPY --from=compile /wheels/ /
 # 🇧🇷 Onde os ambientes virtuais são montados: o uv existe aqui e nunca chega a uma imagem final. O `uv export`
 #    transforma o lock em requisitos com hash, então uma dependência cujos bytes mudaram derruba o build, e o
 #    `--no-build` recusa qualquer coisa que precisaria compilar. Depois o único wheel `diagnos`, só de `wheels`.
-FROM ${PYTHON_IMAGE} AS installer
+FROM python AS installer
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_PYTHON_DOWNLOADS=never \
     UV_COMPILE_BYTECODE=1 \
@@ -73,7 +76,7 @@ RUN --mount=from=wheels,target=/wheels \
 #    Files are root-owned and read-only to that user: a compromised process cannot rewrite its own code.
 # 🇧🇷 O que as duas imagens compartilham: o interpretador, um usuário numérico sem root, e nada que construa ou
 #    instale. Os arquivos são do root e só leitura para esse usuário: um processo comprometido não reescreve o próprio código.
-FROM ${PYTHON_IMAGE} AS runtime
+FROM python AS runtime
 LABEL org.opencontainers.image.source="https://github.com/diagnos-tech/integration" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="diagnos" \

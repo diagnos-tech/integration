@@ -58,7 +58,7 @@ test-py:
 	uv run pytest apps/sdk/tests
 	uv run pytest apps/cli/tests
 	uv run pytest apps/api/tests
-	uv run pytest scripts/docs/tests
+	uv run pytest scripts/docs/tests scripts/tests
 
 test-rust:
 	$(CARGO_ENV) cargo test --manifest-path $(NATIVE)
@@ -69,7 +69,7 @@ cov: ## 🇺🇸 Unit tests with one combined coverage report (htmlcov/) · 🇧
 	uv run pytest apps/sdk/tests --cov --cov-append --cov-report= --cov-fail-under=0
 	uv run pytest apps/cli/tests --cov --cov-append --cov-report= --cov-fail-under=0
 	uv run pytest apps/api/tests --cov --cov-append --cov-report= --cov-fail-under=0
-	uv run pytest scripts/docs/tests
+	uv run pytest scripts/docs/tests scripts/tests
 	uv run coverage html --quiet --fail-under=0
 	uv run coverage xml --quiet --fail-under=0
 	uv run coverage json --quiet --fail-under=0

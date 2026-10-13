@@ -11,8 +11,9 @@ name: Workflow lint
 on:
   push:
     branches: [develop]
+  # 🇺🇸 Every pull request, not only those touching `.github/`: a required check must always report.
+  # 🇧🇷 Todo pull request, não só os que mexem em `.github/`: um check obrigatório sempre precisa reportar.
   pull_request:
-    paths: [".github/**"]
   workflow_dispatch:
 
 permissions: {}

@@ -52,19 +52,33 @@ MANIFESTS: Final = {
     "pyproject.toml": "project",
     "apps/sdk/native/Cargo.toml": "package",
 }
-RELEASE: Final = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?$")
+RELEASE: Final = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?")
+# 🇺🇸 Cargo spells a pre-release the SemVer way (`0.2.0-rc.1`), PyPI the PEP 440 way (`0.2.0rc1`):
+#    the same release.
+# 🇧🇷 O Cargo escreve um pré-release do jeito SemVer (`0.2.0-rc.1`), o PyPI do jeito PEP 440 (`0.2.0rc1`):
+#    o mesmo release.
+_SEMVER_PRE: Final = re.compile(r"(?P<core>[0-9]+\.[0-9]+\.[0-9]+)-(?P<kind>a|b|rc)\.?(?P<number>[0-9]+)")
 TRUNK: Final = "origin/develop"
 
 
-def versions(root: Path = ROOT) -> dict[str, str]:
-    """🇺🇸 `{manifest: version}` for the package and the crate.
+def pep440(version: str) -> str:
+    """🇺🇸 `version` as PyPI writes it: a SemVer pre-release (`0.2.0-rc.1`) becomes `0.2.0rc1`, the rest is kept.
 
-    🇧🇷 `{manifesto: versão}` do pacote e do crate.
+    🇧🇷 `version` como o PyPI escreve: um pré-release SemVer (`0.2.0-rc.1`) vira `0.2.0rc1`, o resto fica.
+    """
+    match = _SEMVER_PRE.fullmatch(version)
+    return f"{match['core']}{match['kind']}{match['number']}" if match else version
+
+
+def versions(root: Path = ROOT) -> dict[str, str]:
+    """🇺🇸 `{manifest: version}` for the package and the crate, both as PyPI writes them.
+
+    🇧🇷 `{manifesto: versão}` do pacote e do crate, os dois como o PyPI escreve.
     """
     found: dict[str, str] = {}
     for manifest, table in MANIFESTS.items():
         with (root / manifest).open("rb") as handle:
-            found[manifest] = str(tomllib.load(handle)[table]["version"])
+            found[manifest] = pep440(str(tomllib.load(handle)[table]["version"]))
     return found
 
 
@@ -108,7 +122,7 @@ def problems(tag: str | None, root: Path = ROOT) -> list[str]:
     if len(set(found.values())) != 1:
         return [f"{manifest}: {version}" for manifest, version in found.items()]
     version = next(iter(found.values()))
-    if not RELEASE.match(version):
+    if not RELEASE.fullmatch(version):
         return [f"{version} is not a release version · não é uma versão de release"]
     if tag is None:
         return []

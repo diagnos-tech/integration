@@ -26,6 +26,8 @@ runs:
         save-if: ${{ github.ref == 'refs/heads/develop' }}
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       with:
+        # 🇺🇸 Bump together with `UV_VERSION` in `package.yml` and the `Dockerfile`'s `uv` stage.
+        # 🇧🇷 Atualize junto com o `UV_VERSION` do `package.yml` e o estágio `uv` do `Dockerfile`.
         version: "0.13.0"
         python-version: ${{ inputs.python-version }}
         enable-cache: true

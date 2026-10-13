@@ -170,9 +170,11 @@ jobs:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: ${{ env.API_IMAGE }}
+          # 🇺🇸 PEP 440, like the package: `v0.2.0rc1` tags `0.2.0rc1` (and, being a pre-release, nothing else).
+          # 🇧🇷 PEP 440, como o pacote: `v0.2.0rc1` marca `0.2.0rc1` (e, sendo pré-release, nada mais).
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}.{{minor}}
       - name: Build and push · diagnos-api
         id: api
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -196,9 +198,11 @@ jobs:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: ${{ env.CLI_IMAGE }}
+          # 🇺🇸 PEP 440, like the package: `v0.2.0rc1` tags `0.2.0rc1` (and, being a pre-release, nothing else).
+          # 🇧🇷 PEP 440, como o pacote: `v0.2.0rc1` marca `0.2.0rc1` (e, sendo pré-release, nada mais).
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}.{{minor}}
       - name: Build and push · diagnos
         id: cli
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -352,7 +356,8 @@ jobs:
           ISSUER="https://token.actions.githubusercontent.com"
           cosign verify-blob --bundle SHA256SUMS.sigstore.json --certificate-identity "\$ID" --certificate-oidc-issuer "\$ISSUER" SHA256SUMS
           sha256sum --check --ignore-missing SHA256SUMS
-          cosign verify ghcr.io/diagnos-tech/diagnos-api:${VERSION} --certificate-identity "\$ID" --certificate-oidc-issuer "\$ISSUER"
+          cosign verify-blob --bundle images.txt.sigstore.json --certificate-identity "\$ID" --certificate-oidc-issuer "\$ISSUER" images.txt
+          cosign verify "\$(grep diagnos-api@ images.txt)" --certificate-identity "\$ID" --certificate-oidc-issuer "\$ISSUER"
           gh attestation verify <file> --repo ${GITHUB_REPOSITORY} --cert-identity "\$ID"
           \`\`\`
           EOF

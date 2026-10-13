@@ -55,7 +55,7 @@ mesma ordem, então um `make check` verde na sua máquina significa um PR verde.
 | `Unit tests` (`.github/workflows/unit-tests.yml`) | Toda camada Python e o enclave Rust passam nos próprios testes, em todo CPython suportado, sem o piso de cobertura cair? | `make cov` (ou `make test` para uma passada mais rápida, sem o relatório de cobertura combinado) |
 | `Contract tests` (`.github/workflows/contract-tests.yml`) | O SDK ainda fala o contrato HTTP que o cofre verifica? | `make contract-check` |
 | `Package` (`.github/workflows/package.yml`, em mudanças de empacotamento) | Os sete wheels e o sdist constroem, e cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra? As duas imagens constroem? | `uv build`, depois `docker build --target api .` |
-| `Workflow lint` (`.github/workflows/workflow-lint.yml`, em mudanças em `.github/`) | Os próprios workflows são seguros e bem formados (zizmor, actionlint)? | `uvx zizmor .github/` |
+| `Workflow lint` (`.github/workflows/workflow-lint.yml`) | Os próprios workflows são seguros e bem formados (zizmor, actionlint)? | `uvx zizmor .github/` |
 
 `make check` roda `lint`, `types`, `test` e `contract-check` nessa ordem — exatamente o que os três primeiros
 workflows rodam, só que num único comando na sua máquina. O `Scorecard` avalia as práticas de cadeia de suprimentos
@@ -173,15 +173,24 @@ silêncio as atestações PEP 740. O PyPI confia no `release.yml` deste reposit�
 renomear qualquer um dos dois quebra a publicação até o trusted publisher do PyPI ser ajustado. Em tempo de
 execução, a `__version__` é lida dos metadados do pacote instalado em vez de fixa no código.
 
-Antes do primeiro release, um admin do repositório configura o que código não consegue:
+Antes do primeiro release, um admin do repositório configura o que código não consegue — nesta ordem, para o PyPI
+nunca confiar num ambiente ou numa tag que qualquer um pudesse usar:
 
-- **PyPI**: um trusted publisher pendente para `diagnos` — dono `diagnos-tech`, repositório `integration`, workflow
-  `release.yml`, ambiente `pypi` — e 2FA para todo dono.
-- **Ambientes**: `pypi` e `release`, cada um limitado a tags `v*`, com revisores obrigatórios no `pypi`.
-- **Rulesets**: só mantenedores criam tags `v*`, que nunca podem ser movidas nem apagadas; a `develop` exige pull
-  requests, os checks acima e revisão de code owner; o Actions não pode aprovar pull requests.
-- **GHCR**: depois do primeiro push, deixe `diagnos` e `diagnos-api` públicos e dê acesso de escrita só a este
-  repositório. **Releases**: ligue a imutabilidade de releases.
+1. **Ambientes**: `release` e `pypi`, cada um limitado a tags `v*`, com um revisor obrigatório no `pypi`.
+2. **Rulesets**: só mantenedores criam tags `v*`, que nunca podem ser movidas nem apagadas; a `develop` exige pull
+   requests, revisão de code owner e os checks **CI**, **Unit tests**, **Contract tests** e **Workflow lint** — não o
+   **Package**, que só roda quando o empacotamento muda (um check obrigatório sempre precisa reportar); o Actions não
+   pode aprovar pull requests.
+3. **PyPI**: um trusted publisher pendente para `diagnos` — dono `diagnos-tech`, repositório `integration`, workflow
+   `release.yml`, ambiente `pypi` — e 2FA para todo dono. Nunca um token de API.
+4. **Releases**: ligue a imutabilidade de releases.
+5. **GHCR**, durante o primeiro release: a execução espera aprovação antes do `pypi`, com as duas imagens já enviadas
+   e assinadas. Deixe `diagnos` e `diagnos-api` públicos e dê acesso de escrita só a este repositório, *depois*
+   aprove — o `diagnos setup api` baixa a imagem assim que a versão chega ao PyPI.
+
+Um release candidate ensaia tudo isso de verdade: `0.1.0rc1` no `pyproject.toml`, `0.1.0-rc.1` no `Cargo.toml` (a
+guarda lê os dois como uma versão só), uma seção `## [0.1.0rc1]` no `CHANGELOG.md`, e a tag `v0.1.0rc1`. O `pip` só
+instala um pré-release quando pedido pela versão ou com `--pre`.
 
 ## Checklist de pull request
 
