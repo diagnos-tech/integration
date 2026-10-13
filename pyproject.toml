@@ -13,7 +13,7 @@
 #    em `apps/sdk/native` (`diagnos._secure`), um wheel abi3 por plataforma para todo CPython ≥ 3.11 — o layout
 #    que o polars usa.
 [build-system]
-requires = ["maturin>=1.8,<2.0"]
+requires = ["maturin>=1.15,<2.0"]
 build-backend = "maturin"
 
 [project]
