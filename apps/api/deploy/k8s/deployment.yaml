@@ -21,7 +21,11 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: api
-          image: ghcr.io/diagnos/diagnos-api:0.1.0
+          # 🇺🇸 The signed release image. Pin it by digest (`…diagnos-api@sha256:…`, printed by
+          # `diagnos setup api` and in the GitHub release) after `cosign verify` — see `SECURITY.md`.
+          # 🇧🇷 A imagem de release assinada. Fixe-a por digest (`…diagnos-api@sha256:…`, impresso pelo
+          # `diagnos setup api` e no release do GitHub) depois do `cosign verify` — ver `SECURITY.pt-BR.md`.
+          image: ghcr.io/diagnos-tech/diagnos-api:0.1.0
           ports: [{ name: https, containerPort: 8443 }]
           envFrom:
             - configMapRef: { name: diagnos-api }
@@ -38,23 +42,22 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
-            # 🇺🇸 The SDK locks its key material in RAM (`mlock`, `docs/
-            # PROTOCOL.md`'s "never sends a key to the vault" guarantee is
-            # only as good as that key never reaching swap) and the image
-            # carries `cap_ipc_lock` as a file capability for exactly this;
-            # dropping every other capability and adding only `IPC_LOCK`
-            # back is what lets this non-root, read-only-root-filesystem
-            # process still lock memory past the 64 KiB `RLIMIT_MEMLOCK`
-            # default instead of needing `CAP_SYS_RESOURCE` or root.
-            # 🇧🇷 O SDK trava seu material de chave na RAM (`mlock`; a
-            # garantia "nunca envia uma chave ao cofre" de `docs/
-            # PROTOCOL.md` só vale o que essa chave nunca alcançar o swap) e
-            # a imagem carrega `cap_ipc_lock` como file capability
-            # exatamente para isto; derrubar toda outra capability e somar
-            # de volta só `IPC_LOCK` é o que permite este processo não-root,
-            # com filesystem raiz somente-leitura, ainda travar memória além
-            # do padrão de 64 KiB do `RLIMIT_MEMLOCK` sem precisar de
-            # `CAP_SYS_RESOURCE` nem de root.
+            # 🇺🇸 The SDK locks its key material in RAM (`mlock`; `docs/PROTOCOL.md`'s
+            # "never sends a key to the vault" guarantee is only as good as that key never
+            # reaching swap). Everything is dropped and only `IPC_LOCK` is added back, but
+            # note what that buys a non-root process here: `allowPrivilegeEscalation: false`
+            # sets `no_new_privs`, under which the kernel ignores the image's `cap_ipc_lock`
+            # file capability. Locking past 64 KiB then depends on the node's
+            # `RLIMIT_MEMLOCK` for containers; without it the SDK runs in its best-effort mode
+            # and says so (`MemoryLockWarning`, `diagnos status`). Check it once per cluster.
+            # 🇧🇷 O SDK trava seu material de chave na RAM (`mlock`; a garantia "nunca envia
+            # uma chave ao cofre" de `docs/PROTOCOL.md` só vale o que essa chave nunca
+            # alcançar o swap). Tudo é derrubado e só `IPC_LOCK` volta, mas veja o que isso
+            # garante a um processo não-root aqui: `allowPrivilegeEscalation: false` liga o
+            # `no_new_privs`, sob o qual o kernel ignora a file capability `cap_ipc_lock` da
+            # imagem. Travar além de 64 KiB passa a depender do `RLIMIT_MEMLOCK` do nó para
+            # containers; sem ele o SDK roda no modo best-effort e avisa
+            # (`MemoryLockWarning`, `diagnos status`). Confira uma vez por cluster.
             capabilities: { drop: [ALL], add: [IPC_LOCK] }
           resources:
             requests: { cpu: 100m, memory: 128Mi }

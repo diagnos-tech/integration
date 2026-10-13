@@ -1,26 +1,19 @@
-# 🇺🇸 The API image is built with the repository root as context
-#    (`docker build -f apps/api/Dockerfile .`), so this is the ignore file
-#    Docker reads. Local build output must never reach the image: the enclave
-#    is compiled fresh inside it, against the image's own glibc.
-# 🇧🇷 A imagem da API é construída com a raiz do repositório como contexto
-#    (`docker build -f apps/api/Dockerfile .`), então este é o arquivo de
-#    ignore que o Docker lê. Saída de build local nunca pode chegar à imagem:
-#    o enclave é compilado do zero lá dentro, contra o glibc da própria imagem.
-.git
-.github
-.venv
-**/.venv
+# 🇺🇸 An allowlist: the build context is exactly what the `Dockerfile` copies, and nothing else — no `.env`, no
+#    `certs/*.pem` from a local Compose run, no `.git`, no editable-install `.so` or Rust `target/` that would
+#    slip into a wheel built from source.
+# 🇧🇷 Uma lista de permissão: o contexto de build é exatamente o que o `Dockerfile` copia, e nada mais — nenhum
+#    `.env`, nenhum `certs/*.pem` de uma execução local do Compose, nenhum `.git`, nenhum `.so` de instalação
+#    editável nem `target/` do Rust que escorregaria para um wheel construído do fonte.
+*
+!pyproject.toml
+!uv.lock
+!LICENSE
+!rust-toolchain.toml
+!wrappers/py/README.md
+!apps/sdk/native/
+!src/
+apps/sdk/native/target
 **/__pycache__
 **/*.pyc
-**/.pytest_cache
-**/.mypy_cache
-**/.ruff_cache
-**/target
 **/*.so
-**/tests
-htmlcov
-coverage.*
-.coverage*
-contracts
-docs
-scripts
+**/*.pyd

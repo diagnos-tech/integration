@@ -1,3 +1,20 @@
-# 🇺🇸 Every pull request asks the maintainer for review; add owners per path as the team grows.
-# 🇧🇷 Todo pull request pede revisão ao mantenedor; acrescente donos por caminho conforme o time crescer.
+# 🇺🇸 Every pull request asks the maintainer for review; add owners per path as the team grows. The lines after the
+#    first name the files that decide what gets built, signed and published — keep a code-owner review required
+#    on them in the `develop` ruleset, and add a second owner as soon as there is one.
+# 🇧🇷 Todo pull request pede revisão ao mantenedor; acrescente donos por caminho conforme o time crescer. As linhas
+#    depois da primeira nomeiam os arquivos que decidem o que é construído, assinado e publicado — mantenha a
+#    revisão de code owner obrigatória neles no ruleset da `develop`, e some um segundo dono assim que houver.
 * @aquelegustavo
+
+/.github/ @aquelegustavo
+/pyproject.toml @aquelegustavo
+/uv.lock @aquelegustavo
+/rust-toolchain.toml @aquelegustavo
+/Dockerfile @aquelegustavo
+/.dockerignore @aquelegustavo
+/apps/sdk/native/Cargo.toml @aquelegustavo
+/apps/sdk/native/Cargo.lock @aquelegustavo
+/scripts/release_*.py @aquelegustavo
+/wrappers/contract.json @aquelegustavo
+/SECURITY.md @aquelegustavo
+/SECURITY.pt-BR.md @aquelegustavo

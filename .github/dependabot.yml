@@ -1,14 +1,18 @@
-# 🇺🇸 Weekly, grouped updates for every ecosystem this repository ships or
-#    builds with. Grouping keeps it to one pull request per ecosystem, so
-#    updates get reviewed instead of piling up.
-# 🇧🇷 Atualizações semanais e agrupadas para todo ecossistema que este
-#    repositório publica ou usa no build. Agrupar mantém um pull request por
-#    ecossistema, para as atualizações serem revisadas em vez de acumularem.
+# 🇺🇸 Weekly, grouped updates for every ecosystem this repository ships or builds with. Grouping keeps it to one
+#    pull request per ecosystem, so updates get reviewed instead of piling up. The 7-day cooldown lets the
+#    community find a compromised release before it reaches us. Actions and images are pinned by digest; the
+#    `# vX.Y.Z` comment next to each pin is what lets Dependabot move both together.
+# 🇧🇷 Atualizações semanais e agrupadas para todo ecossistema que este repositório publica ou usa no build.
+#    Agrupar mantém um pull request por ecossistema, para as atualizações serem revisadas em vez de acumularem.
+#    O cooldown de 7 dias dá tempo para a comunidade achar um release comprometido antes de ele chegar aqui.
+#    Actions e imagens são fixadas por digest; o comentário `# vX.Y.Z` ao lado de cada pin é o que deixa o
+#    Dependabot mover os dois juntos.
 version: 2
 updates:
   - package-ecosystem: uv
     directory: /
     schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
     groups:
       python: { patterns: ["*"] }
     commit-message: { prefix: "build(deps)" }
@@ -16,18 +20,23 @@ updates:
   - package-ecosystem: cargo
     directory: /apps/sdk/native
     schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
     groups:
       rust: { patterns: ["*"] }
     commit-message: { prefix: "build(deps)" }
 
   - package-ecosystem: github-actions
-    directory: /
+    directories: ["/", "/.github/actions/*"]
     schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
     groups:
       actions: { patterns: ["*"] }
     commit-message: { prefix: "ci(deps)" }
 
   - package-ecosystem: docker
-    directory: /apps/api
+    directory: /
     schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      images: { patterns: ["*"] }
     commit-message: { prefix: "build(deps)" }

@@ -174,13 +174,13 @@ issue_token() {
   fi
   printf '%s' "$client_token" >"$TOKEN_FILE"
   chmod 600 "$TOKEN_FILE"
-  # 🇺🇸 The API container reads this file as uid 10001 (`apps/api/Dockerfile`);
+  # 🇺🇸 The API container reads this file as uid 10001 (the root `Dockerfile`);
   # in Compose this script runs as root and hands the file over. Under
   # Kubernetes it runs as the `openbao` user via `kubectl exec`, the chown
   # is not permitted, and the operator copies the token into a Secret
   # instead (`../../k8s/openbao/bootstrap-configmap.yaml`) — hence the
   # soft failure.
-  # 🇧🇷 O container da API lê este arquivo como uid 10001 (`apps/api/Dockerfile`);
+  # 🇧🇷 O container da API lê este arquivo como uid 10001 (o `Dockerfile` da raiz);
   # no Compose este script roda como root e entrega o arquivo. No
   # Kubernetes ele roda como o usuário `openbao` via `kubectl exec`, o chown
   # não é permitido, e o operador copia o token para um Secret

@@ -1,0 +1,48 @@
+# 🇺🇸 OpenSSF Scorecard: how does this repository score on the supply-chain practices users check before they
+#    trust a package — pinned dependencies, token permissions, signed releases, branch protection, and more?
+#    Results land in the Security tab and are published to api.scorecard.dev. With `publish_results`, the job
+#    may only use the actions below and no workflow- or job-level environment, so it stays this small.
+# 🇧🇷 OpenSSF Scorecard: como este repositório se sai nas práticas de cadeia de suprimentos que os usuários
+#    conferem antes de confiar num pacote — dependências fixadas, permissões de token, releases assinados,
+#    proteção de branch, e mais? Os resultados vão para a aba Security e são publicados em api.scorecard.dev. Com
+#    `publish_results`, o job só pode usar as actions abaixo e nenhum ambiente de workflow ou de job, então fica
+#    pequeno assim.
+name: Scorecard
+
+on:
+  push:
+    branches: [develop]
+  schedule:
+    - cron: "23 5 * * 1"
+  branch_protection_rule:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      security-events: write # 🇺🇸 results in the Security tab · 🇧🇷 resultados na aba Security
+      id-token: write # 🇺🇸 publishes the score to api.scorecard.dev · 🇧🇷 publica a nota em api.scorecard.dev
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: results.sarif

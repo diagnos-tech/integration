@@ -113,6 +113,12 @@ module-name = "diagnos._secure"
 manifest-path = "apps/sdk/native/Cargo.toml"
 features = ["pyo3/extension-module"]
 strip = true
+# 🇺🇸 Every build — editable, wheel, sdist rebuild, image — compiles exactly the crates `Cargo.lock` names.
+# 🇧🇷 Todo build — editável, wheel, reconstrução do sdist, imagem — compila exatamente os crates do `Cargo.lock`.
+locked = true
+# 🇺🇸 The sdist carries the pinned Rust too, so a build from it uses the toolchain a release uses.
+# 🇧🇷 O sdist leva o Rust fixado também, para um build a partir dele usar o toolchain que um release usa.
+include = [{ path = "rust-toolchain.toml", format = "sdist" }]
 
 [tool.uv]
 # 🇺🇸 `uv.lock` uses lock revision 3; an older uv fails with an obscure error instead of this clear one.
@@ -124,6 +130,7 @@ required-version = ">=0.8"
 #    depois de uma edição em `apps/sdk/native` nunca deixar um enclave velho para trás.
 cache-keys = [
   { file = "pyproject.toml" },
+  { file = "rust-toolchain.toml" },
   { file = "apps/sdk/native/Cargo.toml" },
   { file = "apps/sdk/native/Cargo.lock" },
   { file = "apps/sdk/native/src/**/*.rs" },
