@@ -1,4 +1,4 @@
-//! 🇺🇸 `CAP_IPC_LOCK` for the calling thread: raise it from *permitted* to *effective* when the runtime granted it.
+//! `CAP_IPC_LOCK` for the calling thread: raise it from *permitted* to *effective* when the runtime granted it.
 //!
 //! A non-root process can `mlock` more than `RLIMIT_MEMLOCK` only with
 //! `CAP_IPC_LOCK` in its *effective* set. Container images carry it as a
@@ -13,23 +13,6 @@
 //!
 //! Capabilities are per thread on Linux, so the raise happens in whichever
 //! thread is about to call `mlock`, cached per thread; two syscalls, once.
-//!
-//! 🇧🇷 `CAP_IPC_LOCK` para a thread que chama: sobe de *permitted* para *effective* quando o runtime a concedeu.
-//!
-//! Um processo sem root só consegue `mlock` além do `RLIMIT_MEMLOCK` com
-//! `CAP_IPC_LOCK` no conjunto *effective*. Imagens de container a carregam
-//! como capability de arquivo no interpretador, e há dois jeitos de
-//! escrever isso: `cap_ipc_lock=+ep` faz o kernel se recusar a executar o
-//! binário quando o container não recebeu a capability (`EPERM`, antes da
-//! primeira linha de Python), enquanto `cap_ipc_lock=+p` sempre executa e
-//! deixa a capability apenas *permitted*, para o programa subir sozinho.
-//! Este crate espera `+p` e faz a subida aqui — então um deployment que
-//! esquece `cap_add: [IPC_LOCK]` degrada para travamento best-effort com
-//! aviso, em vez de um container que nunca sobe.
-//!
-//! Capabilities são por thread no Linux, então a subida acontece na thread
-//! que está prestes a chamar `mlock`, com cache por thread; duas syscalls,
-//! uma vez.
 
 #![allow(unsafe_code)]
 
@@ -65,16 +48,14 @@ fn capget() -> Option<[Data; 2]> {
     (rc == 0).then_some(data)
 }
 
-/// 🇺🇸 `(permitted, effective)` for `CAP_IPC_LOCK` in the calling thread; `None` if the kernel would not say.
-/// 🇧🇷 `(permitted, effective)` de `CAP_IPC_LOCK` na thread que chama; `None` se o kernel não disser.
+/// `(permitted, effective)` for `CAP_IPC_LOCK` in the calling thread; `None` if the kernel would not say.
 #[must_use]
 pub fn ipc_lock_state() -> Option<(bool, bool)> {
     let bit = 1u32 << CAP_IPC_LOCK;
     capget().map(|data| (data[0].permitted & bit != 0, data[0].effective & bit != 0))
 }
 
-/// 🇺🇸 Makes `CAP_IPC_LOCK` effective for this thread if it is permitted; returns whether it is effective now.
-/// 🇧🇷 Torna `CAP_IPC_LOCK` efetiva para esta thread se estiver permitida; devolve se está efetiva agora.
+/// Makes `CAP_IPC_LOCK` effective for this thread if it is permitted; returns whether it is effective now.
 pub fn ensure_ipc_lock_effective() -> bool {
     if RAISED.with(Cell::get) {
         return true;

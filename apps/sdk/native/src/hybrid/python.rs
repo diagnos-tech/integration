@@ -1,6 +1,4 @@
-//! 🇺🇸 What Python sees of the hybrid seal: the `HybridKeyPair` class and `seal_hybrid`.
-//!
-//! 🇧🇷 O que o Python enxerga do selo híbrido: a classe `HybridKeyPair` e o `seal_hybrid`.
+//! What Python sees of the hybrid seal: the `HybridKeyPair` class and `seal_hybrid`.
 
 use std::sync::Mutex;
 
@@ -16,8 +14,7 @@ use crate::buffer::read_bytes;
 use crate::error::{expect_len, Error};
 use crate::secret_box::SecretBox;
 
-/// 🇺🇸 The JSON a sealed session opens to (`docs/PROTOCOL.md §5`); key strings zeroize on drop.
-/// 🇧🇷 O JSON para o qual uma sessão selada abre (`docs/PROTOCOL.md §5`); as strings de chave se zeram ao descartar.
+/// The JSON a sealed session opens to (`docs/PROTOCOL.md §5`); key strings zeroize on drop.
 #[derive(Deserialize)]
 struct SealedSession {
     session_id: String,
@@ -26,7 +23,7 @@ struct SealedSession {
     expires_at: i64,
 }
 
-/// 🇺🇸 base64url (padding optional) into zeroizing memory. 🇧🇷 base64url (padding opcional) em memória que se zera.
+/// base64url (padding optional) into zeroizing memory.
 pub fn b64url_decode(text: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
     use base64::Engine as _;
     let trimmed = text.trim_end_matches('=');
@@ -36,8 +33,7 @@ pub fn b64url_decode(text: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
         .map_err(|_| Error::Malformed("base64url"))
 }
 
-/// 🇺🇸 An SDK identity: one X25519 pair plus one ML-KEM-768 pair, private halves in locked memory.
-/// 🇧🇷 Uma identidade de SDK: um par X25519 mais um par ML-KEM-768, metades privadas em memória travada.
+/// An SDK identity: one X25519 pair plus one ML-KEM-768 pair, private halves in locked memory.
 #[pyclass(frozen, name = "HybridKeyPair", module = "diagnos._secure")]
 pub struct HybridKeyPair {
     inner: Mutex<Identity>,
@@ -50,22 +46,19 @@ impl HybridKeyPair {
     }
 
     fn refused() -> PyErr {
-        PyTypeError::new_err(
-            "HybridKeyPair cannot be pickled or copied · HybridKeyPair não pode ser serializado nem copiado",
-        )
+        PyTypeError::new_err("HybridKeyPair cannot be pickled or copied")
     }
 }
 
 #[pymethods]
 impl HybridKeyPair {
-    /// 🇺🇸 A fresh identity from the OS CSPRNG. 🇧🇷 Uma identidade nova do CSPRNG do SO.
+    /// A fresh identity from the OS CSPRNG.
     #[staticmethod]
     fn generate() -> PyResult<Self> {
         Ok(Self { inner: Mutex::new(Identity::generate()?) })
     }
 
-    /// 🇺🇸 Rebuilds an identity from its two secrets (an OpenBao restore); publics are recomputed, never trusted from storage.
-    /// 🇧🇷 Reconstrói uma identidade das duas secretas (restore do OpenBao); as públicas são recalculadas, nunca confiadas do armazenamento.
+    /// Rebuilds an identity from its two secrets (an OpenBao restore); publics are recomputed, never read from storage.
     #[staticmethod]
     fn from_secrets(x25519_secret: PyRef<'_, SecretBox>, mlkem768_secret: PyRef<'_, SecretBox>) -> PyResult<Self> {
         let x = x25519_secret.to_zeroizing()?;
@@ -73,29 +66,29 @@ impl HybridKeyPair {
         Ok(Self { inner: Mutex::new(Identity::from_secrets(&x, &k)?) })
     }
 
-    /// 🇺🇸 32-byte X25519 public key. 🇧🇷 Chave pública X25519 de 32 bytes.
+    /// 32-byte X25519 public key.
     #[getter]
     fn x25519_public<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         self.with_identity(|id| Ok(PyBytes::new(py, &id.x25519_public)))
     }
 
-    /// 🇺🇸 1184-byte ML-KEM-768 encapsulation key. 🇧🇷 Chave de encapsulamento ML-KEM-768 de 1184 bytes.
+    /// 1184-byte ML-KEM-768 encapsulation key.
     #[getter]
     fn mlkem768_public<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         self.with_identity(|id| Ok(PyBytes::new(py, &id.mlkem768_public)))
     }
 
-    /// 🇺🇸 A locked copy of the X25519 secret, for persisting. 🇧🇷 Uma cópia travada da secreta X25519, para persistir.
+    /// A locked copy of the X25519 secret, for persisting.
     fn x25519_secret(&self) -> PyResult<SecretBox> {
         self.with_identity(|id| id.x25519_secret.duplicate().map(SecretBox::from_locked))
     }
 
-    /// 🇺🇸 A locked copy of the expanded ML-KEM-768 secret, for persisting. 🇧🇷 Uma cópia travada da secreta ML-KEM-768 expandida, para persistir.
+    /// A locked copy of the expanded ML-KEM-768 secret, for persisting.
     fn mlkem768_secret(&self) -> PyResult<SecretBox> {
         self.with_identity(|id| id.mlkem768_secret.duplicate().map(SecretBox::from_locked))
     }
 
-    /// 🇺🇸 Opens a seal to plain `bytes` (JSON, content). 🇧🇷 Abre um selo para `bytes` (JSON, conteúdo).
+    /// Opens a seal to plain `bytes` (JSON, content).
     fn open<'py>(
         &self,
         py: Python<'py>,
@@ -108,7 +101,7 @@ impl HybridKeyPair {
         Ok(PyBytes::new(py, &plaintext))
     }
 
-    /// 🇺🇸 Opens a seal straight into a locked box (a group DEK). 🇧🇷 Abre um selo direto numa caixa travada (uma DEK de grupo).
+    /// Opens a seal straight into a locked box (a group DEK).
     fn open_secret(
         &self,
         encapsulation: &Bound<'_, PyAny>,
@@ -120,8 +113,9 @@ impl HybridKeyPair {
         Ok(SecretBox::from_slice(&plaintext)?)
     }
 
-    /// 🇺🇸 Opens a sealed session (`docs/PROTOCOL.md §5`) as `(session_id, expires_at, sign_key, enc_key)` with both keys locked.
-    /// 🇧🇷 Abre uma sessão selada (`docs/PROTOCOL.md §5`) como `(session_id, expires_at, sign_key, enc_key)` com as duas chaves travadas.
+    /// Opens a sealed session (`docs/PROTOCOL.md §5`) as `(session_id, expires_at, sign_key, enc_key)`.
+    ///
+    /// Both keys are returned in locked boxes.
     fn open_session(
         &self,
         encapsulation: &Bound<'_, PyAny>,
@@ -144,7 +138,7 @@ impl HybridKeyPair {
         ))
     }
 
-    /// 🇺🇸 Zeroes both secrets now. 🇧🇷 Zera as duas secretas agora.
+    /// Zeroes both secrets now.
     fn wipe(&self) -> PyResult<()> {
         let mut guard = self.inner.lock().map_err(Error::from)?;
         guard.x25519_secret.wipe();
@@ -152,7 +146,7 @@ impl HybridKeyPair {
         Ok(())
     }
 
-    /// 🇺🇸 Whether `wipe()` already ran. 🇧🇷 Se `wipe()` já rodou.
+    /// Whether `wipe()` already ran.
     #[getter]
     fn is_wiped(&self) -> PyResult<bool> {
         self.with_identity(|id| Ok(id.x25519_secret.is_wiped()))
@@ -191,8 +185,7 @@ impl HybridKeyPair {
     }
 }
 
-/// 🇺🇸 `seal_hybrid(x25519_public, mlkem768_public, plaintext, aad) -> (encapsulation, nonce, ciphertext)`.
-/// 🇧🇷 `seal_hybrid(x25519_public, mlkem768_public, plaintext, aad) -> (encapsulation, nonce, ciphertext)`.
+/// `seal_hybrid(x25519_public, mlkem768_public, plaintext, aad) -> (encapsulation, nonce, ciphertext)`.
 #[pyfunction]
 pub fn seal_hybrid<'py>(
     py: Python<'py>,

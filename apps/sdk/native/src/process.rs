@@ -1,4 +1,4 @@
-//! 🇺🇸 Process-wide hardening and introspection: `harden_process()` and `memory_status()`.
+//! Process-wide hardening and introspection: `harden_process()` and `memory_status()`.
 //!
 //! Locked pages protect a secret from the disk; they do not protect it from
 //! another process with `ptrace` rights or from a core dump of the pages that
@@ -10,31 +10,18 @@
 //! difference between "locked" and "best-effort" in a container. Nothing
 //! here needs privileges, and nothing here is ever fatal: the report says
 //! what was applied, and the SDK logs it.
-//!
-//! 🇧🇷 Hardening e introspecção do processo: `harden_process()` e `memory_status()`.
-//!
-//! Páginas travadas protegem um segredo do disco; não o protegem de outro
-//! processo com direito de `ptrace` nem de um core dump das páginas que *não*
-//! foram travadas (o heap do Python segurando uma cópia transitória). O
-//! hardening fecha essas duas portas para o processo inteiro:
-//! `PR_SET_DUMPABLE = 0` (Linux: sem core dump, e sem `ptrace` de processos do
-//! mesmo uid), `RLIMIT_CORE = 0` (qualquer Unix), `PT_DENY_ATTACH` (macOS).
-//! Também sobe o `RLIMIT_MEMLOCK` soft até o hard, o que é de graça e muitas
-//! vezes é a diferença entre "travado" e "best-effort" num container. Nada
-//! aqui precisa de privilégio, e nada aqui é fatal: o relatório diz o que foi
-//! aplicado, e o SDK registra em log.
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 use crate::locked::{self, LockPolicy};
 
-/// 🇺🇸 Soft/hard `RLIMIT_MEMLOCK` in bytes; `None` means unlimited or unknown. 🇧🇷 `RLIMIT_MEMLOCK` soft/hard em bytes; `None` é ilimitado ou desconhecido.
+/// Soft/hard `RLIMIT_MEMLOCK` in bytes; `None` means unlimited or unknown.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MemlockLimit {
-    /// 🇺🇸 Current (soft) limit. 🇧🇷 Limite atual (soft).
+    /// Current (soft) limit.
     pub soft: Option<u64>,
-    /// 🇺🇸 Maximum (hard) limit. 🇧🇷 Limite máximo (hard).
+    /// Maximum (hard) limit.
     pub hard: Option<u64>,
 }
 
@@ -44,10 +31,8 @@ mod unix {
 
     use super::MemlockLimit;
 
-    // 🇺🇸 `rlim_t` is `u64` on the tier-1 Unix targets but not guaranteed to
-    //    be; the conversion is a no-op here and the portability net elsewhere.
-    // 🇧🇷 `rlim_t` é `u64` nos alvos Unix tier-1, mas não é garantido; a
-    //    conversão não custa nada aqui e é a rede de portabilidade em outros.
+    // `rlim_t` is `u64` on the tier-1 Unix targets but not guaranteed to
+    // be; the conversion is a no-op here and the portability net elsewhere.
     #[allow(clippy::useless_conversion)]
     fn as_option(value: libc::rlim_t) -> Option<u64> {
         if value == libc::RLIM_INFINITY {
@@ -66,8 +51,7 @@ mod unix {
         MemlockLimit { soft: as_option(limit.rlim_cur), hard: as_option(limit.rlim_max) }
     }
 
-    /// 🇺🇸 Raises the soft memlock limit to the hard one; returns whether anything changed.
-    /// 🇧🇷 Sobe o limite soft de memlock até o hard; devolve se algo mudou.
+    /// Raises the soft memlock limit to the hard one; returns whether anything changed.
     pub fn raise_memlock() -> bool {
         let mut limit = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
         // SAFETY: valid out-pointer; a second call with the same struct is a plain setrlimit.
@@ -126,8 +110,7 @@ fn limit_item(value: Option<u64>) -> Option<u64> {
     value
 }
 
-/// 🇺🇸 Applies every hardening step available on this platform; returns what took effect. Idempotent.
-/// 🇧🇷 Aplica todo passo de hardening disponível nesta plataforma; devolve o que teve efeito. Idempotente.
+/// Applies every hardening step available on this platform; returns what took effect. Idempotent.
 #[pyfunction]
 pub fn harden_process(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
     let memlock_raised = unix::raise_memlock();
@@ -144,8 +127,7 @@ pub fn harden_process(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
     Ok(report)
 }
 
-/// 🇺🇸 What the enclave can and cannot guarantee right now, for logs and `diagnos status`.
-/// 🇧🇷 O que o enclave pode e não pode garantir agora, para logs e `diagnos status`.
+/// What the enclave can and cannot guarantee right now, for logs and `diagnos status`.
 #[pyfunction]
 pub fn memory_status(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
     let stats = locked::stats();
@@ -168,8 +150,7 @@ pub fn memory_status(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
     Ok(status)
 }
 
-/// 🇺🇸 `CAP_IPC_LOCK` (permitted, effective) for this thread on Linux; `(None, None)` elsewhere.
-/// 🇧🇷 `CAP_IPC_LOCK` (permitted, effective) para esta thread no Linux; `(None, None)` em outros.
+/// `CAP_IPC_LOCK` (permitted, effective) for this thread on Linux; `(None, None)` elsewhere.
 fn ipc_lock_state() -> (Option<bool>, Option<bool>) {
     #[cfg(target_os = "linux")]
     {

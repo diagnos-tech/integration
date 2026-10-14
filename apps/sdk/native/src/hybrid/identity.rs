@@ -1,19 +1,11 @@
-//! 🇺🇸 The identity's private halves, kept in locked buffers and expanded only for the moment an `open` takes.
-//!
-//! 🇧🇷 As metades privadas da identidade, em buffers travados e expandidas só pelo instante de um `open`.
+//! The identity's private halves, kept in locked buffers and expanded only for the moment an `open` takes.
 
 use ml_kem::kem::{Decapsulate, Kem};
-// 🇺🇸 `ExpandedKeyEncoding` is deprecated upstream in favour of 64-byte seeds,
-//    but the protocol (`docs/PROTOCOL.md §6, §11`) fixes the FIPS 203 *expanded*
-//    encoding — it is what `@noble/post-quantum` and `kyber-py` emit, what the
-//    vectors carry and what OpenBao stores. Interoperability wins over the
-//    upstream preference; the seed form would be a wire-format change.
-// 🇧🇷 `ExpandedKeyEncoding` está deprecado upstream em favor de seeds de 64
-//    bytes, mas o protocolo (`docs/PROTOCOL.md §6, §11`) fixa a codificação
-//    *expandida* da FIPS 203 — é o que `@noble/post-quantum` e `kyber-py`
-//    emitem, o que os vetores carregam e o que o OpenBao guarda.
-//    Interoperabilidade vence a preferência upstream; a forma de seed seria
-//    uma mudança de formato de fio.
+// `ExpandedKeyEncoding` is deprecated upstream in favour of 64-byte seeds,
+// but the protocol (`docs/PROTOCOL.md §6, §11`) fixes the FIPS 203 *expanded*
+// encoding — it is what `@noble/post-quantum` and `kyber-py` emit, what the
+// vectors carry and what OpenBao stores. Interoperability wins over the
+// upstream preference; the seed form would be a wire-format change.
 #[allow(deprecated)]
 use ml_kem::ExpandedKeyEncoding;
 use ml_kem::{DecapsulationKey, KeyExport, MlKem768};
@@ -25,8 +17,7 @@ use crate::error::{expect_len, Error};
 use crate::locked::LockedBuffer;
 use crate::{aead, rng};
 
-/// 🇺🇸 The Rust-level identity behind [`HybridKeyPair`](super::HybridKeyPair); public for the crate's own tests and vectors.
-/// 🇧🇷 A identidade em nível Rust por trás de [`HybridKeyPair`](super::HybridKeyPair); pública para os testes e vetores do próprio crate.
+/// The Rust-level identity behind [`HybridKeyPair`](super::HybridKeyPair); public for the crate's tests and vectors.
 pub struct Identity {
     pub(super) x25519_secret: LockedBuffer,
     pub(super) mlkem768_secret: LockedBuffer,
@@ -36,8 +27,7 @@ pub struct Identity {
 
 #[allow(deprecated)]
 impl Identity {
-    /// 🇺🇸 Rebuilds an identity from raw secret encodings (32 B X25519, 2400 B ML-KEM-768 expanded).
-    /// 🇧🇷 Reconstrói uma identidade das codificações secretas cruas (32 B X25519, 2400 B ML-KEM-768 expandida).
+    /// Rebuilds an identity from raw secret encodings (32 B X25519, 2400 B ML-KEM-768 expanded).
     pub fn from_secrets(x25519_secret: &[u8], mlkem768_secret: &[u8]) -> Result<Self, Error> {
         expect_len("x25519 secret key", x25519_secret, X25519_SECRET_BYTES)?;
         expect_len("ml-kem-768 secret key", mlkem768_secret, MLKEM768_SECRET_BYTES)?;
@@ -57,7 +47,7 @@ impl Identity {
         })
     }
 
-    /// 🇺🇸 A fresh identity from the OS CSPRNG. 🇧🇷 Uma identidade nova do CSPRNG do SO.
+    /// A fresh identity from the OS CSPRNG.
     pub fn generate() -> Result<Self, Error> {
         let mut csprng = rng::csprng();
         let x25519 = StaticSecret::random_from_rng(&mut csprng);
@@ -67,19 +57,19 @@ impl Identity {
         Self::from_secrets(&x25519_bytes[..], dk_bytes.as_ref())
     }
 
-    /// 🇺🇸 X25519 public key. 🇧🇷 Chave pública X25519.
+    /// X25519 public key.
     #[must_use]
     pub fn x25519_public(&self) -> &[u8; X25519_PUBLIC_BYTES] {
         &self.x25519_public
     }
 
-    /// 🇺🇸 ML-KEM-768 encapsulation key. 🇧🇷 Chave de encapsulamento ML-KEM-768.
+    /// ML-KEM-768 encapsulation key.
     #[must_use]
     pub fn mlkem768_public(&self) -> &[u8] {
         &self.mlkem768_public
     }
 
-    /// 🇺🇸 Opens a seal addressed to this identity. 🇧🇷 Abre um selo endereçado a esta identidade.
+    /// Opens a seal addressed to this identity.
     pub fn open(
         &self,
         encapsulation: &[u8],

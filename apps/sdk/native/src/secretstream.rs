@@ -1,4 +1,4 @@
-//! 🇺🇸 libsodium's `crypto_secretstream_xchacha20poly1305`, bit-exact, over a caller-owned 44-byte state.
+//! libsodium's `crypto_secretstream_xchacha20poly1305`, bit-exact, over a caller-owned 44-byte state.
 //!
 //! Drive bodies (`docs/PROTOCOL.md §9`) are written by PyNaCl/libsodium in
 //! the web client and must open here, and vice versa. This is a faithful port
@@ -10,19 +10,6 @@
 //!
 //! State layout, `[k 32 B][nonce 12 B]` where `nonce = [counter LE32][inonce 8 B]`,
 //! is libsodium's own. Every function below takes that 44-byte slice.
-//!
-//! 🇧🇷 O `crypto_secretstream_xchacha20poly1305` do libsodium, bit a bit, sobre um estado de 44 bytes de quem chama.
-//!
-//! Corpos de drive (`docs/PROTOCOL.md §9`) são escritos pelo PyNaCl/libsodium
-//! no client web e precisam abrir aqui, e vice-versa. Este é um porte fiel de
-//! `crypto_secretstream/xchacha20poly1305/secretstream_xchacha20poly1305.c`
-//! construído sobre o `chacha20` (variante IETF + HChaCha20) e o `poly1305`
-//! do RustCrypto, em vez de uma dependência de um build do libsodium: o
-//! estado pode então viver onde quem chama o puser — neste crate, numa página
-//! travada — em vez de no heap do C.
-//!
-//! O layout do estado, `[k 32 B][nonce 12 B]` com `nonce = [contador LE32][inonce 8 B]`,
-//! é o do próprio libsodium. Toda função abaixo recebe essa slice de 44 bytes.
 
 use chacha20::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use chacha20::{hchacha, ChaCha20, Key, Nonce, R20};
@@ -33,30 +20,29 @@ use zeroize::Zeroizing;
 
 use crate::error::{expect_len, Error};
 
-/// 🇺🇸 Key length. 🇧🇷 Tamanho da chave.
+/// Key length.
 pub const KEY_BYTES: usize = 32;
-/// 🇺🇸 Header length (the random stream nonce). 🇧🇷 Tamanho do header (o nonce aleatório do stream).
+/// Header length (the random stream nonce).
 pub const HEADER_BYTES: usize = 24;
-/// 🇺🇸 Overhead per chunk: 1 tag byte + 16 MAC bytes. 🇧🇷 Overhead por chunk: 1 byte de tag + 16 de MAC.
+/// Overhead per chunk: 1 tag byte + 16 MAC bytes.
 pub const ABYTES: usize = 17;
-/// 🇺🇸 `k ‖ nonce`. 🇧🇷 `k ‖ nonce`.
+/// `k ‖ nonce`.
 pub const STATE_BYTES: usize = KEY_BYTES + 12;
 
-/// 🇺🇸 An ordinary chunk. 🇧🇷 Um chunk comum.
+/// An ordinary chunk.
 pub const TAG_MESSAGE: u8 = 0;
-/// 🇺🇸 End of a logical message, stream continues. 🇧🇷 Fim de uma mensagem lógica, o stream continua.
+/// End of a logical message, stream continues.
 pub const TAG_PUSH: u8 = 1;
-/// 🇺🇸 Ratchets the key after this chunk. 🇧🇷 Rotaciona a chave depois deste chunk.
+/// Ratchets the key after this chunk.
 pub const TAG_REKEY: u8 = 2;
-/// 🇺🇸 Last chunk of the stream. 🇧🇷 Último chunk do stream.
+/// Last chunk of the stream.
 pub const TAG_FINAL: u8 = TAG_PUSH | TAG_REKEY;
 
 const COUNTER_BYTES: usize = 4;
 const INONCE_BYTES: usize = 8;
 const BLOCK: usize = 64;
 
-/// 🇺🇸 Derives the stream key from `key` and `header`, resetting the counter (init_push and init_pull are the same step).
-/// 🇧🇷 Deriva a chave do stream de `key` e `header`, zerando o contador (init_push e init_pull são o mesmo passo).
+/// Derives the stream key from `key` and `header`, resetting the counter (init_push and init_pull are the same step).
 pub fn init(state: &mut [u8], key: &[u8], header: &[u8]) -> Result<(), Error> {
     expect_len("secretstream state", state, STATE_BYTES)?;
     expect_len("secretstream key", key, KEY_BYTES)?;
@@ -71,8 +57,7 @@ pub fn init(state: &mut [u8], key: &[u8], header: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-/// 🇺🇸 ChaCha20-IETF keystream at 64-byte block `index`, XORed into (`xor`) or written over `buf`.
-/// 🇧🇷 Keystream ChaCha20-IETF no bloco de 64 bytes `index`, XORado em (`xor`) ou escrito sobre `buf`.
+/// ChaCha20-IETF keystream at 64-byte block `index`, XORed into (`xor`) or written over `buf`.
 fn keystream(k: &[u8], nonce: &[u8], index: u32, buf: &mut [u8], xor: bool) -> Result<(), Error> {
     let key: &Key = k.try_into().map_err(|_| Error::InvalidKey)?;
     let nonce: &Nonce = nonce.try_into().map_err(|_| Error::InvalidKey)?;
@@ -86,7 +71,7 @@ fn keystream(k: &[u8], nonce: &[u8], index: u32, buf: &mut [u8], xor: bool) -> R
     Ok(())
 }
 
-/// 🇺🇸 Poly1305 fed as one continuous byte stream, exactly as `crypto_onetimeauth_poly1305_update` is.
+/// Poly1305 fed as one continuous byte stream, exactly as `crypto_onetimeauth_poly1305_update` is.
 ///
 /// libsodium pads the ciphertext with `mlen & 0xf` zero bytes — not up to
 /// the next 16-byte boundary — a historical quirk frozen into the format.
@@ -94,15 +79,6 @@ fn keystream(k: &[u8], nonce: &[u8], index: u32, buf: &mut [u8], xor: bool) -> R
 /// bytes as a stream and let Poly1305's own final-block padding handle the
 /// tail. Padding every segment to a block (`universal_hash::update_padded`)
 /// would be a different, incompatible MAC.
-///
-/// 🇧🇷 Poly1305 alimentado como um único stream de bytes, exatamente como `crypto_onetimeauth_poly1305_update` é.
-///
-/// O libsodium preenche o ciphertext com `mlen & 0xf` bytes zero — não até a
-/// próxima fronteira de 16 bytes — uma peculiaridade histórica congelada no
-/// formato. Os segmentos portanto não se alinham a blocos, então o MAC
-/// precisa ver os bytes como stream e deixar o próprio padding de bloco final
-/// do Poly1305 cuidar da cauda. Preencher cada segmento até um bloco
-/// (`universal_hash::update_padded`) seria um MAC diferente, incompatível.
 struct Mac {
     poly: Poly1305,
     pending: Zeroizing<Vec<u8>>,
@@ -142,8 +118,7 @@ impl Mac {
     }
 }
 
-/// 🇺🇸 Zero bytes that pad `len` to a multiple of 16: libsodium's `(0x10 - len) & 0xf`, which wraps in C.
-/// 🇧🇷 Bytes zero que completam `len` até múltiplo de 16: o `(0x10 - len) & 0xf` do libsodium, que dá a volta em C.
+/// Zero bytes that pad `len` to a multiple of 16: libsodium's `(0x10 - len) & 0xf`, which wraps in C.
 fn pad16(len: usize) -> usize {
     (0x10 - (len & 0xf)) & 0xf
 }
@@ -181,8 +156,7 @@ fn rekey(k: &mut [u8], nonce: &mut [u8]) -> Result<(), Error> {
     Ok(())
 }
 
-/// 🇺🇸 Encrypts one chunk: `tag_byte ‖ ciphertext ‖ mac` (`message.len() + ABYTES` bytes).
-/// 🇧🇷 Cifra um chunk: `byte_de_tag ‖ ciphertext ‖ mac` (`message.len() + ABYTES` bytes).
+/// Encrypts one chunk: `tag_byte ‖ ciphertext ‖ mac` (`message.len() + ABYTES` bytes).
 pub fn push(state: &mut [u8], message: &[u8], ad: &[u8], tag: u8) -> Result<Vec<u8>, Error> {
     expect_len("secretstream state", state, STATE_BYTES)?;
     let (k, nonce) = state.split_at(KEY_BYTES);
@@ -209,8 +183,7 @@ pub fn push(state: &mut [u8], message: &[u8], ad: &[u8], tag: u8) -> Result<Vec<
     Ok(out)
 }
 
-/// 🇺🇸 Authenticates and decrypts one chunk, returning `(message, tag)`; any failure is `DidNotOpen`.
-/// 🇧🇷 Autentica e decifra um chunk, devolvendo `(mensagem, tag)`; toda falha é `DidNotOpen`.
+/// Authenticates and decrypts one chunk, returning `(message, tag)`; any failure is `DidNotOpen`.
 pub fn pull(state: &mut [u8], input: &[u8], ad: &[u8]) -> Result<(Vec<u8>, u8), Error> {
     expect_len("secretstream state", state, STATE_BYTES)?;
     if input.len() < ABYTES {

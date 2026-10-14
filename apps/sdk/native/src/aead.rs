@@ -1,18 +1,10 @@
-//! 🇺🇸 AES-256-GCM, the one AEAD of the protocol (`docs/PROTOCOL.md §4, §6, §7`).
+//! AES-256-GCM, the one AEAD of the protocol (`docs/PROTOCOL.md §4, §6, §7`).
 //!
 //! Nonces are never generated here: the caller draws them from the entropy
 //! pool (or, for the vault's own envelopes, receives them on the wire), so
 //! this module has no randomness and no state — it is a pure function of
 //! (key, nonce, data, aad), which is what makes it trivially testable against
 //! the TypeScript vectors.
-//!
-//! 🇧🇷 AES-256-GCM, o único AEAD do protocolo (`docs/PROTOCOL.md §4, §6, §7`).
-//!
-//! Nonces nunca são gerados aqui: quem chama os tira do pool de entropia (ou,
-//! para os envelopes do próprio cofre, os recebe pelo fio), então este módulo
-//! não tem aleatoriedade nem estado — é uma função pura de (chave, nonce,
-//! dados, aad), o que o torna trivialmente testável contra os vetores em
-//! TypeScript.
 
 use aes_gcm::aead::{Aead, Nonce, Payload};
 use aes_gcm::{Aes256Gcm, Key, KeyInit};
@@ -20,11 +12,11 @@ use zeroize::Zeroizing;
 
 use crate::error::{expect_len, Error};
 
-/// 🇺🇸 AES-256 key length. 🇧🇷 Tamanho da chave AES-256.
+/// AES-256 key length.
 pub const KEY_BYTES: usize = 32;
-/// 🇺🇸 GCM nonce length the protocol fixes (96 bits). 🇧🇷 Tamanho de nonce GCM que o protocolo fixa (96 bits).
+/// GCM nonce length the protocol fixes (96 bits).
 pub const NONCE_BYTES: usize = 12;
-/// 🇺🇸 GCM tag length, appended to the ciphertext. 🇧🇷 Tamanho da tag GCM, anexada ao ciphertext.
+/// GCM tag length, appended to the ciphertext.
 pub const TAG_BYTES: usize = 16;
 
 fn cipher(key: &[u8]) -> Result<Aes256Gcm, Error> {
@@ -42,16 +34,14 @@ fn nonce(nonce: &[u8]) -> Result<&Nonce<Aes256Gcm>, Error> {
     })
 }
 
-/// 🇺🇸 `ciphertext ‖ tag` for `plaintext` under `key`/`nonce`, authenticating `aad`.
-/// 🇧🇷 `ciphertext ‖ tag` de `plaintext` sob `key`/`nonce`, autenticando `aad`.
+/// `ciphertext ‖ tag` for `plaintext` under `key`/`nonce`, authenticating `aad`.
 pub fn seal(key: &[u8], nonce_bytes: &[u8], plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>, Error> {
     let cipher = cipher(key)?;
     let nonce = nonce(nonce_bytes)?;
     cipher.encrypt(nonce, Payload { msg: plaintext, aad }).map_err(|_| Error::DidNotOpen)
 }
 
-/// 🇺🇸 The inverse of [`seal`]; every failure is [`Error::DidNotOpen`], by design.
-/// 🇧🇷 O inverso de [`seal`]; toda falha é [`Error::DidNotOpen`], de propósito.
+/// The inverse of [`seal`]; every failure is [`Error::DidNotOpen`], by design.
 pub fn open(key: &[u8], nonce_bytes: &[u8], ciphertext: &[u8], aad: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
     let cipher = cipher(key)?;
     let nonce = nonce(nonce_bytes)?;

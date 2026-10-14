@@ -1,4 +1,4 @@
-//! 🇺🇸 [`EntropyPool`]: the vault's per-response seed, mixed into OS randomness, kept in a locked page.
+//! [`EntropyPool`]: the vault's per-response seed, mixed into OS randomness, kept in a locked page.
 //!
 //! `docs/PROTOCOL.md §4`: every signed response carries a seed only this
 //! session can open. Mixing it in defends against a cloned VM or container
@@ -8,18 +8,6 @@
 //! state ‖ counter)`, so an all-zero state degrades to plain OS randomness,
 //! never to something weaker. `state = SHA-256(seed)` — fixed size, so the
 //! locked page never has to grow.
-//!
-//! 🇧🇷 [`EntropyPool`]: a semente por resposta do cofre, misturada à aleatoriedade do SO, guardada numa página travada.
-//!
-//! `docs/PROTOCOL.md §4`: toda resposta assinada leva uma semente que só esta
-//! sessão abre. Misturá-la defende contra uma VM ou container clonado cujo
-//! RNG do SO ainda não se re-semeou — dois clones compartilham os primeiros
-//! bytes de `os.urandom`, mas não a semente que o cofre mandou a só um deles.
-//! O pool nunca *substitui* o RNG do SO: todo bloco de 32 bytes é
-//! `SHA-256(os_random(32) ‖ estado ‖ contador)`, então um estado todo zero
-//! degrada para aleatoriedade pura do SO, nunca para algo mais fraco.
-//! `estado = SHA-256(semente)` — tamanho fixo, para a página travada nunca
-//! precisar crescer.
 
 use std::sync::Mutex;
 
@@ -39,7 +27,7 @@ const COUNTER_BYTES: usize = 8;
 const POOL_BYTES: usize = STATE_BYTES + COUNTER_BYTES;
 const BLOCK: usize = 32;
 
-/// 🇺🇸 Stateful mixer; see the module docs. 🇧🇷 Misturador com estado; veja a doc do módulo.
+/// Stateful mixer; see the module docs.
 #[pyclass(frozen, name = "EntropyPool", module = "diagnos._secure")]
 pub struct EntropyPool {
     inner: Mutex<LockedBuffer>,
@@ -81,14 +69,13 @@ impl EntropyPool {
 
 #[pymethods]
 impl EntropyPool {
-    /// 🇺🇸 Starts unseeded: indistinguishable from the OS RNG until `mix()`. 🇧🇷 Começa sem semente: indistinguível do RNG do SO até `mix()`.
+    /// Starts unseeded: indistinguishable from the OS RNG until `mix()`.
     #[new]
     fn new() -> PyResult<Self> {
         Ok(Self { inner: Mutex::new(LockedBuffer::new(POOL_BYTES)?) })
     }
 
-    /// 🇺🇸 Replaces the mixed-in seed (a `SecretBox` or bytes-like) and resets the counter.
-    /// 🇧🇷 Substitui a semente misturada (um `SecretBox` ou tipo bytes) e reinicia o contador.
+    /// Replaces the mixed-in seed (a `SecretBox` or bytes-like) and resets the counter.
     fn mix(&self, seed: &Bound<'_, PyAny>) -> PyResult<()> {
         if let Ok(secret) = seed.cast::<SecretBox>() {
             let secret: &SecretBox = secret.get();
@@ -99,15 +86,14 @@ impl EntropyPool {
         Ok(self.reseed(&seed)?)
     }
 
-    /// 🇺🇸 `n` bytes for public values: nonces, salts, ids. 🇧🇷 `n` bytes para valores públicos: nonces, salts, ids.
+    /// `n` bytes for public values: nonces, salts, ids.
     fn random<'py>(&self, py: Python<'py>, n: usize) -> PyResult<Bound<'py, PyBytes>> {
         let mut out = vec![0u8; n];
         self.fill(&mut out)?;
         Ok(PyBytes::new(py, &out))
     }
 
-    /// 🇺🇸 `n` bytes born in a locked box: a new DEK never touches the Python heap.
-    /// 🇧🇷 `n` bytes nascidos numa caixa travada: uma DEK nova nunca toca o heap do Python.
+    /// `n` bytes born in a locked box: a new DEK never touches the Python heap.
     fn random_secret(&self, n: usize) -> PyResult<SecretBox> {
         let mut buffer = LockedBuffer::new(n)?;
         buffer.with_bytes_mut(|out| self.fill(out))??;

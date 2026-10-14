@@ -1,44 +1,43 @@
-name: "Bug report · Relato de bug"
-description: "🇺🇸 Something isn't working as documented. · 🇧🇷 Algo não está funcionando como documentado."
+name: "Bug report"
+description: "Something isn't working as documented."
 title: "[bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        🇺🇸 Thanks for taking the time to report this. The more precise the repro, the faster it gets fixed.
-        🇧🇷 Obrigado por tirar um tempo para reportar isto. Quanto mais precisa a reprodução, mais rápido é corrigido.
+        Thanks for taking the time to report this. The more precise the repro, the faster it gets fixed.
 
   - type: dropdown
     id: package
     attributes:
-      label: "Layer · Camada"
-      description: "🇺🇸 Which layer is affected? · 🇧🇷 Qual camada é afetada?"
+      label: "Layer"
+      description: "Which layer is affected?"
       options:
         - "diagnos — base (docs, version, setup, help)"
         - "diagnos[sdk] — SDK"
         - "diagnos[cli] — CLI"
         - "diagnos[api] — REST API"
-        - "images (ghcr.io/diagnos-tech) · imagens"
+        - "images (ghcr.io/diagnos-tech)"
         - docs
-        - other · outro
+        - other
     validations:
       required: true
 
   - type: input
     id: version
     attributes:
-      label: "Package version(s) · Versão(ões) do pacote"
-      description: "🇺🇸 From `diagnos version` (paste `--json` if you can). · 🇧🇷 Do `diagnos version` (cole o `--json` se puder)."
-      placeholder: "e.g. diagnos 0.1.0 · ex.: diagnos 0.1.0"
+      label: "Package version(s)"
+      description: "From `diagnos version` (paste `--json` if you can)."
+      placeholder: "e.g. diagnos 0.1.0"
     validations:
       required: true
 
   - type: input
     id: python-version
     attributes:
-      label: "Python version · Versão do Python"
-      description: "🇺🇸 Output of `python --version`. · 🇧🇷 Saída de `python --version`."
+      label: "Python version"
+      description: "Output of `python --version`."
       placeholder: "e.g. 3.12.4"
     validations:
       required: true
@@ -46,8 +45,8 @@ body:
   - type: input
     id: os
     attributes:
-      label: "Operating system · Sistema operacional"
-      description: "🇺🇸 Distro/version, or container base image. · 🇧🇷 Distro/versão, ou imagem base do container."
+      label: "Operating system"
+      description: "Distro and version, or container base image."
       placeholder: "e.g. Ubuntu 22.04, python:3.12-slim"
     validations:
       required: true
@@ -55,8 +54,8 @@ body:
   - type: textarea
     id: repro
     attributes:
-      label: "Steps to reproduce · Passos para reproduzir"
-      description: "🇺🇸 Minimal code or commands that trigger the bug. Redact tokens and any patient data. · 🇧🇷 Código ou comandos mínimos que disparam o bug. Redija tokens e qualquer dado de paciente."
+      label: "Steps to reproduce"
+      description: "Minimal code or commands that trigger the bug. Redact tokens and any patient data."
       placeholder: |
         1. …
         2. …
@@ -68,16 +67,16 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: "Expected behavior · Comportamento esperado"
-      description: "🇺🇸 What you expected to happen. · 🇧🇷 O que você esperava que acontecesse."
+      label: "Expected behavior"
+      description: "What you expected to happen."
     validations:
       required: true
 
   - type: textarea
     id: actual
     attributes:
-      label: "Actual behavior · Comportamento observado"
-      description: "🇺🇸 What actually happened — include the full traceback/error output if there is one. · 🇧🇷 O que de fato aconteceu — inclua o traceback/saída de erro completo, se houver."
+      label: "Actual behavior"
+      description: "What actually happened. Include the full traceback or error output, if there is one."
       render: shell
     validations:
       required: true
@@ -85,15 +84,15 @@ body:
   - type: textarea
     id: extra
     attributes:
-      label: "Anything else · Mais alguma coisa"
-      description: "🇺🇸 Logs, screenshots, links — optional. · 🇧🇷 Logs, screenshots, links — opcional."
+      label: "Anything else"
+      description: "Logs, screenshots, links (optional)."
     validations:
       required: false
 
   - type: checkboxes
     id: security
     attributes:
-      label: "Before you submit · Antes de enviar"
+      label: "Before you submit"
       options:
-        - label: "🇺🇸 This is not a security vulnerability (those go to [GitHub Security Advisories](https://github.com/diagnos-tech/integration/security/advisories/new), not a public issue — see SECURITY.md). · 🇧🇷 Isto não é uma vulnerabilidade de segurança (essas vão para o [GitHub Security Advisories](https://github.com/diagnos-tech/integration/security/advisories/new), não uma issue pública — veja SECURITY.pt-BR.md)."
+        - label: "This is not a security vulnerability (those go to [GitHub Security Advisories](https://github.com/diagnos-tech/integration/security/advisories/new), not a public issue; see SECURITY.md)."
           required: true

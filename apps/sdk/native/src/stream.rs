@@ -1,19 +1,10 @@
-//! 🇺🇸 Python faces of the secretstream: [`SecretStreamPush`] and [`SecretStreamPull`], state in a locked page.
+//! Python faces of the secretstream: [`SecretStreamPush`] and [`SecretStreamPull`], state in a locked page.
 //!
 //! The Python side owns framing (`[len u32 BE][chunk]`) and chunking; these
 //! classes own exactly one thing each: a 44-byte state that never leaves a
 //! locked page, advanced one chunk at a time. Chunk bodies are content, not
 //! secrets, so they cross the boundary as plain `bytes`, and the work runs
 //! with the GIL released — a 1 MiB chunk is the rule, not the exception.
-//!
-//! 🇧🇷 Faces Python do secretstream: [`SecretStreamPush`] e [`SecretStreamPull`], estado numa página travada.
-//!
-//! O lado Python é dono do framing (`[len u32 BE][chunk]`) e do fatiamento;
-//! estas classes são donas de exatamente uma coisa cada: um estado de 44
-//! bytes que nunca sai de uma página travada, avançado um chunk por vez.
-//! Corpos de chunk são conteúdo, não segredo, então cruzam a fronteira como
-//! `bytes` comuns, e o trabalho roda com a GIL liberada — um chunk de 1 MiB é
-//! a regra, não a exceção.
 
 use std::sync::Mutex;
 
@@ -40,8 +31,7 @@ impl StreamState {
     }
 }
 
-/// 🇺🇸 Encrypting side: `header` first, then `push(chunk, final=...)` per chunk.
-/// 🇧🇷 Lado que cifra: `header` primeiro, depois `push(chunk, final=...)` por chunk.
+/// Encrypting side: `header` first, then `push(chunk, final=...)` per chunk.
 #[pyclass(frozen, name = "SecretStreamPush", module = "diagnos._secure")]
 pub struct SecretStreamPush {
     header: [u8; HEADER_BYTES],
@@ -50,7 +40,7 @@ pub struct SecretStreamPush {
 
 #[pymethods]
 impl SecretStreamPush {
-    /// 🇺🇸 Starts a stream under `key` with a random 24-byte header. 🇧🇷 Inicia um stream sob `key` com um header aleatório de 24 bytes.
+    /// Starts a stream under `key` with a random 24-byte header.
     #[new]
     fn new(key: PyRef<'_, SecretBox>) -> PyResult<Self> {
         let header = rng::random_array::<HEADER_BYTES>()?;
@@ -58,20 +48,19 @@ impl SecretStreamPush {
         Ok(Self { header, inner: Mutex::new(state) })
     }
 
-    /// 🇺🇸 The 24-byte header the reader needs first. 🇧🇷 O header de 24 bytes que o leitor precisa primeiro.
+    /// The 24-byte header the reader needs first.
     #[getter]
     fn header<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.header)
     }
 
-    /// 🇺🇸 Whether the final chunk was already pushed. 🇧🇷 Se o chunk final já foi empurrado.
+    /// Whether the final chunk was already pushed.
     #[getter]
     fn is_finished(&self) -> PyResult<bool> {
         Ok(self.inner.lock().map_err(Error::from)?.finished)
     }
 
-    /// 🇺🇸 Encrypts one chunk; `final=True` marks the last one, after which the stream refuses more.
-    /// 🇧🇷 Cifra um chunk; `final=True` marca o último, depois do qual o stream recusa mais.
+    /// Encrypts one chunk; `final=True` marks the last one, after which the stream refuses more.
     #[pyo3(signature = (message, *, r#final = false, ad = None))]
     fn push<'py>(
         &self,
@@ -98,8 +87,7 @@ impl SecretStreamPush {
     }
 }
 
-/// 🇺🇸 Decrypting side: built from `key` and the header, then `pull(chunk)` per chunk → `(plaintext, is_final)`.
-/// 🇧🇷 Lado que decifra: construído de `key` e do header, depois `pull(chunk)` por chunk → `(texto claro, é_final)`.
+/// Decrypting side: built from `key` and the header, then `pull(chunk)` per chunk → `(plaintext, is_final)`.
 #[pyclass(frozen, name = "SecretStreamPull", module = "diagnos._secure")]
 pub struct SecretStreamPull {
     inner: Mutex<StreamState>,
@@ -107,7 +95,7 @@ pub struct SecretStreamPull {
 
 #[pymethods]
 impl SecretStreamPull {
-    /// 🇺🇸 Opens a stream under `key` from its 24-byte header. 🇧🇷 Abre um stream sob `key` a partir do header de 24 bytes.
+    /// Opens a stream under `key` from its 24-byte header.
     #[new]
     fn new(key: PyRef<'_, SecretBox>, header: &Bound<'_, PyAny>) -> PyResult<Self> {
         let header = read_bytes(header)?;
@@ -115,14 +103,13 @@ impl SecretStreamPull {
         Ok(Self { inner: Mutex::new(state) })
     }
 
-    /// 🇺🇸 Whether `TAG_FINAL` was already seen. 🇧🇷 Se `TAG_FINAL` já foi visto.
+    /// Whether `TAG_FINAL` was already seen.
     #[getter]
     fn is_finished(&self) -> PyResult<bool> {
         Ok(self.inner.lock().map_err(Error::from)?.finished)
     }
 
-    /// 🇺🇸 Authenticates and decrypts one chunk; refuses anything after the final one.
-    /// 🇧🇷 Autentica e decifra um chunk; recusa qualquer coisa depois do final.
+    /// Authenticates and decrypts one chunk; refuses anything after the final one.
     #[pyo3(signature = (chunk, *, ad = None))]
     fn pull<'py>(
         &self,

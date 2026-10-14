@@ -1,8 +1,6 @@
-//! 🇺🇸 secretstream with associated data of any length, found by `fuzz/fuzz_targets/secretstream_pull.rs`: AD
-//! longer than one Poly1305 block used to overflow the padding arithmetic and panic.
-//!
-//! 🇧🇷 secretstream com dados associados de qualquer tamanho, achado pelo `fuzz/fuzz_targets/secretstream_pull.rs`:
-//! um AD maior que um bloco do Poly1305 estourava a aritmética do padding e entrava em pânico.
+//! Regression tests for secretstream with associated data of any length, found by
+//! `fuzz/fuzz_targets/secretstream_pull.rs`: AD longer than one Poly1305 block used to overflow the padding arithmetic
+//! and panic.
 
 use _secure::secretstream::{self, HEADER_BYTES, KEY_BYTES, STATE_BYTES, TAG_FINAL, TAG_MESSAGE};
 

@@ -1,9 +1,6 @@
-# 🇺🇸 An allowlist: the build context is exactly what the `Dockerfile` copies, and nothing else — no `.env`, no
-#    `certs/*.pem` from a local Compose run, no `.git`, no editable-install `.so` or Rust `target/` that would
-#    slip into a wheel built from source.
-# 🇧🇷 Uma lista de permissão: o contexto de build é exatamente o que o `Dockerfile` copia, e nada mais — nenhum
-#    `.env`, nenhum `certs/*.pem` de uma execução local do Compose, nenhum `.git`, nenhum `.so` de instalação
-#    editável nem `target/` do Rust que escorregaria para um wheel construído do fonte.
+# An allowlist: the build context is exactly what the `Dockerfile` copies, and nothing else: no `.env`, no
+# `certs/*.pem` from a local Compose run, no `.git`, and no editable-install `.so` or Rust `target/` that would slip
+# into a wheel built from source.
 *
 !pyproject.toml
 !uv.lock

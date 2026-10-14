@@ -1,33 +1,29 @@
 <!--
-🇺🇸 Thank you for the contribution! Fill in what applies and delete the rest. See CONTRIBUTING.md for the full guide.
-🇧🇷 Obrigado pela contribuição! Preencha o que se aplica e apague o resto. Veja CONTRIBUTING.pt-BR.md para o guia completo.
+Thank you for the contribution! Fill in what applies and delete the rest. See CONTRIBUTING.md for the full guide.
 -->
 
-## Summary · Resumo
+## Summary
 
 <!--
-🇺🇸 What does this PR change, in one or two sentences?
-🇧🇷 O que este PR muda, em uma ou duas frases?
+What does this PR change, in one or two sentences?
 -->
 
-## Why · Por quê
+## Why
 
 <!--
-🇺🇸 What problem does this solve, or what does it enable? Link an issue if there is one.
-🇧🇷 Que problema isso resolve, ou o que isso passa a permitir? Linke uma issue, se houver.
+What problem does this solve, or what does it enable? Link an issue if there is one.
 -->
 
-## How it was tested · Como foi testado
+## How it was tested
 
 <!--
-🇺🇸 `make check` output, new/changed tests, manual steps you ran — whatever gives a reviewer confidence.
-🇧🇷 Saída do `make check`, testes novos/alterados, passos manuais que você rodou — o que der confiança a quem revisar.
+`make check` output, new or changed tests, manual steps you ran: whatever gives a reviewer confidence.
 -->
 
 ## Checklist
 
-- [ ] 🇺🇸 `make check` is green locally (lint, types, tests, contract check). · 🇧🇷 `make check` está verde localmente (lint, tipos, testes, checagem de contrato).
-- [ ] 🇺🇸 If the SDK's HTTP behaviour changed, the contract was regenerated (`make contract`) and committed. · 🇧🇷 Se o comportamento HTTP do SDK mudou, o contrato foi regenerado (`make contract`) e commitado.
-- [ ] 🇺🇸 Docs updated in both languages (`NAME.md` + `NAME.pt-BR.md`), if this PR touches documentation. · 🇧🇷 Documentação atualizada nas duas línguas (`NOME.md` + `NOME.pt-BR.md`), se este PR toca documentação.
-- [ ] 🇺🇸 New/changed public docstrings are bilingual (🇺🇸 + 🇧🇷). · 🇧🇷 Docstrings públicas novas/alteradas são bilíngues (🇺🇸 + 🇧🇷).
-- [ ] 🇺🇸 No secrets, tokens or real credentials are committed. · 🇧🇷 Nenhum segredo, token ou credencial real foi commitado.
+- [ ] `make check` is green locally (lint, types, tests, contract check).
+- [ ] If the SDK's HTTP behaviour changed, the contract was regenerated (`make contract`) and committed.
+- [ ] Docs updated in both languages (`NAME.md` + `NAME.pt-BR.md`), if this PR touches documentation.
+- [ ] New or changed code, comments, docstrings and user-facing messages are written in English.
+- [ ] No secrets, tokens or real credentials are committed.

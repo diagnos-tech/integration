@@ -1,7 +1,4 @@
-"""🇺🇸 The release guard refuses every version or tag PyPI would get wrong — before anything is built.
-
-🇧🇷 A guarda do release recusa toda versão ou tag que o PyPI receberia errada — antes de construir qualquer coisa.
-"""
+"""The release guard refuses every version or tag PyPI would get wrong, before anything is built."""
 
 from __future__ import annotations
 
@@ -29,7 +26,7 @@ CHANGELOG = """# Changelog
 
 
 def tree(tmp_path: Path, package: str, crate: str) -> Path:
-    """🇺🇸 A root with both manifests and the changelog. 🇧🇷 Uma raiz com os dois manifestos e o changelog."""
+    """Builds a repository root holding both manifests at the given versions and the changelog."""
     (tmp_path / "apps/sdk/native").mkdir(parents=True)
     (tmp_path / "pyproject.toml").write_text(f'[project]\nversion = "{package}"\n', encoding="utf-8")
     (tmp_path / "apps/sdk/native/Cargo.toml").write_text(f'[package]\nversion = "{crate}"\n', encoding="utf-8")
@@ -49,12 +46,12 @@ def tree(tmp_path: Path, package: str, crate: str) -> Path:
     ],
 )
 def test_pep440_spells_a_semver_pre_release_the_pypi_way(given: str, expected: str) -> None:
-    """🇺🇸 SemVer pre-releases become PEP 440, the rest stays. 🇧🇷 Pré-releases SemVer viram PEP 440, o resto fica."""
+    """SemVer pre-releases become PEP 440, the rest stays."""
     assert pep440(given) == expected
 
 
 def test_a_release_candidate_agrees_across_cargo_and_pyproject(tmp_path: Path) -> None:
-    """🇺🇸 `0.2.0rc1` and `0.2.0-rc.1` are one version. 🇧🇷 `0.2.0rc1` e `0.2.0-rc.1` são uma versão só."""
+    """`0.2.0rc1` and `0.2.0-rc.1` are one version."""
     assert problems(None, tree(tmp_path, "0.2.0rc1", "0.2.0-rc.1")) == []
 
 
@@ -70,31 +67,25 @@ def test_a_release_candidate_agrees_across_cargo_and_pyproject(tmp_path: Path) -
 def test_disagreeing_or_unpublishable_versions_are_refused(
     tmp_path: Path, package: str, crate: str, reason: str
 ) -> None:
-    """🇺🇸 Two numbers, or one PyPI cannot hold, stop the build.
-
-    🇧🇷 Dois números, ou um que o PyPI não aceita, param o build.
-    """
+    """Two numbers, or one PyPI cannot hold, stop the build."""
     assert any(reason in line for line in problems(None, tree(tmp_path, package, crate)))
 
 
 def test_a_tag_must_name_the_version_be_dated_and_be_on_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 Wrong tag, undated changelog, off trunk: three reasons.
-
-    🇧🇷 Tag errada, changelog sem data, fora do tronco: três motivos.
-    """
+    """Wrong tag, undated changelog, off trunk: three reasons."""
     monkeypatch.setattr(release_version, "on_trunk", lambda root: False)
     reasons = problems("v0.1.1", tree(tmp_path, "0.1.0", "0.1.0"))
     assert [line.split(" ")[0] for line in reasons] == ["tag", "CHANGELOG.md:", "the"]
 
 
 def test_a_dated_version_tagged_on_main_is_released(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 Everything in order: no reason left. 🇧🇷 Tudo em ordem: nenhum motivo sobra."""
+    """Everything in order: no reason left."""
     monkeypatch.setattr(release_version, "on_trunk", lambda root: True)
     assert problems("v0.2.0rc1", tree(tmp_path, "0.2.0rc1", "0.2.0-rc.1")) == []
 
 
 def test_notes_are_the_section_body_without_its_heading(tmp_path: Path) -> None:
-    """🇺🇸 One section, up to the next heading. 🇧🇷 Uma seção, até o próximo título."""
+    """One section, up to the next heading."""
     root = tree(tmp_path, "0.2.0rc1", "0.2.0rc1")
     assert notes("0.2.0rc1", root) == "### Added\n\n- Something."
     assert notes("9.9.9", root) == ""
@@ -103,10 +94,7 @@ def test_notes_are_the_section_body_without_its_heading(tmp_path: Path) -> None:
 def test_main_writes_this_repository_s_version_for_the_next_jobs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """🇺🇸 Without a tag nothing is published, and `version=` is written.
-
-    🇧🇷 Sem tag nada é publicado, e o `version=` é gravado.
-    """
+    """Without a tag nothing is published, and `version=` is written."""
     output = tmp_path / "output"
     monkeypatch.delenv("GITHUB_REF_TYPE", raising=False)
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))

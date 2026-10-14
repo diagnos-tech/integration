@@ -1,8 +1,5 @@
-//! 🇺🇸 `secretstream::pull` against any key, header and sequence of chunks: hostile chunks are rejected without
+//! `secretstream::pull` against any key, header and sequence of chunks: hostile chunks are rejected without
 //! a panic, and every chunk pushed is pulled back unchanged, with its tag, in order.
-//!
-//! 🇧🇷 `secretstream::pull` contra qualquer chave, cabeçalho e sequência de chunks: chunks hostis são rejeitados
-//! sem pânico, e todo chunk empurrado volta inalterado, com a tag dele, em ordem.
 
 #![no_main]
 
@@ -14,8 +11,7 @@ fuzz_target!(|data: &[u8]| {
     let Some((header, body)) = rest.split_at_checked(HEADER_BYTES) else { return };
     let chunks: Vec<&[u8]> = body.split(|&byte| byte == 0xff).collect();
 
-    // 🇺🇸 The chunks as a hostile stream: each one rejected or opened, never a crash.
-    // 🇧🇷 Os chunks como stream hostil: cada um rejeitado ou aberto, nunca um crash.
+    // The chunks as a hostile stream: each one rejected or opened, never a crash.
     let mut hostile = [0u8; STATE_BYTES];
     secretstream::init(&mut hostile, key, header).expect("a well-sized key and header always initialize");
     for chunk in &chunks {
@@ -24,8 +20,7 @@ fuzz_target!(|data: &[u8]| {
         }
     }
 
-    // 🇺🇸 The same chunks as messages: what one side pushes, the other pulls back, tag included.
-    // 🇧🇷 Os mesmos chunks como mensagens: o que um lado empurra, o outro puxa de volta, com a tag.
+    // The same chunks as messages: what one side pushes, the other pulls back, tag included.
     let mut sender = [0u8; STATE_BYTES];
     let mut receiver = [0u8; STATE_BYTES];
     secretstream::init(&mut sender, key, header).expect("a well-sized key and header always initialize");

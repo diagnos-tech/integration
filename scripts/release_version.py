@@ -1,40 +1,18 @@
-"""🇺🇸 The release guard: one version everywhere, and a tag that says exactly that version.
+"""The release guard: one version everywhere, and a tag that says exactly that version.
 
-`diagnos` and its Rust crate are released together, under one number. A
-version on PyPI can never be uploaded twice, so the package workflow runs
-this before it builds anything:
+`diagnos` and its Rust crate are released together, under one number. A version on PyPI can never be uploaded
+twice, so the package workflow runs this before it builds anything:
 
-- `pyproject.toml` and the crate's `Cargo.toml` agree, on a version PyPI
-  and GHCR can hold (no local or `.dev` segment);
-- on a tag, the tag is `v<that version>`, the tagged commit is already on
-  `main`, and `CHANGELOG.md` gives the version a date instead of
-  `Unreleased`.
+- `pyproject.toml` and the crate's `Cargo.toml` agree, on a version PyPI and GHCR can hold (no local or `.dev`
+  segment);
+- on a tag, the tag is `v<that version>`, the tagged commit is already on `main`, and `CHANGELOG.md` gives the
+  version a date instead of `Unreleased`.
 
-It writes the checked version to `$GITHUB_OUTPUT` for the jobs after it.
-With `--notes` it prints that version's `CHANGELOG.md` section instead —
-the body of the GitHub release.
+It writes the checked version to `$GITHUB_OUTPUT` for the jobs after it. With `--notes` it prints that version's
+`CHANGELOG.md` section instead, which is the body of the GitHub release.
 
-Run: `python3 scripts/release_version.py [--notes]` (standard library only;
-the workflow runs it before uv is installed).
-
-🇧🇷 A guarda do release: uma versão em todo lugar, e uma tag que diz exatamente essa versão.
-
-O `diagnos` e o crate Rust dele são lançados juntos, sob um número só. Uma
-versão no PyPI nunca pode ser enviada duas vezes, então o workflow de
-pacote roda isto antes de construir qualquer coisa:
-
-- o `pyproject.toml` e o `Cargo.toml` do crate concordam, numa versão que
-  o PyPI e o GHCR podem ter (sem segmento local nem `.dev`);
-- numa tag, a tag é `v<essa versão>`, o commit marcado já está na
-  `main`, e o `CHANGELOG.md` dá uma data à versão em vez de
-  `Unreleased`.
-
-Ele grava a versão conferida no `$GITHUB_OUTPUT` para os jobs seguintes.
-Com `--notes` imprime, no lugar, a seção daquela versão no `CHANGELOG.md` —
-o corpo do release no GitHub.
-
-Rode: `python3 scripts/release_version.py [--notes]` (só biblioteca padrão;
-o workflow o roda antes de o uv estar instalado).
+Usage: `python3 scripts/release_version.py [--notes]` (standard library only; the workflow runs it before uv is
+installed).
 """
 
 from __future__ import annotations
@@ -53,29 +31,20 @@ MANIFESTS: Final = {
     "apps/sdk/native/Cargo.toml": "package",
 }
 RELEASE: Final = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?")
-# 🇺🇸 Cargo spells a pre-release the SemVer way (`0.2.0-rc.1`), PyPI the PEP 440 way (`0.2.0rc1`):
-#    the same release.
-# 🇧🇷 O Cargo escreve um pré-release do jeito SemVer (`0.2.0-rc.1`), o PyPI do jeito PEP 440 (`0.2.0rc1`):
-#    o mesmo release.
+# Cargo spells a pre-release the SemVer way (`0.2.0-rc.1`), PyPI the PEP 440 way (`0.2.0rc1`): the same release.
 _SEMVER_PRE: Final = re.compile(r"(?P<core>[0-9]+\.[0-9]+\.[0-9]+)-(?P<kind>a|b|rc)\.?(?P<number>[0-9]+)")
-# 🇺🇸 Releases are cut from `main`. 🇧🇷 Releases saem da `main`.
+# Releases are cut from `main`.
 TRUNK: Final = "origin/main"
 
 
 def pep440(version: str) -> str:
-    """🇺🇸 `version` as PyPI writes it: a SemVer pre-release (`0.2.0-rc.1`) becomes `0.2.0rc1`, the rest is kept.
-
-    🇧🇷 `version` como o PyPI escreve: um pré-release SemVer (`0.2.0-rc.1`) vira `0.2.0rc1`, o resto fica.
-    """
+    """Returns `version` as PyPI writes it: a SemVer pre-release (`0.2.0-rc.1`) becomes `0.2.0rc1`, the rest is kept."""
     match = _SEMVER_PRE.fullmatch(version)
     return f"{match['core']}{match['kind']}{match['number']}" if match else version
 
 
 def versions(root: Path = ROOT) -> dict[str, str]:
-    """🇺🇸 `{manifest: version}` for the package and the crate, both as PyPI writes them.
-
-    🇧🇷 `{manifesto: versão}` do pacote e do crate, os dois como o PyPI escreve.
-    """
+    """Reads `{manifest: version}` for the package and the crate, both as PyPI writes them."""
     found: dict[str, str] = {}
     for manifest, table in MANIFESTS.items():
         with (root / manifest).open("rb") as handle:
@@ -84,20 +53,14 @@ def versions(root: Path = ROOT) -> dict[str, str]:
 
 
 def changelog_date(version: str, root: Path = ROOT) -> str | None:
-    """🇺🇸 What `CHANGELOG.md` puts after `## [version] - `, or `None` without that heading.
-
-    🇧🇷 O que o `CHANGELOG.md` põe depois de `## [versão] - `, ou `None` sem esse título.
-    """
+    """Returns what `CHANGELOG.md` puts after `## [version] - `, or `None` without that heading."""
     heading = re.compile(rf"^## \[{re.escape(version)}\] - (?P<date>.+)$", re.MULTILINE)
     match = heading.search((root / "CHANGELOG.md").read_text(encoding="utf-8"))
     return match["date"].strip() if match else None
 
 
 def notes(version: str, root: Path = ROOT) -> str:
-    """🇺🇸 The body of `version`'s section in `CHANGELOG.md`, without its heading; empty when there is none.
-
-    🇧🇷 O corpo da seção de `version` no `CHANGELOG.md`, sem o título; vazio quando não há.
-    """
+    """Returns the body of `version`'s section in `CHANGELOG.md`, without its heading; empty when there is none."""
     text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
     heading = rf"^## \[{re.escape(version)}\][^\n]*\n"
     section = re.search(heading + r"(?P<body>.*?)(?=^## \[|\Z)", text, re.MULTILINE | re.DOTALL)
@@ -105,7 +68,7 @@ def notes(version: str, root: Path = ROOT) -> str:
 
 
 def on_trunk(root: Path = ROOT) -> bool:
-    """🇺🇸 Whether `HEAD` is already part of `main`. 🇧🇷 Se o `HEAD` já faz parte da `main`."""
+    """Whether `HEAD` is already part of `main` (the trunk releases are cut from)."""
     result = subprocess.run(  # noqa: S603 — fixed argv, no shell
         ["git", "merge-base", "--is-ancestor", "HEAD", TRUNK],  # noqa: S607 — git on PATH
         cwd=root,
@@ -115,40 +78,49 @@ def on_trunk(root: Path = ROOT) -> bool:
 
 
 def problems(tag: str | None, root: Path = ROOT) -> list[str]:
-    """🇺🇸 One line per reason not to release; `tag` is `None` on a run that publishes nothing.
+    """Collects the reasons not to release, one line each.
 
-    🇧🇷 Uma linha por motivo para não lançar; `tag` é `None` numa execução que não publica nada.
+    Args:
+        tag: The git tag being released, or `None` on a run that publishes nothing.
+        root: The repository root holding the manifests and `CHANGELOG.md`.
+
+    Returns:
+        The reasons, in the order they were found; empty when the release may go ahead.
     """
     found = versions(root)
     if len(set(found.values())) != 1:
         return [f"{manifest}: {version}" for manifest, version in found.items()]
     version = next(iter(found.values()))
     if not RELEASE.fullmatch(version):
-        return [f"{version} is not a release version · não é uma versão de release"]
+        return [f"{version} is not a release version"]
     if tag is None:
         return []
     reasons: list[str] = []
     if tag != f"v{version}":
-        reasons.append(f"tag {tag} is not · não é v{version}")
+        reasons.append(f"tag {tag} is not v{version}")
     date = changelog_date(version, root)
     if date is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
-        reasons.append(f"CHANGELOG.md: [{version}] has no date · não tem data ({date or 'missing · ausente'})")
+        reasons.append(f"CHANGELOG.md: [{version}] has no date ({date or 'missing'})")
     if not on_trunk(root):
-        reasons.append(f"the tagged commit is not on · o commit marcado não está em {TRUNK}")
+        reasons.append(f"the tagged commit is not on {TRUNK}")
     return reasons
 
 
 def main(argv: list[str]) -> int:
-    """🇺🇸 Prints the version (or its notes), or every reason not to release; exit code 1 if there is any.
+    """Prints the checked version (or its notes), or every reason not to release.
 
-    🇧🇷 Imprime a versão (ou as notas dela), ou todo motivo para não lançar; código de saída 1 se houver algum.
+    Args:
+        argv: The command-line arguments after the program name: empty, or `["--notes"]`.
+
+    Returns:
+        The process exit code: 0 when the release may go ahead, 1 when there is any reason not to.
     """
     tag = os.environ.get("GITHUB_REF_NAME") if os.environ.get("GITHUB_REF_TYPE") == "tag" else None
     reasons = problems(tag)
     for line in reasons:
         print(line)
     if reasons:
-        print(f"{len(reasons)} problem(s) · problema(s)")
+        print(f"{len(reasons)} problem(s)")
         return 1
     version = next(iter(versions().values()))
     if argv == ["--notes"]:
@@ -157,7 +129,7 @@ def main(argv: list[str]) -> int:
     if output := os.environ.get("GITHUB_OUTPUT"):
         with open(output, "a", encoding="utf-8") as handle:
             handle.write(f"version={version}\n")
-    print(f"{version} — {'tag ' + tag if tag else 'no tag: nothing is published · sem tag: nada é publicado'}")
+    print(f"{version} — {'tag ' + tag if tag else 'no tag: nothing is published'}")
     return 0
 
 

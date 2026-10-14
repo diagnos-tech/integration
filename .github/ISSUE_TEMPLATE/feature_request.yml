@@ -1,46 +1,44 @@
-name: "Feature request · Pedido de funcionalidade"
-description: "🇺🇸 Suggest an addition or a change. · 🇧🇷 Sugira uma adição ou uma mudança."
+name: "Feature request"
+description: "Suggest an addition or a change."
 title: "[feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        🇺🇸 Thanks for the suggestion. Note that the CLI and the API only ever wrap what the SDK exposes — a
-        feature that needs new capability usually belongs in the SDK first.
-        🇧🇷 Obrigado pela sugestão. Note que a CLI e a API só envolvem o que o SDK expõe — uma funcionalidade que
-        precisa de capacidade nova geralmente entra primeiro no SDK.
+        Thanks for the suggestion. Note that the CLI and the API only ever wrap what the SDK exposes, so a
+        feature that needs a new capability usually belongs in the SDK first.
 
   - type: dropdown
     id: package
     attributes:
-      label: "Layer · Camada"
-      description: "🇺🇸 Which layer would this affect? · 🇧🇷 Qual camada isso afetaria?"
+      label: "Layer"
+      description: "Which layer would this affect?"
       options:
         - "diagnos — base (docs, version, setup, help)"
         - "diagnos[sdk] — SDK"
         - "diagnos[cli] — CLI"
         - "diagnos[api] — REST API"
-        - "images (ghcr.io/diagnos-tech) · imagens"
+        - "images (ghcr.io/diagnos-tech)"
         - docs
-        - other · outro
+        - other
     validations:
       required: true
 
   - type: input
     id: version
     attributes:
-      label: "Package version(s) · Versão(ões) do pacote"
-      description: "🇺🇸 The version you're using today, if relevant. · 🇧🇷 A versão que você usa hoje, se relevante."
-      placeholder: "e.g. diagnos 0.1.0 · ex.: diagnos 0.1.0"
+      label: "Package version(s)"
+      description: "The version you're using today, if relevant."
+      placeholder: "e.g. diagnos 0.1.0"
     validations:
       required: false
 
   - type: input
     id: python-version
     attributes:
-      label: "Python version · Versão do Python"
-      description: "🇺🇸 If the request is Python-version-specific. · 🇧🇷 Se o pedido for específico de uma versão do Python."
+      label: "Python version"
+      description: "If the request is specific to a Python version."
       placeholder: "e.g. 3.12.4"
     validations:
       required: false
@@ -48,8 +46,8 @@ body:
   - type: input
     id: os
     attributes:
-      label: "Operating system · Sistema operacional"
-      description: "🇺🇸 If the request is platform-specific. · 🇧🇷 Se o pedido for específico de uma plataforma."
+      label: "Operating system"
+      description: "If the request is specific to a platform."
       placeholder: "e.g. Ubuntu 22.04, Kubernetes"
     validations:
       required: false
@@ -57,31 +55,31 @@ body:
   - type: textarea
     id: problem
     attributes:
-      label: "What problem does this solve · Que problema isso resolve"
-      description: "🇺🇸 What are you trying to do today that this would make possible or easier? · 🇧🇷 O que você tenta fazer hoje que isso tornaria possível ou mais fácil?"
+      label: "What problem does this solve"
+      description: "What are you trying to do today that this would make possible or easier?"
     validations:
       required: true
 
   - type: textarea
     id: proposal
     attributes:
-      label: "Proposed solution · Solução proposta"
-      description: "🇺🇸 What you'd like to see — an API sketch, a CLI flag, a route. · 🇧🇷 O que você gostaria de ver — um esboço de API, uma flag de CLI, uma rota."
+      label: "Proposed solution"
+      description: "What you'd like to see: an API sketch, a CLI flag, a route."
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: "Alternatives considered · Alternativas consideradas"
-      description: "🇺🇸 Other approaches you thought about, and why you prefer this one — optional. · 🇧🇷 Outras abordagens que você pensou, e por que prefere esta — opcional."
+      label: "Alternatives considered"
+      description: "Other approaches you thought about, and why you prefer this one (optional)."
     validations:
       required: false
 
   - type: textarea
     id: extra
     attributes:
-      label: "Anything else · Mais alguma coisa"
-      description: "🇺🇸 Links, references, related issues — optional. · 🇧🇷 Links, referências, issues relacionadas — opcional."
+      label: "Anything else"
+      description: "Links, references, related issues (optional)."
     validations:
       required: false

@@ -1,11 +1,6 @@
-# 🇺🇸 Fast checks before every commit (`make hooks` installs them). Every hook
-#    is a local command through `uv run`, so it uses the exact tool versions
-#    pinned in `uv.lock` — the same ones `make lint` and CI use. Slow checks
-#    (mypy, tests, clippy) stay in `make check`.
-# 🇧🇷 Checagens rápidas antes de todo commit (`make hooks` as instala). Todo
-#    hook é um comando local via `uv run`, então usa exatamente as versões de
-#    ferramenta travadas no `uv.lock` — as mesmas do `make lint` e da CI.
-#    Checagens lentas (mypy, testes, clippy) ficam no `make check`.
+# Fast checks before every commit (`make hooks` installs them). Every hook is a local command through `uv run`, so it
+# uses the exact tool versions pinned in `uv.lock`, the same ones `make lint` and CI use. Slow checks (mypy, tests,
+# clippy) stay in `make check`.
 repos:
   - repo: local
     hooks:
@@ -19,14 +14,8 @@ repos:
         entry: uv run ruff check --fix --exit-non-zero-on-fix
         language: system
         types: [python]
-      - id: bilingual-docstrings
-        name: bilingual docstrings · docstrings bilíngues
-        entry: uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts
-        language: system
-        pass_filenames: false
-        types_or: [python, rust]
       - id: docs
-        name: docs in pairs, no dead links · docs em pares, sem link morto
+        name: docs in pairs, no dead links
         entry: uv run python scripts/check_docs.py
         language: system
         pass_filenames: false

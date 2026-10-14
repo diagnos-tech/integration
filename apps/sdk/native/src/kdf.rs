@@ -1,15 +1,8 @@
-//! 🇺🇸 The two derivation primitives of the protocol: HMAC-SHA512 (request signatures) and HKDF-SHA256 (every key).
+//! The two derivation primitives of the protocol: HMAC-SHA512 (request signatures) and HKDF-SHA256 (every key).
 //!
 //! Both operate on borrowed slices and return fixed-size stack values, so a
 //! caller holding a locked page can derive without the key ever being copied
 //! to the heap. `docs/PROTOCOL.md §3` (signature) and §6/§7/§9 (HKDF uses).
-//!
-//! 🇧🇷 As duas primitivas de derivação do protocolo: HMAC-SHA512 (assinatura de requisição) e HKDF-SHA256 (toda chave).
-//!
-//! As duas operam sobre slices emprestadas e devolvem valores de tamanho fixo
-//! na pilha, então quem segura uma página travada deriva sem a chave nunca
-//! ser copiada para o heap. `docs/PROTOCOL.md §3` (assinatura) e §6/§7/§9
-//! (usos de HKDF).
 
 use hkdf::Hkdf;
 use hmac::{Hmac, KeyInit, Mac};
@@ -17,14 +10,13 @@ use sha2::{Sha256, Sha512};
 
 use crate::error::Error;
 
-/// 🇺🇸 Bytes of an HMAC-SHA512 tag. 🇧🇷 Bytes de uma tag HMAC-SHA512.
+/// Bytes of an HMAC-SHA512 tag.
 pub const HMAC_SHA512_BYTES: usize = 64;
 
-/// 🇺🇸 RFC 5869 caps HKDF output at `255 × HashLen`. 🇧🇷 A RFC 5869 limita a saída do HKDF a `255 × HashLen`.
+/// RFC 5869 caps HKDF output at `255 × HashLen`.
 pub const HKDF_SHA256_MAX_BYTES: usize = 255 * 32;
 
-/// 🇺🇸 HMAC-SHA512 over `message`; any key length is valid per RFC 2104.
-/// 🇧🇷 HMAC-SHA512 sobre `message`; qualquer tamanho de chave é válido pela RFC 2104.
+/// HMAC-SHA512 over `message`; any key length is valid per RFC 2104.
 pub fn hmac_sha512(key: &[u8], message: &[u8]) -> Result<[u8; HMAC_SHA512_BYTES], Error> {
     let mut mac = Hmac::<Sha512>::new_from_slice(key).map_err(|_| Error::InvalidKey)?;
     mac.update(message);
@@ -34,8 +26,7 @@ pub fn hmac_sha512(key: &[u8], message: &[u8]) -> Result<[u8; HMAC_SHA512_BYTES]
     Ok(out)
 }
 
-/// 🇺🇸 HKDF-SHA256 into `okm`; `salt = None` is the RFC's zero-filled salt, exactly what the TypeScript reference does.
-/// 🇧🇷 HKDF-SHA256 em `okm`; `salt = None` é o salt de zeros da RFC, exatamente o que a referência em TypeScript faz.
+/// HKDF-SHA256 into `okm`; `salt = None` is the RFC's zero-filled salt, exactly what the TypeScript reference does.
 pub fn hkdf_sha256(ikm: &[u8], salt: Option<&[u8]>, info: &[u8], okm: &mut [u8]) -> Result<(), Error> {
     if okm.is_empty() || okm.len() > HKDF_SHA256_MAX_BYTES {
         return Err(Error::InvalidLength {
