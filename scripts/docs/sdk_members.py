@@ -1,4 +1,4 @@
-"""🇺🇸 What one public class of the SDK exposes: fields, properties and methods, each with its docstring.
+"""What one public class of the SDK exposes: fields, properties and methods, each with its docstring.
 
 The rule for inheritance is the one a reader needs: a member is listed on
 the first *public* class that has it. Members of private bases (`_Reading`,
@@ -10,19 +10,6 @@ does not repeat them.
 Fields have no runtime docstring, so they are read from the source the way
 PEP 257 (and pydantic's `use_attribute_docstrings`) define an attribute
 docstring: a string literal right after the assignment.
-
-🇧🇷 O que uma classe pública do SDK expõe: campos, properties e métodos, cada um com a docstring.
-
-A regra de herança é a que quem lê precisa: um membro aparece na primeira
-classe *pública* que o tem. Membros de bases privadas (`_Reading`,
-`_OpenedDocument`) pertencem às subclasses públicas — `Drive.download` é API
-de verdade mesmo escrito em `_Reading` — enquanto uma base pública
-(`VaultError`) mantém os próprios membros na própria página, então
-`ValidationError` não os repete.
-
-Campos não têm docstring em tempo de execução, então são lidos do código do
-jeito que a PEP 257 (e o `use_attribute_docstrings` do pydantic) definem uma
-docstring de atributo: uma string literal logo depois da atribuição.
 """
 
 from __future__ import annotations
@@ -39,21 +26,18 @@ from typing import Any
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
-from .bilingual import l10n_field
+from .l10n import l10n_field
 from .sdk_types import signature_text, type_text, value_text
 
 
 @functools.cache
 def attribute_docs(module_name: str) -> dict[str, str]:
-    """🇺🇸 `{"Class.field" or "NAME": docstring}` for every attribute docstring in one module's source.
-
-    🇧🇷 `{"Classe.campo" ou "NOME": docstring}` de toda docstring de atributo no código de um módulo.
-    """
+    """Returns `{"Class.field" or "NAME": docstring}` for every attribute docstring in one module's source."""
     tree = ast.parse(inspect.getsource(importlib.import_module(module_name)))
     docs: dict[str, str] = {}
 
     def visit(body: list[ast.stmt], prefix: str) -> None:
-        """🇺🇸 Pairs each assignment with a string literal right after it. 🇧🇷 Pareia atribuição e string logo depois."""
+        """Pairs each assignment with the string literal right after it."""
         for current, following in zip(body, [*body[1:], None], strict=True):
             if isinstance(current, ast.ClassDef):
                 visit(current.body, f"{prefix}{current.name}.")
@@ -74,24 +58,15 @@ def attribute_docs(module_name: str) -> dict[str, str]:
 
 
 def member(kind: str, name: str, signature: str | None, doc: str | None) -> dict[str, Any]:
-    """🇺🇸 One `SdkMember` of the contract; `untranslated` only when a text had no marker.
-
-    🇧🇷 Um `SdkMember` do contrato; `untranslated` só quando um texto não tinha marcador.
-    """
-    text, untranslated = l10n_field(doc)
-    entry: dict[str, Any] = {"kind": kind, "name": name, "doc": text}
+    """Returns one `SdkMember` of the contract; `signature` is left out when `None`."""
+    entry: dict[str, Any] = {"kind": kind, "name": name, "doc": l10n_field(doc)}
     if signature is not None:
         entry["signature"] = signature
-    if untranslated:
-        entry["untranslated"] = True
     return entry
 
 
 def owners(cls: type) -> list[type]:
-    """🇺🇸 `cls` plus its private SDK bases — the classes whose members this page lists.
-
-    🇧🇷 `cls` mais as bases privadas do SDK — as classes cujos membros esta página lista.
-    """
+    """Returns `cls` plus its private SDK bases: the classes whose members its page lists."""
     private = [
         base for base in cls.__mro__[1:] if base.__module__.startswith("diagnos") and base.__name__.startswith("_")
     ]
@@ -99,10 +74,7 @@ def owners(cls: type) -> list[type]:
 
 
 def _field_default(cls: type, name: str) -> str | None:
-    """🇺🇸 ` = <default>` text for a pydantic or dataclass field, `None` when required.
-
-    🇧🇷 Texto ` = <padrão>` de um campo pydantic ou dataclass, `None` quando obrigatório.
-    """
+    """Returns the default of a pydantic or dataclass field as source text, `None` when it is required."""
     factory: Callable[[], Any] | None = None
     default: Any = PydanticUndefined
     if issubclass(cls, BaseModel):
@@ -122,14 +94,14 @@ def _field_default(cls: type, name: str) -> str | None:
 
 
 def _field_type(cls: type, name: str, hints: dict[str, Any]) -> str:
-    """🇺🇸 The evaluated field type, as source text. 🇧🇷 O tipo avaliado do campo, como texto de código."""
+    """Returns the evaluated field type as source text."""
     if issubclass(cls, BaseModel):
         return type_text(cls.model_fields[name].annotation)
     return type_text(hints.get(name, cls.__annotations__.get(name, "")))
 
 
 def _fields(cls: type, owner: type) -> list[dict[str, Any]]:
-    """🇺🇸 The fields `owner` declares, in declaration order. 🇧🇷 Os campos que `owner` declara, na ordem."""
+    """Returns the fields `owner` declares, in declaration order."""
     try:
         hints = typing.get_type_hints(cls)
     except (NameError, TypeError):
@@ -148,7 +120,7 @@ def _fields(cls: type, owner: type) -> list[dict[str, Any]]:
 
 
 def _callables(owner: type) -> list[dict[str, Any]]:
-    """🇺🇸 Public properties and methods `owner` defines, in order. 🇧🇷 Properties e métodos públicos de `owner`."""
+    """Returns the public properties and methods `owner` defines, in definition order."""
     found = []
     for name, value in vars(owner).items():
         if name.startswith("_"):
@@ -166,10 +138,7 @@ def _callables(owner: type) -> list[dict[str, Any]]:
 
 
 def class_members(cls: type) -> list[dict[str, Any]]:
-    """🇺🇸 Every member listed on `cls`'s page: fields first, then properties and methods.
-
-    🇧🇷 Todo membro listado na página de `cls`: campos primeiro, depois properties e métodos.
-    """
+    """Returns every member listed on `cls`'s page: fields first, then properties and methods."""
     fields: list[dict[str, Any]] = []
     callables: list[dict[str, Any]] = []
     for owner in owners(cls):
@@ -185,10 +154,7 @@ def class_members(cls: type) -> list[dict[str, Any]]:
 
 
 def constructor_signature(cls: type) -> str | None:
-    """🇺🇸 How to build `cls`: pydantic fields as keywords, else `__init__` — `None` when only a builtin makes it.
-
-    🇧🇷 Como construir `cls`: campos pydantic como keywords, senão `__init__` — `None` quando só um builtin o faz.
-    """
+    """Returns how to build `cls`: pydantic fields as keywords, else `__init__`; `None` when only a builtin makes it."""
     if issubclass(cls, BaseModel):
         parts = []
         for name, info in cls.model_fields.items():
@@ -202,9 +168,9 @@ def constructor_signature(cls: type) -> str | None:
 
 
 def public_bases(cls: type) -> list[str]:
-    """🇺🇸 Direct bases by public name: a private base is replaced by its own public bases; `object`/`Generic` dropped.
+    """Returns the direct bases by public name.
 
-    🇧🇷 Bases diretas pelo nome público: base privada vira as próprias bases públicas; `object`/`Generic` saem.
+    A private base is replaced by its own public bases; `object` and `Generic` are dropped.
     """
     names: list[str] = []
     for base in cls.__bases__:

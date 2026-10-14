@@ -1,4 +1,4 @@
-"""🇺🇸 Just enough Markdown for the checks: fenced blocks, headings, GitHub's anchor slugs and raw HTML.
+"""Just enough Markdown for the checks: fenced blocks, headings, GitHub's anchor slugs and raw HTML.
 
 Not a Markdown parser — the site has a real one. These are the facts the
 checks need, read the way GitHub reads them (the repository has to stay
@@ -8,17 +8,6 @@ a heading is `#`… outside a fence; an anchor is GitHub's slug of the
 heading text, with `-1`, `-2`… on repeats; raw HTML is any tag or comment
 outside a fence and outside inline code — the site never renders HTML (it
 escapes it as text), so a page must not contain any.
-
-🇧🇷 Só o Markdown que as checagens precisam: blocos cercados, títulos, os slugs de âncora do GitHub e HTML cru.
-
-Não é um parser de Markdown — o site tem um de verdade. São os fatos que as
-checagens precisam, lidos do jeito que o GitHub os lê (o repositório
-precisa continuar legível lá sem o site): uma cerca abre com três ou mais
-crases ou tils e fecha com o mesmo caractere, no mínimo do mesmo tamanho;
-um título é `#`… fora de cerca; uma âncora é o slug do GitHub para o texto
-do título, com `-1`, `-2`… nas repetições; HTML cru é qualquer tag ou
-comentário fora de cerca e fora de código inline — o site nunca renderiza
-HTML (escapa como texto), então uma página não pode ter nenhum.
 """
 
 from __future__ import annotations
@@ -42,10 +31,7 @@ _SLUG_DROP = re.compile(r"[^\w\- ]")
 
 @dataclass(frozen=True)
 class Fence:
-    """🇺🇸 One fenced code block: its language, the rest of the info string, and where its body starts.
-
-    🇧🇷 Um bloco de código cercado: a linguagem, o resto da info string e onde o corpo começa.
-    """
+    """One fenced code block: its language, the rest of the info string, and where its body starts."""
 
     language: str
     flags: tuple[str, ...]
@@ -54,15 +40,16 @@ class Fence:
 
 
 def fences(text: str) -> list[Fence]:
-    """🇺🇸 Every fenced block, in order; `line` is the 1-based line of the first body line.
+    """Returns every fenced block of `text`, in order.
 
     A fence indented inside a list item has its body dedented by the same
     amount, as CommonMark does — the code is what the reader sees.
 
-    🇧🇷 Todo bloco cercado, em ordem; `line` é a linha (a partir de 1) da primeira linha do corpo.
+    Args:
+        text: The Markdown source.
 
-    Uma cerca indentada dentro de um item de lista tem o corpo desindentado
-    na mesma medida, como o CommonMark faz — o código é o que quem lê vê.
+    Returns:
+        The blocks, each with the 1-based `line` of its first body line.
     """
     found: list[Fence] = []
     lines = text.splitlines()
@@ -89,7 +76,7 @@ def fences(text: str) -> list[Fence]:
 
 
 def outside_fences(text: str) -> list[tuple[int, str]]:
-    """🇺🇸 `(line, text)` of every line not inside a fence. 🇧🇷 `(linha, texto)` de toda linha fora de cerca."""
+    """Returns `(line, text)` of every line not inside a fence."""
     inside: set[int] = set()
     for fence in fences(text):
         inside.update(range(fence.line - 1, fence.line + fence.body.count("\n") + 2))
@@ -97,7 +84,7 @@ def outside_fences(text: str) -> list[tuple[int, str]]:
 
 
 def headings(text: str) -> list[tuple[int, str, int]]:
-    """🇺🇸 `(level, text, line)` of every ATX heading outside fences. 🇧🇷 `(nível, texto, linha)` de todo título ATX."""
+    """Returns `(level, text, line)` of every ATX heading outside fences."""
     found = []
     for number, line in outside_fences(text):
         match = _HEADING.match(line)
@@ -107,24 +94,16 @@ def headings(text: str) -> list[tuple[int, str, int]]:
 
 
 def slug(title: str) -> str:
-    """🇺🇸 GitHub's anchor for a heading: link text kept, lowercased, punctuation dropped, spaces to `-`.
-
-    🇧🇷 A âncora do GitHub para um título: texto de link mantido, minúsculas, pontuação fora, espaço vira `-`.
-    """
+    """Returns GitHub's anchor for a heading: link text kept, lowercased, punctuation dropped, spaces to `-`."""
     text = _LINK.sub(lambda match: match[1], title)
     return _SLUG_DROP.sub("", text.lower()).replace(" ", "-")
 
 
 def anchors(text: str) -> set[str]:
-    """🇺🇸 Every anchor a link may target in `text`: heading slugs, deduplicated GitHub's way.
+    """Returns every anchor a link may target in `text`: heading slugs, deduplicated GitHub's way.
 
     Only headings: an `<a id>` would be raw HTML (`raw_html`), which the site
     escapes — a link to it would pass here and 404 there.
-
-    🇧🇷 Toda âncora que um link pode mirar em `text`: slugs de título, desduplicados como o GitHub.
-
-    Só títulos: um `<a id>` seria HTML cru (`raw_html`), que o site escapa — um
-    link para ele passaria aqui e daria 404 lá.
     """
     seen: dict[str, int] = {}
     found: set[str] = set()
@@ -137,10 +116,7 @@ def anchors(text: str) -> set[str]:
 
 
 def paragraphs(text: str) -> list[list[tuple[int, str]]]:
-    """🇺🇸 Runs of consecutive non-blank lines outside fences — a paragraph, as far as the checks care.
-
-    🇧🇷 Sequências de linhas não vazias consecutivas fora de cerca — um parágrafo, no que importa às checagens.
-    """
+    """Returns the runs of consecutive non-blank lines outside fences: a paragraph, as far as the checks care."""
     found: list[list[tuple[int, str]]] = []
     current: list[tuple[int, str]] = []
     for number, line in outside_fences(text):
@@ -156,21 +132,13 @@ def paragraphs(text: str) -> list[list[tuple[int, str]]]:
 
 
 def external_images(text: str) -> list[tuple[int, str]]:
-    """🇺🇸 `(line, url)` of every image with an absolute URL, except inside a paragraph made only of badges.
+    """Returns `(line, url)` of every image with an absolute URL, except inside a paragraph made only of badges.
 
     The site only loads images from its own origin, so an external image is
     a broken image on the published page — images are files in this
     repository, linked by relative path. The badge block at the top of a
     README is the one exception, and only because the site drops that
     paragraph entirely (it is GitHub decoration, not documentation).
-
-    🇧🇷 `(linha, url)` de toda imagem com URL absoluta, exceto num parágrafo feito só de badges.
-
-    O site só carrega imagem da própria origem, então uma imagem externa é
-    uma imagem quebrada na página publicada — imagem é arquivo deste
-    repositório, por caminho relativo. O bloco de badges no topo de um README
-    é a única exceção, e só porque o site descarta esse parágrafo inteiro (é
-    decoração do GitHub, não documentação).
     """
     found: list[tuple[int, str]] = []
     for paragraph in paragraphs(text):
@@ -182,17 +150,11 @@ def external_images(text: str) -> list[tuple[int, str]]:
 
 
 def raw_html(text: str) -> list[tuple[int, str]]:
-    """🇺🇸 `(line, tag)` of every HTML tag or comment outside fences and inline code — none is allowed.
+    """Returns `(line, tag)` of every HTML tag or comment outside fences and inline code; none is allowed.
 
     Inside a fence it is code (a mermaid label may say `<br/>`); inside
     backticks it is a code span; anywhere else the site would show it as
     literal text, so it is a problem here, not on the published page.
-
-    🇧🇷 `(linha, tag)` de toda tag ou comentário HTML fora de cerca e de código inline — nenhum é permitido.
-
-    Dentro de cerca é código (um rótulo mermaid pode dizer `<br/>`); entre
-    crases é um trecho de código; em qualquer outro lugar o site mostraria
-    como texto literal, então o problema é apontado aqui, não na página.
     """
     found: list[tuple[int, str]] = []
     for number, line in outside_fences(text):
@@ -202,10 +164,7 @@ def raw_html(text: str) -> list[tuple[int, str]]:
 
 
 def structure(text: str) -> list[str]:
-    """🇺🇸 The skeleton two translations must share: heading levels and fence languages, in order.
-
-    🇧🇷 O esqueleto que duas traduções precisam compartilhar: níveis de título e linguagens de cerca, em ordem.
-    """
+    """Returns the skeleton two translations must share: heading levels and fence languages, in order."""
     items = [(line, f"h{level}") for level, _, line in headings(text)]
     items += [(fence.line, f"```{fence.language}") for fence in fences(text)]
     return [kind for _, kind in sorted(items)]

@@ -1,4 +1,4 @@
-"""🇺🇸 `sdk.json`: the public surface of `diagnos` — exactly `__all__`, in `__all__`'s order — read with `inspect`.
+"""`sdk.json`: the public surface of `diagnos` — exactly `__all__`, in `__all__`'s order — read with `inspect`.
 
 `__all__` is the SDK's own statement of what is public (its package
 docstring says anything missing from it is a gap, not an invitation to
@@ -8,17 +8,6 @@ reference page can usefully explain. A name that is neither a class nor a
 function — a type alias such as `TimePrecision` — is an `attribute` whose
 signature is its value and whose doc is the attribute docstring written
 right under it in the module that defines it.
-
-🇧🇷 `sdk.json`: a superfície pública do `diagnos` — exatamente o `__all__`, na ordem do `__all__` — lida com `inspect`.
-
-O `__all__` é a declaração do próprio SDK do que é público (a docstring do
-pacote diz que o que falta nele é lacuna, não convite para ir mais fundo),
-então a referência documenta essa lista e nada mais. Nomes dunder
-(`__version__`) ficam de fora: não são algo que uma página de referência
-explique com proveito. Um nome que não é classe nem função — um alias de
-tipo como `TimePrecision` — é um `attribute` cuja assinatura é o próprio
-valor e cuja doc é a docstring de atributo escrita logo abaixo dele no
-módulo que o define.
 """
 
 from __future__ import annotations
@@ -28,7 +17,7 @@ import importlib
 import inspect
 from typing import Any
 
-from .bilingual import l10n_field
+from .l10n import l10n_field
 from .output import SCHEMA_VERSION, generated_from
 from .sdk_members import attribute_docs, class_members, constructor_signature, member, public_bases
 from .sdk_types import signature_text, type_text
@@ -37,19 +26,12 @@ PACKAGE = "diagnos"
 
 
 def origins(package: str) -> dict[str, str]:
-    """🇺🇸 `{name: defining module}` from the package's `from .x import name` lines.
+    """Returns `{name: defining module}` from the package's `from .x import name` lines.
 
     A type alias carries no `__module__` of its own (`typing` owns it), so
     the import line is the only reliable record of where it was written. The
     SDK's names are imported under `if TYPE_CHECKING:` (they load on first
     use), so the whole tree is walked, not just the top level.
-
-    🇧🇷 `{nome: módulo que o define}` a partir das linhas `from .x import nome` do pacote.
-
-    Um alias de tipo não carrega `__module__` próprio (é do `typing`), então a
-    linha de import é o único registro confiável de onde ele foi escrito. Os
-    nomes do SDK são importados sob `if TYPE_CHECKING:` (carregam no primeiro
-    uso), então a árvore inteira é percorrida, não só o nível de cima.
     """
     module = importlib.import_module(package)
     tree = ast.parse(inspect.getsource(module))
@@ -62,10 +44,7 @@ def origins(package: str) -> dict[str, str]:
 
 
 def _entry(name: str, obj: object, origin: str) -> dict[str, Any]:
-    """🇺🇸 One top-level `SdkMember`: a class, an exception, a function or an attribute.
-
-    🇧🇷 Um `SdkMember` de topo: uma classe, uma exceção, uma função ou um atributo.
-    """
+    """Returns one top-level `SdkMember`: a class, an exception, a function or an attribute."""
     alias_doc = attribute_docs(origin).get(name)
     if inspect.isclass(obj):
         kind = "exception" if issubclass(obj, BaseException) else "class"
@@ -79,31 +58,13 @@ def _entry(name: str, obj: object, origin: str) -> dict[str, Any]:
 
 
 def build() -> dict[str, Any]:
-    """🇺🇸 The whole `sdk.json` document. 🇧🇷 O documento `sdk.json` inteiro."""
+    """Returns the whole `sdk.json` document."""
     module = importlib.import_module(PACKAGE)
     where = origins(PACKAGE)
     names = [name for name in module.__all__ if not (name.startswith("__") and name.endswith("__"))]
-    doc, untranslated = l10n_field(module.__doc__)
     entry: dict[str, Any] = {
         "name": PACKAGE,
-        "doc": doc,
+        "doc": l10n_field(module.__doc__),
         "members": [_entry(name, getattr(module, name), where.get(name, PACKAGE)) for name in names],
     }
-    if untranslated:
-        entry["untranslated"] = True
     return {"schemaVersion": SCHEMA_VERSION, "generatedFrom": generated_from(PACKAGE), "modules": [entry]}
-
-
-def untranslated(document: dict[str, Any]) -> list[str]:
-    """🇺🇸 Dotted names of every entry flagged `untranslated`. 🇧🇷 Nomes pontuados de toda entrada `untranslated`."""
-    found: list[str] = []
-
-    def visit(entries: list[dict[str, Any]], prefix: str) -> None:
-        """🇺🇸 Walks members recursively. 🇧🇷 Percorre membros recursivamente."""
-        for item in entries:
-            if item.get("untranslated"):
-                found.append(f"{prefix}{item['name']}")
-            visit(item.get("members", []), f"{prefix}{item['name']}.")
-
-    visit(document.get("modules", []), "")
-    return found

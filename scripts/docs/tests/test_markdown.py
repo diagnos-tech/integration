@@ -1,7 +1,4 @@
-"""🇺🇸 The Markdown the checks rely on is read the way GitHub reads it: fences, headings, anchors and raw HTML.
-
-🇧🇷 O Markdown em que as checagens se apoiam é lido do jeito que o GitHub lê: cercas, títulos, âncoras e HTML cru.
-"""
+"""The Markdown the checks rely on is read the way GitHub reads it: fences, headings, anchors and raw HTML."""
 
 from __future__ import annotations
 
@@ -21,14 +18,14 @@ PAGE = """# Title
 ~~~
 
 ## `--json`, for scripts
-## Datas e precisão de tempo
-## Datas e precisão de tempo
+## Résumé of the café
+## Résumé of the café
 <a id="custom-anchor"></a>
 """
 
 
 def test_fences_carry_language_flags_line_and_dedented_body() -> None:
-    """🇺🇸 A fence inside a list item loses the item's indentation. 🇧🇷 Uma cerca num item de lista perde a indentação."""
+    """A fence inside a list item loses the item's indentation."""
     python, shell = fences(PAGE)
     assert (python.language, python.flags, python.line) == ("python", ("no-run",), 6)
     assert python.body == "def f() -> None:\n    pass"
@@ -36,35 +33,32 @@ def test_fences_carry_language_flags_line_and_dedented_body() -> None:
 
 
 def test_headings_skip_fenced_lines() -> None:
-    """🇺🇸 A `#` comment inside a fence is not a heading. 🇧🇷 Um comentário `#` numa cerca não é título."""
+    """A `#` comment inside a fence is not a heading."""
     assert [(level, text) for level, text, _ in headings(PAGE)] == [
         (1, "Title"),
         (2, "`--json`, for scripts"),
-        (2, "Datas e precisão de tempo"),
-        (2, "Datas e precisão de tempo"),
+        (2, "Résumé of the café"),
+        (2, "Résumé of the café"),
     ]
 
 
 def test_slugs_follow_github() -> None:
-    """🇺🇸 Lowercase, punctuation dropped, accents kept, link text kept. 🇧🇷 Minúsculas, pontuação fora, acentos ficam."""
+    """Lowercase, punctuation dropped, accents kept, link text kept."""
     assert slug("`--json`, for scripts") == "--json-for-scripts"
     assert slug("7. Key and content envelope") == "7-key-and-content-envelope"
-    assert slug("Datas e precisão de tempo") == "datas-e-precisão-de-tempo"
+    assert slug("Résumé of the café") == "résumé-of-the-café"
     assert slug("See [the guide](x.md) now") == "see-the-guide-now"
 
 
 def test_anchors_deduplicate_and_ignore_html_ids() -> None:
-    """🇺🇸 Repeats get `-1`; an `<a id>` is raw HTML, not an anchor. 🇧🇷 Repetições ganham `-1`; `<a id>` é HTML cru."""
+    """Repeats get `-1`; an `<a id>` is raw HTML, not an anchor."""
     found = anchors(PAGE)
-    assert {"title", "datas-e-precisão-de-tempo", "datas-e-precisão-de-tempo-1"} <= found
+    assert {"title", "résumé-of-the-café", "résumé-of-the-café-1"} <= found
     assert "custom-anchor" not in found
 
 
 def test_raw_html_outside_fences_and_inline_code_only() -> None:
-    """🇺🇸 Tags and comments count; a fenced `<br/>`, a code span and an autolink do not.
-
-    🇧🇷 Tags e comentários contam; um `<br/>` em cerca, um trecho de código e um autolink não.
-    """
+    """Tags and comments count; a fenced `<br/>`, a code span and an autolink do not."""
     assert raw_html(PAGE) == [(17, "<a>"), (17, "</a>")]
     page = (
         '<p align="center"><b>x</b></p>\n'
@@ -79,15 +73,12 @@ def test_raw_html_outside_fences_and_inline_code_only() -> None:
 
 
 def test_structure_is_the_skeleton_in_order() -> None:
-    """🇺🇸 Heading levels and fence languages, as they appear. 🇧🇷 Níveis de título e linguagens, na ordem."""
+    """Heading levels and fence languages, as they appear."""
     assert structure(PAGE) == ["h1", "```python", "```sh", "h2", "h2", "h2"]
 
 
 def test_external_images_skip_badge_only_paragraphs() -> None:
-    """🇺🇸 A badge block passes; an external image in prose, or next to prose, does not; relative images are fine.
-
-    🇧🇷 Um bloco de badges passa; imagem externa na prosa, ou ao lado dela, não; imagem relativa é normal.
-    """
+    """A badge block passes; an external image in prose, or next to prose, does not; relative images are fine."""
     page = (
         "# Title\n"
         "\n"

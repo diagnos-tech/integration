@@ -1,4 +1,4 @@
-"""🇺🇸 Types and signatures as a reader of the reference wants them: `str | None`, never `typing.Optional[str]`.
+"""Types and signatures as a reader of the reference wants them: `str | None`, never `typing.Optional[str]`.
 
 Two sources feed the reference and they speak differently. Function
 signatures keep the annotation text as written in the source (the SDK uses
@@ -8,17 +8,6 @@ the code sees). Model fields only exist as evaluated objects, whose `repr`
 is noisy and — for pydantic's `Annotated` validators — not even stable
 (`<function … at 0x7f…>`). `type_text` renders those objects back into the
 source style, deterministically.
-
-🇧🇷 Tipos e assinaturas do jeito que quem lê a referência quer: `str | None`, nunca `typing.Optional[str]`.
-
-Duas fontes alimentam a referência e falam diferente. Assinaturas de função
-mantêm o texto da anotação como está no código (o SDK usa `from __future__
-import annotations`, então o `inspect` devolve essas strings ao pé da letra —
-`PatientRecord | Mapping[str, Any]`, exatamente o que quem lê o código vê).
-Campos de modelo só existem como objetos avaliados, cujo `repr` é ruidoso e —
-nos validadores `Annotated` do pydantic — nem é estável (`<function … at
-0x7f…>`). `type_text` devolve esses objetos ao estilo do código, de forma
-determinística.
 """
 
 from __future__ import annotations
@@ -29,36 +18,28 @@ import types
 from collections.abc import Callable
 from typing import Annotated, Any, Literal, TypeVar, Union, get_args, get_origin
 
-# 🇺🇸 `diagnos.models.DocumentIndex` → `DocumentIndex`: a dotted lowercase prefix before a name.
-# 🇧🇷 `diagnos.models.DocumentIndex` → `DocumentIndex`: um prefixo pontuado minúsculo antes de um nome.
+# `diagnos.models.DocumentIndex` → `DocumentIndex`: a dotted lowercase prefix before a name.
 _MODULE_PREFIX = re.compile(r"\b(?:[a-z_][a-z0-9_]*\.)+(?=[A-Za-z_])")
 
 
 class _Verbatim:
-    """🇺🇸 Renders as its text with no quotes — how `inspect.Signature` prints an annotation we already formatted.
-
-    🇧🇷 Renderiza como o próprio texto sem aspas — como o `inspect.Signature` imprime uma anotação já formatada.
-    """
+    """Renders as its text with no quotes, which is how `inspect.Signature` prints an annotation already formatted."""
 
     def __init__(self, text: str) -> None:
-        """🇺🇸 Holds `text`. 🇧🇷 Guarda `text`."""
+        """Holds `text`."""
         self._text = text
 
     def __repr__(self) -> str:
-        """🇺🇸 The text itself. 🇧🇷 O próprio texto."""
+        """Returns the text itself."""
         return self._text
 
 
 def type_text(annotation: object) -> str:
-    """🇺🇸 A type in source style: unions with `|`, no module prefixes, `Annotated` metadata dropped.
-
-    🇧🇷 Um tipo no estilo do código: uniões com `|`, sem prefixo de módulo, metadado de `Annotated` descartado.
-    """
+    """Returns a type in source style: unions with `|`, no module prefixes, `Annotated` metadata dropped."""
     if annotation is None or annotation is type(None):
         return "None"
     if isinstance(annotation, str):
-        # 🇺🇸 `builtins.list` is how a class with its own `list` method spells the builtin; readers want `list`.
-        # 🇧🇷 `builtins.list` é como uma classe com método `list` próprio escreve o builtin; quem lê quer `list`.
+        # `builtins.list` is how a class with its own `list` method spells the builtin; readers want `list`.
         return annotation.replace("builtins.", "")
     if isinstance(annotation, list):
         return "[" + ", ".join(type_text(item) for item in annotation) + "]"
@@ -79,22 +60,21 @@ def type_text(annotation: object) -> str:
 
 
 def value_text(value: object) -> str:
-    """🇺🇸 A default as source text; an object whose `repr` carries an address becomes `…` (never stable).
-
-    🇧🇷 Um padrão como texto de código; um objeto cujo `repr` carrega endereço vira `…` (nunca é estável).
-    """
+    """Returns a default as source text; an object whose `repr` carries an address becomes `…` (never stable)."""
     text = repr(value)
     return "…" if " at 0x" in text else text
 
 
 def signature_text(obj: Callable[..., Any], *, drop_first: bool = False, keep_return: bool = True) -> str | None:
-    """🇺🇸 `inspect.signature` without the name — `(token=None, *, timeout=30) -> X` — or `None` when there is none.
+    """Returns `inspect.signature` without the name, as in `(token=None, *, timeout=30) -> X`.
 
-    `drop_first` removes `self`/`cls` from a method read off its class.
+    Args:
+        obj: The class or callable to describe.
+        drop_first: Drops the first parameter (`self` or `cls`) of a method read off its class.
+        keep_return: Keeps the return annotation; a class signature has none worth showing.
 
-    🇧🇷 `inspect.signature` sem o nome — `(token=None, *, timeout=30) -> X` — ou `None` quando não há.
-
-    `drop_first` tira `self`/`cls` de um método lido da própria classe.
+    Returns:
+        The signature text, or `None` when `inspect` cannot produce one.
     """
     try:
         signature = inspect.signature(obj)

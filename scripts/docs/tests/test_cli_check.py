@@ -1,7 +1,4 @@
-"""🇺🇸 `diagnos` lines in the docs are parsed against the CLI, and `--help` is held to `cli.json` both ways.
-
-🇧🇷 Linhas `diagnos` da doc são interpretadas contra a CLI, e o `--help` é cobrado do `cli.json` nos dois sentidos.
-"""
+"""`diagnos` lines in the docs are parsed against the CLI, and `--help` is held to `cli.json` both ways."""
 
 from __future__ import annotations
 
@@ -17,12 +14,12 @@ from scripts.docs.cli_check import command_lines, help_problems, usage_problem
 
 @pytest.fixture(scope="module")
 def document() -> dict[str, Any]:
-    """🇺🇸 `cli.json` as the code produces it now. 🇧🇷 O `cli.json` como o código o produz agora."""
+    """`cli.json` as the code produces it now."""
     return cli.build()
 
 
 def test_command_lines_find_diagnos_in_pipes_subshells_and_continuations() -> None:
-    """🇺🇸 Every command position, continuations joined. 🇧🇷 Toda posição de comando, continuações juntas."""
+    """Every command position, continuations joined."""
     text = """```sh
 diagnos --json patients list --all | jq .
 FOLDER=$(diagnos --json files mkdir "CT" --group sg | jq -r .node_id)
@@ -54,32 +51,26 @@ pip install diagnos-cli
     ],
 )
 def test_usage_follows_the_real_command_tree(document: dict[str, Any], line: str, problem: str | None) -> None:
-    """🇺🇸 Global options go anywhere, as the binary takes them; option values are skipped by type.
-
-    🇧🇷 Opções globais vão em qualquer lugar, como o binário as aceita; valores de opção são pulados pelo tipo.
-    """
+    """Global options go anywhere, as the binary takes them; option values are skipped by type."""
     found = usage_problem(line, document)
     assert (found is None) if problem is None else (found is not None and problem in found)
 
 
 def test_help_agrees_with_the_generated_reference(document: dict[str, Any]) -> None:
-    """🇺🇸 Nothing missing either way. 🇧🇷 Nada faltando em nenhum sentido."""
+    """Nothing missing either way."""
     assert help_problems(document) == []
 
 
 def test_help_is_read_the_same_when_typer_forces_terminal_styling(
     document: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """🇺🇸 As under `GITHUB_ACTIONS`: bold and dim escapes around every flag change nothing the check reads.
-
-    🇧🇷 Como sob `GITHUB_ACTIONS`: escapes de negrito e esmaecido em volta de toda flag não mudam o que a checagem lê.
-    """
+    """As under `GITHUB_ACTIONS`: bold and dim escapes around every flag change nothing the check reads."""
     monkeypatch.setattr(rich_utils, "FORCE_TERMINAL", True)
     assert help_problems(document) == []
 
 
 def test_a_dropped_option_or_command_is_caught(document: dict[str, Any]) -> None:
-    """🇺🇸 The check fails when the reference omits what `--help` shows. 🇧🇷 Falha quando a referência omite algo."""
+    """The check fails when the reference omits what `--help` shows."""
     tampered = copy.deepcopy(document)
     root = tampered["commands"][0]
     root["params"] = [param for param in root["params"] if param["name"] != "quiet"]

@@ -1,4 +1,4 @@
-"""🇺🇸 The sandbox every runnable doc snippet runs in: the real SDK, an in-memory vault, nothing else faked.
+"""The sandbox every runnable doc snippet runs in: the real SDK, an in-memory vault, nothing else faked.
 
 `from diagnos import Diagnos; Diagnos()` inside a snippet is the real class
 doing the real work — token parsing, enrollment with a real hybrid key
@@ -13,22 +13,6 @@ groups `sg_oncology` and `sg_radiology`.
 The working directory is a fresh temporary folder holding the files the
 guides upload (`FIXTURES`), and the environment carries a sandbox
 `DIAGNOS_API_TOKEN` — so a snippet reads exactly like production code.
-
-🇧🇷 O sandbox em que todo snippet executável da doc roda: o SDK de verdade, um cofre em memória, nada mais falso.
-
-`from diagnos import Diagnos; Diagnos()` dentro de um snippet é a classe de
-verdade fazendo o trabalho de verdade — leitura do token, enrollment com um
-par de chaves híbrido de verdade, assinatura de requisição, selar e abrir
-todo registro e arquivo no enclave Rust. Só a rede é trocada: os dois
-clients `httpx` que o `VaultTransport` abriria viram `httpx.MockTransport`s
-que respondem a partir do `FakeVault`, o duplo de teste do próprio SDK para o
-cofre e o R2 (`apps/sdk/tests/resources/vault_double/`), mais as duas rotas
-de enrollment, onde todo registro é aprovado no primeiro poll com os grupos
-`sg_oncology` e `sg_radiology`.
-
-O diretório de trabalho é uma pasta temporária nova com os arquivos que os
-guias sobem (`FIXTURES`), e o ambiente carrega um `DIAGNOS_API_TOKEN` de
-sandbox — então um snippet se lê exatamente como código de produção.
 """
 
 from __future__ import annotations
@@ -54,8 +38,7 @@ from diagnos.transport.http import VaultTransport
 
 from .output import REPO_ROOT
 
-# 🇺🇸 The SDK's vault double lives with its tests, outside any package; this is the one place that reaches it.
-# 🇧🇷 O duplo do cofre do SDK mora com os testes, fora de pacote; este é o único lugar que o alcança.
+# The SDK's vault double lives with its tests, outside any package; this is the one place that reaches it.
 sys.path.insert(0, str(REPO_ROOT / "apps" / "sdk" / "tests" / "resources"))
 from vault_double import VAULT_URL, WORKSPACE_ID, FakeVault  # noqa: E402
 
@@ -72,45 +55,39 @@ _SESSION_SECONDS = 3600
 
 
 def _b64url(data: bytes) -> str:
-    """🇺🇸 Unpadded base64url (`docs/PROTOCOL.md §0`). 🇧🇷 base64url sem padding (`docs/PROTOCOL.md §0`)."""
+    """Returns unpadded base64url (`docs/PROTOCOL.md §0`)."""
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
 def _b64url_decode(text: str) -> bytes:
-    """🇺🇸 The inverse of `_b64url`. 🇧🇷 O inverso de `_b64url`."""
+    """Returns the bytes of an unpadded base64url string, the inverse of `_b64url`."""
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
 def sandbox_token() -> str:
-    """🇺🇸 An `apikey-<jwt>` for the double's workspace; the SDK never verifies the signature, so none is real.
-
-    🇧🇷 Um `apikey-<jwt>` para o workspace do duplo; o SDK nunca confere a assinatura, então nenhuma é real.
-    """
+    """Returns an `apikey-<jwt>` for the double's workspace; the SDK never verifies the signature, so none is real."""
     header = _b64url(json.dumps({"alg": "EdDSA", "typ": "JWT"}).encode())
     claims = {"sub": "key_docs", "account_id": "acc_docs", "workspace_id": WORKSPACE_ID, "name": "docs@ws_1"}
     return f"apikey-{header}.{_b64url(json.dumps(claims).encode())}.{_b64url(b'sandbox')}"
 
 
 def _envelope(result: object, status: int = 200) -> httpx.Response:
-    """🇺🇸 A `success: true` envelope (`docs/PROTOCOL.md §0`). 🇧🇷 Um envelope `success: true`."""
+    """Returns a `success: true` envelope (`docs/PROTOCOL.md §0`)."""
     body = {"success": True, "status": "success", "status_code": status, "result": result, "docs": "sandbox"}
     return httpx.Response(status, json=body)
 
 
 class SandboxVault:
-    """🇺🇸 `FakeVault` plus enrollment: registrations approved at the first poll, sealed to the SDK's own keys.
-
-    🇧🇷 `FakeVault` mais enrollment: registros aprovados no primeiro poll, selados para as chaves do próprio SDK.
-    """
+    """`FakeVault` plus enrollment: registrations approved at the first poll, sealed to the SDK's own keys."""
 
     def __init__(self) -> None:
-        """🇺🇸 An empty workspace with two granted groups. 🇧🇷 Um workspace vazio com dois grupos concedidos."""
+        """Creates an empty workspace with two granted groups."""
         self.documents = FakeVault()
         self.group_deks = {group: secrets.token_bytes(32) for group in GRANTED_GROUPS}
         self._public_keys: dict[str, tuple[bytes, bytes]] = {}
 
     def handle_api(self, request: httpx.Request) -> httpx.Response:
-        """🇺🇸 Enrollment and lock here; the rest goes to `FakeVault`. 🇧🇷 Enrollment e lock aqui; o resto, ao duplo."""
+        """Answers the enrollment and lock routes itself and hands every other request to `FakeVault`."""
         path = request.url.path
         if request.method == "POST" and path == _REGISTRY:
             return self._register(json.loads(request.content))
@@ -121,10 +98,7 @@ class SandboxVault:
         return self.documents.handle_api(request)
 
     def _register(self, body: dict[str, Any]) -> httpx.Response:
-        """🇺🇸 `POST session/registry`: remembers the public keys, hands out a link and a code.
-
-        🇧🇷 `POST session/registry`: guarda as chaves públicas, devolve um link e um código.
-        """
+        """Answers `POST session/registry`: remembers the public keys, hands out a link and a code."""
         enrollment_id = f"enr_{len(self._public_keys) + 1}"
         keys = body["public_keys"]
         self._public_keys[enrollment_id] = (_b64url_decode(keys["x25519"]), _b64url_decode(keys["mlkem768"]))
@@ -138,10 +112,7 @@ class SandboxVault:
         return _envelope(registration, status=201)
 
     def _approve(self, enrollment_id: str) -> httpx.Response:
-        """🇺🇸 `GET session/registry/{id}`: approved, session and group keys sealed to that enrollment.
-
-        🇧🇷 `GET session/registry/{id}`: aprovado, sessão e chaves de grupo seladas para aquele enrollment.
-        """
+        """Answers `GET session/registry/{id}`: approved, with the session and group keys sealed to that enrollment."""
         x25519, mlkem768 = self._public_keys[enrollment_id]
         expires_at = int(time.time()) + _SESSION_SECONDS
         session = {
@@ -164,13 +135,10 @@ class SandboxVault:
 
 
 def _transport_factory(vault: SandboxVault) -> Any:
-    """🇺🇸 Stands in for `VaultTransport` inside `diagnos.client`: the real class, mock clients injected.
-
-    🇧🇷 Substitui `VaultTransport` dentro de `diagnos.client`: a classe de verdade, com clients falsos injetados.
-    """
+    """Returns a stand-in for `VaultTransport` inside `diagnos.client`: the real class, with mock clients injected."""
 
     def build(*args: Any, **kwargs: Any) -> VaultTransport:
-        """🇺🇸 What `Diagnos` passes, plus the two mock clients. 🇧🇷 O que o `Diagnos` passa, mais os dois clients."""
+        """Builds the transport from what `Diagnos` passes, plus the two mock clients."""
         api = httpx.Client(transport=httpx.MockTransport(vault.handle_api), base_url=VAULT_URL)
         storage = httpx.Client(transport=httpx.MockTransport(vault.documents.handle_storage))
         return VaultTransport(*args, client=api, storage_client=storage, **kwargs)
@@ -180,15 +148,13 @@ def _transport_factory(vault: SandboxVault) -> Any:
 
 @contextlib.contextmanager
 def sandbox() -> Iterator[SandboxVault]:
-    """🇺🇸 Everything a snippet needs, undone on exit: environment, working directory, the patched transport.
+    """Provides everything a snippet needs and undoes it on exit: environment, working directory, patched transport.
 
     `DIAGNOS_HARDEN_PROCESS=0` keeps the checking process debuggable: the
     hardening itself is the enclave's business, not the docs'.
 
-    🇧🇷 Tudo que um snippet precisa, desfeito na saída: ambiente, diretório de trabalho, o transporte trocado.
-
-    `DIAGNOS_HARDEN_PROCESS=0` mantém o processo que checa depurável: o
-    hardening em si é assunto do enclave, não da doc.
+    Yields:
+        The `SandboxVault` behind the patched transport.
     """
     vault = SandboxVault()
     with (

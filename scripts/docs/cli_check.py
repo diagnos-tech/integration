@@ -1,4 +1,4 @@
-"""🇺🇸 `cli.json` against the binary: every `diagnos … --help` must say what the reference says, both ways.
+"""`cli.json` against the binary: every `diagnos … --help` must say what the reference says, both ways.
 
 `cli.json` is generated from the same `typer` tree, so a disagreement here
 means the introspection itself missed something the user sees — an
@@ -11,19 +11,6 @@ says.
 
 The same map also checks the prose: every `diagnos …` command line in a
 shell block of the docs must name real commands and real flags.
-
-🇧🇷 O `cli.json` contra o binário: todo `diagnos … --help` precisa dizer o que a referência diz, nos dois sentidos.
-
-O `cli.json` é gerado da mesma árvore `typer`, então uma divergência aqui
-significa que a própria introspecção perdeu algo que o usuário vê — uma
-opção renderizada mas não registrada, um texto de ajuda ou exemplo que o
-gerador descartou. A ajuda é renderizada exatamente como o usuário a recebe
-(`CliRunner`, painéis rich, 250 colunas para nada quebrar) e lida painel a
-painel, sem o estilo de terminal: o typer o força sob `GITHUB_ACTIONS`, e um
-escape de negrito no meio de `--json` não é parte do que a ajuda diz.
-
-O mesmo mapa confere a prosa: toda linha de comando `diagnos …` num bloco
-de shell da doc precisa nomear comandos e flags de verdade.
 """
 
 from __future__ import annotations
@@ -46,12 +33,12 @@ _COMMAND_START = re.compile(r"(?:^|[|;&(`]\s*|\$\(\s*)(?:\$ )?(?P<cmd>diagnos(?=
 
 
 def _normalize(text: str) -> str:
-    """🇺🇸 Box drawing removed and whitespace collapsed, so wrapping never matters. 🇧🇷 Sem caixas, espaços colapsados."""
+    """Returns `text` without box-drawing characters and with whitespace collapsed, so wrapping never matters."""
     return " ".join(re.sub(r"[│╭╮╰╯─]", " ", text).split())
 
 
 def _panels(output: str) -> dict[str, list[str]]:
-    """🇺🇸 `{panel title: first token of each row}` of a rich `--help`. 🇧🇷 `{título: primeiro token de cada linha}`."""
+    """Returns `{panel title: first token of each row}` of a rich `--help`."""
     panels: dict[str, list[str]] = {}
     current: list[str] | None = None
     for line in output.splitlines():
@@ -69,9 +56,11 @@ def _panels(output: str) -> dict[str, list[str]]:
 
 
 def help_problems(document: dict[str, Any]) -> list[str]:
-    """🇺🇸 One line per disagreement between `diagnos <path> --help` and its `cli.json` entry.
+    """Returns one line per disagreement between `diagnos <path> --help` and its `cli.json` entry.
 
-    🇧🇷 Uma linha por divergência entre `diagnos <caminho> --help` e a entrada dele no `cli.json`.
+    Args:
+        document: The parsed `cli.json`. Each of its commands is rendered with `--help` and compared both ways:
+            what the reference lists must be shown, and what is shown must be listed.
     """
     runner = CliRunner()
     problems: list[str] = []
@@ -85,15 +74,14 @@ def help_problems(document: dict[str, Any]) -> list[str]:
             continue
         output = _STYLE.sub("", result.output)
         text, panels = _normalize(output), _panels(output)
-        expected: list[str] = [command["help"]["en"], command["help"]["pt-br"]]
+        # Both locales hold the same English text (`l10n.l10n_field`), so `en` is the one `--help` must show.
+        expected: list[str] = [command["help"]["en"]]
         for param in command["params"]:
-            expected += [*param["flags"], param["help"]["en"], param["help"]["pt-br"]]
+            expected += [*param["flags"], param["help"]["en"]]
             if param["kind"] == "argument":
                 expected.append(param["name"])
         expected += [example["command"] for example in command.get("examples", [])]
-        problems += [
-            f"{where}: --help lacks · não mostra {item!r}" for item in expected if _normalize(item) not in text
-        ]
+        problems += [f"{where}: --help lacks {item!r}" for item in expected if _normalize(item) not in text]
         options = {flag for p in command["params"] for flag in p["flags"] if p["kind"] == "option"}
         shown = set(panels.get("Options", [])) - {"--help"}
         problems += [f"{where}: --help shows {flag!r}, cli.json does not" for flag in sorted(shown - options)]
@@ -105,9 +93,10 @@ def help_problems(document: dict[str, Any]) -> list[str]:
 
 
 def command_lines(text: str) -> list[tuple[int, str]]:
-    """🇺🇸 `(line, command)` for every `diagnos …` invocation in a shell block, continuations joined.
+    """Returns `(line, command)` for every `diagnos …` invocation in a shell block, continuations joined.
 
-    🇧🇷 `(linha, comando)` de toda invocação `diagnos …` num bloco de shell, com continuações juntadas.
+    Args:
+        text: The Markdown of a page. Only fences whose language is in `SHELLS` are read.
     """
     found: list[tuple[int, str]] = []
     for fence in fences(text):
@@ -126,24 +115,21 @@ def command_lines(text: str) -> list[tuple[int, str]]:
 
 
 def usage_problem(line: str, document: dict[str, Any]) -> str | None:
-    """🇺🇸 Why `line` is not a valid `diagnos` invocation (unknown command or flag), or `None`.
+    """Returns why `line` is not a valid `diagnos` invocation (unknown command or flag), or `None`.
 
     Global options count wherever they are on the line, moved to the front
     the way the binary moves them (`diagnos.cli.argv`). Option values are
     skipped by the option's type, so a positional value is never mistaken
     for a subcommand.
 
-    🇧🇷 Por que `line` não é uma invocação válida do `diagnos` (comando ou flag desconhecida), ou `None`.
-
-    Opções globais valem onde quer que estejam na linha, movidas para a
-    frente do jeito que o binário as move (`diagnos.cli.argv`). Valores de
-    opção são pulados pelo tipo da opção, então um valor posicional nunca
-    é confundido com um subcomando.
+    Args:
+        line: One `diagnos …` command line, as `command_lines` yields it.
+        document: The parsed `cli.json`, whose command tree the line is checked against.
     """
     try:
         tokens = hoist_global_options(shlex.split(line, comments=True)[1:])
     except ValueError as error:
-        return f"cannot parse · não interpretável ({error})"
+        return f"cannot parse ({error})"
     by_path = {tuple(c["path"]): c for c in document["commands"]}
     path: tuple[str, ...] = ()
     index = 0
@@ -154,13 +140,13 @@ def usage_problem(line: str, document: dict[str, Any]) -> str | None:
             flag = token.split("=", 1)[0]
             match = next((p for p in params if flag in p["flags"]), None)
             if match is None and flag != "--help":
-                return f"unknown option {flag!r} for · opção desconhecida para 'diagnos {' '.join(path)}'"
+                return f"unknown option {flag!r} for 'diagnos {' '.join(path)}'"
             takes_value = match is not None and match["type"] != "bool" and "=" not in token
             index += 2 if takes_value else 1
             continue
         if (*path, token) in by_path:
             path = (*path, token)
         elif any(len(key) == len(path) + 1 and key[:-1] == path for key in by_path):
-            return f"unknown command · comando desconhecido 'diagnos {' '.join((*path, token))}'"
+            return f"unknown command 'diagnos {' '.join((*path, token))}'"
         index += 1
     return None

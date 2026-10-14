@@ -1,7 +1,4 @@
-"""🇺🇸 `docs/site.json` holds to the contract, and every way to break it is caught with a clear line.
-
-🇧🇷 O `docs/site.json` segue o contrato, e todo jeito de quebrá-lo é pego com uma linha clara.
-"""
+"""`docs/site.json` holds to the contract, and every way to break it is caught with a clear line."""
 
 from __future__ import annotations
 
@@ -18,28 +15,25 @@ from scripts.docs.output import REPO_ROOT
 
 @pytest.fixture
 def manifest() -> dict[str, Any]:
-    """🇺🇸 A fresh copy of the committed manifest. 🇧🇷 Uma cópia nova do manifesto commitado."""
+    """A fresh copy of the committed manifest."""
     return copy.deepcopy(site.load())
 
 
 def first_page(manifest: dict[str, Any]) -> dict[str, Any]:
-    """🇺🇸 The overview page entry. 🇧🇷 A entrada da página de visão geral."""
+    """The overview page entry."""
     page: dict[str, Any] = manifest["nav"][0]["pages"][0]
     return page
 
 
 def _without_title_or_h1(manifest: dict[str, Any]) -> None:
-    """🇺🇸 The root page pointed at a fixture with no `# H1`, and no `title` to fall back on.
-
-    🇧🇷 A página raiz apontando para uma fixture sem `# H1`, e sem `title` para cair.
-    """
+    """The root page pointed at a fixture with no `# H1`, and no `title` to fall back on."""
     page = first_page(manifest)
     page.pop("title")
     page["source"] = "scripts/docs/tests/fixtures/no-h1.md"
 
 
 def test_the_committed_manifest_is_valid(manifest: dict[str, Any]) -> None:
-    """🇺🇸 No problem at all, and every page is a markdown pair. 🇧🇷 Nenhum problema, e toda página é um par."""
+    """No problem at all, and every page is a Markdown pair."""
     assert site.check(manifest) == []
     pages = site.pages(manifest)
     assert pages[0].id == site.ROOT_PAGE_ID
@@ -69,14 +63,14 @@ def test_the_committed_manifest_is_valid(manifest: dict[str, Any]) -> None:
 def test_each_contract_rule_is_enforced(
     manifest: dict[str, Any], mutate: Callable[[dict[str, Any]], object], expected: str
 ) -> None:
-    """🇺🇸 One mutation, one named problem. 🇧🇷 Uma mutação, um problema nomeado."""
+    """One mutation, one named problem."""
     mutate(manifest)
     problems = site.check(manifest)
     assert any(expected in problem for problem in problems), problems
 
 
 def test_a_page_without_its_twin_is_refused(manifest: dict[str, Any], tmp_path: Path) -> None:
-    """🇺🇸 An English file alone is not a page. 🇧🇷 Um arquivo em inglês sozinho não é uma página."""
+    """An English file alone is not a page."""
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "alone.md").write_text("# Alone\n", encoding="utf-8")
     manifest["nav"] = [

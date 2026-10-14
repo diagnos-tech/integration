@@ -1,4 +1,4 @@
-"""🇺🇸 How a generated JSON is written: deterministic text, and a `generatedFrom` that never churns on its own.
+"""How a generated JSON is written: deterministic text, and a `generatedFrom` that never churns on its own.
 
 Determinism is what makes `make docs-check` possible at all: regenerating
 must produce byte-identical files when the code did not change, so the
@@ -12,22 +12,6 @@ freshness check can be a plain text comparison. Two rules get there:
   on top of*: it is carried over from the committed file while nothing else
   changed, and only restamped with `HEAD` when the content really moved.
   Stamping `HEAD` blindly would make every commit stale the next one.
-
-🇧🇷 Como um JSON gerado é gravado: texto determinístico, e um `generatedFrom` que nunca muda sozinho.
-
-Determinismo é o que torna o `make docs-check` possível: regerar precisa
-produzir arquivos idênticos byte a byte quando o código não mudou, para a
-checagem de atualidade ser uma comparação simples de texto. Duas regras
-chegam lá:
-
-- o texto é sempre `json.dumps(indent=2, ensure_ascii=False)` mais uma quebra
-  de linha final; `sort_keys` nos documentos que este repo molda (`cli.json`,
-  `sdk.json`), ordem de declaração no `openapi.json` — ordenar embaralharia a
-  ordem dos campos de todo schema que o site mostra;
-- `generatedFrom.commit` é o commit sobre o qual a referência foi *regerada
-  pela última vez*: é mantido do arquivo commitado enquanto nada mais mudou,
-  e só recebe o `HEAD` quando o conteúdo mudou de verdade. Carimbar o `HEAD`
-  às cegas deixaria todo commit velho já no seguinte.
 """
 
 from __future__ import annotations
@@ -43,15 +27,12 @@ SCHEMA_VERSION = 1
 
 
 def render(document: object, *, sort_keys: bool) -> str:
-    """🇺🇸 The exact text a generated file holds. 🇧🇷 O texto exato que um arquivo gerado guarda."""
+    """Returns the exact text a generated file holds: indented JSON and one trailing newline."""
     return json.dumps(document, ensure_ascii=False, indent=2, sort_keys=sort_keys) + "\n"
 
 
 def head_commit(root: Path = REPO_ROOT) -> str:
-    """🇺🇸 Short SHA of `HEAD`, or `unknown` outside a git checkout (a source tarball).
-
-    🇧🇷 SHA curto do `HEAD`, ou `unknown` fora de um checkout git (um tarball de fonte).
-    """
+    """Returns the short SHA of `HEAD`, or `unknown` outside a git checkout (a source tarball)."""
     try:
         result = subprocess.run(  # noqa: S603 — fixed argv, no shell
             ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
@@ -66,17 +47,22 @@ def head_commit(root: Path = REPO_ROOT) -> str:
 
 
 def generated_from(package: str) -> dict[str, str]:
-    """🇺🇸 The contract's `GeneratedFrom`, with the commit left for `stamp` to decide.
-
-    🇧🇷 O `GeneratedFrom` do contrato, com o commit deixado para `stamp` decidir.
-    """
+    """Returns the contract's `GeneratedFrom`, with the commit left for `stamp` to decide."""
     return {"package": package, "version": version(package), "commit": ""}
 
 
 def stamp(fresh: dict[str, Any], committed: dict[str, Any] | None, *, commit: str) -> dict[str, Any]:
-    """🇺🇸 `fresh` with `generatedFrom.commit` set: the committed one if nothing else changed, else `commit`.
+    """Returns `fresh` with `generatedFrom.commit` set.
 
-    🇧🇷 `fresh` com `generatedFrom.commit` definido: o commitado se nada mais mudou, senão `commit`.
+    The commit is the committed file's own when nothing else changed, and `commit` otherwise.
+
+    Args:
+        fresh: The document as the code produces it now.
+        committed: The document currently on disk, or `None` when there is none.
+        commit: The short SHA to stamp when the content changed.
+
+    Returns:
+        The stamped document, or `fresh` itself when it has no `generatedFrom` envelope (OpenAPI).
     """
     if "generatedFrom" not in fresh:
         return fresh
@@ -88,10 +74,7 @@ def stamp(fresh: dict[str, Any], committed: dict[str, Any] | None, *, commit: st
 
 
 def read_committed(path: Path) -> dict[str, Any] | None:
-    """🇺🇸 The JSON currently on disk, or `None` when it does not exist or does not parse.
-
-    🇧🇷 O JSON que está no disco agora, ou `None` quando não existe ou não é lido.
-    """
+    """Returns the JSON object currently on disk, or `None` when the file is missing, unparsable or not an object."""
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):

@@ -1,4 +1,4 @@
-"""🇺🇸 `make docs-check`: everything the published docs promise, proven against the code in one run.
+"""`make docs-check`: everything the published docs promise, proven against the code in one run.
 
 Fails (exit 1) when:
 
@@ -15,26 +15,11 @@ Fails (exit 1) when:
 - a runnable ```` ```python ```` block fails in the sandbox (`snippets.py`);
 - a `diagnos …` line in the docs names a command or flag that does not
   exist, or `diagnos … --help` disagrees with `cli.json` (`cli_check.py`);
-- any generated text is untranslated (no 🇺🇸/🇧🇷, or no `EN · PT` in the CLI).
+- a generated page id breaks the site's `PAGE_ID` grammar or is generated twice.
 
-🇧🇷 `make docs-check`: tudo que a doc publicada promete, provado contra o código numa rodada.
-
-Falha (sai com 1) quando:
-
-- um `docs/reference/*.json` gerado difere do que o `make docs` grava;
-- o `docs/site.json` quebra o contrato (ids, sources e os gêmeos
-  `.pt-BR.md`, descrições ≤ 160 caracteres nos dois locales, referências);
-- o gêmeo de uma página não tem o mesmo esqueleto (níveis de título, blocos);
-- um link relativo, uma âncora, ou um link absoluto para este repositório
-  não resolve (a leitura de link relativo é `check_docs.links`, compartilhada);
-- uma página tem HTML cru fora de cerca de código (`markdown.raw_html`) — o
-  site escapa HTML como texto, então seria publicada como página quebrada;
-- uma imagem tem URL externa fora de um parágrafo só de badges
-  (`markdown.external_images`) — o CSP do site não a carregaria;
-- um bloco ```` ```python ```` executável falha no sandbox (`snippets.py`);
-- uma linha `diagnos …` da doc nomeia comando ou flag que não existe, ou o
-  `diagnos … --help` diverge do `cli.json` (`cli_check.py`);
-- algum texto gerado está sem tradução (sem 🇺🇸/🇧🇷, ou sem `EN · PT` na CLI).
+The Markdown pages are documentation, not code, so they stay bilingual: every
+`NAME.md` needs its `NAME.pt-BR.md` twin. The generated text is English-only
+(see `l10n`), so there is no translation to check in the reference JSON.
 """
 
 from __future__ import annotations
@@ -46,25 +31,28 @@ from pathlib import Path
 from typing import Any
 
 from ..check_docs import is_relative, links
-from . import cli_check, generate, openapi, sdk, site, snippets, urls
+from . import cli_check, generate, site, snippets, urls
 from .markdown import anchors, external_images, raw_html, structure
 from .output import REPO_ROOT
 
-_RAW_HTML = "raw HTML is not rendered by the site · HTML cru não é renderizado pelo site"
-_EXTERNAL_IMAGE = "external image is blocked by the site's CSP · imagem externa é barrada pelo CSP do site"
+_RAW_HTML = "raw HTML is not rendered by the site"
+_EXTERNAL_IMAGE = "external image is blocked by the site's CSP"
 
 
 def _repo_link(target: str, repo: str) -> str | None:
-    """🇺🇸 The repository path of an absolute `…/blob|tree/<ref>/<path>` link to this repo, else `None`.
-
-    🇧🇷 O caminho no repositório de um link absoluto `…/blob|tree/<ref>/<caminho>` para este repo, senão `None`.
-    """
+    """Returns the repository path of an absolute `…/blob|tree/<ref>/<path>` link to this repo, else `None`."""
     match = re.match(rf"^{re.escape(repo)}/(?:blob|tree)/[^/]+/(.*)$", target)
     return match[1] if match else None
 
 
 def link_problems(path: str, root: Path, repo: str) -> list[str]:
-    """🇺🇸 Dead files and dead anchors among the links of one page. 🇧🇷 Arquivos e âncoras mortos de uma página."""
+    """Returns the dead files and dead anchors among the links of one page.
+
+    Args:
+        path: The page, relative to `root`.
+        root: The repository root.
+        repo: The repository URL from the manifest. An absolute link into it is checked like a relative one.
+    """
     text = (root / path).read_text(encoding="utf-8")
     problems = []
     for line, target in links(text):
@@ -75,16 +63,17 @@ def link_problems(path: str, root: Path, repo: str) -> list[str]:
         base = root if in_repo is not None else (root / path).parent
         resolved = (base / file_part.split("?", 1)[0]) if file_part else root / path
         if not resolved.exists():
-            problems.append(f"{path}:{line}: dead link · link morto → {target}")
+            problems.append(f"{path}:{line}: dead link → {target}")
         elif anchor and resolved.suffix == ".md" and anchor.lower() not in anchors(resolved.read_text("utf-8")):
-            problems.append(f"{path}:{line}: dead anchor · âncora morta → {target}")
+            problems.append(f"{path}:{line}: dead anchor → {target}")
     return problems
 
 
 def page_problems(manifest: dict[str, Any], root: Path) -> tuple[list[str], int]:
-    """🇺🇸 Structure parity, links and snippets of every manifest page; returns the problems and blocks run.
+    """Checks every manifest page: twin skeleton, links, raw HTML, external images and runnable snippets.
 
-    🇧🇷 Paridade de estrutura, links e snippets de toda página do manifesto; devolve os problemas e blocos rodados.
+    Returns:
+        The problem lines and the number of snippet blocks that ran.
     """
     problems: list[str] = []
     ran = 0
@@ -95,7 +84,7 @@ def page_problems(manifest: dict[str, Any], root: Path) -> tuple[list[str], int]
         english = structure((root / page.source).read_text(encoding="utf-8"))
         portuguese = structure((root / page.translation).read_text(encoding="utf-8"))
         if english != portuguese:
-            problems.append(f"{page.translation}:1: skeleton differs from · esqueleto difere de {page.source}")
+            problems.append(f"{page.translation}:1: skeleton differs from {page.source}")
         for path in (page.source, page.translation):
             problems += link_problems(path, root, repo)
             text = (root / path).read_text(encoding="utf-8")
@@ -108,9 +97,10 @@ def page_problems(manifest: dict[str, Any], root: Path) -> tuple[list[str], int]
 
 
 def cli_problems(manifest: dict[str, Any], document: dict[str, Any], root: Path) -> tuple[list[str], int]:
-    """🇺🇸 `--help` parity plus every `diagnos …` line of the docs; returns problems and lines checked.
+    """Checks `--help` against `cli.json`, then every `diagnos …` line of the docs against the command tree.
 
-    🇧🇷 Paridade do `--help` mais toda linha `diagnos …` da doc; devolve problemas e linhas checadas.
+    Returns:
+        The problem lines and the number of `diagnos …` lines checked.
     """
     problems = cli_check.help_problems(document)
     checked = 0
@@ -126,20 +116,8 @@ def cli_problems(manifest: dict[str, Any], document: dict[str, Any], root: Path)
     return problems, checked
 
 
-def untranslated(references: dict[str, str], root: Path) -> list[str]:
-    """🇺🇸 Every generated text the site would show untranslated. 🇧🇷 Todo texto gerado que sairia sem tradução."""
-    read = {kind: json.loads((root / path).read_text(encoding="utf-8")) for kind, path in references.items()}
-    found = [f"openapi: {where}" for where in openapi.untranslated(read["openapi"])]
-    found += [f"cli: diagnos {' '.join(c['path'])}" for c in read["cli"]["commands"] if c.get("untranslated")]
-    found += [f"sdk: {name}" for name in sdk.untranslated(read["sdk"])]
-    return [f"{references['openapi'].rsplit('/', 1)[0]}: untranslated · sem tradução — {item}" for item in found]
-
-
 def reference_id_problems(manifest: dict[str, Any], root: Path) -> list[str]:
-    """🇺🇸 Generated page ids that break `PAGE_ID` or collide — the site would build them exactly so.
-
-    🇧🇷 Ids de página gerados que quebram o `PAGE_ID` ou colidem — o site os montaria exatamente assim.
-    """
+    """Returns the generated page ids that break `PAGE_ID` or collide; the site would build them exactly so."""
     problems = []
     sections = [page for group in manifest["nav"] for page in group["pages"] if "reference" in page]
     for page in sections:
@@ -152,12 +130,15 @@ def reference_id_problems(manifest: dict[str, Any], root: Path) -> list[str]:
 
 
 def main(root: Path = REPO_ROOT) -> int:
-    """🇺🇸 Runs every check, prints every problem, exits 1 on any. 🇧🇷 Roda tudo, imprime, sai com 1 se houve algum."""
+    """Runs every check and prints every problem.
+
+    Returns:
+        The process exit code: 1 when any check found a problem, else 0.
+    """
     manifest = site.load(root)
     problems = site.check(manifest, root)
     problems += generate.stale(root)
     if not problems:
-        problems += untranslated(manifest["reference"], root)
         problems += reference_id_problems(manifest, root)
     page_found, ran = page_problems(manifest, root)
     cli_document = json.loads((root / manifest["reference"]["cli"]).read_text(encoding="utf-8"))
