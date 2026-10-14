@@ -1,4 +1,13 @@
-# diagnos · integration
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://diagnos.health/brand/svg/diagnos-lockup-white.svg">
+    <img src="https://diagnos.health/brand/svg/diagnos-lockup-gradient.svg" alt="diagnos" width="260">
+  </picture>
+</p>
+
+</br>
+
+# integration
 
 **Zero-knowledge SDK, CLI and REST API for the diagnos vault.**
 
