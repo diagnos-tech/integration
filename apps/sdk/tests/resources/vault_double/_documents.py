@@ -1,16 +1,9 @@
-"""🇺🇸 The documents half of the double: `patients`/`exams`/`templates` indexes, versions and drafts.
+"""The documents half of the double: `patients`/`exams`/`templates` indexes, versions and drafts.
 
 Follows `routes/factories/versionedDocuments.ts` and `services/documents/store.ts` rule for rule:
 stream-aware paths, the singular `security_group_id`, required `encrypted_index`, a signed `PUT`
 locked to the declared size, one pending slot per stream, patch-only reservations,
 `expected_latest_version_id`, and the draft head.
-
-🇧🇷 A metade de documentos do duplo: índices de `patients`/`exams`/`templates`, versões e rascunhos.
-
-Segue `routes/factories/versionedDocuments.ts` e `services/documents/store.ts` regra por regra: paths
-cientes de fluxo, `security_group_id` no singular, `encrypted_index` obrigatório, `PUT` assinado
-travado no tamanho declarado, um slot pendente por fluxo, reservas só de patch,
-`expected_latest_version_id` e a cabeça de rascunho.
 """
 
 from __future__ import annotations
@@ -39,10 +32,7 @@ _STAGE_FIELDS = frozenset(
 
 @dataclass
 class _Pending:
-    """🇺🇸 A reserved version of one stream, not yet committed, plus the patch that rides with it.
-
-    🇧🇷 Uma versão reservada de um fluxo, ainda não confirmada, mais o patch que viaja com ela.
-    """
+    """A reserved version of one stream, not yet committed, plus the patch that rides with it."""
 
     version_id: str
     size: int
@@ -50,32 +40,26 @@ class _Pending:
 
 
 class _DocumentsMixin:
-    """🇺🇸 `FakeVault`'s document half: indexes, versions, and the draft head, per stream.
-
-    🇧🇷 A metade de documentos do `FakeVault`: índices, versões, e a cabeça de rascunho, por fluxo.
-    """
+    """`FakeVault`'s document half: indexes, versions, and the draft head, per stream."""
 
     def version_url(self, resource: str, version_id: str) -> str:
-        """🇺🇸 Where a version's object lives (flat by `version_id`, as in R2). 🇧🇷 Onde mora o objeto de uma versão."""
+        """Where a version's object lives (flat by `version_id`, as in R2)."""
         return self._object_url(f"workspaces/{WORKSPACE_ID}/{resource}/{version_id}")
 
     def draft_url(self, resource: str, document_id: str, stream: str) -> str:
-        """🇺🇸 Where a stream's draft head lives. 🇧🇷 Onde mora a cabeça de rascunho de um fluxo."""
+        """Where a stream's draft head lives."""
         suffix = f"/{stream}" if len(_STREAMS[resource]) > 1 else ""
         return self._object_url(f"workspaces/{WORKSPACE_ID}/{resource}/{document_id}/draft{suffix}")
 
     def _index(self, resource: str, document_id: str) -> dict[str, Any]:
-        """🇺🇸 The stored index, or `DocumentNotFound`. 🇧🇷 O índice guardado, ou `DocumentNotFound`."""
+        """The stored index, or `DocumentNotFound`."""
         index = self._documents.get((resource, document_id))
         if index is None:
             raise _VaultRefusal("DocumentNotFound", document_id)
         return index
 
     def _response(self, resource: str, document_id: str) -> dict[str, Any]:
-        """🇺🇸 `documentIndexResponse`: `pending_version_id` as an id only, streams always as a map.
-
-        🇧🇷 `documentIndexResponse`: `pending_version_id` só como id, fluxos sempre como mapa.
-        """
+        """`documentIndexResponse`: `pending_version_id` as an id only, streams always as a map."""
         index = self._documents[(resource, document_id)]
         streams = {}
         for name, stream in index["streams"].items():
@@ -95,10 +79,7 @@ class _DocumentsMixin:
     def list_documents(
         self, resource: str, *, security_group_id: str | None, include_deleted: bool, limit: int, cursor: str | None
     ) -> dict[str, Any]:
-        """🇺🇸 All indexes of `resource`, filtered and paginated the way `GET {base}` promises.
-
-        🇧🇷 Todo índice de `resource`, filtrado e paginado do jeito que `GET {base}` promete.
-        """
+        """All indexes of `resource`, filtered and paginated the way `GET {base}` promises."""
         ids = sorted(
             document_id
             for (res, document_id), index in self._documents.items()
@@ -111,10 +92,7 @@ class _DocumentsMixin:
         return {"items": [self._response(resource, document_id) for document_id in page], "next_cursor": next_cursor}
 
     def create_document(self, resource: str, body: dict[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `POST {base}` — `createDocumentRequest` validation, then a new index with one pending version.
-
-        🇧🇷 `POST {base}` — validação de `createDocumentRequest`, depois um índice novo com uma versão pendente.
-        """
+        """`POST {base}` — `createDocumentRequest` validation, then a new index with one pending version."""
         unknown = set(body) - _CREATE_FIELDS
         if unknown:
             raise _VaultRefusal("ValidationError", f"unknown fields {sorted(unknown)}", status=400)
@@ -162,10 +140,7 @@ class _DocumentsMixin:
         }
 
     def stage_version(self, resource: str, document_id: str, stream: str, body: dict[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `POST .../versions` — a patch-only flag flip, or a new pending version (409 while one is open).
-
-        🇧🇷 `POST .../versions` — uma troca de flag só-patch, ou uma versão pendente nova (409 com uma aberta).
-        """
+        """`POST .../versions` — a patch-only flag flip, or a new pending version (409 while one is open)."""
         unknown = set(body) - _STAGE_FIELDS
         if unknown:
             raise _VaultRefusal("ValidationError", f"unknown fields {sorted(unknown)}", status=400)
@@ -196,10 +171,7 @@ class _DocumentsMixin:
         }
 
     def commit_version(self, resource: str, document_id: str, stream: str, version_id: str) -> dict[str, Any]:
-        """🇺🇸 `POST .../versions/{id}/commit` — promotes the pending version; a replay is idempotent.
-
-        🇧🇷 `POST .../versions/{id}/commit` — promove a versão pendente; reenviar é idempotente.
-        """
+        """`POST .../versions/{id}/commit` — promotes the pending version; a replay is idempotent."""
         if self.fail_next_commits > 0:
             self.fail_next_commits -= 1
             raise _VaultRefusal("ServiceUnavailable", "try again", status=503)
@@ -229,10 +201,7 @@ class _DocumentsMixin:
         return {"document": self._response(resource, document_id)}
 
     def get_document(self, resource: str, document_id: str, *, stream: str, version_id: str | None) -> dict[str, Any]:
-        """🇺🇸 `GET {base}/{id}` — the index plus a download URL for `version_id` (or the stream's latest).
-
-        🇧🇷 `GET {base}/{id}` — o índice mais uma URL de download de `version_id` (ou da corrente do fluxo).
-        """
+        """`GET {base}/{id}` — the index plus a download URL for `version_id` (or the stream's latest)."""
         index = self._index(resource, document_id)
         state = index["streams"][stream]
         target = version_id or state["latest_version_id"]
@@ -248,14 +217,11 @@ class _DocumentsMixin:
         }
 
     def draft_key_id(self, resource: str, stream: str) -> str:
-        """🇺🇸 The fixed key id the vault derives a draft's context from. 🇧🇷 O id fixo do contexto de um rascunho."""
+        """The fixed key id the vault derives a draft's context from."""
         return f"draft:{stream}" if len(_STREAMS[resource]) > 1 else "draft"
 
     def put_draft(self, resource: str, document_id: str, stream: str, body: dict[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `PUT .../draft` — reserves the draft head's signed `PUT` and bumps its `rev`.
-
-        🇧🇷 `PUT .../draft` — reserva o `PUT` assinado da cabeça de rascunho e incrementa o `rev`.
-        """
+        """`PUT .../draft` — reserves the draft head's signed `PUT` and bumps its `rev`."""
         index = self._index(resource, document_id)
         state = index["streams"][stream]
         current = state.get("draft")
@@ -271,10 +237,7 @@ class _DocumentsMixin:
         }
 
     def get_draft(self, resource: str, document_id: str, stream: str) -> dict[str, Any] | None:
-        """🇺🇸 `GET .../draft` — `null` when the stream never had one.
-
-        🇧🇷 `GET .../draft` — `null` quando o fluxo nunca teve.
-        """
+        """`GET .../draft` — `null` when the stream never had one."""
         draft = self._index(resource, document_id)["streams"][stream].get("draft")
         if draft is None:
             return None
@@ -287,26 +250,20 @@ class _DocumentsMixin:
         }
 
     def seed_draft(self, resource: str, document_id: str, sealed: bytes, *, stream: str = "data") -> None:
-        """🇺🇸 What the web editor's autosave does: `PUT .../draft` then the object `PUT`, in one step.
-
-        🇧🇷 O que o autosave do editor web faz: `PUT .../draft` e depois o `PUT` do objeto, num passo só.
-        """
+        """What the web editor's autosave does: `PUT .../draft` then the object `PUT`, in one step."""
         reservation = self.put_draft(resource, document_id, stream, {"content_length": len(sealed)})
         self._objects[reservation["upload"]["url"]] = sealed
 
 
 def _stream_of(groups: dict[str, str]) -> str:
-    """🇺🇸 The stream a version/draft route touches: from the path, or the implicit `data`.
-
-    🇧🇷 O fluxo que uma rota de versão/rascunho toca: do path, ou o `data` implícito.
-    """
+    """The stream a version/draft route touches: from the path, or the implicit `data`."""
     return groups.get("stream") or "data"
 
 
 def _list_documents_route(
     vault: FakeVault, groups: dict[str, str], query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET {base}`. 🇧🇷 `GET {base}`."""
+    """`GET {base}`."""
     result = vault.list_documents(
         groups["resource"],
         security_group_id=query.get("security_group_id"),
@@ -320,14 +277,14 @@ def _list_documents_route(
 def _create_document_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST {base}`. 🇧🇷 `POST {base}`."""
+    """`POST {base}`."""
     return _envelope_success(vault.create_document(groups["resource"], body), status=201)
 
 
 def _get_document_route(
     vault: FakeVault, groups: dict[str, str], query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET {base}/{document_id}`. 🇧🇷 `GET {base}/{document_id}`."""
+    """`GET {base}/{document_id}`."""
     resource = groups["resource"]
     stream = query.get("stream", "data") if len(_STREAMS[resource]) > 1 else "data"
     result = vault.get_document(resource, groups["document_id"], stream=stream, version_id=query.get("version_id"))
@@ -337,7 +294,7 @@ def _get_document_route(
 def _stage_version_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST .../versions`. 🇧🇷 `POST .../versions`."""
+    """`POST .../versions`."""
     result = vault.stage_version(groups["resource"], groups["document_id"], _stream_of(groups), body)
     return _envelope_success(result, status=201 if result["staged"] else 200)
 
@@ -345,7 +302,7 @@ def _stage_version_route(
 def _commit_version_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST .../versions/{version_id}/commit`. 🇧🇷 `POST .../versions/{version_id}/commit`."""
+    """`POST .../versions/{version_id}/commit`."""
     result = vault.commit_version(groups["resource"], groups["document_id"], _stream_of(groups), groups["version_id"])
     return _envelope_success(result)
 
@@ -353,23 +310,21 @@ def _commit_version_route(
 def _get_draft_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET .../draft`. 🇧🇷 `GET .../draft`."""
+    """`GET .../draft`."""
     return _envelope_success(vault.get_draft(groups["resource"], groups["document_id"], _stream_of(groups)))
 
 
 def _put_draft_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `PUT .../draft`. 🇧🇷 `PUT .../draft`."""
+    """`PUT .../draft`."""
     return _envelope_success(vault.put_draft(groups["resource"], groups["document_id"], _stream_of(groups), body))
 
 
 _WS = WORKSPACE_ID
 _DOCS = rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients|exams|templates)"
-# 🇺🇸 Version and draft routes carry `/streams/{stream}` on patients only — the same table the vault
-#    builds its routes from, so `/patients/{id}/versions` has no route here, exactly as in production.
-# 🇧🇷 Rotas de versão e rascunho carregam `/streams/{fluxo}` só em pacientes — a mesma tabela de que
-#    o cofre monta as rotas, então `/patients/{id}/versions` não tem rota aqui, exatamente como em produção.
+# Version and draft routes carry `/streams/{stream}` on patients only — the same table the vault
+# builds its routes from, so `/patients/{id}/versions` has no route here, exactly as in production.
 _STREAM_BASES = (
     rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>patients)/(?P<document_id>[^/]+)/streams/(?P<stream>data|file)",
     rf"^/api/external/v1/workspaces/{_WS}/(?P<resource>exams|templates)/(?P<document_id>[^/]+)",

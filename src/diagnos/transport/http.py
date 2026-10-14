@@ -1,4 +1,4 @@
-"""🇺🇸 `VaultTransport` — the one place that speaks HTTP to the vault.
+"""`VaultTransport` — the one place that speaks HTTP to the vault.
 
 Everything above this module (resources, the CLI) calls `request`/`get`/
 `post`/`put` and never touches `httpx` directly, so every retry rule, every
@@ -9,19 +9,6 @@ transports live inside it: a signed `httpx.Client` for `/api/external/v1`
 presigned URLs to. The `429`/`5xx` backoff math lives in `_retry.py`, and the
 bare R2 `PUT`/`GET`s live in `storage.py` — this module keeps only what
 needs signing, session state, or the retry loop itself.
-
-🇧🇷 `VaultTransport` — o único lugar que fala HTTP com o cofre.
-
-Tudo acima deste módulo (recursos, CLI) chama `request`/`get`/`post`/`put` e
-nunca toca `httpx` direto, então toda regra de retentativa, todo header, todo
-envelope de `docs/PROTOCOL.md` é aplicado uma única vez. Dois transportes
-vivem aqui dentro: um `httpx.Client` assinado para `/api/external/v1` (e o
-`/time` sem assinatura), e um `httpx.Client` nu, sem base URL nem
-`Authorization`, para o armazenamento de objetos do R2, para o qual o cofre
-só entrega URLs pré-assinadas. A matemática de backoff de `429`/`5xx` vive em
-`_retry.py`, e os `PUT`/`GET`s nus do R2 vivem em `storage.py` — este módulo
-guarda só o que precisa de assinatura, estado de sessão, ou o próprio laço de
-retentativa.
 """
 
 from __future__ import annotations
@@ -48,19 +35,12 @@ from .token import ServiceAccountToken
 
 
 def _encode_json_body(payload: Any | None) -> bytes:
-    """🇺🇸 Same separators the vault expects, and the exact bytes we then sign.
+    """Same separators the vault expects, and the exact bytes we then sign.
 
     `separators=(",", ":")` drops the spaces `json.dumps` adds by default;
     signing has to run over the *literal* bytes sent on the wire, so any
     difference between what is signed and what is serialized here would be a
     self-inflicted `401`.
-
-    🇧🇷 Os mesmos separadores que o cofre espera, e os bytes exatos que assinamos.
-
-    `separators=(",", ":")` tira os espaços que `json.dumps` adiciona por
-    padrão; a assinatura precisa rodar sobre os bytes *literais* enviados no
-    fio, então qualquer diferença entre o que é assinado e o que é
-    serializado aqui seria um `401` autoinfligido.
     """
     if payload is None:
         return b""
@@ -68,19 +48,12 @@ def _encode_json_body(payload: Any | None) -> bytes:
 
 
 class VaultTransport(_StorageMixin, _SendMixin):
-    """🇺🇸 Signs, sends, retries and unwraps every call to the vault's API.
+    """Signs, sends, retries and unwraps every call to the vault's API.
 
     `upload_bytes`/`download_bytes`/`download_stream` — the R2 side, which
     needs none of that — come from `_StorageMixin` (`storage.py`); building,
     signing and sending one request, plus opportunistic seed delivery, come
     from `_SendMixin` (`_send.py`).
-
-    🇧🇷 Assina, envia, retenta e desembrulha toda chamada à API do cofre.
-
-    `upload_bytes`/`download_bytes`/`download_stream` — o lado R2, que não
-    precisa de nada disso — vêm de `_StorageMixin` (`storage.py`); montar,
-    assinar e enviar uma requisição, mais a entrega oportunista de seed, vêm
-    de `_SendMixin` (`_send.py`).
     """
 
     def __init__(
@@ -95,16 +68,10 @@ class VaultTransport(_StorageMixin, _SendMixin):
         clock: ClockSync | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        """🇺🇸 Wrap `settings`/`token` with the callbacks and clients a live session needs.
-
-        🇧🇷 Envolve `settings`/`token` com os callbacks e clients de que uma sessão viva precisa.
-        """
-        # 🇺🇸 `session_keys` is a callback, not a value, because the keys can
+        """Wrap `settings`/`token` with the callbacks and clients a live session needs."""
+        # `session_keys` is a callback, not a value, because the keys can
         # rotate (re-enrollment, seed-derived refresh) after this transport is
         # built; the transport must always ask for the current ones.
-        # 🇧🇷 `session_keys` é um callback, não um valor, porque as chaves podem
-        # rotacionar (novo enrollment, refresh via semente) depois do
-        # transporte pronto; ele sempre precisa pedir as atuais.
         self._settings = settings
         self._token = token
         self._session_keys = session_keys
@@ -114,12 +81,9 @@ class VaultTransport(_StorageMixin, _SendMixin):
             if client is not None
             else httpx.Client(base_url=settings.vault_url, timeout=settings.timeout_seconds)
         )
-        # 🇺🇸 No `base_url`, no `Authorization`: R2 URLs are presigned and
+        # No `base_url`, no `Authorization`: R2 URLs are presigned and
         # absolute, and sending the vault's bearer token to Cloudflare would
         # leak a credential to a party that has no use for it.
-        # 🇧🇷 Sem `base_url`, sem `Authorization`: URLs do R2 são pré-assinadas e
-        # absolutas, e mandar o bearer do cofre para a Cloudflare vazaria uma
-        # credencial para quem não tem uso para ela.
         self._storage_hosts = settings.storage_hosts
         self._storage_client = (
             storage_client if storage_client is not None else httpx.Client(timeout=settings.timeout_seconds)
@@ -128,15 +92,12 @@ class VaultTransport(_StorageMixin, _SendMixin):
         self._sleep = sleep
 
     def close(self) -> None:
-        """🇺🇸 Close both underlying `httpx.Client`s. 🇧🇷 Fecha os dois `httpx.Client` internos."""
+        """Close both underlying `httpx.Client`s."""
         self._client.close()
         self._storage_client.close()
 
     def __enter__(self) -> VaultTransport:
-        """🇺🇸 `with VaultTransport(...):` — no setup beyond `__init__`.
-
-        🇧🇷 `with VaultTransport(...):` — sem setup além do `__init__`.
-        """
+        """`with VaultTransport(...):` — no setup beyond `__init__`."""
         return self
 
     def __exit__(
@@ -145,14 +106,11 @@ class VaultTransport(_StorageMixin, _SendMixin):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """🇺🇸 Close both clients on the way out, exception or not.
-
-        🇧🇷 Fecha os dois clients na saída, com ou sem exceção.
-        """
+        """Close both clients on the way out, exception or not."""
         self.close()
 
     def get(self, path: str, *, query: Mapping[str, str | int | bool] | None = None, signed: bool = True) -> Any:
-        """🇺🇸 `GET` shortcut for `request`. 🇧🇷 Atalho `GET` para `request`."""
+        """`GET` shortcut for `request`."""
         return self.request("GET", path, query=query, signed=signed)
 
     def post(
@@ -163,7 +121,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         query: Mapping[str, str | int | bool] | None = None,
         signed: bool = True,
     ) -> Any:
-        """🇺🇸 `POST` shortcut for `request`. 🇧🇷 Atalho `POST` para `request`."""
+        """`POST` shortcut for `request`."""
         return self.request("POST", path, json=json, query=query, signed=signed)
 
     def put(
@@ -174,7 +132,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         query: Mapping[str, str | int | bool] | None = None,
         signed: bool = True,
     ) -> Any:
-        """🇺🇸 `PUT` shortcut for `request`. 🇧🇷 Atalho `PUT` para `request`."""
+        """`PUT` shortcut for `request`."""
         return self.request("PUT", path, json=json, query=query, signed=signed)
 
     def request(
@@ -186,19 +144,12 @@ class VaultTransport(_StorageMixin, _SendMixin):
         query: Mapping[str, str | int | bool] | None = None,
         signed: bool = True,
     ) -> Any:
-        """🇺🇸 Send one API call, retrying the cases `docs/PROTOCOL.md §12` says are safe to retry.
+        """Send one API call, retrying the cases `docs/PROTOCOL.md §12` says are safe to retry.
 
         Each loop iteration builds a brand new request — a fresh timestamp
         and nonce — because every retry rule here (`ReplayDetected`,
         `SignatureTimestampSkew`) exists precisely because *reusing* a
         `(timestamp, nonce)` pair is what got rejected in the first place.
-
-        🇧🇷 Envia uma chamada de API, retentando os casos que `docs/PROTOCOL.md §12` diz serem seguros.
-
-        Cada volta do laço monta uma requisição nova — timestamp e nonce
-        novos — porque toda regra de retentativa aqui (`ReplayDetected`,
-        `SignatureTimestampSkew`) existe justamente porque *reusar* um par
-        `(timestamp, nonce)` foi o que foi rejeitado da primeira vez.
         """
         body = _encode_json_body(json)
         headers: dict[str, str] = dict(self._token.authorization_header())

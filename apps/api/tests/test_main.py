@@ -1,22 +1,9 @@
-"""🇺🇸 `main.run()`: the console-script wiring — settings load, `create_app`, and the `uvicorn.run` call itself.
+"""`main.run()`: the console-script wiring, covering settings load, `create_app` and the `uvicorn.run` call itself.
 
-No test here starts a real server: `uvicorn.run` blocks forever serving
-requests, so every test replaces it with a stand-in that just records its
-`kwargs`. `create_app` is replaced too in the "happy path" test, because
-building a real one means constructing a real `Diagnos()` off
-`DIAGNOS_API_TOKEN` — a concern `apps/api/tests` leaves entirely to `conftest.py`'s
-fake, never to a real SDK token.
-
-🇧🇷 `main.run()`: a fiação do console-script — carregar configuração,
-`create_app`, e a própria chamada a `uvicorn.run`.
-
-Nenhum teste aqui sobe um servidor de verdade: `uvicorn.run` bloqueia para
-sempre servindo requisições, então todo teste o substitui por um objeto que
-só grava os `kwargs`. `create_app` também é substituído no teste de
-"caminho feliz", porque construir um de verdade significa construir uma
-`Diagnos()` de verdade a partir de `DIAGNOS_API_TOKEN` — uma preocupação que
-`apps/api/tests` deixa inteira para o fake de `conftest.py`, nunca para um token
-de SDK de verdade.
+No test here starts a real server: `uvicorn.run` blocks forever serving requests, so every test replaces it with a
+stand-in that only records its `kwargs`. `create_app` is replaced too in the happy-path test, because building a real
+one means constructing a real `Diagnos()` from `DIAGNOS_API_TOKEN`, a concern that `apps/api/tests` leaves entirely to
+the fake in `conftest.py` and never to a real SDK token.
 """
 
 from __future__ import annotations
@@ -41,10 +28,7 @@ _TLS_ENV = {
 
 @pytest.fixture(autouse=True)
 def _clean_api_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 Every test starts with none of the `DIAGNOS_API_*` variables set — each one opts in explicitly.
-
-    🇧🇷 Todo teste começa sem nenhuma variável `DIAGNOS_API_*` setada — cada um opta por elas de forma explícita.
-    """
+    """Every test starts with none of the `DIAGNOS_API_*` variables set — each one opts in explicitly."""
     for name in (
         "DIAGNOS_API_MTLS_CA_FILE",
         "DIAGNOS_API_TLS_CERT_FILE",
@@ -57,10 +41,7 @@ def _clean_api_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _restore_logger_state() -> Iterator[None]:
-    """🇺🇸 `run()` calls the real `configure_logging()` — undo its process-global handler change afterwards.
-
-    🇧🇷 `run()` chama o `configure_logging()` de verdade — desfaz a mudança de handler global do processo depois.
-    """
+    """`run()` calls the real `configure_logging()` — undo its process-global handler change afterwards."""
     snapshots = {
         name: (list(logging.getLogger(name).handlers), logging.getLogger(name).level, logging.getLogger(name).propagate)
         for name in ("diagnos.api", "diagnos")
@@ -76,10 +57,7 @@ def _restore_logger_state() -> Iterator[None]:
 def test_run_exits_2_when_api_settings_are_missing(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """🇺🇸 No mTLS CA/cert/key at all: `ApiSettings.from_env()` raises before `create_app` is ever called.
-
-    🇧🇷 Nenhuma CA/cert/key de mTLS: `ApiSettings.from_env()` lança antes de `create_app` sequer ser chamada.
-    """
+    """No mTLS CA/cert/key at all: `ApiSettings.from_env()` raises before `create_app` is ever called."""
     with pytest.raises(SystemExit) as exc_info:
         main_module.run([])
 
@@ -90,10 +68,7 @@ def test_run_exits_2_when_api_settings_are_missing(
 def test_run_exits_2_when_create_app_raises_config_error(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """🇺🇸 Valid `ApiSettings` but no `DIAGNOS_API_TOKEN`: `create_app`'s own `Diagnos()` raises `ConfigError`.
-
-    🇧🇷 `ApiSettings` válida mas sem `DIAGNOS_API_TOKEN`: a própria `Diagnos()` de `create_app` lança `ConfigError`.
-    """
+    """Valid `ApiSettings` but no `DIAGNOS_API_TOKEN`: `create_app`'s own `Diagnos()` raises `ConfigError`."""
     for name, value in _TLS_ENV.items():
         monkeypatch.setenv(name, value)
     monkeypatch.setattr(main_module, "create_app", lambda settings: (_ for _ in ()).throw(ConfigError("no token")))
@@ -106,10 +81,7 @@ def test_run_exits_2_when_create_app_raises_config_error(
 
 
 def test_run_serves_https_with_mandatory_client_certificates(monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 On success, `uvicorn.run` is called once, with the app, the mTLS `ssl_*` kwargs, and the patched protocol.
-
-    🇧🇷 No sucesso, `uvicorn.run` é chamado uma vez, com o app, os `kwargs` `ssl_*` de mTLS, e o protocolo remendado.
-    """
+    """On success, `uvicorn.run` is called once, with the app, the mTLS `ssl_*` kwargs, and the patched protocol."""
     for name, value in _TLS_ENV.items():
         monkeypatch.setenv(name, value)
     monkeypatch.setenv("DIAGNOS_API_HOST", "127.0.0.1")
@@ -120,10 +92,7 @@ def test_run_serves_https_with_mandatory_client_certificates(monkeypatch: pytest
     recorded: dict[str, Any] = {}
 
     def fake_run(app: object, **kwargs: Any) -> None:
-        """🇺🇸 Records the app and keyword arguments `main.run` would hand to `uvicorn.run`, instead of serving.
-
-        🇧🇷 Registra o app e os argumentos nomeados que `main.run` passaria a `uvicorn.run`, em vez de servir.
-        """
+        """Records the app and keyword arguments `main.run` would hand to `uvicorn.run`, instead of serving."""
         recorded["app"] = app
         recorded.update(kwargs)
 

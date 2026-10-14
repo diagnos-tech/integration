@@ -1,19 +1,8 @@
-"""🇺🇸 `/v1/exams`: happy-path CRUD plus archive/unarchive — the exam-side twin of `test_patients.py`.
+"""`/v1/exams`: happy-path CRUD plus archive/unarchive, the exam-side twin of `test_patients.py`.
 
-`routers/exams.py` mirrors `routers/patients.py` line for line (same
-"thin HTTP face" reasoning, same fake shape in `conftest.py`); this file
-exists because `test_patients.py` alone leaves every line in `exams.py`
-untouched — a fake being *reachable* through `conftest.py` is not the same
-as a router actually being called.
-
-🇧🇷 `/v1/exams`: CRUD do caminho feliz mais archive/unarchive — o gêmeo do
-lado exame de `test_patients.py`.
-
-`routers/exams.py` espelha `routers/patients.py` linha a linha (mesmo
-raciocínio de "face HTTP fina", mesma forma de fake em `conftest.py`); este
-arquivo existe porque só `test_patients.py` deixa toda linha de `exams.py`
-intocada — um fake estar *alcançável* via `conftest.py` não é o mesmo que um
-roteador ser de fato chamado.
+`routers/exams.py` mirrors `routers/patients.py` line for line (same "thin HTTP face" reasoning, same fake shape in
+`conftest.py`). This file exists because `test_patients.py` alone leaves every line of `exams.py` unexecuted: a fake
+being *reachable* through `conftest.py` is not the same as a router actually being called.
 """
 
 from __future__ import annotations
@@ -27,7 +16,7 @@ from conftest import FakeDiagnos
 
 
 def _create_body() -> dict[str, object]:
-    """🇺🇸 A minimal valid `POST /v1/exams` body. 🇧🇷 Um corpo mínimo válido de `POST /v1/exams`."""
+    """A minimal valid `POST /v1/exams` body."""
     return {
         "record": {"title": "Chest CT", "modality": "CT"},
         "patient_id": "patient_1",
@@ -36,10 +25,7 @@ def _create_body() -> dict[str, object]:
 
 
 def test_create_then_get_round_trips_the_record(client: TestClient) -> None:
-    """🇺🇸 A created exam's `record` comes back unchanged from `GET /v1/exams/{id}`.
-
-    🇧🇷 O `record` de um exame criado volta sem mudar de `GET /v1/exams/{id}`.
-    """
+    """A created exam's `record` comes back unchanged from `GET /v1/exams/{id}`."""
     created = client.post("/v1/exams", json=_create_body())
     assert created.status_code == 201
     exam_id = created.json()["index"]["document_id"]
@@ -52,10 +38,7 @@ def test_create_then_get_round_trips_the_record(client: TestClient) -> None:
 
 
 def test_list_includes_created_exams(client: TestClient) -> None:
-    """🇺🇸 An exam created via `POST` shows up in `GET /v1/exams`'s index list.
-
-    🇧🇷 Um exame criado via `POST` aparece na lista de índices de `GET /v1/exams`.
-    """
+    """An exam created via `POST` shows up in `GET /v1/exams`'s index list."""
     client.post("/v1/exams", json=_create_body())
 
     listed = client.get("/v1/exams")
@@ -65,10 +48,7 @@ def test_list_includes_created_exams(client: TestClient) -> None:
 
 
 def test_update_replaces_the_record(client: TestClient) -> None:
-    """🇺🇸 `PUT` reuses the exam's existing DEK — the caller only ever sees a fresh `record` come back.
-
-    🇧🇷 `PUT` reusa a DEK existente do exame — quem chama só vê um `record` novo voltar.
-    """
+    """`PUT` reuses the exam's existing DEK; the caller only ever sees a fresh `record` come back."""
     created = client.post("/v1/exams", json=_create_body())
     exam_id = created.json()["index"]["document_id"]
 
@@ -79,10 +59,7 @@ def test_update_replaces_the_record(client: TestClient) -> None:
 
 
 def test_archive_then_unarchive_round_trip(client: TestClient) -> None:
-    """🇺🇸 Both mutation routes delegate straight to the fake and return its index unchanged.
-
-    🇧🇷 As duas rotas de mutação delegam direto ao fake e devolvem o índice dele sem mudar.
-    """
+    """Both mutation routes delegate straight to the fake and return its index unchanged."""
     created = client.post("/v1/exams", json=_create_body())
     exam_id = created.json()["index"]["document_id"]
 
@@ -96,10 +73,7 @@ def test_archive_then_unarchive_round_trip(client: TestClient) -> None:
 
 
 def test_delete_and_restore_flip_the_trash_flag(client: TestClient) -> None:
-    """🇺🇸 `DELETE` moves the exam to the trash; `POST .../restore` takes it out.
-
-    🇧🇷 `DELETE` manda à lixeira; `restore` tira.
-    """
+    """`DELETE` moves the exam to the trash; `POST .../restore` takes it out."""
     exam_id = client.post("/v1/exams", json=_create_body()).json()["index"]["document_id"]
 
     assert client.delete(f"/v1/exams/{exam_id}").json()["is_deleted"] is True
@@ -107,19 +81,13 @@ def test_delete_and_restore_flip_the_trash_flag(client: TestClient) -> None:
 
 
 def test_modality_is_a_record_field_not_a_top_level_one(client: TestClient) -> None:
-    """🇺🇸 A top-level `modality` (the old clear-meta shape) is 422: modality is sealed in the record.
-
-    🇧🇷 Um `modality` no topo (a forma antiga, em claro) é 422: a modalidade é selada no registro.
-    """
+    """A top-level `modality` (the old clear-meta shape) is 422: modality is sealed in the record."""
     response = client.post("/v1/exams", json={**_create_body(), "modality": "CT"})
     assert response.status_code == 422
 
 
 def test_list_summary_and_update_guard(client: TestClient, fake_vault: FakeDiagnos) -> None:
-    """🇺🇸 `?summary=true` shows titles; `expected_latest_version_id` and `include_draft` reach the SDK.
-
-    🇧🇷 `?summary=true` mostra títulos; `expected_latest_version_id` e `include_draft` chegam ao SDK.
-    """
+    """`?summary=true` shows titles; `expected_latest_version_id` and `include_draft` reach the SDK."""
     exam_id = client.post("/v1/exams", json=_create_body()).json()["index"]["document_id"]
 
     listed = client.get("/v1/exams", params={"summary": "true"}).json()["items"]
@@ -134,18 +102,12 @@ def test_list_summary_and_update_guard(client: TestClient, fake_vault: FakeDiagn
 
 @pytest.mark.parametrize("limit", [0, 201])
 def test_list_rejects_a_page_size_the_vault_would_refuse(client: TestClient, limit: int) -> None:
-    """🇺🇸 `limit` is bounded to 1..200 at the edge (§13), same as `/v1/patients` and `/v1/drives/{sg}/nodes`.
-
-    🇧🇷 `limit` é limitado a 1..200 na borda (§13), igual a `/v1/patients` e `/v1/drives/{sg}/nodes`.
-    """
+    """`limit` is bounded to 1..200 at the edge (§13), same as `/v1/patients` and `/v1/drives/{sg}/nodes`."""
     assert client.get("/v1/exams", params={"limit": limit}).status_code == 422
 
 
 def test_get_unknown_exam_is_404_with_the_uniform_envelope(client: TestClient) -> None:
-    """🇺🇸 `NotFoundError` from the SDK becomes a 404 in `{"error": {code, message, trace_id}}` shape.
-
-    🇧🇷 `NotFoundError` do SDK vira um 404 na forma `{"error": {code, message, trace_id}}`.
-    """
+    """`NotFoundError` from the SDK becomes a 404 in `{"error": {code, message, trace_id}}` shape."""
     response = client.get("/v1/exams/does-not-exist")
 
     assert response.status_code == 404
@@ -154,10 +116,7 @@ def test_get_unknown_exam_is_404_with_the_uniform_envelope(client: TestClient) -
 
 
 def test_quota_exceeded_on_create_is_402(client: TestClient, fake_vault: FakeDiagnos) -> None:
-    """🇺🇸 `QuotaError` from `Exams.create` becomes 402, same as the patient-side mapping.
-
-    🇧🇷 `QuotaError` de `Exams.create` vira 402, igual ao mapeamento do lado paciente.
-    """
+    """`QuotaError` from `Exams.create` becomes 402, same as the patient-side mapping."""
     fake_vault.exams.raise_on_create = QuotaError(code="QuotaExceeded", message="no credit left", status=402)
 
     response = client.post("/v1/exams", json=_create_body())

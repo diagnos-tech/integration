@@ -1,7 +1,4 @@
-"""🇺🇸 `_Writing`: seals and stages nodes, then drives the single-`PUT`/multipart body up (`docs/PROTOCOL.md §9`).
-
-🇧🇷 `_Writing`: sela e reserva nós, depois conduz o corpo até o armazenamento por `PUT` único/multipart.
-"""
+"""`_Writing`: seals and stages nodes, then drives the single-`PUT`/multipart body up (`docs/PROTOCOL.md §9`)."""
 
 from __future__ import annotations
 
@@ -29,13 +26,10 @@ from ._transfer import _Transfer
 
 
 class _Writing(_Transfer):
-    """🇺🇸 The write routes of `_Nodes`: folders and batched uploads. 🇧🇷 As rotas de escrita: pastas e lotes."""
+    """The write routes of `_Nodes`: folders and batched uploads."""
 
     def _seal_node(self, group_key: SecretBox, security_group: str, name: str) -> tuple[SecretBox, dict[str, Any]]:
-        """🇺🇸 A fresh node DEK plus the sealed name and wrapped key every stage entry carries.
-
-        🇧🇷 Uma DEK de nó nova mais o nome selado e a chave embrulhada que toda entrada de reserva leva.
-        """
+        """A fresh node DEK plus the sealed name and wrapped key every stage entry carries."""
         dek = generate_dek(self._entropy)
         entry = {
             "client_ref": uuid.uuid4().hex,
@@ -45,18 +39,12 @@ class _Writing(_Transfer):
         return dek, entry
 
     def _stage(self, body: dict[str, Any]) -> builtins.list[StagedNode]:
-        """🇺🇸 `POST /nodes/uploads` — one reservation for the whole batch (idempotent per `client_ref`).
-
-        🇧🇷 `POST /nodes/uploads` — uma reserva para o lote inteiro (idempotente por `client_ref`).
-        """
+        """`POST /nodes/uploads` — one reservation for the whole batch (idempotent per `client_ref`)."""
         result = self._transport.post(f"{self._base}/uploads", json=body)
         return [StagedNode.model_validate(item) for item in result["items"]]
 
     def create_folder(self, name: str, *, security_group: str, parent_id: str | None = None) -> str:
-        """🇺🇸 Creates a folder (ready at once — it has no content) and returns its node id.
-
-        🇧🇷 Cria uma pasta (pronta na hora — ela não tem conteúdo) e devolve o id do nó.
-        """
+        """Creates a folder (ready at once — it has no content) and returns its node id."""
         group_key = self._keyring_provider().group_key(security_group)
         _dek, entry = self._seal_node(group_key, security_group, name)
         body: dict[str, Any] = {"security_group_id": security_group, "files": [{"kind": "folder", **entry}]}
@@ -73,10 +61,7 @@ class _Writing(_Transfer):
         exam_id: str | None = None,
         parent_id: str | None = None,
     ) -> builtins.list[DriveNode]:
-        """🇺🇸 Uploads every source, in reservations of up to 100, and returns the ready nodes in input order.
-
-        🇧🇷 Sobe toda fonte, em reservas de até 100, e devolve os nós prontos na ordem de entrada.
-        """
+        """Uploads every source, in reservations of up to 100, and returns the ready nodes in input order."""
         items = [item if isinstance(item, UploadSource) else UploadSource(item) for item in sources]
         group_key = self._keyring_provider().group_key(security_group)
         nodes: builtins.list[DriveNode] = []
@@ -86,10 +71,7 @@ class _Writing(_Transfer):
         return nodes
 
     def _prepare(self, item: UploadSource, group_key: SecretBox, security_group: str) -> _PreparedUpload:
-        """🇺🇸 Names the file, measures it, and seals what the reservation needs.
-
-        🇧🇷 Nomeia o arquivo, mede-o, e sela o que a reserva precisa.
-        """
+        """Names the file, measures it, and seals what the reservation needs."""
         name = item.resolved_name()
         plaintext = _plaintext_source(item.source)
         dek, entry = self._seal_node(group_key, security_group, name)
@@ -107,10 +89,7 @@ class _Writing(_Transfer):
         exam_id: str | None,
         parent_id: str | None,
     ) -> builtins.list[DriveNode]:
-        """🇺🇸 Stage → upload each file → confirm the single `PUT`s together.
-
-        🇧🇷 Reservar → subir cada arquivo → confirmar os `PUT`s únicos juntos.
-        """
+        """Stage → upload each file → confirm the single `PUT`s together."""
         prepared = [self._prepare(item, group_key, security_group) for item in batch]
         try:
             body: dict[str, Any] = {
@@ -141,8 +120,7 @@ class _Writing(_Transfer):
                         f"🇺🇸 unknown upload mode {node.mode!r}. 🇧🇷 modo de upload desconhecido {node.mode!r}."
                     )
             finished.update(self._complete_singles(singles))
-            # 🇺🇸 A confirmed node the vault did not echo back is fetched, never assumed.
-            # 🇧🇷 Um nó confirmado que o cofre não ecoou é buscado, nunca presumido.
+            # A confirmed node the vault did not echo back is fetched, never assumed.
             node_ids = [staged[upload.client_ref].node_id for upload in prepared]
             return [finished[node_id] if node_id in finished else self.get(node_id) for node_id in node_ids]
         finally:

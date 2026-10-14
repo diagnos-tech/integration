@@ -1,7 +1,4 @@
-"""🇺🇸 The resources a workspace exposes to a service account — patients, exams, drives.
-
-🇧🇷 Os recursos que um workspace expõe a uma service account — pacientes, exames, drives.
-"""
+"""The resources a workspace exposes to a service account — patients, exams, drives."""
 
 from __future__ import annotations
 

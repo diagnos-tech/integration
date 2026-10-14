@@ -1,4 +1,4 @@
-"""🇺🇸 `python -m diagnos.api` — the same as the `diagnos-api` command. 🇧🇷 O mesmo que o comando `diagnos-api`."""
+"""`python -m diagnos.api`: the same as the `diagnos-api` command."""
 
 from diagnos.api.main import run
 

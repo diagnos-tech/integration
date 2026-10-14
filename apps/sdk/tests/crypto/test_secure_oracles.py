@@ -1,4 +1,4 @@
-"""🇺🇸 Every enclave primitive cross-checked against an implementation it shares no code with.
+"""Every enclave primitive cross-checked against an implementation it shares no code with.
 
 PyNaCl (libsodium), `cryptography` (OpenSSL) and `kyber-py` play the oracle:
 HMAC-SHA512, HKDF-SHA256, AES-256-GCM, the X25519 + ML-KEM-768 hybrid seal in
@@ -7,17 +7,6 @@ including a rekey. A regression in `apps/sdk/native` therefore shows up as a
 mismatch against a library this crate has no influence over, not just against
 its own fixed output. The normative TypeScript vectors live in
 `test_vectors.py`; this file is the *independent* proof.
-
-🇧🇷 Toda primitiva do enclave conferida contra uma implementação com a qual não compartilha código.
-
-PyNaCl (libsodium), `cryptography` (OpenSSL) e `kyber-py` fazem o papel de
-oráculo: HMAC-SHA512, HKDF-SHA256, AES-256-GCM, o selo híbrido X25519 +
-ML-KEM-768 nas duas direções, e o secretstream do libsodium em toda fronteira
-de tamanho de chunk, incluindo um rekey. Uma regressão em `apps/sdk/native`
-aparece, portanto, como divergência contra uma biblioteca sobre a qual este
-crate não tem influência, não só contra a própria saída fixa. Os vetores
-normativos em TypeScript vivem em `test_vectors.py`; este arquivo é a prova
-*independente*.
 """
 
 from __future__ import annotations
@@ -49,8 +38,7 @@ from diagnos.crypto.secure import (
 )
 from diagnos.errors import CryptoError
 
-# 🇺🇸 `imgexam-sdk-hybrid-seal-v1` (`docs/PROTOCOL.md §6`) — the HKDF `info` prefix every hybrid seal uses.
-# 🇧🇷 `imgexam-sdk-hybrid-seal-v1` (`docs/PROTOCOL.md §6`) — o prefixo de `info` do HKDF que todo selo híbrido usa.
+# `imgexam-sdk-hybrid-seal-v1` (`docs/PROTOCOL.md §6`) — the HKDF `info` prefix every hybrid seal uses.
 _HYBRID_SEAL_INFO = b"imgexam-sdk-hybrid-seal-v1"
 
 _TAG_MESSAGE = nb.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE
@@ -61,28 +49,17 @@ _STREAM_SIZES = [0, 1, 15, 16, 17, 63, 64, 65, 1000, 1024 * 1024 + 3]
 
 
 def _b64url(data: bytes) -> str:
-    """🇺🇸 Standard b64url, no padding — matches `diagnos.crypto.encoding.b64url_encode`.
-
-    🇧🇷 b64url padrão, sem padding — casa com `diagnos.crypto.encoding.b64url_encode`.
-    """
+    """Standard b64url, no padding — matches `diagnos.crypto.encoding.b64url_encode`."""
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
 def _python_seal(x25519_public: bytes, mlkem768_public: bytes, plaintext: bytes, aad: str) -> EncryptedPayload:
-    """🇺🇸 An independent re-implementation of `docs/PROTOCOL.md §6`'s hybrid seal, an oracle for `HybridKeyPair.open*`.
+    """An independent re-implementation of `docs/PROTOCOL.md §6`'s hybrid seal, an oracle for `HybridKeyPair.open*`.
 
     PyNaCl's raw `crypto_scalarmult` (X25519) and `kyber_py`'s `ML_KEM_768.encaps`
     stand in for the enclave's own X25519-dalek/`ml-kem` crate; `cryptography`'s
     HKDF/AESGCM stand in for the enclave's HKDF-SHA256/AES-256-GCM. None of this
     shares one line of code with `apps/sdk/native/src/hybrid/`.
-
-    🇧🇷 Uma reimplementação independente do selo híbrido de `docs/PROTOCOL.md §6`,
-    como oráculo para `HybridKeyPair.open*`.
-
-    O `crypto_scalarmult` cru do PyNaCl (X25519) e o `ML_KEM_768.encaps` do
-    `kyber_py` fazem o papel do X25519-dalek/crate `ml-kem` do próprio enclave;
-    o HKDF/AESGCM do `cryptography` fazem o papel do HKDF-SHA256/AES-256-GCM do
-    enclave. Nada disso compartilha uma linha de código com `apps/sdk/native/src/hybrid/`.
     """
     eph_secret = os.urandom(32)
     eph_public = nb.crypto_scalarmult_base(eph_secret)
@@ -103,10 +80,7 @@ def _python_seal(x25519_public: bytes, mlkem768_public: bytes, plaintext: bytes,
 
 
 def test_hmac_sha512_matches_hmac_module() -> None:
-    """🇺🇸 `SecretBox.hmac_sha512` against Python's own `hmac`/`hashlib`.
-
-    🇧🇷 `SecretBox.hmac_sha512` contra o `hmac`/`hashlib` do próprio Python.
-    """
+    """`SecretBox.hmac_sha512` against Python's own `hmac`/`hashlib`."""
     key = os.urandom(32)
     message = b"the message to authenticate"
     tag = SecretBox.from_bytes(bytearray(key)).hmac_sha512(message)
@@ -117,10 +91,7 @@ def test_hmac_sha512_matches_hmac_module() -> None:
 @pytest.mark.parametrize("length", [32, 48])
 @pytest.mark.parametrize("with_salt", [True, False])
 def test_hkdf_sha256_matches_cryptography(length: int, with_salt: bool) -> None:
-    """🇺🇸 `SecretBox.hkdf_sha256` against `cryptography`'s HKDF, with and without salt, two lengths.
-
-    🇧🇷 `SecretBox.hkdf_sha256` contra o HKDF do `cryptography`, com e sem salt, dois tamanhos.
-    """
+    """`SecretBox.hkdf_sha256` against `cryptography`'s HKDF, with and without salt, two lengths."""
     ikm = os.urandom(32)
     info = b"test-info-string"
     salt = os.urandom(16) if with_salt else None
@@ -130,10 +101,7 @@ def test_hkdf_sha256_matches_cryptography(length: int, with_salt: bool) -> None:
 
 
 def test_aes_gcm_seal_matches_cryptography_and_cryptography_opens_it() -> None:
-    """🇺🇸 `aes_gcm_seal` produces byte-identical output to `AESGCM.encrypt`, and `cryptography` can open it.
-
-    🇧🇷 `aes_gcm_seal` produz saída idêntica byte a byte a `AESGCM.encrypt`, e o `cryptography` consegue abrir.
-    """
+    """`aes_gcm_seal` produces byte-identical output to `AESGCM.encrypt`, and `cryptography` can open it."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     plaintext = b"plaintext content"
@@ -145,10 +113,7 @@ def test_aes_gcm_seal_matches_cryptography_and_cryptography_opens_it() -> None:
 
 
 def test_aes_gcm_open_opens_what_cryptography_sealed() -> None:
-    """🇺🇸 The reverse direction: `cryptography` seals, `aes_gcm_open` opens it.
-
-    🇧🇷 A direção reversa: `cryptography` sela, `aes_gcm_open` abre.
-    """
+    """The reverse direction: `cryptography` seals, `aes_gcm_open` opens it."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     plaintext = b"plaintext from cryptography"
@@ -159,10 +124,7 @@ def test_aes_gcm_open_opens_what_cryptography_sealed() -> None:
 
 
 def test_aes_gcm_seal_and_open_without_aad() -> None:
-    """🇺🇸 `aad=None` is a valid, matching choice on both sides.
-
-    🇧🇷 `aad=None` é uma escolha válida e compatível dos dois lados.
-    """
+    """`aad=None` is a valid, matching choice on both sides."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     plaintext = b"no aad here"
@@ -174,10 +136,7 @@ def test_aes_gcm_seal_and_open_without_aad() -> None:
 
 
 def test_aes_gcm_open_wrong_aad_raises_secure_error() -> None:
-    """🇺🇸 A ciphertext sealed under one AAD must not open under another.
-
-    🇧🇷 Um ciphertext selado sob um AAD não pode abrir sob outro.
-    """
+    """A ciphertext sealed under one AAD must not open under another."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     ciphertext = AESGCM(key).encrypt(nonce, b"data", b"right-aad")
@@ -186,10 +145,7 @@ def test_aes_gcm_open_wrong_aad_raises_secure_error() -> None:
 
 
 def test_aes_gcm_open_secret_matches_plaintext() -> None:
-    """🇺🇸 `aes_gcm_open_secret` opens straight into a box holding the same bytes `AESGCM` would decrypt.
-
-    🇧🇷 `aes_gcm_open_secret` abre direto numa caixa com os mesmos bytes que `AESGCM` decifraria.
-    """
+    """`aes_gcm_open_secret` opens straight into a box holding the same bytes `AESGCM` would decrypt."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     plaintext = os.urandom(32)
@@ -199,10 +155,7 @@ def test_aes_gcm_open_secret_matches_plaintext() -> None:
 
 
 def test_aes_gcm_seal_secret_matches_sealing_the_same_bytes_directly() -> None:
-    """🇺🇸 Sealing a `SecretBox` as plaintext produces the same bytes as sealing its revealed content.
-
-    🇧🇷 Selar um `SecretBox` como texto claro produz os mesmos bytes que selar o conteúdo revelado dele.
-    """
+    """Sealing a `SecretBox` as plaintext produces the same bytes as sealing its revealed content."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     inner = os.urandom(32)
@@ -212,10 +165,7 @@ def test_aes_gcm_seal_secret_matches_sealing_the_same_bytes_directly() -> None:
 
 
 def test_aes_gcm_open_json_field_extracts_the_named_field() -> None:
-    """🇺🇸 Seals `{"seed": "<b64url>"}` with `AESGCM`, opens the field straight into a box.
-
-    🇧🇷 Sela `{"seed": "<b64url>"}` com `AESGCM`, abre o campo direto numa caixa.
-    """
+    """Seals `{"seed": "<b64url>"}` with `AESGCM`, opens the field straight into a box."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     aad = b"session-id"
@@ -227,10 +177,7 @@ def test_aes_gcm_open_json_field_extracts_the_named_field() -> None:
 
 
 def test_aes_gcm_open_json_field_missing_field_raises() -> None:
-    """🇺🇸 A well-formed JSON object missing the requested field still fails closed.
-
-    🇧🇷 Um objeto JSON bem formado sem o campo pedido ainda falha fechado.
-    """
+    """A well-formed JSON object missing the requested field still fails closed."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     aad = b"session-id"
@@ -241,10 +188,7 @@ def test_aes_gcm_open_json_field_missing_field_raises() -> None:
 
 
 def test_aes_gcm_open_json_field_non_json_plaintext_raises() -> None:
-    """🇺🇸 A ciphertext that decrypts to non-JSON bytes fails closed too.
-
-    🇧🇷 Um ciphertext que decifra para bytes que não são JSON também falha fechado.
-    """
+    """A ciphertext that decrypts to non-JSON bytes fails closed too."""
     key = os.urandom(32)
     nonce = os.urandom(12)
     aad = b"session-id"
@@ -257,20 +201,14 @@ def test_aes_gcm_open_json_field_non_json_plaintext_raises() -> None:
 
 
 def test_hybrid_keypair_public_key_lengths() -> None:
-    """🇺🇸 `generate()`'s public keys are 32 bytes (X25519) and 1184 bytes (ML-KEM-768).
-
-    🇧🇷 As públicas de `generate()` são 32 bytes (X25519) e 1184 bytes (ML-KEM-768).
-    """
+    """`generate()`'s public keys are 32 bytes (X25519) and 1184 bytes (ML-KEM-768)."""
     keypair = HybridKeyPair.generate()
     assert len(keypair.x25519_public) == 32
     assert len(keypair.mlkem768_public) == 1184
 
 
 def test_python_sealed_hybrid_opens_with_keypair_open() -> None:
-    """🇺🇸 A seal built by the Python oracle (`docs/PROTOCOL.md §6`) opens with `keypair.open`.
-
-    🇧🇷 Um selo montado pelo oráculo Python (`docs/PROTOCOL.md §6`) abre com `keypair.open`.
-    """
+    """A seal built by the Python oracle (`docs/PROTOCOL.md §6`) opens with `keypair.open`."""
     keypair = HybridKeyPair.generate()
     plaintext = b'{"hello":"world"}'
     payload = _python_seal(keypair.x25519_public, keypair.mlkem768_public, plaintext, aad="enrollment-1")
@@ -278,10 +216,7 @@ def test_python_sealed_hybrid_opens_with_keypair_open() -> None:
 
 
 def test_python_sealed_hybrid_opens_with_keypair_open_secret() -> None:
-    """🇺🇸 The same oracle seal, opened straight into a `SecretBox` via `open_secret`.
-
-    🇧🇷 O mesmo selo do oráculo, aberto direto num `SecretBox` via `open_secret`.
-    """
+    """The same oracle seal, opened straight into a `SecretBox` via `open_secret`."""
     keypair = HybridKeyPair.generate()
     secret_plaintext = os.urandom(32)
     payload = _python_seal(keypair.x25519_public, keypair.mlkem768_public, secret_plaintext, aad="enrollment-2")
@@ -290,10 +225,7 @@ def test_python_sealed_hybrid_opens_with_keypair_open_secret() -> None:
 
 
 def test_python_sealed_session_opens_with_keypair_open_session() -> None:
-    """🇺🇸 A `sealed_session` JSON (`docs/PROTOCOL.md §5`), oracle-sealed, opens with `open_session`.
-
-    🇧🇷 Um JSON de `sealed_session` (`docs/PROTOCOL.md §5`), selado pelo oráculo, abre com `open_session`.
-    """
+    """A `sealed_session` JSON (`docs/PROTOCOL.md §5`), oracle-sealed, opens with `open_session`."""
     keypair = HybridKeyPair.generate()
     sign_key = os.urandom(32)
     enc_key = os.urandom(32)
@@ -314,19 +246,12 @@ def test_python_sealed_session_opens_with_keypair_open_session() -> None:
 
 
 def test_native_seal_hybrid_opened_by_python_oracle() -> None:
-    """🇺🇸 The reverse direction: the enclave's own `seal_hybrid`, opened by the Python oracle.
+    """The reverse direction: the enclave's own `seal_hybrid`, opened by the Python oracle.
 
     Uses `keypair.x25519_secret().reveal()`/`keypair.mlkem768_secret().reveal()`
     directly — the same 2400-byte FIPS 203 expanded decapsulation key the
     protocol fixes everywhere, confirmed here by the `dk[1152:2336] == ek`
     offset PROTOCOL documents.
-
-    🇧🇷 A direção reversa: o próprio `seal_hybrid` do enclave, aberto pelo oráculo Python.
-
-    Usa `keypair.x25519_secret().reveal()`/`keypair.mlkem768_secret().reveal()`
-    direto — a mesma chave de decapsulamento expandida da FIPS 203 de 2400
-    bytes que o protocolo fixa em todo lugar, confirmada aqui pelo offset
-    `dk[1152:2336] == ek` que o PROTOCOL documenta.
     """
     keypair = HybridKeyPair.generate()
     plaintext = b"sealed by the rust enclave itself"
@@ -350,10 +275,7 @@ def test_native_seal_hybrid_opened_by_python_oracle() -> None:
 
 
 def test_from_secrets_reproduces_generate_public_keys() -> None:
-    """🇺🇸 `from_secrets` recomputes the exact public keys `generate()` produced from the same secrets.
-
-    🇧🇷 `from_secrets` recalcula exatamente as públicas que `generate()` produziu, a partir das mesmas secretas.
-    """
+    """`from_secrets` recomputes the exact public keys `generate()` produced from the same secrets."""
     generated = HybridKeyPair.generate()
     rebuilt = HybridKeyPair.from_secrets(generated.x25519_secret(), generated.mlkem768_secret())
     assert rebuilt.x25519_public == generated.x25519_public
@@ -361,10 +283,7 @@ def test_from_secrets_reproduces_generate_public_keys() -> None:
 
 
 def test_hybrid_open_wrong_aad_raises() -> None:
-    """🇺🇸 A seal bound to one `aad` does not open under another, even with the right keys.
-
-    🇧🇷 Um selo amarrado a um `aad` não abre sob outro, mesmo com as chaves certas.
-    """
+    """A seal bound to one `aad` does not open under another, even with the right keys."""
     keypair = HybridKeyPair.generate()
     payload = _python_seal(keypair.x25519_public, keypair.mlkem768_public, b"data", aad="right-enrollment")
     with pytest.raises(CryptoError):
@@ -372,10 +291,7 @@ def test_hybrid_open_wrong_aad_raises() -> None:
 
 
 def test_hybrid_open_after_wipe_raises() -> None:
-    """🇺🇸 Once `wipe()` has run, every later `open` raises — the secrets are gone.
-
-    🇧🇷 Depois de `wipe()` rodar, todo `open` posterior lança — as secretas se foram.
-    """
+    """Once `wipe()` has run, every later `open` raises — the secrets are gone."""
     keypair = HybridKeyPair.generate()
     payload = _python_seal(keypair.x25519_public, keypair.mlkem768_public, b"data", aad="enrollment-4")
     keypair.zeroize()
@@ -388,15 +304,10 @@ def test_hybrid_open_after_wipe_raises() -> None:
 
 
 def test_secretstream_push_pulled_by_pynacl_at_every_boundary() -> None:
-    """🇺🇸 `SecretStreamPush` output, pulled chunk by chunk by PyNaCl, at every interesting chunk size.
+    """`SecretStreamPush` output, pulled chunk by chunk by PyNaCl, at every interesting chunk size.
 
     Alternates `ad=None`/`ad=b"ad"` per chunk; the last chunk is `final=True`,
     which PyNaCl reports back as `TAG_FINAL` (3).
-
-    🇧🇷 Saída de `SecretStreamPush`, puxada pedaço a pedaço pelo PyNaCl, em toda fronteira interessante de chunk.
-
-    Alterna `ad=None`/`ad=b"ad"` por pedaço; o último pedaço é `final=True`,
-    que o PyNaCl reporta de volta como `TAG_FINAL` (3).
     """
     key_bytes = os.urandom(32)
     push = SecretStreamPush(SecretBox.from_bytes(bytearray(key_bytes)))
@@ -416,10 +327,7 @@ def test_secretstream_push_pulled_by_pynacl_at_every_boundary() -> None:
 
 
 def test_pynacl_push_pulled_by_secretstreampull_with_a_rekey_chunk() -> None:
-    """🇺🇸 PyNaCl pushes (including a `TAG_REKEY` chunk mid-stream), `SecretStreamPull` pulls.
-
-    🇧🇷 PyNaCl empurra (incluindo um chunk `TAG_REKEY` no meio do stream), `SecretStreamPull` puxa.
-    """
+    """PyNaCl pushes (including a `TAG_REKEY` chunk mid-stream), `SecretStreamPull` pulls."""
     key_bytes = os.urandom(32)
     push_state = nb.crypto_secretstream_xchacha20poly1305_state()
     header = nb.crypto_secretstream_xchacha20poly1305_init_push(push_state, key_bytes)
@@ -442,7 +350,7 @@ def test_pynacl_push_pulled_by_secretstreampull_with_a_rekey_chunk() -> None:
 
 
 def test_push_after_final_raises_secure_error() -> None:
-    """🇺🇸 A `push` after `final=True` is refused. 🇧🇷 Um `push` depois de `final=True` é recusado."""
+    """A `push` after `final=True` is refused."""
     push = SecretStreamPush(SecretBox.random(32))
     push.push(b"last", final=True)
     with pytest.raises(SecureError):
@@ -450,10 +358,7 @@ def test_push_after_final_raises_secure_error() -> None:
 
 
 def test_pull_after_final_raises_secure_error() -> None:
-    """🇺🇸 A `pull` after the final chunk was seen is refused.
-
-    🇧🇷 Um `pull` depois do chunk final ter sido visto é recusado.
-    """
+    """A `pull` after the final chunk was seen is refused."""
     key_bytes = os.urandom(32)
     push_state = nb.crypto_secretstream_xchacha20poly1305_state()
     header = nb.crypto_secretstream_xchacha20poly1305_init_push(push_state, key_bytes)
@@ -467,10 +372,7 @@ def test_pull_after_final_raises_secure_error() -> None:
 
 
 def test_tampered_chunk_raises_secure_error() -> None:
-    """🇺🇸 Flipping one byte of a pushed chunk makes `SecretStreamPull` reject it.
-
-    🇧🇷 Inverter um byte de um chunk empurrado faz `SecretStreamPull` rejeitá-lo.
-    """
+    """Flipping one byte of a pushed chunk makes `SecretStreamPull` reject it."""
     key = SecretBox.random(32)
     push = SecretStreamPush(key)
     chunk = bytearray(push.push(b"authenticated content", final=True))

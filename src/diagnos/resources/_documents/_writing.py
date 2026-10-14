@@ -1,7 +1,4 @@
-"""🇺🇸 `_Writing`: the two-phase write path — seal, reserve, `PUT`, commit — plus the patch-only flag flip.
-
-🇧🇷 `_Writing`: o caminho de gravação em duas fases — selar, reservar, `PUT`, confirmar — e a troca de flag só-patch.
-"""
+"""`_Writing`: the two-phase write path (seal, reserve, `PUT`, commit) plus the patch-only flag flip."""
 
 from __future__ import annotations
 
@@ -37,24 +34,18 @@ from ._support import (
 
 
 class _Writing(_DocumentsBase[RecordT, SummaryT]):
-    """🇺🇸 The create/update/flag routes of `VersionedDocuments`.
-
-    🇧🇷 As rotas de criar/atualizar/trocar flag de `VersionedDocuments`.
-    """
+    """The create/update/flag routes of `VersionedDocuments`."""
 
     # -- writing -------------------------------------------------------------
 
     @staticmethod
     def _serialize(record: RecordT) -> bytes:
-        """🇺🇸 The record as JSON, absent fields left out (`exclude_none`), as the web app writes it.
-
-        🇧🇷 O registro como JSON, campos ausentes deixados de fora (`exclude_none`), como o app web grava.
-        """
+        """Serialize the record as JSON, leaving absent fields out (`exclude_none`), as the web app writes it."""
         return record.model_dump_json(exclude_none=True).encode("utf-8")
 
     @staticmethod
     def _put_headers(upload: Mapping[str, Any]) -> dict[str, str]:
-        """🇺🇸 The `PUT` headers: what the vault fixed (`content-length`), minus SSE-C.
+        """Return the `PUT` headers: what the vault fixed (`content-length`), minus SSE-C.
 
         The vault also names SSE-C headers for documents, but the web app
         does not use SSE-C on documents: it neither sends the key on the
@@ -63,16 +54,6 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
         SDK wrote that way. Leaving the whole SSE-C trio out keeps both sides
         reading the same plain object (the body is end-to-end encrypted
         either way; SSE-C was only ever a second layer).
-
-        🇧🇷 Os headers do `PUT`: o que o cofre fixou (`content-length`), menos SSE-C.
-
-        O cofre também nomeia headers de SSE-C para documentos, mas o app
-        web não usa SSE-C em documento: não manda a chave nem no `PUT` nem no
-        `GET`. Um objeto guardado com SSE-C só seria lido com essa chave,
-        então o app web nunca abriria um documento que o SDK gravasse assim.
-        Deixar o trio de SSE-C de fora mantém os dois lados lendo o mesmo
-        objeto simples (o corpo é cifrado ponta a ponta de qualquer jeito; o
-        SSE-C sempre foi só uma segunda camada).
         """
         headers = upload.get("headers") or {}
         return {
@@ -80,25 +61,16 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
         }
 
     def _upload(self, staged: Mapping[str, Any], dek: SecretBox, plaintext: bytes) -> None:
-        """🇺🇸 Seals `plaintext` for the reserved version and `PUT`s it to the signed URL.
-
-        🇧🇷 Sela `plaintext` para a versão reservada e faz `PUT` na URL assinada.
-        """
+        """Seal `plaintext` for the reserved version and `PUT` it to the signed URL."""
         sealed = seal_version_content(dek, staged["version_id"], staged["security_context"]["value"], plaintext)
         headers = self._put_headers(staged["upload"])
         declared = headers.get("content-length")
         if declared is not None and int(declared) != len(sealed):
-            raise ProtocolError(
-                f"🇺🇸 the vault signed {declared} bytes but the sealed version has {len(sealed)}. "
-                f"🇧🇷 o cofre assinou {declared} bytes mas a versão selada tem {len(sealed)}."
-            )
+            raise ProtocolError(f"the vault signed {declared} bytes but the sealed version has {len(sealed)}.")
         self._transport.upload_bytes(staged["upload"]["url"], sealed, headers)
 
     def _stage(self, document_id: str, body: Mapping[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `POST {stream}/versions`, retrying briefly while another writer holds the pending slot.
-
-        🇧🇷 `POST {fluxo}/versions`, retentando por pouco tempo enquanto outro escritor segura o slot pendente.
-        """
+        """`POST {stream}/versions`, retrying briefly while another writer holds the pending slot."""
         path = f"{self._stream_path(document_id)}/versions"
         for attempt in range(1, STAGE_PENDING_ATTEMPTS + 1):
             try:
@@ -108,13 +80,10 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
                 if exc.code != "DocumentVersionPending" or attempt == STAGE_PENDING_ATTEMPTS:
                     raise
                 self._sleep(STAGE_PENDING_BACKOFF_SECONDS * attempt)
-        raise AssertionError("unreachable · inalcançável")  # pragma: no cover
+        raise AssertionError("unreachable")  # pragma: no cover
 
     def _commit(self, document_id: str, version_id: str) -> DocumentIndex:
-        """🇺🇸 `POST {stream}/versions/{version_id}/commit`, retried with backoff — a replay is idempotent.
-
-        🇧🇷 `POST {fluxo}/versions/{version_id}/commit`, retentado com backoff — reenviar é idempotente.
-        """
+        """`POST {stream}/versions/{version_id}/commit`, retried with backoff because a replay is idempotent."""
         path = f"{self._stream_path(document_id)}/versions/{version_id}/commit"
         for attempt in range(1, COMMIT_ATTEMPTS + 1):
             try:
@@ -124,7 +93,7 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
                 if not _is_retryable_commit_failure(exc) or attempt == COMMIT_ATTEMPTS:
                     raise
                 self._sleep(COMMIT_BACKOFF_SECONDS * 2 ** (attempt - 1))
-        raise AssertionError("unreachable · inalcançável")  # pragma: no cover
+        raise AssertionError("unreachable")  # pragma: no cover
 
     def create(
         self,
@@ -134,9 +103,20 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
         summary: SummaryT,
         meta: Mapping[str, Any] | None = None,
     ) -> OpenedDocument[RecordT, SummaryT]:
-        """🇺🇸 Fresh DEK sealed for `security_group`, then reserve → `PUT` → commit the first version.
+        """Create a document: a fresh DEK sealed for `security_group`, then reserve, `PUT` and commit the first version.
 
-        🇧🇷 DEK nova selada para `security_group`, depois reservar → `PUT` → confirmar a primeira versão.
+        Args:
+            record: The record to seal as the first version.
+            security_group: The single security group that will own the document.
+            summary: The list summary to seal in `encrypted_index`.
+            meta: Clear metadata the vault itself reads, if any.
+
+        Returns:
+            The new document's index, record, summary and first version id.
+
+        Raises:
+            GroupKeyUnavailable: If this session holds no DEK for `security_group`.
+            VaultError: If the vault rejects the reservation or the commit.
         """
         keyring = self._keyring_provider()
         group_key = keyring.group_key(security_group)
@@ -166,23 +146,26 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
         meta: Mapping[str, Any] | None = None,
         expected_latest_version_id: str | None = None,
     ) -> OpenedDocument[RecordT, SummaryT]:
-        """🇺🇸 A new complete version of `record`, sealed under the document's existing DEK.
+        """Write a new complete version of `record`, sealed under the document's existing DEK.
 
-        `summary` maps the current summary (or `None`) to the new one, so a
-        resource can carry forward what is not part of the record (a
-        patient's `tags`). `expected_latest_version_id` makes the vault
-        refuse the write — a `ConflictError` with `code` `"DocumentVersionMismatch"` —
-        if someone else committed a version since you read it.
+        Args:
+            document_id: The document to update.
+            record: The complete new record.
+            summary: Maps the current summary (or `None`) to the new one, so a resource can carry forward what is not
+                part of the record, such as a patient's `tags`.
+            meta: Clear metadata to set, if any.
+            expected_latest_version_id: If given, the vault refuses the write when someone else committed a version
+                since you read it.
 
-        🇧🇷 Uma versão nova e completa de `record`, selada sob a DEK existente do documento.
+        Returns:
+            The updated index, record, summary and the new version id.
 
-        `summary` transforma o resumo atual (ou `None`) no novo, para um
-        recurso carregar adiante o que não é parte do registro (as `tags` de
-        um paciente). `expected_latest_version_id` faz o cofre recusar a
-        gravação — um `ConflictError` com `code` `"DocumentVersionMismatch"` —
-        se outra pessoa confirmou uma versão depois da sua leitura.
+        Raises:
+            ConflictError: With `code` `"DocumentVersionMismatch"` when `expected_latest_version_id` is stale.
+            ProtocolError: If the vault answers the reservation inconsistently.
+            VaultError: If the vault rejects the reservation or the commit.
         """
-        keyring = self._keyring_provider()  # 🇺🇸 lazy unlock first (see `list`) 🇧🇷 unlock preguiçoso antes
+        keyring = self._keyring_provider()  # lazy unlock first (see `list`)
         index = self.get_index(document_id)
         dek = self._document_dek(index, keyring)
         new_summary = summary(self._open_summary(index, dek))
@@ -197,10 +180,7 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
             body["expected_latest_version_id"] = expected_latest_version_id
         staged = self._stage(document_id, body)
         if staged.get("staged") is not True:
-            raise ProtocolError(
-                "🇺🇸 the vault answered a version reservation as patch-only. "
-                "🇧🇷 o cofre respondeu uma reserva de versão como só-patch."
-            )
+            raise ProtocolError("the vault answered a version reservation as patch-only.")
         self._upload(staged, dek, plaintext)
         committed = self._commit(document_id, str(staged["version_id"]))
         return OpenedDocument(committed, record, new_summary, version_id=str(staged["version_id"]))
@@ -208,11 +188,8 @@ class _Writing(_DocumentsBase[RecordT, SummaryT]):
     def set_flags(
         self, document_id: str, *, is_archived: bool | None = None, is_deleted: bool | None = None
     ) -> DocumentIndex:
-        """🇺🇸 Flips `is_archived`/`is_deleted` in place — a patch-only reservation: no version, no upload.
-
-        🇧🇷 Troca `is_archived`/`is_deleted` no lugar — uma reserva só de patch: sem versão, sem upload.
-        """
-        self._keyring_provider()  # 🇺🇸 lazy unlock before signing (see `list`) 🇧🇷 unlock preguiçoso antes de assinar
+        """Flip `is_archived` or `is_deleted` in place with a patch-only reservation (no version, no upload)."""
+        self._keyring_provider()  # lazy unlock before signing (see `list`)
         body = {
             name: value
             for name, value in (("is_archived", is_archived), ("is_deleted", is_deleted))

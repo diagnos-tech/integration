@@ -1,14 +1,8 @@
-"""🇺🇸 `_Transfer`: the byte-moving primitives — single `PUT`, multipart parts, abort, and batch completion.
+"""`_Transfer`: the byte-moving primitives — single `PUT`, multipart parts, abort, and batch completion.
 
 Split out of `_writing.py` so that module stays about *what* gets uploaded
 (batching, staging, folders) while this one is purely about *how* the sealed
 bytes of one already-staged node reach storage.
-
-🇧🇷 `_Transfer`: as primitivas de mover bytes — `PUT` único, partes de multipart, abort e conclusão em lote.
-
-Separado de `_writing.py` para aquele módulo ficar sobre *o que* é
-enviado (lote, reserva, pastas) enquanto este é puramente sobre *como* os
-bytes selados de um nó já reservado chegam ao armazenamento.
 """
 
 from __future__ import annotations
@@ -25,25 +19,16 @@ from ._support import MAX_IDS_PER_COMPLETE_CALL, MAX_PARTS_PER_SIGN_REQUEST, _gr
 
 
 class _Transfer(_NodesBase):
-    """🇺🇸 Sends one staged node's sealed body to storage, single or multipart.
-
-    🇧🇷 Manda o corpo selado de um nó reservado ao armazenamento, único ou multipart.
-    """
+    """Sends one staged node's sealed body to storage, single or multipart."""
 
     def _keys(self, node: StagedNode, upload: _PreparedUpload) -> tuple[SecretBox, dict[str, str]]:
-        """🇺🇸 The content key and the SSE-C headers for one staged node.
-
-        🇧🇷 A chave de conteúdo e os headers de SSE-C de um nó reservado.
-        """
+        """The content key and the SSE-C headers for one staged node."""
         context = node.security_context.value
         content_key = derive_content_key(upload.dek, node.version_id, context)
         return content_key, sse_c_headers(derive_sse_c_key(upload.dek, node.version_id, context))
 
     def _put_single(self, node: StagedNode, upload: _PreparedUpload) -> None:
-        """🇺🇸 Seals the whole file and sends it in one signed `PUT` (≤ 64 MiB), with the SSE-C headers.
-
-        🇧🇷 Sela o arquivo inteiro e o manda num `PUT` assinado (≤ 64 MiB), com os headers de SSE-C.
-        """
+        """Seals the whole file and sends it in one signed `PUT` (≤ 64 MiB), with the SSE-C headers."""
         if node.upload is None:
             raise ProtocolError(
                 f"🇺🇸 single-mode node {node.node_id!r} came without an upload URL. "
@@ -62,26 +47,18 @@ class _Transfer(_NodesBase):
         self._transport.upload_bytes(node.upload["url"], body, {**headers, **sse})
 
     def _sign_parts(self, node_id: str, part_numbers: builtins.list[int]) -> dict[int, str]:
-        """🇺🇸 `POST /nodes/{id}/multipart/parts` for up to 200 part numbers. 🇧🇷 Assina até 200 partes."""
+        """`POST /nodes/{id}/multipart/parts` for up to 200 part numbers."""
         result = self._transport.post(f"{self._base}/{node_id}/multipart/parts", json={"part_numbers": part_numbers})
         return {int(part["part_number"]): str(part["url"]) for part in result["parts"]}
 
     def _put_multipart(self, node: StagedNode, upload: _PreparedUpload) -> DriveNode:
-        """🇺🇸 Streams the sealed body up in parts, signing URLs in waves, then completes; aborts on failure.
+        """Streams the sealed body up in parts, signing URLs in waves, then completes; aborts on failure.
 
         The reservation usually opens the multipart upload already
         (`upload_id`); only when it did not does the SDK call the recovery
         route. Parts are signed in waves as the upload advances, so a long
         upload never uses a URL signed long before. On any failure the
         upload is aborted, so the vault releases the reserved bytes at once.
-
-        🇧🇷 Sobe o corpo selado por partes, assinando URLs em ondas, depois conclui; aborta em caso de falha.
-
-        A reserva em geral já abre o upload multipart (`upload_id`); só
-        quando não abriu o SDK chama a rota de recuperação. As partes são
-        assinadas em ondas conforme o upload avança, então um upload longo
-        nunca usa uma URL assinada muito antes. Em qualquer falha o upload é
-        abortado, para o cofre liberar os bytes reservados na hora.
         """
         part_size = node.part_size
         if node.upload_id is None or part_size is None:
@@ -111,20 +88,14 @@ class _Transfer(_NodesBase):
             raise
 
     def _abort(self, node_id: str) -> None:
-        """🇺🇸 Best-effort `POST /nodes/{id}/multipart/abort`; the vault's sweep covers a lost abort.
-
-        🇧🇷 `POST /nodes/{id}/multipart/abort` best-effort; a varredura do cofre cobre um abort perdido.
-        """
+        """Best-effort `POST /nodes/{id}/multipart/abort`; the vault's sweep covers a lost abort."""
         try:
             self._transport.post(f"{self._base}/{node_id}/multipart/abort")
         except Exception:  # noqa: BLE001, S110 — the original failure is the one worth raising
             pass
 
     def _complete_singles(self, node_ids: builtins.list[str]) -> dict[str, DriveNode]:
-        """🇺🇸 `POST /nodes/uploads/complete` in calls of up to 200; a `missing` id means the `PUT` never landed.
-
-        🇧🇷 `POST /nodes/uploads/complete` em chamadas de até 200; um id em `missing` significa que o `PUT` não chegou.
-        """
+        """`POST /nodes/uploads/complete` in calls of up to 200; a `missing` id means the `PUT` never landed."""
         ready: dict[str, DriveNode] = {}
         for start in range(0, len(node_ids), MAX_IDS_PER_COMPLETE_CALL):
             chunk = node_ids[start : start + MAX_IDS_PER_COMPLETE_CALL]

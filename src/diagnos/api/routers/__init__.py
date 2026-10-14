@@ -1,6 +1,3 @@
-"""🇺🇸 One `APIRouter` per resource (`patients`, `exams`, `files`, `session`) — `app.py` mounts all four.
-
-🇧🇷 Um `APIRouter` por recurso (`patients`, `exams`, `files`, `session`) — `app.py` monta os quatro.
-"""
+"""One `APIRouter` per resource (`patients`, `exams`, `files`, `session`); `app.py` mounts all four."""
 
 from __future__ import annotations

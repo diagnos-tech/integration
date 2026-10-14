@@ -1,4 +1,4 @@
-"""🇺🇸 `Diagnos`: what it wires together when a caller does *not* pass `transport`/`session` at all.
+"""`Diagnos`: what it wires together when a caller does *not* pass `transport`/`session` at all.
 
 Split out of `test_client.py` (its ~400-line convention) — this file is
 specifically about the construction branch `Diagnos.__init__` takes when
@@ -7,17 +7,6 @@ get built, `on_prompt` falls back to `session.manager.default_prompt`, and
 `auto_unseal`/`settings.openbao_addr` decide whether a store is attached.
 None of this makes a network call at construction time, so it is safe to
 build against the default (production) `vault_url`.
-
-🇧🇷 `Diagnos`: o que ele conecta quando quem chama *não* passa
-`transport`/`session` nenhum.
-
-Separado de `test_client.py` (a convenção de ~400 linhas do pacote) — este
-arquivo é especificamente sobre o ramo de construção que `Diagnos.__init__`
-segue quando `transport`/`session` ficam `None`: um `VaultTransport`/
-`SessionManager` de verdade são construídos, `on_prompt` cai para
-`session.manager.default_prompt`, e `auto_unseal`/`settings.openbao_addr`
-decidem se um store é conectado. Nada disso faz chamada de rede na
-construção, então é seguro construir contra o `vault_url` padrão (produção).
 """
 
 from __future__ import annotations
@@ -44,10 +33,7 @@ _VALID_PAYLOAD = {
 
 
 def _make_apikey() -> str:
-    """🇺🇸 A syntactically valid `apikey-<jwt>` for `ws_1`/`acc_1`, unsigned.
-
-    🇧🇷 Um `apikey-<jwt>` sintaticamente válido para `ws_1`/`acc_1`, sem assinatura.
-    """
+    """A syntactically valid `apikey-<jwt>` for `ws_1`/`acc_1`, unsigned."""
     header_b64 = b64url_encode(json.dumps({"alg": "EdDSA", "typ": "JWT"}).encode("utf-8"))
     payload_b64 = b64url_encode(json.dumps(_VALID_PAYLOAD).encode("utf-8"))
     signature_b64 = b64url_encode(b"fake-signature")
@@ -55,25 +41,19 @@ def _make_apikey() -> str:
 
 
 def _settings(**overrides: object) -> Settings:
-    """🇺🇸 `Settings` with a valid token for `ws_1`/`acc_1`, everything else overridable.
-
-    🇧🇷 `Settings` com um token válido para `ws_1`/`acc_1`, o resto sobrescrevível.
-    """
+    """`Settings` with a valid token for `ws_1`/`acc_1`, everything else overridable."""
     return Settings(api_token=_make_apikey(), **overrides)  # type: ignore[arg-type]
 
 
 class _FakeTransport:
-    """🇺🇸 A `transport=` stand-in for tests that only need `close()` to be harmless.
-
-    🇧🇷 Um substituto de `transport=` para testes que só precisam de um `close()` inofensivo.
-    """
+    """A `transport=` stand-in for tests that only need `close()` to be harmless."""
 
     def close(self) -> None:
-        """🇺🇸 Does nothing. 🇧🇷 Não faz nada."""
+        """Does nothing."""
 
 
 def test_current_session_keys_callback_reaches_the_live_session() -> None:
-    """🇺🇸 The bound `_current_session_keys` callback wired into a real `VaultTransport` signs from the session.
+    """The bound `_current_session_keys` callback wired into a real `VaultTransport` signs from the session.
 
     Every other test in this file either checks types only or never sends a
     signed request, so `Diagnos._current_session_keys` — the private
@@ -81,17 +61,6 @@ def test_current_session_keys_callback_reaches_the_live_session() -> None:
     This test builds the real default transport (`transport=None`) and
     swaps only its inner `httpx.Client` for a `MockTransport`, so a signed
     `GET` exercises the callback exactly as production does.
-
-    🇧🇷 O callback `_current_session_keys`, ligado a um `VaultTransport` de
-    verdade, assina a partir da sessão.
-
-    Todo outro teste deste arquivo ou só confere tipos ou nunca manda uma
-    requisição assinada, então `Diagnos._current_session_keys` — o callback
-    privado que `VaultTransport(session_keys=...)` de fato consulta — nunca
-    roda. Este teste constrói o transporte padrão de verdade
-    (`transport=None`) e troca só o `httpx.Client` interno dele por um
-    `MockTransport`, para um `GET` assinado exercitar o callback exatamente
-    como em produção.
     """
     keyring = Keyring(
         enrollment_id="enr_1",
@@ -130,15 +99,12 @@ def test_current_session_keys_callback_reaches_the_live_session() -> None:
         vault.close()
 
     assert result == {"ok": True}
-    # 🇺🇸/🇧🇷 signed with the fake session's own key · assinado com a chave da sessão falsa
+    # signed with the fake session's own key · assinado com a chave da sessão falsa
     assert "x-signature-hmac" in seen_headers
 
 
 def test_default_wiring_builds_a_real_transport_and_session_manager() -> None:
-    """🇺🇸 Without `transport`/`session`, `Diagnos` builds a real `VaultTransport`/`SessionManager`.
-
-    🇧🇷 Sem `transport`/`session`, `Diagnos` constrói um `VaultTransport`/`SessionManager` de verdade.
-    """
+    """Without `transport`/`session`, `Diagnos` builds a real `VaultTransport`/`SessionManager`."""
     vault = Diagnos(settings=_settings())
     try:
         assert isinstance(vault._transport, VaultTransport)  # noqa: SLF001
@@ -148,40 +114,26 @@ def test_default_wiring_builds_a_real_transport_and_session_manager() -> None:
 
 
 def test_on_prompt_defaults_to_the_manager_default_prompt() -> None:
-    """🇺🇸 With no `on_prompt`, the built `SessionManager` gets `default_prompt`.
-
-    🇧🇷 Sem `on_prompt`, o `SessionManager` construído recebe `default_prompt`.
-    """
+    """With no `on_prompt`, the built `SessionManager` gets `default_prompt`."""
     vault = Diagnos(settings=_settings(), transport=_FakeTransport())  # type: ignore[arg-type]
     assert vault._session._on_prompt is default_prompt  # noqa: SLF001
 
 
 def test_on_prompt_uses_the_callback_given() -> None:
-    """🇺🇸 An explicit `on_prompt` reaches the built `SessionManager` unchanged.
-
-    🇧🇷 Um `on_prompt` explícito chega ao `SessionManager` construído sem mudanças.
-    """
+    """An explicit `on_prompt` reaches the built `SessionManager` unchanged."""
     prompts: list[object] = []
     vault = Diagnos(settings=_settings(), transport=_FakeTransport(), on_prompt=prompts.append)  # type: ignore[arg-type]
-    # 🇺🇸/🇧🇷 `==`, not `is`: two accesses of a bound method (`list.append`) are equal but not the same object.
+    # `==`, not `is`: two accesses of a bound method (`list.append`) are equal but not the same object.
     assert vault._session._on_prompt == prompts.append  # noqa: SLF001
 
 
 def test_auto_unseal_defaults_from_openbao_addr_and_can_be_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 A store is built exactly when `auto_unseal` (or `openbao_addr`, by default) says so — never otherwise.
+    """A store is built exactly when `auto_unseal` (or `openbao_addr`, by default) says so — never otherwise.
 
     `OpenBaoStore` is replaced with a recording double so this exercises only
     `Diagnos`'s own branch (`auto_unseal if auto_unseal is not None else
     settings.openbao_addr is not None`), not `hvac`'s tolerance for a
     partial configuration.
-
-    🇧🇷 Um store é construído exatamente quando `auto_unseal` (ou, por padrão,
-    `openbao_addr`) diz que sim — nunca do contrário.
-
-    `OpenBaoStore` é substituído por um duplo que grava, para isto exercitar
-    só o próprio ramo do `Diagnos` (`auto_unseal if auto_unseal is not None
-    else settings.openbao_addr is not None`), não a tolerância do `hvac` a
-    uma configuração parcial.
     """
     created: list[dict[str, str]] = []
 
@@ -191,12 +143,12 @@ def test_auto_unseal_defaults_from_openbao_addr_and_can_be_overridden(monkeypatc
 
     monkeypatch.setattr("diagnos.client.OpenBaoStore", _DummyStore)
 
-    # 🇺🇸/🇧🇷 no `openbao_addr`, `auto_unseal` left to its default → no store.
+    # no `openbao_addr`, `auto_unseal` left to its default → no store.
     no_addr = Diagnos(settings=_settings(), transport=_FakeTransport())  # type: ignore[arg-type]
     assert no_addr._session._store is None  # noqa: SLF001
     assert created == []
 
-    # 🇺🇸/🇧🇷 `openbao_addr` set → a store is built automatically.
+    # `openbao_addr` set → a store is built automatically.
     with_addr = Diagnos(
         settings=_settings(openbao_addr="https://bao.example.test"),
         transport=_FakeTransport(),  # type: ignore[arg-type]
@@ -205,7 +157,7 @@ def test_auto_unseal_defaults_from_openbao_addr_and_can_be_overridden(monkeypatc
     assert created == [{"workspace_id": "ws_1", "account_id": "acc_1"}]
     created.clear()
 
-    # 🇺🇸/🇧🇷 `openbao_addr` set, but `auto_unseal=False` explicitly opts out.
+    # `openbao_addr` set, but `auto_unseal=False` explicitly opts out.
     opted_out = Diagnos(
         settings=_settings(openbao_addr="https://bao.example.test"),
         transport=_FakeTransport(),  # type: ignore[arg-type]
@@ -214,6 +166,6 @@ def test_auto_unseal_defaults_from_openbao_addr_and_can_be_overridden(monkeypatc
     assert opted_out._session._store is None  # noqa: SLF001
     assert created == []
 
-    # 🇺🇸/🇧🇷 no `openbao_addr`, but `auto_unseal=True` forces a store anyway.
+    # no `openbao_addr`, but `auto_unseal=True` forces a store anyway.
     forced = Diagnos(settings=_settings(), transport=_FakeTransport(), auto_unseal=True)  # type: ignore[arg-type]
     assert isinstance(forced._session._store, _DummyStore)  # noqa: SLF001

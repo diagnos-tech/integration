@@ -1,7 +1,4 @@
-"""🇺🇸 `configure_logging`: one JSON object per `diagnos.api`/`diagnos` log line, exceptions included.
-
-🇧🇷 `configure_logging`: um objeto JSON por linha de log de `diagnos.api`/`diagnos`, exceções inclusas.
-"""
+"""`configure_logging`: one JSON object per `diagnos.api`/`diagnos` log line, exceptions included."""
 
 from __future__ import annotations
 
@@ -16,18 +13,10 @@ from diagnos.api.logging import configure_logging
 
 @pytest.fixture(autouse=True)
 def _restore_logger_state() -> Iterator[None]:
-    """🇺🇸 `configure_logging` mutates two process-global loggers — every test gets them back afterwards.
+    """Restores the two process-global loggers that `configure_logging` mutates after every test.
 
-    Without this, a `handlers`/`propagate` change from one test would leak
-    into whichever test (in this file or any other) next triggers a
-    `diagnos.api`/`diagnos` log call.
-
-    🇧🇷 `configure_logging` muda dois loggers globais do processo — todo
-    teste os recebe de volta depois.
-
-    Sem isto, uma mudança de `handlers`/`propagate` de um teste vazaria para
-    o próximo teste (deste arquivo ou de qualquer outro) que disparar uma
-    chamada de log de `diagnos.api`/`diagnos`.
+    Without this, a `handlers` or `propagate` change from one test would leak into whichever test (in this file or any
+    other) next triggers a `diagnos.api` or `diagnos` log call.
     """
     snapshots = {
         name: (list(logging.getLogger(name).handlers), logging.getLogger(name).level, logging.getLogger(name).propagate)
@@ -42,11 +31,7 @@ def _restore_logger_state() -> Iterator[None]:
 
 
 def test_configure_logging_emits_one_json_object_per_line(capsys: pytest.CaptureFixture[str]) -> None:
-    """🇺🇸 A plain `logger.info` call renders as one parseable JSON line with `timestamp`/`level`/`logger`/`message`.
-
-    🇧🇷 Uma chamada simples de `logger.info` renderiza como uma linha JSON parseável com
-    `timestamp`/`level`/`logger`/`message`.
-    """
+    """A plain `logger.info` call renders as one parseable JSON line with `timestamp`/`level`/`logger`/`message`."""
     configure_logging()
     logger = logging.getLogger("diagnos.api")
 
@@ -61,10 +46,7 @@ def test_configure_logging_emits_one_json_object_per_line(capsys: pytest.Capture
 
 
 def test_configure_logging_attaches_a_formatted_traceback_on_exception(capsys: pytest.CaptureFixture[str]) -> None:
-    """🇺🇸 `logger.exception` (as `errors._unexpected_error_handler` calls it) adds an `exc_info` field.
-
-    🇧🇷 `logger.exception` (como `errors._unexpected_error_handler` chama) acrescenta um campo `exc_info`.
-    """
+    """`logger.exception` (as `errors._unexpected_error_handler` calls it) adds an `exc_info` field."""
     configure_logging()
     logger = logging.getLogger("diagnos.api")
 
@@ -79,10 +61,7 @@ def test_configure_logging_attaches_a_formatted_traceback_on_exception(capsys: p
 
 
 def test_configure_logging_disables_propagation_to_the_root_logger() -> None:
-    """🇺🇸 `propagate = False` is what stops a doubled line if the root logger also has a handler.
-
-    🇧🇷 `propagate = False` é o que impede uma linha duplicada se o logger raiz também tiver um handler.
-    """
+    """`propagate = False` is what stops a doubled line if the root logger also has a handler."""
     configure_logging()
 
     assert logging.getLogger("diagnos.api").propagate is False

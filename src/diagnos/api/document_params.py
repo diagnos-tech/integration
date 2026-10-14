@@ -1,24 +1,10 @@
-"""🇺🇸 Query parameters shared by `/v1/patients` and `/v1/exams`, and the list-summary rule.
+"""Query parameters shared by `/v1/patients` and `/v1/exams`, and the list-summary rule.
 
-List responses: sealed summaries leave the process only when the caller
-asks (`?summary=true`).
+List responses: sealed summaries leave the process only when the caller asks (`?summary=true`).
 
-The SDK always opens each row's `encrypted_index` (it costs one AES-GCM per
-row and no extra request); what this facade decides is whether names and
-titles cross the network. Anonymous rows by default is the same rule the
-CLI follows, and it keeps a list endpoint polled by a dashboard from
-shipping a whole workspace's names on every refresh.
-
-🇧🇷 Parâmetros de query comuns a `/v1/patients` e `/v1/exams`, e a regra de resumo nas listas.
-
-Respostas de lista: resumos selados só saem do processo quando quem chama
-pede (`?summary=true`).
-
-O SDK sempre abre o `encrypted_index` de cada linha (custa um AES-GCM por
-linha e nenhuma requisição a mais); o que esta fachada decide é se nomes e
-títulos atravessam a rede. Linhas anônimas por padrão é a mesma regra da
-CLI, e impede que um endpoint de lista consultado por um painel mande os
-nomes de um workspace inteiro a cada atualização.
+The SDK always opens each row's `encrypted_index` (one AES-GCM per row, no extra request); what this facade decides is
+whether names and titles cross the network. Anonymous rows by default is the same rule the CLI follows, and it keeps a
+list endpoint that a dashboard polls from shipping a whole workspace's names on every refresh.
 """
 
 from __future__ import annotations
@@ -31,31 +17,24 @@ from diagnos import DocumentListItem, Page
 
 SummaryT = TypeVar("SummaryT", bound=BaseModel)
 
-GROUP_QUERY_HELP = (
-    "🇺🇸 Only this security group (default: every group this process may list). "
-    "🇧🇷 Só este security group (padrão: todo grupo que este processo pode listar)."
-)
-DELETED_QUERY_HELP = "🇺🇸 Include documents in the trash. 🇧🇷 Inclui documentos na lixeira."
-LIMIT_QUERY_HELP = "🇺🇸 Page size, 1–200. 🇧🇷 Tamanho da página, 1–200."
-CURSOR_QUERY_HELP = "🇺🇸 The `next_cursor` of the previous page. 🇧🇷 O `next_cursor` da página anterior."
-VERSION_QUERY_HELP = (
-    "🇺🇸 Read this committed version instead of the newest content. "
-    "🇧🇷 Lê esta versão confirmada em vez do conteúdo mais novo."
-)
-DRAFT_QUERY_HELP = (
-    "🇺🇸 Read the web editor's draft when it is newer than the latest version (the web app's rule). "
-    "🇧🇷 Lê o rascunho do editor web quando é mais novo que a versão corrente (a regra do app web)."
-)
-SUMMARY_QUERY_HELP = (
-    "🇺🇸 Include each row's decrypted summary (names/tags, or title/modality/date). "
-    "🇧🇷 Inclui o resumo decifrado de cada linha (nomes/tags, ou título/modalidade/data)."
-)
+GROUP_QUERY_HELP = "Only this security group (default: every group this process may list)."
+DELETED_QUERY_HELP = "Include documents in the trash."
+LIMIT_QUERY_HELP = "Page size, 1–200."
+CURSOR_QUERY_HELP = "The `next_cursor` of the previous page."
+VERSION_QUERY_HELP = "Read this committed version instead of the newest content."
+DRAFT_QUERY_HELP = "Read the web editor's draft when it is newer than the latest version (the web app's rule)."
+SUMMARY_QUERY_HELP = "Include each row's decrypted summary (names/tags, or title/modality/date)."
 
 
 def with_summaries(page: Page[DocumentListItem[SummaryT]], *, include: bool) -> Page[DocumentListItem[SummaryT]]:
-    """🇺🇸 `page` as-is when `include`, else with every `summary` set to `null`.
+    """Returns `page` unchanged when `include` is true, else a copy with every `summary` set to `null`.
 
-    🇧🇷 `page` como veio quando `include`, senão com todo `summary` em `null`.
+    Args:
+        page: A page of list rows, as the SDK returned it.
+        include: Whether the caller asked for the decrypted summaries (`?summary=true`).
+
+    Returns:
+        `page` itself when `include`, otherwise a new `Page` with the same cursor and anonymous rows.
     """
     if include:
         return page

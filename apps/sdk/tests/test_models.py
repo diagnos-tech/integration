@@ -1,7 +1,4 @@
-"""🇺🇸 The document models: stream shapes, the draft precedence rule and record validation.
-
-🇧🇷 Os modelos de documento: formas de fluxo, a regra de precedência do rascunho e a validação de registros.
-"""
+"""The document models: stream shapes, the draft precedence rule and record validation."""
 
 from __future__ import annotations
 
@@ -26,7 +23,7 @@ _SEALED = "secret:v1:c2FsdA:aXY:cGF5bG9hZA"
 
 
 def _index(**overrides: Any) -> DocumentIndex:
-    """🇺🇸 A minimal index as the vault sends it. 🇧🇷 Um índice mínimo como o cofre manda."""
+    """A minimal index as the vault sends it."""
     raw: dict[str, Any] = {
         "document_id": "doc_1",
         "workspace_id": "ws_1",
@@ -55,17 +52,14 @@ def _index(**overrides: Any) -> DocumentIndex:
 
 
 def _with_draft(updated_at: str) -> DocumentStream:
-    """🇺🇸 The `data` stream of `_index()` plus a draft. 🇧🇷 O fluxo `data` de `_index()` mais um rascunho."""
+    """The `data` stream of `_index()` plus a draft."""
     stream = _index().stream()
     draft = {"rev": 3, "size": 70, "updated_at": updated_at, "updated_by": "u"}
     return DocumentStream.model_validate({**stream.model_dump(), "draft": draft})
 
 
 def test_index_shorthands_read_the_data_stream() -> None:
-    """🇺🇸 `latest_version_id`/`versions`/`pending_version_id` come from `streams.data`; `meta: null` is `{}`.
-
-    🇧🇷 `latest_version_id`/`versions`/`pending_version_id` vêm de `streams.data`; `meta: null` é `{}`.
-    """
+    """`latest_version_id`/`versions`/`pending_version_id` come from `streams.data`; `meta: null` is `{}`."""
     index = _index()
     assert index.latest_version_id == "v2"
     assert [v.version_id for v in index.versions] == ["v1", "v2"]
@@ -85,28 +79,19 @@ def test_index_shorthands_read_the_data_stream() -> None:
     ],
 )
 def test_draft_precedence_follows_the_web_app(draft_at: str, newer: bool) -> None:
-    """🇺🇸 The draft wins only when strictly newer; unreadable time never wins.
-
-    🇧🇷 Rascunho só vence se for estritamente mais novo.
-    """
+    """The draft wins only when strictly newer; unreadable time never wins."""
     assert _with_draft(draft_at).draft_is_newer is newer
 
 
 def test_draft_without_any_version_wins_and_no_draft_never_does() -> None:
-    """🇺🇸 A draft on an empty stream wins; no draft, no win.
-
-    🇧🇷 Rascunho em fluxo vazio vence; sem rascunho, nada vence.
-    """
+    """A draft on an empty stream wins; no draft, no win."""
     draft = {"rev": 1, "size": 1, "updated_at": "x", "updated_by": "u"}
     assert DocumentStream.model_validate({"draft": draft}).draft_is_newer is True
     assert DocumentStream().draft_is_newer is False
 
 
 def test_identifiers_must_be_vault_sealed_from_the_caller() -> None:
-    """🇺🇸 A caller cannot store a plain identity document; the vault's own values pass through.
-
-    🇧🇷 Quem chama não grava documento de identidade em claro; os valores do próprio cofre passam.
-    """
+    """A caller cannot store a plain identity document; the vault's own values pass through."""
     assert PersonalIdentifier(name="cpf", value=_SEALED).value == _SEALED
     with pytest.raises(ValidationError, match="external_id"):
         PatientRecord(legal_name="A", display_name="B", identifiers=[{"name": "cpf", "value": "123.456.789-00"}])
@@ -118,10 +103,7 @@ def test_identifiers_must_be_vault_sealed_from_the_caller() -> None:
 
 
 def test_typos_are_refused_and_other_unknown_fields_are_kept() -> None:
-    """🇺🇸 A near-miss of a real field fails with the fix; anything else survives, from the caller or the vault.
-
-    🇧🇷 Um quase-acerto de campo real falha com a correção; o resto sobrevive, venha de quem chama ou do cofre.
-    """
+    """A near-miss of a real field fails with the fix; anything else survives, from the caller or the vault."""
     with pytest.raises(ValidationError, match="'report_htm' → 'report_html'"):
         ExamRecord(report_htm="<p/>")  # type: ignore[call-arg]
     with pytest.raises(ValidationError, match="pass tags="):
@@ -140,7 +122,7 @@ def test_typos_are_refused_and_other_unknown_fields_are_kept() -> None:
 
 
 def test_validation_errors_never_echo_the_clinical_value() -> None:
-    """🇺🇸 The error names the field, not the value — so it is safe to log. 🇧🇷 O erro nomeia o campo, não o valor."""
+    """The error names the field, not the value — so it is safe to log."""
     with pytest.raises(ValidationError) as raised:
         PatientRecord(legal_name="Maria da Silva", display_name=42)  # type: ignore[arg-type]
     assert "Maria da Silva" not in str(raised.value)
@@ -148,10 +130,7 @@ def test_validation_errors_never_echo_the_clinical_value() -> None:
 
 
 def test_patient_and_exam_shorthands() -> None:
-    """🇺🇸 `Patient`/`Exam` expose id, group, draft origin, tags and clear exam meta.
-
-    🇧🇷 `Patient`/`Exam` expõem id, grupo, origem de rascunho, tags e o meta em claro do exame.
-    """
+    """`Patient`/`Exam` expose id, group, draft origin, tags and clear exam meta."""
     patient = Patient(
         index=_index(resource="patients"),
         record=PatientRecord(legal_name="A", display_name="B"),

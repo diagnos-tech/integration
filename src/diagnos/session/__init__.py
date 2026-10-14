@@ -1,8 +1,4 @@
-"""🇺🇸 Enrollment state: the keys a session holds while it is unlocked, and the flows that fill them in.
-
-🇧🇷 Estado de enrollment: as chaves que uma sessão guarda enquanto
-desbloqueada, e os fluxos que as preenchem.
-"""
+"""Enrollment state: the keys a session holds while it is unlocked, and the flows that fill them in."""
 
 from .enrollment import EnrollmentPrompt, PromptCallback, enroll
 from .keyring import GroupKeyUnavailable, Keyring, SessionKeys

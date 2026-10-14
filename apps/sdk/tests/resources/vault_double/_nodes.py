@@ -1,14 +1,8 @@
-"""🇺🇸 The drives half of the double: nodes (files and folders), single and multipart upload.
+"""The drives half of the double: nodes (files and folders), single and multipart upload.
 
 `§13`'s `content_length` limit does not apply to this double — a huge `_DEFAULT_SINGLE_THRESHOLD` just
 means "everything is 'single' unless a test lowers it", mirroring `services/uploads`' own
 single-vs-multipart cutoff.
-
-🇧🇷 A metade de drives do duplo: nós (arquivos e pastas), upload único e multipart.
-
-O limite de `content_length` de `§13` não vale para este duplo — um `_DEFAULT_SINGLE_THRESHOLD` enorme
-só significa "tudo é 'single' a menos que um teste o abaixe", espelhando o corte single-vs-multipart de
-`services/uploads`.
 """
 
 from __future__ import annotations
@@ -28,31 +22,25 @@ _DEFAULT_SINGLE_THRESHOLD = 1_000_000
 
 
 class _NodesMixin:
-    """🇺🇸 `FakeVault`'s drive half: node reservation, single and multipart upload, listing.
-
-    🇧🇷 A metade de drive do `FakeVault`: reserva de nó, upload único e multipart, listagem.
-    """
+    """`FakeVault`'s drive half: node reservation, single and multipart upload, listing."""
 
     def _node_view(self, node_id: str) -> dict[str, Any]:
-        """🇺🇸 `NodeResponse`: the stored node, as JSON. 🇧🇷 `NodeResponse`: o nó guardado, como JSON."""
+        """`NodeResponse`: the stored node, as JSON."""
         return json.loads(json.dumps(self._nodes[node_id]))
 
     def _node(self, node_id: str) -> dict[str, Any]:
-        """🇺🇸 The stored node, or `DriveNodeNotFound`. 🇧🇷 O nó guardado, ou `DriveNodeNotFound`."""
+        """The stored node, or `DriveNodeNotFound`."""
         node = self._nodes.get(node_id)
         if node is None:
             raise _VaultRefusal("DriveNodeNotFound", node_id)
         return node
 
     def node_url(self, node_id: str) -> str:
-        """🇺🇸 Where a node's object lives. 🇧🇷 Onde mora o objeto de um nó."""
+        """Where a node's object lives."""
         return self._object_url(f"workspaces/{WORKSPACE_ID}/nodes/{node_id}")
 
     def stage_nodes(self, body: dict[str, Any]) -> dict[str, Any]:
-        """🇺🇸 `POST /nodes/uploads` — validates like `StageUploadsRequest`, idempotent per `client_ref`.
-
-        🇧🇷 `POST /nodes/uploads` — valida como `StageUploadsRequest`, idempotente por `client_ref`.
-        """
+        """`POST /nodes/uploads` — validates like `StageUploadsRequest`, idempotent per `client_ref`."""
         group = body.get("security_group_id")
         files = body.get("files") or []
         if not isinstance(group, str) or not group or not 1 <= len(files) <= 100:
@@ -82,7 +70,7 @@ class _NodesMixin:
     def _new_node(
         self, node_id: str, group: str, entry: dict[str, Any], body: dict[str, Any], kind: str
     ) -> dict[str, Any]:
-        """🇺🇸 A freshly reserved node (a folder is ready at once). 🇧🇷 Um nó recém-reservado (pasta já pronta)."""
+        """A freshly reserved node (a folder is ready at once)."""
         node: dict[str, Any] = {
             "node_id": node_id,
             "workspace_id": WORKSPACE_ID,
@@ -114,7 +102,7 @@ class _NodesMixin:
         return node
 
     def _staged_item(self, ref: str, node_id: str) -> dict[str, Any]:
-        """🇺🇸 One `StagedNodeResponse`. 🇧🇷 Um `StagedNodeResponse`."""
+        """One `StagedNodeResponse`."""
         node = self._nodes[node_id]
         item: dict[str, Any] = {
             "client_ref": ref,
@@ -137,10 +125,7 @@ class _NodesMixin:
         return item
 
     def complete_single(self, node_ids: list[str]) -> dict[str, Any]:
-        """🇺🇸 `POST /nodes/uploads/complete` — `ready` for every object that landed, `missing` for the rest.
-
-        🇧🇷 `POST /nodes/uploads/complete` — `ready` para todo objeto que chegou, `missing` para o resto.
-        """
+        """`POST /nodes/uploads/complete` — `ready` for every object that landed, `missing` for the rest."""
         ready, missing = [], []
         for node_id in node_ids:
             node = self._node(node_id)
@@ -153,10 +138,7 @@ class _NodesMixin:
         return {"ready": ready, "missing": missing}
 
     def start_multipart(self, node_id: str) -> dict[str, Any]:
-        """🇺🇸 `POST /nodes/{id}/multipart` — the recovery route when the batch did not open the upload.
-
-        🇧🇷 `POST /nodes/{id}/multipart` — a rota de recuperação quando o lote não abriu o upload.
-        """
+        """`POST /nodes/{id}/multipart` — the recovery route when the batch did not open the upload."""
         node = self._node(node_id)
         state = self._multipart[node_id]
         state["upload_id"] = state["upload_id"] or self._next_id("mpu")
@@ -167,10 +149,7 @@ class _NodesMixin:
         }
 
     def sign_parts(self, node_id: str, part_numbers: list[int]) -> dict[str, Any]:
-        """🇺🇸 `POST /nodes/{id}/multipart/parts` — at most 200 URLs per call.
-
-        🇧🇷 `POST /nodes/{id}/multipart/parts` — no máximo 200 URLs por chamada.
-        """
+        """`POST /nodes/{id}/multipart/parts` — at most 200 URLs per call."""
         self._node(node_id)
         if not 1 <= len(part_numbers) <= 200 or self._multipart[node_id]["upload_id"] is None:
             raise _VaultRefusal("ValidationError", "1..200 part numbers on an open upload", status=400)
@@ -182,14 +161,11 @@ class _NodesMixin:
 
     @staticmethod
     def _part_url(node_id: str, number: int) -> str:
-        """🇺🇸 A part's presigned URL. 🇧🇷 A URL pré-assinada de uma parte."""
+        """A part's presigned URL."""
         return f"https://storage.diagnosusercontent.com/parts/{node_id}/{number}"
 
     def complete_multipart(self, node_id: str, parts: list[dict[str, Any]]) -> dict[str, Any]:
-        """🇺🇸 `POST /nodes/{id}/multipart/complete` — assembles the parts in order; the node becomes ready.
-
-        🇧🇷 `POST /nodes/{id}/multipart/complete` — monta as partes em ordem; o nó fica pronto.
-        """
+        """`POST /nodes/{id}/multipart/complete` — assembles the parts in order; the node becomes ready."""
         node = self._node(node_id)
         ordered = sorted(parts, key=lambda part: part["part_number"])
         urls = [self._part_url(node_id, part["part_number"]) for part in ordered]
@@ -203,16 +179,13 @@ class _NodesMixin:
         return {"node": self._node_view(node_id)}
 
     def abort_multipart(self, node_id: str) -> dict[str, Any]:
-        """🇺🇸 `POST /nodes/{id}/multipart/abort` — the node becomes `failed`. 🇧🇷 O nó vira `failed`."""
+        """`POST /nodes/{id}/multipart/abort` — the node becomes `failed`."""
         self._node(node_id)["status"] = "failed"
         self.aborted.append(node_id)
         return {"aborted": True}
 
     def list_nodes(self, query: dict[str, str]) -> dict[str, Any]:
-        """🇺🇸 `GET /nodes` — ready nodes (unless `include_pending`), filtered and paginated.
-
-        🇧🇷 `GET /nodes` — nós prontos (salvo `include_pending`), filtrados e paginados.
-        """
+        """`GET /nodes` — ready nodes (unless `include_pending`), filtered and paginated."""
         include_pending = query.get("include_pending") == "true"
         ids = sorted(
             node_id
@@ -228,10 +201,7 @@ class _NodesMixin:
         return {"items": [self._node_view(node_id) for node_id in page], "next_cursor": next_cursor}
 
     def get_node(self, node_id: str) -> dict[str, Any]:
-        """🇺🇸 `GET /nodes/{id}` — a ready file only (pending and folders are `404`), with its download.
-
-        🇧🇷 `GET /nodes/{id}` — só arquivo pronto (pendente e pasta são `404`), com o download.
-        """
+        """`GET /nodes/{id}` — a ready file only (pending and folders are `404`), with its download."""
         node = self._node(node_id)
         if node["status"] != "ready" or node["kind"] != "file":
             raise _VaultRefusal("DriveNodeNotFound", node_id)
@@ -245,66 +215,63 @@ class _NodesMixin:
 def _stage_nodes_route(
     vault: FakeVault, _groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST /nodes/uploads`. 🇧🇷 `POST /nodes/uploads`."""
+    """`POST /nodes/uploads`."""
     return _envelope_success(vault.stage_nodes(body), status=201)
 
 
 def _complete_single_route(
     vault: FakeVault, _groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST /nodes/uploads/complete`. 🇧🇷 `POST /nodes/uploads/complete`."""
+    """`POST /nodes/uploads/complete`."""
     return _envelope_success(vault.complete_single(body["node_ids"]))
 
 
 def _start_multipart_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST /nodes/{id}/multipart`. 🇧🇷 `POST /nodes/{id}/multipart`."""
+    """`POST /nodes/{id}/multipart`."""
     return _envelope_success(vault.start_multipart(groups["node_id"]))
 
 
 def _sign_parts_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST /nodes/{id}/multipart/parts`. 🇧🇷 `POST /nodes/{id}/multipart/parts`."""
+    """`POST /nodes/{id}/multipart/parts`."""
     return _envelope_success(vault.sign_parts(groups["node_id"], body["part_numbers"]))
 
 
 def _complete_multipart_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST /nodes/{id}/multipart/complete`. 🇧🇷 `POST /nodes/{id}/multipart/complete`."""
+    """`POST /nodes/{id}/multipart/complete`."""
     return _envelope_success(vault.complete_multipart(groups["node_id"], body["parts"]))
 
 
 def _abort_multipart_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `POST /nodes/{id}/multipart/abort`. 🇧🇷 `POST /nodes/{id}/multipart/abort`."""
+    """`POST /nodes/{id}/multipart/abort`."""
     return _envelope_success(vault.abort_multipart(groups["node_id"]))
 
 
 def _list_nodes_route(
     vault: FakeVault, _groups: dict[str, str], query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET /nodes`. 🇧🇷 `GET /nodes`."""
+    """`GET /nodes`."""
     return _envelope_success(vault.list_nodes(query))
 
 
 def _get_node_route(
     vault: FakeVault, groups: dict[str, str], _query: dict[str, str], _body: dict[str, Any]
 ) -> httpx.Response:
-    """🇺🇸 `GET /nodes/{id}`. 🇧🇷 `GET /nodes/{id}`."""
+    """`GET /nodes/{id}`."""
     return _envelope_success(vault.get_node(groups["node_id"]))
 
 
 _NODES = rf"^/api/external/v1/workspaces/{WORKSPACE_ID}/nodes"
-# 🇺🇸 Ordered most-specific-first: a literal segment (`complete`, `versions`)
+# Ordered most-specific-first: a literal segment (`complete`, `versions`)
 # must be tried before the catch-all `{node_id}`/`{document_id}` pattern it
 # would otherwise also match.
-# 🇧🇷 Ordenado do mais específico primeiro: um segmento literal (`complete`,
-# `versions`) precisa ser tentado antes do padrão coringa `{node_id}`/`{document_id}`
-# que também bateria nele.
 NODE_ROUTES: list[tuple[re.Pattern[str], str, _RouteHandler]] = [
     (re.compile(rf"{_NODES}/uploads$"), "POST", _stage_nodes_route),
     (re.compile(rf"{_NODES}/uploads/complete$"), "POST", _complete_single_route),

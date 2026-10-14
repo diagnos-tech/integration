@@ -1,14 +1,8 @@
-"""🇺🇸 `VersionedDocuments`: list, update and the archive/delete flags — the other half of `test_documents.py`.
+"""`VersionedDocuments`: list, update and the archive/delete flags — the other half of `test_documents.py`.
 
 Split out purely to keep both files under the line-count ceiling; the create/paths/read half lives in
 `test_documents.py`, and both share `_documents_common.py`'s engine builders and request-inspection
 helpers so nothing here duplicates them.
-
-🇧🇷 `VersionedDocuments`: listagem, atualização e as flags de arquivar/apagar — a outra metade de `test_documents.py`.
-
-Separado por causa apenas do teto de linhas; a metade de criação/paths/leitura mora em
-`test_documents.py`, e os dois compartilham os construtores de motor e os auxiliares de inspeção de
-requisição de `_documents_common.py`, então nada aqui os duplica.
 """
 
 from __future__ import annotations
@@ -26,10 +20,7 @@ from vault_double import Harness, harness  # noqa: F401 — `harness` is a fixtu
 
 
 def test_list_decrypts_summaries_and_paginates(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Every row carries its summary; `iter_all` walks every page once.
-
-    🇧🇷 Toda linha traz o resumo; `iter_all` passa uma vez.
-    """
+    """Every row carries its summary; `iter_all` walks every page once."""
     documents = _patients(harness)
     for i in range(5):
         record = PatientRecord(legal_name=f"Patient {i}", display_name=f"P{i}")
@@ -41,14 +32,11 @@ def test_list_decrypts_summaries_and_paginates(harness: Harness) -> None:  # noq
     assert len(first.items) == 2
     assert first.next_cursor is not None
     assert sorted(names) == [f"P{i}" for i in range(5)]
-    assert not harness.vault.get_requests  # 🇺🇸/🇧🇷 no version downloaded · nenhuma versão baixada
+    assert not harness.vault.get_requests  # no version downloaded
 
 
 def test_list_leaves_summary_empty_when_the_group_key_is_missing(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A row from a group without a key keeps `summary=None` instead of failing the page.
-
-    🇧🇷 Uma linha de um grupo sem chave fica com `summary=None` em vez de derrubar a página.
-    """
+    """A row from a group without a key keeps `summary=None` instead of failing the page."""
     documents = _patients(harness)
     documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     documents.create(_JANE, security_group="sg2", summary=PatientSummary.of(_JANE, []))
@@ -61,7 +49,7 @@ def test_list_leaves_summary_empty_when_the_group_key_is_missing(harness: Harnes
 
 
 def test_list_sends_the_filters(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `security_group`/`include_deleted` become the vault's query. 🇧🇷 Os filtros viram a query do cofre."""
+    """`security_group`/`include_deleted` become the vault's query."""
     documents = _patients(harness)
     documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
 
@@ -77,20 +65,14 @@ def test_list_sends_the_filters(harness: Harness) -> None:  # noqa: F811
 
 
 def test_update_reuses_the_dek_and_carries_the_summary_forward(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Same DEK, a second version, and the summary callback sees the current summary.
-
-    🇧🇷 Mesma DEK, uma segunda versão, e o callback de resumo vê o resumo atual.
-    """
+    """Same DEK, a second version, and the summary callback sees the current summary."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, ["vip"]))
     seen: list[PatientSummary | None] = []
     renamed = _JANE.model_copy(update={"display_name": "Jane D."})
 
     def summary(current: PatientSummary | None) -> PatientSummary:
-        """🇺🇸 Records what the engine passed in, then carries the current tags forward.
-
-        🇧🇷 Registra o que o motor passou, depois carrega as tags atuais adiante.
-        """
+        """Records what the engine passed in, then carries the current tags forward."""
         seen.append(current)
         return PatientSummary.of(renamed, current.tags if current else [])
 
@@ -104,10 +86,7 @@ def test_update_reuses_the_dek_and_carries_the_summary_forward(harness: Harness)
 
 
 def test_update_sends_the_conflict_guard_and_surfaces_a_mismatch(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `expected_latest_version_id` reaches the vault; a stale one is a `ConflictError`.
-
-    🇧🇷 `expected_latest_version_id` chega ao cofre; um desatualizado vira `ConflictError`.
-    """
+    """`expected_latest_version_id` reaches the vault; a stale one is a `ConflictError`."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     stale = created.index.latest_version_id
@@ -129,14 +108,11 @@ def test_update_retries_briefly_while_another_writer_holds_the_pending_slot(
     harness: Harness,  # noqa: F811
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """🇺🇸 `DocumentVersionPending` is retried (1.5 s, 3 s) like the web app, then surfaced.
-
-    🇧🇷 `DocumentVersionPending` é retentado (1,5 s, 3 s) como o app web, depois exposto.
-    """
+    """`DocumentVersionPending` is retried (1.5 s, 3 s) like the web app, then surfaced."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     document_id = created.index.document_id
-    harness.vault.stage_version("patients", document_id, "data", {"content_length": 100})  # 🇺🇸/🇧🇷 another writer
+    harness.vault.stage_version("patients", document_id, "data", {"content_length": 100})  # another writer
 
     with pytest.raises(ConflictError) as raised:
         documents.update(document_id, _JANE, summary=lambda c: c or PatientSummary())
@@ -148,10 +124,7 @@ def test_update_retries_briefly_while_another_writer_holds_the_pending_slot(
     calls = {"n": 0}
 
     def clears_after_one_refusal(*args: object) -> dict[str, object]:
-        """🇺🇸 Lets the first stage call fail as usual, then clears the slot the other writer held.
-
-        🇧🇷 Deixa a primeira chamada de stage falhar como de costume, depois libera o slot do outro escritor.
-        """
+        """Lets the first stage call fail as usual, then clears the slot the other writer held."""
         calls["n"] += 1
         if calls["n"] == 1:
             return real(*args)  # type: ignore[arg-type]
@@ -164,13 +137,9 @@ def test_update_retries_briefly_while_another_writer_holds_the_pending_slot(
 
 
 def test_commit_is_retried_across_server_failures(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A commit lost to 5xx is replayed with backoff; after three attempts the error surfaces.
-
-    🇧🇷 Um commit perdido em 5xx é reenviado com backoff; depois de três tentativas o erro aparece.
-    """
+    """A commit lost to 5xx is replayed with backoff; after three attempts the error surfaces."""
     documents = _patients(harness)
-    # 🇺🇸 The transport itself retries a 5xx once, so each engine attempt consumes two failures.
-    # 🇧🇷 O transporte já retenta um 5xx uma vez, então cada tentativa do motor consome duas falhas.
+    # The transport itself retries a 5xx once, so each engine attempt consumes two failures.
     harness.vault.fail_next_commits = 4
     documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     assert harness.sleeps == [0.5, 1.0]
@@ -187,16 +156,13 @@ def test_commit_is_retried_after_a_network_error(
     harness: Harness,  # noqa: F811
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """🇺🇸 A dropped connection on commit is replayed; a 4xx is not. 🇧🇷 Conexão caída no commit é reenviada; 4xx não."""
+    """A dropped connection on commit is replayed; a 4xx is not."""
     documents = _patients(harness)
     real = harness.vault.commit_version
     drops = {"left": 1}
 
     def flaky(*args: object) -> dict[str, object]:
-        """🇺🇸 Drops the connection once, then behaves — a transient network failure on commit.
-
-        🇧🇷 Derruba a conexão uma vez, depois se comporta — uma falha de rede transitória no commit.
-        """
+        """Drops the connection once, then behaves — a transient network failure on commit."""
         if drops["left"]:
             drops["left"] -= 1
             raise httpx.ConnectError("connection reset")
@@ -208,10 +174,7 @@ def test_commit_is_retried_after_a_network_error(
 
 
 def test_update_refuses_a_patch_only_answer(harness: Harness, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
-    """🇺🇸 A version reservation answered as patch-only breaks the contract.
-
-    🇧🇷 Reserva respondida só-patch quebra o contrato.
-    """
+    """A version reservation answered as patch-only breaks the contract."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     monkeypatch.setattr(
@@ -228,10 +191,7 @@ def test_update_refuses_a_patch_only_answer(harness: Harness, monkeypatch: pytes
 
 
 def test_flags_are_patch_only(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Archive/delete send only the flag: no `content_length`, no new version, no upload.
-
-    🇧🇷 Arquivar/apagar mandam só a flag: sem `content_length`, sem versão nova, sem upload.
-    """
+    """Archive/delete send only the flag: no `content_length`, no new version, no upload."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     document_id = created.index.document_id

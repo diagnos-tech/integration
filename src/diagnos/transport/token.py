@@ -1,4 +1,4 @@
-"""🇺🇸 `DIAGNOS_API_TOKEN` parsing — the SDK's own identity, not the vault's.
+"""`DIAGNOS_API_TOKEN` parsing — the SDK's own identity, not the vault's.
 
 The token is `apikey-<JWT EdDSA>`. The SDK never verifies the signature: it
 has no business doing so, because the vault is the only party that can (it
@@ -6,15 +6,6 @@ holds the workspace's signing key, and revocation is server-side). All the
 SDK needs from the JWT is `workspace_id`, to build the URLs every resource
 call targets, so this module just decodes the payload as opaque JSON and
 checks the claims it depends on are there.
-
-🇧🇷 Leitura de `DIAGNOS_API_TOKEN` — a identidade do SDK, não a do cofre.
-
-O token é `apikey-<JWT EdDSA>`. O SDK nunca verifica a assinatura: não é
-função dele fazer isso, porque só o cofre pode (é quem guarda a chave de
-assinatura do workspace, e revogação é do lado do servidor). Tudo que o SDK
-precisa do JWT é `workspace_id`, para montar as URLs de toda chamada de
-recurso, então este módulo só decodifica o payload como JSON opaco e confere
-se as claims de que depende estão lá.
 """
 
 from __future__ import annotations
@@ -30,15 +21,10 @@ _REQUIRED_CLAIMS = ("sub", "account_id", "workspace_id", "name")
 
 
 def redact_api_token(token: str) -> str:
-    """🇺🇸 `apikey-<jwt>` becomes `apikey-…<last 4 chars>` for logs and `repr`.
+    """`apikey-<jwt>` becomes `apikey-…<last 4 chars>` for logs and `repr`.
 
     Enough to tell two tokens apart (or confirm one didn't change) without
     ever printing bytes that grant API access.
-
-    🇧🇷 `apikey-<jwt>` vira `apikey-…<últimos 4 chars>` para log e `repr`.
-
-    Basta para diferenciar dois tokens (ou confirmar que um não mudou) sem
-    nunca imprimir bytes que dão acesso à API.
     """
     tail = token[-4:] if len(token) >= 4 else token
     return f"{_PREFIX}…{tail}"
@@ -46,11 +32,7 @@ def redact_api_token(token: str) -> str:
 
 @dataclass(frozen=True)
 class ServiceAccountToken:
-    """🇺🇸 The decoded shape of `DIAGNOS_API_TOKEN`, unsigned-checked on purpose.
-
-    🇧🇷 A forma decodificada de `DIAGNOS_API_TOKEN`, propositalmente sem
-    conferir a assinatura.
-    """
+    """The decoded shape of `DIAGNOS_API_TOKEN`, unsigned-checked on purpose."""
 
     raw: str
     key_id: str
@@ -60,18 +42,12 @@ class ServiceAccountToken:
 
     @classmethod
     def parse(cls, raw: str) -> ServiceAccountToken:
-        """🇺🇸 Decode `apikey-<jwt>` into its claims, no signature check.
+        """Decode `apikey-<jwt>` into its claims, no signature check.
 
         A missing prefix or claim is a configuration mistake the caller can
         fix (wrong env var, copy-pasted the wrong secret) — `ConfigError`,
         not `CryptoError`, which is reserved for envelopes that should have
         opened and did not.
-
-        🇧🇷 Decodifica `apikey-<jwt>` nas claims, sem conferir assinatura.
-
-        Prefixo ou claim ausente é erro de configuração que o chamador
-        corrige (env var errada, segredo colado errado) — `ConfigError`, não
-        `CryptoError`, reservado a envelope que deveria abrir e não abriu.
         """
         if not raw.startswith(_PREFIX):
             raise ConfigError(
@@ -118,14 +94,11 @@ class ServiceAccountToken:
         )
 
     def authorization_header(self) -> dict[str, str]:
-        """🇺🇸 The one header every request needs, signed or not.
-
-        🇧🇷 O único header que toda requisição precisa, assinada ou não.
-        """
+        """The one header every request needs, signed or not."""
         return {"Authorization": f"Bearer {self.raw}"}
 
     def __repr__(self) -> str:
-        """🇺🇸 Redacted: this repr ends up in logs and tracebacks. 🇧🇷 Redigido: este repr acaba em log e traceback."""
+        """Redacted: this repr ends up in logs and tracebacks."""
         return (
             f"ServiceAccountToken(key_id={self.key_id!r}, account_id={self.account_id!r}, "
             f"workspace_id={self.workspace_id!r}, name={self.name!r}, raw={redact_api_token(self.raw)!r})"

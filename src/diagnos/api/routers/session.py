@@ -1,7 +1,4 @@
-"""🇺🇸 `/v1/session` — introspecting and ending this process's one SDK session.
-
-🇧🇷 `/v1/session` — introspecção e encerramento da única sessão de SDK deste processo.
-"""
+"""`/v1/session`: introspecting and ending this process's one SDK session."""
 
 from __future__ import annotations
 
@@ -19,20 +16,14 @@ router = APIRouter(prefix="/v1/session", tags=["session"], responses=MTLS_RESPON
 @router.get(
     "",
     response_model=SessionInfo,
-    summary="🇺🇸 Describe this session 🇧🇷 Descreve esta sessão",
-    description="🇺🇸 This process's workspace/account and unlocked security groups, plus the caller's own "
-    "mTLS identity. "
-    "🇧🇷 O workspace/conta deste processo e os security groups desbloqueados, mais a identidade mTLS "
-    "de quem chamou.",
+    summary="Describe this session",
+    description="This process's workspace/account and unlocked security groups, plus the caller's own mTLS identity.",
 )
 def get_session(
     vault: Diagnos = Depends(get_vault),
     identity: ClientIdentity = Depends(require_client_certificate),
 ) -> SessionInfo:
-    """🇺🇸 Reads `Diagnos`'s own identity properties; never touches the network.
-
-    🇧🇷 Lê as próprias propriedades de identidade do `Diagnos`; nunca toca a rede.
-    """
+    """Reads `Diagnos`'s own identity properties; never touches the network."""
     return SessionInfo(
         workspace_id=vault.workspace_id,
         account_id=vault.account_id,
@@ -44,18 +35,15 @@ def get_session(
 @router.post(
     "/lock",
     status_code=202,
-    summary="🇺🇸 Lock this session 🇧🇷 Trava esta sessão",
-    description="🇺🇸 Ends the SDK session (best-effort server-side, always locally) and wipes its key "
-    "material. Every route after this one fails until the process is restarted and re-enrolls (or "
-    "restores via OpenBao) — this does not restart the session itself. "
-    "🇧🇷 Encerra a sessão do SDK (best-effort do lado do servidor, sempre localmente) e apaga o "
-    "material de chave dela. Toda rota depois desta falha até o processo reiniciar e refazer o "
-    "enrollment (ou restaurar via OpenBao) — isto não reinicia a sessão sozinho.",
+    summary="Lock this session",
+    description="Ends the SDK session (best-effort server-side, always locally) and wipes its key material. Every "
+    "route after this one fails until the process is restarted and re-enrolls (or restores via OpenBao); this does "
+    "not restart the session itself.",
 )
 def lock_session(
     vault: Diagnos = Depends(get_vault),
     _identity: ClientIdentity = Depends(require_client_certificate),
 ) -> dict[str, str]:
-    """🇺🇸 Delegates to `Diagnos.lock`. 🇧🇷 Delega para `Diagnos.lock`."""
+    """Delegates to `Diagnos.lock`."""
     vault.lock()
     return {"status": "locked"}

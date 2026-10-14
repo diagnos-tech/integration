@@ -1,7 +1,4 @@
-"""🇺🇸 Client-side cryptography: everything clinical is encrypted here, before the network; keys stay in the enclave.
-
-🇧🇷 Criptografia do lado do cliente: tudo que é clínico é cifrado aqui, antes da rede; as chaves ficam no enclave.
-"""
+"""Client-side cryptography: everything clinical is encrypted here, before the network; keys stay in the enclave."""
 
 from __future__ import annotations
 

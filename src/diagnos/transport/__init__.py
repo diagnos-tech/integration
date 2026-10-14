@@ -1,7 +1,4 @@
-"""🇺🇸 Everything the rest of the SDK needs to talk to the vault over HTTP.
-
-🇧🇷 Tudo que o resto do SDK precisa para falar com o cofre por HTTP.
-"""
+"""Everything the rest of the SDK needs to talk to the vault over HTTP."""
 
 from .config import Settings
 from .envelope import unwrap_result

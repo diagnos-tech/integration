@@ -1,7 +1,4 @@
-"""🇺🇸 `Patients.index`/`Exams.index`: a document's metadata without downloading or decrypting its record.
-
-🇧🇷 `Patients.index`/`Exams.index`: o metadado de um documento sem baixar nem decifrar o registro.
-"""
+"""`Patients.index`/`Exams.index`: a document's metadata without downloading or decrypting its record."""
 
 from __future__ import annotations
 
@@ -19,10 +16,7 @@ from vault_double import (  # noqa: F401 — `harness` is a fixture, used by nam
 
 
 def test_patient_index_reports_the_group_without_touching_storage(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 The group, the latest version and the flags come back; no object is downloaded.
-
-    🇧🇷 O grupo, a versão corrente e as flags voltam; nenhum objeto é baixado.
-    """
+    """The group, the latest version and the flags come back; no object is downloaded."""
     documents = make_documents(harness, resource="patients", record_model=PatientRecord, summary_model=PatientSummary)
     patients = Patients(documents)
     created = patients.create({"legal_name": "Jane Doe", "display_name": "Jane"}, security_group="sg1")
@@ -30,7 +24,7 @@ def test_patient_index_reports_the_group_without_touching_storage(harness: Harne
     real_storage = harness.vault.handle_storage
 
     def counting(request: httpx.Request) -> httpx.Response:
-        """🇺🇸 Records every storage call, then serves it. 🇧🇷 Registra toda chamada ao storage e a atende."""
+        """Records every storage call, then serves it."""
         storage_calls.append(request.method)
         return real_storage(request)
 
@@ -45,10 +39,7 @@ def test_patient_index_reports_the_group_without_touching_storage(harness: Harne
 
 
 def test_exam_index_carries_the_clear_patient_link(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 An exam's index exposes `meta.patient_id`, the one field sent in clear.
-
-    🇧🇷 O índice de um exame expõe `meta.patient_id`, o único campo mandado em claro.
-    """
+    """An exam's index exposes `meta.patient_id`, the one field sent in clear."""
     documents = make_documents(harness, resource="exams", record_model=ExamRecord, summary_model=ExamSummary)
     exams = Exams(documents)
     created = exams.create({"title": "CT"}, patient_id="pat_1", security_group="sg1")

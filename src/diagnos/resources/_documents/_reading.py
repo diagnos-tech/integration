@@ -1,7 +1,4 @@
-"""🇺🇸 `_Reading`: everything about getting a document back out — list, page, fetch, decrypt, draft precedence.
-
-🇧🇷 `_Reading`: tudo sobre trazer um documento de volta — listar, paginar, buscar, decifrar, precedência de rascunho.
-"""
+"""`_Reading`: everything about getting a document back out (list, page, fetch, decrypt, draft precedence)."""
 
 from __future__ import annotations
 
@@ -16,10 +13,7 @@ from ._support import DATA_STREAM, DEFAULT_PAGE_SIZE, OpenedDocument, RecordT, S
 
 
 class _Reading(_DocumentsBase[RecordT, SummaryT]):
-    """🇺🇸 The listing and reading routes of `VersionedDocuments`.
-
-    🇧🇷 As rotas de listagem e leitura de `VersionedDocuments`.
-    """
+    """The listing and reading routes of `VersionedDocuments`."""
 
     # -- listing -------------------------------------------------------------
 
@@ -31,24 +25,24 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
         limit: int = DEFAULT_PAGE_SIZE,
         cursor: str | None = None,
     ) -> Page[DocumentListItem[SummaryT]]:
-        """🇺🇸 One page of the index (`GET {base}`), each row with its summary already decrypted.
+        """Fetch one page of the index (`GET {base}`), each row with its summary already decrypted.
 
         No version is downloaded: the summary comes from `encrypted_index`,
         which is what lets the web app render a list of names offline. A row
         whose group key this session does not hold keeps `summary=None`
         instead of failing the whole page.
 
-        🇧🇷 Uma página do índice (`GET {base}`), cada linha com o resumo já decifrado.
+        Args:
+            security_group: Only list documents of this security group.
+            include_deleted: Whether to include documents in the trash.
+            limit: The page size (the vault caps it at 200).
+            cursor: The `next_cursor` of the previous page; `None` for the first page.
 
-        Nenhuma versão é baixada: o resumo vem do `encrypted_index`, que é o
-        que deixa o app web mostrar uma lista de nomes offline. Uma linha
-        cujo grupo esta sessão não tem chave fica com `summary=None` em vez
-        de derrubar a página inteira.
+        Returns:
+            The page of rows and the cursor for the next one.
         """
-        # 🇺🇸 The keyring first: asking for it is what unlocks lazily (`Diagnos._keyring_provider`), and a
-        #    signed request cannot go out before there is a session — so `list()` may be a program's first call.
-        # 🇧🇷 O keyring primeiro: pedi-lo é o que desbloqueia de forma preguiçosa (`Diagnos._keyring_provider`), e
-        #    uma requisição assinada não sai antes de existir sessão — então `list()` pode ser a primeira chamada.
+        # The keyring first: asking for it is what unlocks lazily (`Diagnos._keyring_provider`), and a
+        # signed request cannot go out before there is a session, so `list()` may be a program's first call.
         keyring = self._keyring_provider()
         query: dict[str, str | int | bool] = {"limit": limit}
         if security_group is not None:
@@ -62,10 +56,7 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
         return Page(items=items, next_cursor=result.get("next_cursor"))
 
     def _list_item(self, index: DocumentIndex, keyring: Keyring) -> DocumentListItem[SummaryT]:
-        """🇺🇸 One list row: the index plus its summary when this session can open it.
-
-        🇧🇷 Uma linha da lista: o índice mais o resumo quando esta sessão consegue abri-lo.
-        """
+        """Build one list row: the index plus its summary when this session can open it."""
         if index.encrypted_index is None or index.security_group_id not in keyring.security_group_ids:
             return self._item_model(index=index)
         summary = self._open_summary(index, self._document_dek(index, keyring))
@@ -78,9 +69,15 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
         include_deleted: bool = False,
         limit: int = DEFAULT_PAGE_SIZE,
     ) -> Iterator[DocumentListItem[SummaryT]]:
-        """🇺🇸 Walks every page by following `next_cursor` until it is `None`.
+        """Walk every page by following `next_cursor` until it is `None`.
 
-        🇧🇷 Percorre toda página seguindo `next_cursor` até ele ser `None`.
+        Args:
+            security_group: Only list documents of this security group.
+            include_deleted: Whether to include documents in the trash.
+            limit: The page size used for each request.
+
+        Yields:
+            Every row, in the order the vault returns them.
         """
         cursor: str | None = None
         while True:
@@ -95,21 +92,27 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
     def read(
         self, document_id: str, *, version_id: str | None = None, include_draft: bool = True
     ) -> OpenedDocument[RecordT, SummaryT]:
-        """🇺🇸 Fetches, downloads and decrypts one document — a pinned version, or the newest content.
+        """Fetch, download and decrypt one document: a pinned version, or the newest content.
 
         Without `version_id`, the newest content wins, exactly as in the web
         app: the draft head when it is newer than the latest version, else
         the latest version. `include_draft=False` always reads the newest
         committed version.
 
-        🇧🇷 Busca, baixa e decifra um documento — uma versão fixada, ou o conteúdo mais novo.
+        Args:
+            document_id: The document to read.
+            version_id: Read this committed version instead of the newest content.
+            include_draft: Whether the draft head may win over the latest version. Ignored with `version_id`.
 
-        Sem `version_id`, o conteúdo mais novo vence, exatamente como no app
-        web: a cabeça de rascunho quando é mais nova que a versão corrente,
-        senão a versão corrente. `include_draft=False` sempre lê a última
-        versão confirmada.
+        Returns:
+            The index, decrypted record and summary, and where the record came from.
+
+        Raises:
+            NotFoundError: If the document or version does not exist.
+            GroupKeyUnavailable: If this session holds no DEK for the document's security group.
+            CryptoError: If the document has no DEK sealed for its own group, or a payload does not open.
         """
-        keyring = self._keyring_provider()  # 🇺🇸 lazy unlock first (see `list`) 🇧🇷 unlock preguiçoso antes
+        keyring = self._keyring_provider()  # lazy unlock first (see `list`)
         query = self._stream_query() or {}
         if version_id is not None:
             query["version_id"] = version_id
@@ -133,8 +136,5 @@ class _Reading(_DocumentsBase[RecordT, SummaryT]):
         return OpenedDocument(index, self._parse_record(plaintext), summary, version_id=opened_version_id)
 
     def _parse_record(self, plaintext: bytes) -> RecordT:
-        """🇺🇸 Validates decrypted plaintext, tolerant of fields the SDK does not model yet.
-
-        🇧🇷 Valida o texto claro decifrado, tolerante a campos que o SDK ainda não modela.
-        """
+        """Validate decrypted plaintext, tolerating fields the SDK does not model yet."""
         return self._record_model.model_validate_json(plaintext, context=vault_context())

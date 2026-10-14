@@ -1,17 +1,9 @@
-"""🇺🇸 `VaultTransport`: envelope unwrapping, every retry rule, and the seed/storage side channels.
+"""`VaultTransport`: envelope unwrapping, every retry rule, and the seed/storage side channels.
 
 Each test drives a real `httpx.Client` bound to an `httpx.MockTransport`
 handler instead of mocking `VaultTransport`'s own methods — that way a bug in
 how it builds headers, re-signs a retry, or reads `Retry-After` shows up the
 same way it would against the real vault.
-
-🇧🇷 `VaultTransport`: desembrulho de envelope, toda regra de retentativa, e os canais paralelos de seed/storage.
-
-Cada teste roda um `httpx.Client` de verdade preso a um handler de
-`httpx.MockTransport`, em vez de mockar os métodos do próprio
-`VaultTransport` — assim um bug em como ele monta headers, reassina uma
-retentativa ou lê `Retry-After` aparece do mesmo jeito que apareceria contra
-o cofre de verdade.
 """
 
 from __future__ import annotations
@@ -43,7 +35,7 @@ _WIDGET_PATH = "/api/external/v1/workspaces/ws_1/widgets"
 
 
 def _fresh_session_keys() -> SessionKeys:
-    """🇺🇸 A session that will not expire mid-test. 🇧🇷 Uma sessão que não expira no meio do teste."""
+    """A session that will not expire mid-test."""
     return SessionKeys(
         session_id="sess_1",
         sign_key=SecretBox.from_bytes(bytearray(secrets.token_bytes(32))),
@@ -53,13 +45,13 @@ def _fresh_session_keys() -> SessionKeys:
 
 
 def _time_response(request: httpx.Request) -> httpx.Response:
-    """🇺🇸 The raw (unenveloped) shape `GET /time` answers with. 🇧🇷 A forma crua (sem envelope) de `GET /time`."""
+    """The raw (unenveloped) shape `GET /time` answers with."""
     assert request.method == "GET"
     return httpx.Response(200, json={"result": 1_700_000_000_000})
 
 
 def _envelope_success(result: object, status: int = 200) -> httpx.Response:
-    """🇺🇸 A `success: true` envelope carrying `result`. 🇧🇷 Um envelope `success: true` carregando `result`."""
+    """A `success: true` envelope carrying `result`."""
     return httpx.Response(
         status,
         json={"success": True, "status": "success", "status_code": status, "result": result, "docs": "d"},
@@ -75,10 +67,7 @@ def _envelope_error(
     request_id: str | None = None,
     extra_headers: Mapping[str, str] | None = None,
 ) -> httpx.Response:
-    """🇺🇸 A `success: false` envelope carrying one error `code`.
-
-    🇧🇷 Um envelope `success: false` carregando um `code` de erro.
-    """
+    """A `success: false` envelope carrying one error `code`."""
     headers = dict(extra_headers or {})
     if request_id is not None:
         headers["X-Request-Id"] = request_id
@@ -96,18 +85,12 @@ def _envelope_error(
 
 
 def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
-    """🇺🇸 An `httpx.Client` wired to a `MockTransport` instead of a socket.
-
-    🇧🇷 Um `httpx.Client` ligado a um `MockTransport` em vez de um socket.
-    """
+    """An `httpx.Client` wired to a `MockTransport` instead of a socket."""
     return httpx.Client(transport=httpx.MockTransport(handler), base_url="https://vault.example.test")
 
 
 def _dummy_client() -> httpx.Client:
-    """🇺🇸 A signed-side client that always succeeds, for storage-only tests.
-
-    🇧🇷 Um client do lado assinado que sempre dá certo, para testes só de storage.
-    """
+    """A signed-side client that always succeeds, for storage-only tests."""
     return _client(
         lambda request: httpx.Response(
             200,
@@ -124,10 +107,7 @@ def _make_transport(
     on_seed: Callable[[SecretBox], None] | None = None,
     sleep: Callable[[float], None] | None = None,
 ) -> VaultTransport:
-    """🇺🇸 A `VaultTransport` with sane defaults, overridable one at a time.
-
-    🇧🇷 Um `VaultTransport` com padrões razoáveis, sobrescrevíveis um a um.
-    """
+    """A `VaultTransport` with sane defaults, overridable one at a time."""
     keys = _fresh_session_keys()
     settings = Settings(api_token="apikey-test", vault_url="https://vault.example.test")  # noqa: S106 — a fake token fixture, not a real secret
     return VaultTransport(
@@ -142,10 +122,7 @@ def _make_transport(
 
 
 def test_success_unwraps_result_and_signs_the_request() -> None:
-    """🇺🇸 A 2xx envelope unwraps to `result`, signed with all three headers.
-
-    🇧🇷 Um envelope 2xx desembrulha para `result`, assinado com os três headers.
-    """
+    """A 2xx envelope unwraps to `result`, signed with all three headers."""
     seen_headers: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -165,10 +142,7 @@ def test_success_unwraps_result_and_signs_the_request() -> None:
 
 
 def test_quota_error_carries_code_trace_id_and_request_id() -> None:
-    """🇺🇸 402 becomes `QuotaError` with `code`/`trace_id`/`request_id` intact.
-
-    🇧🇷 402 vira `QuotaError` com `code`/`trace_id`/`request_id` intactos.
-    """
+    """402 becomes `QuotaError` with `code`/`trace_id`/`request_id` intact."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/time":
@@ -187,10 +161,7 @@ def test_quota_error_carries_code_trace_id_and_request_id() -> None:
 
 
 def test_replay_detected_retries_once_with_a_different_nonce() -> None:
-    """🇺🇸 `409 ReplayDetected` is retried exactly once, with a fresh nonce.
-
-    🇧🇷 `409 ReplayDetected` é retentado exatamente uma vez, com nonce novo.
-    """
+    """`409 ReplayDetected` is retried exactly once, with a fresh nonce."""
     nonces: list[str] = []
     attempts = {"n": 0}
 
@@ -213,10 +184,7 @@ def test_replay_detected_retries_once_with_a_different_nonce() -> None:
 
 
 def test_replay_detected_a_second_time_is_not_retried_again() -> None:
-    """🇺🇸 A second `ReplayDetected` in a row is not retried again; it raises.
-
-    🇧🇷 Um segundo `ReplayDetected` seguido não é retentado de novo; ele explode.
-    """
+    """A second `ReplayDetected` in a row is not retried again; it raises."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/time":
@@ -230,10 +198,7 @@ def test_replay_detected_a_second_time_is_not_retried_again() -> None:
 
 
 def test_signature_timestamp_skew_resyncs_the_clock_and_retries_once() -> None:
-    """🇺🇸 `401 SignatureTimestampSkew` resyncs the clock and retries once.
-
-    🇧🇷 `401 SignatureTimestampSkew` ressincroniza o relógio e retenta uma vez.
-    """
+    """`401 SignatureTimestampSkew` resyncs the clock and retries once."""
     time_calls = {"n": 0}
     widget_calls = {"n": 0}
 
@@ -251,21 +216,14 @@ def test_signature_timestamp_skew_resyncs_the_clock_and_retries_once() -> None:
 
     assert result == {"ok": True}
     assert widget_calls["n"] == 2
-    # 🇺🇸 One `sync()` before the first attempt (clock starts unsynced) plus one
+    # One `sync()` before the first attempt (clock starts unsynced) plus one
     # resync triggered by the skew error — each `sync()` is 3 round trips
     # (`docs/PROTOCOL.md §2`), so two syncs is six `/time` calls.
-    # 🇧🇷 Um `sync()` antes da primeira tentativa (relógio começa
-    # dessincronizado) mais um resync disparado pelo erro de skew — cada
-    # `sync()` são 3 idas e voltas (`docs/PROTOCOL.md §2`), então dois syncs
-    # são seis chamadas a `/time`.
     assert time_calls["n"] == 6
 
 
 def test_rate_limit_retries_up_to_three_times_honouring_retry_after() -> None:
-    """🇺🇸 `429` retries up to three times, sleeping exactly what `Retry-After` says.
-
-    🇧🇷 `429` retenta até três vezes, dormindo exatamente o que `Retry-After` diz.
-    """
+    """`429` retries up to three times, sleeping exactly what `Retry-After` says."""
     attempts = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -280,15 +238,12 @@ def test_rate_limit_retries_up_to_three_times_honouring_retry_after() -> None:
     with pytest.raises(RateLimitError):
         transport.get(_WIDGET_PATH)
 
-    assert attempts["n"] == 4  # 🇺🇸/🇧🇷 initial + 3 retries · inicial + 3 retentativas
+    assert attempts["n"] == 4  # initial + 3 retries
     assert sleeps == [0.0, 0.0, 0.0]
 
 
 def test_server_error_retries_once_then_raises() -> None:
-    """🇺🇸 A 5xx is retried once, after a fixed 1 s, then raises.
-
-    🇧🇷 Um 5xx é retentado uma vez, após 1 s fixo, e então explode.
-    """
+    """A 5xx is retried once, after a fixed 1 s, then raises."""
     attempts = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -309,10 +264,7 @@ def test_server_error_retries_once_then_raises() -> None:
 
 
 def test_random_seed_in_the_envelope_opens_and_reaches_on_seed() -> None:
-    """🇺🇸 A valid `random_seed`, sealed with the session's `enc_key`, reaches `on_seed` as a 32-byte `SecretBox`.
-
-    🇧🇷 Um `random_seed` válido, selado com o `enc_key` da sessão, chega a `on_seed` como um `SecretBox` de 32 bytes.
-    """
+    """A valid `random_seed`, sealed with the session's `enc_key`, reaches `on_seed` as a 32-byte `SecretBox`."""
     enc_key = secrets.token_bytes(32)
     session_id = "sess_1"
     seed = secrets.token_bytes(32)
@@ -344,10 +296,7 @@ def test_random_seed_in_the_envelope_opens_and_reaches_on_seed() -> None:
 
 
 def test_unsigned_request_has_no_signature_headers_or_session_dependency() -> None:
-    """🇺🇸 `signed=False` sends no `X-Signature-*` headers and never calls `session_keys`.
-
-    🇧🇷 `signed=False` não manda header `X-Signature-*` nenhum e nunca chama `session_keys`.
-    """
+    """`signed=False` sends no `X-Signature-*` headers and never calls `session_keys`."""
     seen_headers: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -372,10 +321,7 @@ def test_unsigned_request_has_no_signature_headers_or_session_dependency() -> No
 
 
 def test_upload_bytes_puts_directly_and_returns_the_etag() -> None:
-    """🇺🇸 `upload_bytes` `PUT`s with no `Authorization`/signature and returns `ETag`.
-
-    🇧🇷 `upload_bytes` faz `PUT` sem `Authorization`/assinatura e retorna o `ETag`.
-    """
+    """`upload_bytes` `PUT`s with no `Authorization`/signature and returns `ETag`."""
     seen_headers: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -393,7 +339,7 @@ def test_upload_bytes_puts_directly_and_returns_the_etag() -> None:
 
 
 def test_download_bytes_returns_the_body_on_success() -> None:
-    """🇺🇸 `download_bytes` buffers the whole R2 body. 🇧🇷 `download_bytes` junta o corpo inteiro do R2."""
+    """`download_bytes` buffers the whole R2 body."""
     transport = _make_transport(
         client=_dummy_client(),
         storage_client=_client(lambda r: httpx.Response(200, content=b"the-bytes")),
@@ -402,10 +348,7 @@ def test_download_bytes_returns_the_body_on_success() -> None:
 
 
 def test_download_bytes_403_raises_storage_error() -> None:
-    """🇺🇸 A non-2xx from R2 becomes `VaultError(code="StorageError")`.
-
-    🇧🇷 Um não-2xx do R2 vira `VaultError(code="StorageError")`.
-    """
+    """A non-2xx from R2 becomes `VaultError(code="StorageError")`."""
     transport = _make_transport(
         client=_dummy_client(),
         storage_client=_client(lambda r: httpx.Response(403, text="Forbidden")),
@@ -417,10 +360,7 @@ def test_download_bytes_403_raises_storage_error() -> None:
 
 
 def test_download_stream_yields_chunks_without_signing() -> None:
-    """🇺🇸 `download_stream` yields body chunks with no `Authorization` header.
-
-    🇧🇷 `download_stream` entrega pedaços do corpo sem header `Authorization`.
-    """
+    """`download_stream` yields body chunks with no `Authorization` header."""
     seen_headers: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:

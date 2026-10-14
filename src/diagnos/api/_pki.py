@@ -1,25 +1,11 @@
-"""🇺🇸 The X.509 work behind `dev-certs`: one CA, then leaves it signs. Imported only by that command.
+"""The X.509 work behind `dev-certs`: one CA, then the leaves it signs. Imported only by that command.
 
-EC P-256 keys (fast to generate, accepted by every TLS stack uvicorn runs
-on), SHA-256 signatures, a five-minute back-dated start for clock skew, and
-the extensions a strict client checks: `BasicConstraints` and `KeyUsage` on
-the CA, `ExtendedKeyUsage` on each leaf, `SubjectAlternativeName` on the
-server — modern clients ignore the CN for host names — and the key
-identifiers: `SubjectKeyIdentifier` on every certificate,
-`AuthorityKeyIdentifier` on each leaf. Python 3.13's default TLS context
-is strict (`VERIFY_X509_STRICT`) and refuses a chain without them.
-
-🇧🇷 O trabalho X.509 por trás do `dev-certs`: uma CA, depois as folhas que ela assina. Importado só por esse comando.
-
-Chaves EC P-256 (rápidas de gerar, aceitas por toda pilha TLS em que o
-uvicorn roda), assinaturas SHA-256, início recuado em cinco minutos por
-causa de relógio defasado, e as extensões que um cliente estrito confere:
-`BasicConstraints` e `KeyUsage` na CA, `ExtendedKeyUsage` em cada folha,
-`SubjectAlternativeName` no servidor — clientes modernos ignoram o CN para
-nomes de host — e os identificadores de chave: `SubjectKeyIdentifier` em
-todo certificado, `AuthorityKeyIdentifier` em cada folha. O contexto TLS
-padrão do Python 3.13 é estrito (`VERIFY_X509_STRICT`) e recusa uma cadeia
-sem eles.
+Keys are EC P-256 (fast to generate, accepted by every TLS stack uvicorn runs on) and signatures are SHA-256. Each
+certificate starts five minutes in the past to tolerate clock skew, and carries the extensions a strict client checks:
+`BasicConstraints` and `KeyUsage` on the CA, `ExtendedKeyUsage` on each leaf, `SubjectAlternativeName` on the server
+(modern clients ignore the CN for host names), and the key identifiers, `SubjectKeyIdentifier` on every certificate and
+`AuthorityKeyIdentifier` on each leaf. Python 3.13's default TLS context is strict (`VERIFY_X509_STRICT`) and refuses a
+chain without them.
 """
 
 from __future__ import annotations
@@ -36,10 +22,7 @@ Issued = tuple[ec.EllipticCurvePrivateKey, x509.Certificate]
 
 
 def issue_ca(common_name: str, *, days: int) -> Issued:
-    """🇺🇸 A self-signed CA that may sign leaves only (`path_length=0`).
-
-    🇧🇷 Uma CA autoassinada que só pode assinar folhas (`path_length=0`).
-    """
+    """Issues a self-signed CA that may sign leaves only (`path_length=0`)."""
     key = ec.generate_private_key(ec.SECP256R1())
     name = _name(common_name)
     usage = x509.KeyUsage(
@@ -63,10 +46,7 @@ def issue_ca(common_name: str, *, days: int) -> Issued:
 
 
 def issue_server(ca: Issued, *, days: int) -> Issued:
-    """🇺🇸 A server leaf valid for `localhost`, `127.0.0.1` and `::1`.
-
-    🇧🇷 Uma folha de servidor válida para `localhost`, `127.0.0.1` e `::1`.
-    """
+    """Issues a server leaf valid for `localhost`, `127.0.0.1` and `::1`."""
     names: list[x509.GeneralName] = [
         x509.DNSName("localhost"),
         x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
@@ -76,23 +56,17 @@ def issue_server(ca: Issued, *, days: int) -> Issued:
 
 
 def issue_client(ca: Issued, common_name: str, *, days: int) -> Issued:
-    """🇺🇸 A client leaf; its CN is what `DIAGNOS_API_ALLOWED_CLIENT_CN` matches.
-
-    🇧🇷 Uma folha de cliente; o CN dela é o que `DIAGNOS_API_ALLOWED_CLIENT_CN` compara.
-    """
+    """Issues a client leaf; its CN is what `DIAGNOS_API_ALLOWED_CLIENT_CN` matches."""
     return _leaf(ca, common_name, ExtendedKeyUsageOID.CLIENT_AUTH, days, None)
 
 
 def certificate_pem(certificate: x509.Certificate) -> bytes:
-    """🇺🇸 PEM of a certificate. 🇧🇷 PEM de um certificado."""
+    """Returns the PEM encoding of a certificate."""
     return certificate.public_bytes(serialization.Encoding.PEM)
 
 
 def key_pem(key: ec.EllipticCurvePrivateKey) -> bytes:
-    """🇺🇸 Unencrypted PKCS#8 PEM — uvicorn reads it without a passphrase prompt.
-
-    🇧🇷 PEM PKCS#8 sem cifra — o uvicorn o lê sem pedir senha.
-    """
+    """Returns the unencrypted PKCS#8 PEM of a key, which uvicorn reads without a passphrase prompt."""
     return key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
     )
@@ -105,7 +79,7 @@ def _leaf(
     days: int,
     names: x509.SubjectAlternativeName | None,
 ) -> Issued:
-    """🇺🇸 A key and a certificate the CA signs. 🇧🇷 Uma chave e um certificado que a CA assina."""
+    """Issues a fresh key and a certificate for it that the CA signs."""
     ca_key, ca_certificate = ca
     key = ec.generate_private_key(ec.SECP256R1())
     builder = (
@@ -121,10 +95,7 @@ def _leaf(
 def _builder(
     subject: x509.Name, issuer: x509.Name, key: ec.EllipticCurvePrivateKey, days: int
 ) -> x509.CertificateBuilder:
-    """🇺🇸 The fields and the key identifier every certificate here shares.
-
-    🇧🇷 Os campos e o identificador de chave que todo certificado daqui compartilha.
-    """
+    """Returns a builder holding the fields and the key identifier that every certificate here shares."""
     now = datetime.datetime.now(datetime.UTC)
     return (
         x509.CertificateBuilder()
@@ -139,5 +110,5 @@ def _builder(
 
 
 def _name(common_name: str) -> x509.Name:
-    """🇺🇸 A subject with only a CN. 🇧🇷 Um subject só com CN."""
+    """Returns a subject that carries only a CN."""
     return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])

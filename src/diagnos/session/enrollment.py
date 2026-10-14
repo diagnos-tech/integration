@@ -1,7 +1,4 @@
-"""🇺🇸 Enrollment: how an SDK process earns a session and the group keys it may use.
-
-🇧🇷 Enrollment: como um processo do SDK conquista uma sessão e as chaves de grupo que pode usar.
-"""
+"""Enrollment: how an SDK process earns a session and the group keys it may use."""
 
 from __future__ import annotations
 
@@ -24,43 +21,33 @@ from diagnos.errors import (
 from diagnos.session.keyring import Keyring, SessionKeys
 from diagnos.session.runtime import collect_runtime
 
-# 🇺🇸 Deferred to type-checking only: `diagnos.transport` eagerly imports
+# Deferred to type-checking only: `diagnos.transport` eagerly imports
 # `diagnos.session.keyring` (for `VaultTransport`'s own type hints), so a
-# module-level import here — of a *submodule* of `diagnos.transport` — would
+# module-level import here, of a *submodule* of `diagnos.transport`, would
 # close a real import cycle the moment anything imports `diagnos.transport`
 # before `diagnos.session`. Nothing below needs the classes at runtime: it
-# only calls duck-typed methods/attributes (`transport.post(...)`,
+# only calls duck-typed methods and attributes (`transport.post(...)`,
 # `token.workspace_id`) that never require the class object itself.
-# 🇧🇷 Adiado só para checagem de tipos: `diagnos.transport` importa
-# `diagnos.session.keyring` de forma antecipada (para os próprios type hints
-# de `VaultTransport`), então um import no nível do módulo aqui — de um
-# *submódulo* de `diagnos.transport` — fecharia um ciclo de import de
-# verdade assim que algo importasse `diagnos.transport` antes de
-# `diagnos.session`. Nada abaixo precisa das classes em tempo de execução:
-# só chama métodos/atributos duck-typed (`transport.post(...)`,
-# `token.workspace_id`) que nunca exigem o objeto da classe.
 if TYPE_CHECKING:
     from diagnos.transport.http import VaultTransport
     from diagnos.transport.token import ServiceAccountToken
 
-# 🇺🇸 The one shape a session DEK — and every group DEK — must have
-# (`docs/PROTOCOL.md §5`): raw AES-256-GCM key material, nothing wrapped
-# around it. A wrong length can only mean a protocol mismatch, never a
-# recoverable state, so it fails loudly instead of silently truncating or
-# padding.
-# 🇧🇷 A única forma que uma DEK de sessão — e toda DEK de grupo — deve ter
-# (`docs/PROTOCOL.md §5`): material de chave AES-256-GCM cru, sem nada
-# embrulhado ao redor. Um tamanho errado só pode ser incompatibilidade de
-# protocolo, nunca um estado recuperável, então falha alto em vez de truncar
-# ou preencher em silêncio.
+# The one shape every group DEK must have (`docs/PROTOCOL.md §5`): raw
+# AES-256-GCM key material, nothing wrapped around it. A wrong length can
+# only mean a protocol mismatch, never a recoverable state, so it fails
+# loudly instead of silently truncating or padding.
 _GROUP_KEY_LENGTH = 32
 
 
 @dataclass(frozen=True)
 class EnrollmentPrompt:
-    """🇺🇸 What a human needs to see: the link to open and the code to type.
+    """What a human needs to see: the link to open and the code to type.
 
-    🇧🇷 O que uma pessoa precisa ver: o link para abrir e o código para digitar.
+    Attributes:
+        enrollment_id: The id of the pending enrollment.
+        approval_url: The web app link where a workspace admin approves the enrollment.
+        code: The code the approver types or compares to confirm it is this enrollment.
+        expires_at: When the approval window closes, in Unix seconds.
     """
 
     enrollment_id: str
@@ -73,18 +60,12 @@ PromptCallback = Callable[[EnrollmentPrompt], None]
 
 
 def _registry_path(workspace_id: str) -> str:
-    """🇺🇸 The unsigned enrollment route both the POST and the GET poll share a prefix with.
-
-    🇧🇷 A rota de enrollment sem assinatura cujo prefixo o POST e o GET do poll compartilham.
-    """
+    """Return the unsigned enrollment route whose prefix both the `POST` and the `GET` poll share."""
     return f"/api/external/v1/workspaces/{workspace_id}/session/registry"
 
 
 def _open_session(keypair: HybridKeyPair, enrollment_id: str, sealed_session: Any) -> SessionKeys:
-    """🇺🇸 Opens `sealed_session` (AAD = `enrollment_id`) into `SessionKeys`; both keys are born inside the enclave.
-
-    🇧🇷 Abre `sealed_session` (AAD = `enrollment_id`) em `SessionKeys`; as duas chaves nascem dentro do enclave.
-    """
+    """Open `sealed_session` (AAD = `enrollment_id`) into `SessionKeys`; both keys are born inside the enclave."""
     payload = EncryptedPayload.from_dict(sealed_session)
     opened = keypair.open_session(payload, enrollment_id)
     return SessionKeys(
@@ -96,10 +77,7 @@ def _open_session(keypair: HybridKeyPair, enrollment_id: str, sealed_session: An
 
 
 def _open_group_keys(keypair: HybridKeyPair, enrollment_id: str, sealed_group_keys: Any) -> dict[str, SecretBox]:
-    """🇺🇸 Opens every `sealed_group_keys[sg]` (AAD = `enrollment_id`) into a locked 32-byte DEK.
-
-    🇧🇷 Abre cada `sealed_group_keys[sg]` (AAD = `enrollment_id`) numa DEK travada de 32 bytes.
-    """
+    """Open every `sealed_group_keys[sg]` (AAD = `enrollment_id`) into a locked 32-byte DEK."""
     group_keys: dict[str, SecretBox] = {}
     for security_group_id, sealed in dict(sealed_group_keys or {}).items():
         payload = EncryptedPayload.from_dict(sealed)
@@ -107,10 +85,7 @@ def _open_group_keys(keypair: HybridKeyPair, enrollment_id: str, sealed_group_ke
         if len(dek) != _GROUP_KEY_LENGTH:
             dek.wipe()
             raise CryptoError(
-                f"🇺🇸 group DEK for {security_group_id!r} opened to {len(dek)} bytes, expected "
-                f"{_GROUP_KEY_LENGTH}. "
-                f"🇧🇷 DEK de grupo de {security_group_id!r} abriu com {len(dek)} bytes, esperado "
-                f"{_GROUP_KEY_LENGTH}."
+                f"group DEK for {security_group_id!r} opened to {len(dek)} bytes, expected {_GROUP_KEY_LENGTH}."
             )
         group_keys[security_group_id] = dek
     return group_keys
@@ -125,21 +100,30 @@ def enroll(
     sleep: Callable[[float], None] = time.sleep,
     now: Callable[[], float] = time.time,
 ) -> Keyring:
-    """🇺🇸 Register the key pair, show the prompt, poll until approved, open the sealed material.
+    """Register the key pair, show the prompt, poll until approved, and open the sealed material.
 
     Both the registration `POST` and the poll `GET` go out `signed=False`
     (`docs/PROTOCOL.md §5`): a signature would need a session's `sign_key`,
-    and the entire point of this call is that no session exists yet — Bearer
+    and the entire point of this call is that no session exists yet. Bearer
     auth alone is enough to prove which service account is asking, and the
     approval itself is the human decision that grants everything else.
 
-    🇧🇷 Registra o par de chaves, mostra o prompt, faz poll até a aprovação, abre o material selado.
+    Args:
+        transport: The HTTP transport used for the registration and the poll.
+        token: The parsed service-account token, which names the workspace.
+        keypair: The identity whose public keys are registered and whose secrets open the approval.
+        on_prompt: Called once with the approval link and code so a person can approve.
+        sleep: The sleep function used between polls; replaced in tests.
+        now: The clock, in Unix seconds; replaced in tests.
 
-    Tanto o `POST` de registro quanto o `GET` do poll saem `signed=False`
-    (`docs/PROTOCOL.md §5`): uma assinatura precisaria do `sign_key` de uma
-    sessão, e o ponto inteiro desta chamada é que nenhuma sessão existe
-    ainda — só o Bearer já basta para provar qual service account está
-    pedindo, e a própria aprovação é a decisão humana que concede o resto.
+    Returns:
+        The keyring holding the session keys and every approved group DEK.
+
+    Raises:
+        EnrollmentExpiredError: If nobody approved before the window closed.
+        EnrollmentDeniedError: If a workspace admin denied the enrollment.
+        CryptoError: If the approval does not open, or a group DEK has the wrong length.
+        DiagnosError: If the poll returns a status this SDK does not know.
     """
     path = _registry_path(token.workspace_id)
     registration = transport.post(
@@ -165,25 +149,17 @@ def enroll(
 
     while True:
         if now() >= prompt.expires_at:
-            raise EnrollmentExpiredError(
-                "🇺🇸 nobody approved this enrollment before it expired; start again. "
-                "🇧🇷 ninguém aprovou este enrollment antes de expirar; comece de novo."
-            )
+            raise EnrollmentExpiredError("nobody approved this enrollment before it expired; start again.")
 
         try:
             poll_result = transport.get(poll_path, signed=False)
         except NotFoundError as exc:
-            # 🇺🇸 The vault itself drops an enrollment past its deadline
-            # (`SdkEnrollmentNotFound`); a 404 arriving after `expires_at`
+            # The vault itself drops an enrollment past its deadline
+            # (`SdkEnrollmentNotFound`). A 404 arriving after `expires_at`
             # means the same thing as our own clock check above catching it
-            # first — either way, the window is closed.
-            # 🇧🇷 O próprio cofre descarta um enrollment depois do prazo
-            # (`SdkEnrollmentNotFound`); um 404 chegando depois de
-            # `expires_at` significa o mesmo que nosso próprio relógio pegar
-            # isso antes — de um jeito ou de outro, a janela fechou.
+            # first: either way, the window is closed.
             raise EnrollmentExpiredError(
-                "🇺🇸 the vault no longer knows this enrollment; the approval window closed. "
-                "🇧🇷 o cofre não conhece mais este enrollment; a janela de aprovação fechou."
+                "the vault no longer knows this enrollment; the approval window closed."
             ) from exc
 
         status = poll_result["status"]
@@ -191,16 +167,11 @@ def enroll(
             sleep(poll_interval_seconds)
             continue
         if status == "denied":
-            raise EnrollmentDeniedError(
-                "🇺🇸 a workspace admin denied this SDK session. 🇧🇷 um admin do workspace negou esta sessão de SDK."
-            )
+            raise EnrollmentDeniedError("a workspace admin denied this SDK session.")
         if status == "approved":
             approval = poll_result["approval"]
             session = _open_session(keypair, enrollment_id, approval["sealed_session"])
             group_keys = _open_group_keys(keypair, enrollment_id, approval.get("sealed_group_keys"))
             return Keyring(enrollment_id=enrollment_id, session=session, group_keys=group_keys)
 
-        raise DiagnosError(
-            f"🇺🇸 session/registry poll returned unknown status {status!r}. "
-            f"🇧🇷 o poll de session/registry retornou status desconhecido {status!r}."
-        )
+        raise DiagnosError(f"session/registry poll returned unknown status {status!r}.")

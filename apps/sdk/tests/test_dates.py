@@ -1,7 +1,4 @@
-"""🇺🇸 `diagnos.dates`: the web app's date string and its anonymization truncation.
-
-🇧🇷 `diagnos.dates`: a string de data do app web e o truncamento de anonimização dele.
-"""
+"""`diagnos.dates`: the web app's date string and its anonymization truncation."""
 
 from __future__ import annotations
 
@@ -24,10 +21,7 @@ from diagnos.dates import TIME_PRECISIONS, to_iso_instant, truncate_timestamp
     ],
 )
 def test_to_iso_instant_matches_date_to_iso_string(value: object, expected: str) -> None:
-    """🇺🇸 Same string `Date.toISOString()` produces, always UTC.
-
-    🇧🇷 A mesma string do `Date.toISOString()`, sempre UTC.
-    """
+    """Same string `Date.toISOString()` produces, always UTC."""
     assert to_iso_instant(value) == expected  # type: ignore[arg-type]
 
 
@@ -36,10 +30,7 @@ def test_to_iso_instant_matches_date_to_iso_string(value: object, expected: str)
     ["not a date", "1984-03-02T10:20:30", datetime(1984, 3, 2, 10, 0), 19840302],
 )
 def test_to_iso_instant_refuses_ambiguous_or_invalid_input(value: object) -> None:
-    """🇺🇸 Unparseable, naive or non-date input is a `ValueError`.
-
-    🇧🇷 Entrada ilegível, sem fuso ou não-data é `ValueError`.
-    """
+    """Unparseable, naive or non-date input is a `ValueError`."""
     with pytest.raises(ValueError):
         to_iso_instant(value)  # type: ignore[arg-type]
 
@@ -55,15 +46,12 @@ def test_to_iso_instant_refuses_ambiguous_or_invalid_input(value: object) -> Non
     ],
 )
 def test_truncate_timestamp_matches_the_web_app(precision: str, expected: str) -> None:
-    """🇺🇸 Each precision zeroes everything finer; `month` sets the day to 1.
-
-    🇧🇷 Cada precisão zera o mais fino; `month` põe dia 1.
-    """
+    """Each precision zeroes everything finer; `month` sets the day to 1."""
     assert truncate_timestamp("1984-03-17T15:42:10.987Z", precision) == expected  # type: ignore[arg-type]
 
 
 def test_truncate_timestamp_refuses_an_unknown_precision() -> None:
-    """🇺🇸 Only the five workspace precisions exist. 🇧🇷 Só existem as cinco precisões de workspace."""
+    """Only the five workspace precisions exist."""
     assert TIME_PRECISIONS == ("month", "day", "hour", "minute", "second")
     with pytest.raises(ValueError, match="must be one of"):
         truncate_timestamp("1984-03-17", "year")  # type: ignore[arg-type]

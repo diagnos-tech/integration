@@ -1,7 +1,4 @@
-"""🇺🇸 `Patients`/`Exams`: the resource-specific faces of `VersionedDocuments`.
-
-🇧🇷 `Patients`/`Exams`: as faces específicas de recurso de `VersionedDocuments`.
-"""
+"""`Patients`/`Exams`: the resource-specific faces of `VersionedDocuments`."""
 
 from __future__ import annotations
 
@@ -23,22 +20,19 @@ from vault_double import (  # noqa: F401 — `harness` is a fixture, used by nam
 
 
 def _patients(h: Harness, **kwargs: object) -> Patients:
-    """🇺🇸 A `Patients` wired to `h`. 🇧🇷 Um `Patients` conectado a `h`."""
+    """A `Patients` wired to `h`."""
     documents = make_documents(h, resource="patients", record_model=PatientRecord, summary_model=PatientSummary)
     return Patients(documents, **kwargs)  # type: ignore[arg-type]
 
 
 def _exams(h: Harness, **kwargs: object) -> Exams:
-    """🇺🇸 An `Exams` wired to `h`. 🇧🇷 Um `Exams` conectado a `h`."""
+    """An `Exams` wired to `h`."""
     documents = make_documents(h, resource="exams", record_model=ExamRecord, summary_model=ExamSummary)
     return Exams(documents, **kwargs)  # type: ignore[arg-type]
 
 
 def _last_body(h: Harness, suffix: str) -> dict[str, object]:
-    """🇺🇸 The JSON body of the last `POST` whose path ends with `suffix`.
-
-    🇧🇷 O corpo do último `POST` com esse sufixo.
-    """
+    """The JSON body of the last `POST` whose path ends with `suffix`."""
     request = next(r for r in reversed(h.vault.api_requests) if r.method == "POST" and r.url.path.endswith(suffix))
     body: dict[str, object] = json.loads(request.content)
     return body
@@ -48,7 +42,7 @@ def _last_body(h: Harness, suffix: str) -> dict[str, object]:
 
 
 def test_patients_create_accepts_a_plain_dict(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A `dict` is validated into `PatientRecord`. 🇧🇷 Um `dict` é validado em `PatientRecord`."""
+    """A `dict` is validated into `PatientRecord`."""
     patient = _patients(harness).create({"legal_name": "Jane Doe", "display_name": "Jane"}, security_group="sg1")
 
     assert isinstance(patient.record, PatientRecord)
@@ -58,10 +52,7 @@ def test_patients_create_accepts_a_plain_dict(harness: Harness) -> None:  # noqa
 
 
 def test_patients_create_rejects_a_typo_before_encrypting(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 An unknown field names the closest real one, and nothing reaches the vault.
-
-    🇧🇷 Um campo desconhecido nomeia o real mais próximo, e nada chega ao cofre.
-    """
+    """An unknown field names the closest real one, and nothing reaches the vault."""
     with pytest.raises(ValidationError, match="'birthdate' → 'birth_date'"):
         _patients(harness).create(
             {"legal_name": "Jane Doe", "display_name": "Jane", "birthdate": "1990-01-01"}, security_group="sg1"
@@ -70,7 +61,7 @@ def test_patients_create_rejects_a_typo_before_encrypting(harness: Harness) -> N
 
 
 def test_patients_create_refuses_a_list_of_groups(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 One document, one group — a list explains why. 🇧🇷 Um documento, um grupo — uma lista explica o porquê."""
+    """One document, one group — a list explains why."""
     with pytest.raises(TypeError, match="exactly one"):
         _patients(harness).create(
             {"legal_name": "Jane Doe", "display_name": "Jane"},
@@ -79,10 +70,7 @@ def test_patients_create_refuses_a_list_of_groups(harness: Harness) -> None:  # 
 
 
 def test_patients_tags_and_specialists(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `tags` are sealed in the summary; `specialist_ids` go to clear `meta`.
-
-    🇧🇷 `tags` ficam seladas no resumo; `specialist_ids` vão para o `meta` em claro.
-    """
+    """`tags` are sealed in the summary; `specialist_ids` go to clear `meta`."""
     patients = _patients(harness)
     patient = patients.create(
         {"legal_name": "Jane Doe", "display_name": "Jane"},
@@ -99,10 +87,7 @@ def test_patients_tags_and_specialists(harness: Harness) -> None:  # noqa: F811
 
 
 def test_patients_update_keeps_tags_unless_given(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `tags=None` carries the current tags forward; a list replaces them.
-
-    🇧🇷 `tags=None` carrega as tags atuais adiante; uma lista as substitui.
-    """
+    """`tags=None` carries the current tags forward; a list replaces them."""
     patients = _patients(harness)
     created = patients.create({"legal_name": "Jane Doe", "display_name": "Jane"}, security_group="sg1", tags=["a"])
 
@@ -117,7 +102,7 @@ def test_patients_update_keeps_tags_unless_given(harness: Harness) -> None:  # n
 
 
 def test_patients_update_passes_the_conflict_guard(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `expected_latest_version_id` is forwarded as-is. 🇧🇷 `expected_latest_version_id` é repassado como veio."""
+    """`expected_latest_version_id` is forwarded as-is."""
     patients = _patients(harness)
     created = patients.create({"legal_name": "Jane Doe", "display_name": "Jane"}, security_group="sg1")
 
@@ -128,10 +113,7 @@ def test_patients_update_passes_the_conflict_guard(harness: Harness) -> None:  #
 
 
 def test_patients_lifecycle_flags(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 archive/unarchive/delete/restore flip the index flags without new versions.
-
-    🇧🇷 archive/unarchive/delete/restore trocam as flags do índice sem versões novas.
-    """
+    """archive/unarchive/delete/restore flip the index flags without new versions."""
     patients = _patients(harness)
     created = patients.create({"legal_name": "Jane Doe", "display_name": "Jane"}, security_group="sg1")
 
@@ -144,7 +126,7 @@ def test_patients_lifecycle_flags(harness: Harness) -> None:  # noqa: F811
 
 
 def test_patients_list_and_iter_all(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Rows carry names from the sealed summary. 🇧🇷 As linhas trazem nomes do resumo selado."""
+    """Rows carry names from the sealed summary."""
     patients = _patients(harness)
     patients.create({"legal_name": "Jane Doe", "display_name": "Jane"}, security_group="sg1")
     patients.create({"legal_name": "John Roe", "display_name": "John"}, security_group="sg1")
@@ -157,10 +139,7 @@ def test_patients_list_and_iter_all(harness: Harness) -> None:  # noqa: F811
 
 
 def test_patients_time_precision_truncates_before_sealing(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 With `time_precision="month"`, the stored birth date keeps only year and month.
-
-    🇧🇷 Com `time_precision="month"`, a data de nascimento guardada mantém só ano e mês.
-    """
+    """With `time_precision="month"`, the stored birth date keeps only year and month."""
     patients = _patients(harness, time_precision="month")
     created = patients.create(
         {"legal_name": "Jane Doe", "display_name": "Jane", "birth_date": date(1984, 3, 17)}, security_group="sg1"
@@ -173,7 +152,7 @@ def test_patients_time_precision_truncates_before_sealing(harness: Harness) -> N
 
 
 def test_patients_without_precision_keep_the_date(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 No precision: the date is normalized, not truncated. 🇧🇷 Sem precisão: a data é normalizada, não truncada."""
+    """No precision: the date is normalized, not truncated."""
     patient = _patients(harness).create(
         {"legal_name": "Jane Doe", "display_name": "Jane", "birth_date": "1984-03-17"}, security_group="sg1"
     )
@@ -184,10 +163,7 @@ def test_patients_without_precision_keep_the_date(harness: Harness) -> None:  # 
 
 
 def test_exams_create_puts_only_patient_id_in_clear_meta(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `patient_id` is clear; modality and everything else stay sealed, as the web app does.
-
-    🇧🇷 `patient_id` fica em claro; modalidade e todo o resto ficam selados, como o app web faz.
-    """
+    """`patient_id` is clear; modality and everything else stay sealed, as the web app does."""
     exam = _exams(harness).create(
         {"title": "Chest CT", "modality": "CT", "exam_date": date(2026, 9, 1)}, patient_id="p1", security_group="sg1"
     )
@@ -199,7 +175,7 @@ def test_exams_create_puts_only_patient_id_in_clear_meta(harness: Harness) -> No
 
 
 def test_exams_round_trip_the_report(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `report_lexical`/`report_html` come back intact. 🇧🇷 `report_lexical`/`report_html` voltam intactos."""
+    """`report_lexical`/`report_html` come back intact."""
     exams = _exams(harness)
     record = ExamRecord(title="Chest CT", report_lexical='{"root":{}}', report_html="<p>unremarkable</p>")
     created = exams.create(record, patient_id="p1", security_group="sg1")
@@ -211,10 +187,7 @@ def test_exams_round_trip_the_report(harness: Harness) -> None:  # noqa: F811
 
 
 def test_exams_update_list_and_flags(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 update re-seals the summary; list filters by group; flags are patch-only.
-
-    🇧🇷 update resela o resumo; list filtra por grupo; flags são só-patch.
-    """
+    """update re-seals the summary; list filters by group; flags are patch-only."""
     exams = _exams(harness, time_precision="day")
     first = exams.create({"title": "A"}, patient_id="p1", security_group="sg1")
     exams.create({"title": "B"}, patient_id="p1", security_group="sg2")
@@ -234,10 +207,7 @@ def test_exams_update_list_and_flags(harness: Harness) -> None:  # noqa: F811
 
 
 def test_exams_read_committed_only(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `include_draft=False` and `version_id` are forwarded.
-
-    🇧🇷 `include_draft=False` e `version_id` são repassados.
-    """
+    """`include_draft=False` and `version_id` are forwarded."""
     exams = _exams(harness)
     created = exams.create({"title": "A"}, patient_id="p1", security_group="sg1")
 

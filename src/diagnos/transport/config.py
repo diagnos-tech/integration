@@ -1,17 +1,9 @@
-"""🇺🇸 SDK configuration — one immutable snapshot read once at startup.
+"""SDK configuration — one immutable snapshot read once at startup.
 
 Everything the transport needs to reach a specific vault, as a specific
 service account, is here. It is deliberately not a singleton or a global:
 the constructor of `VaultTransport` takes a `Settings` explicitly so a
 process can run more than one workspace at once (tests do this constantly).
-
-🇧🇷 Configuração do SDK — um retrato imutável lido uma vez, na subida.
-
-Tudo que o transporte precisa para falar com um cofre específico, como uma
-service account específica, está aqui. De propósito não é singleton nem
-global: o construtor de `VaultTransport` recebe um `Settings` explícito para
-que um processo rode mais de um workspace ao mesmo tempo (os testes fazem
-isso o tempo todo).
 """
 
 from __future__ import annotations
@@ -36,40 +28,27 @@ _TRUE_VALUES = {"1", "true", "yes"}
 
 
 def _redact_opaque(secret: str) -> str:
-    """🇺🇸 Generic secret redaction (not an `apikey-` string) for `repr`.
-
-    🇧🇷 Redação genérica de segredo (não é uma string `apikey-`) para `repr`.
-    """
+    """Generic secret redaction (not an `apikey-` string) for `repr`."""
     tail = secret[-4:] if len(secret) >= 4 else secret
     return f"…{tail}"
 
 
 def _parse_bool(value: str) -> bool:
-    """🇺🇸 `"1"/"true"/"yes"` (any case) are true.
+    """`"1"/"true"/"yes"` (any case) are true.
 
     Everything else, including an empty string, is false — matches how shell
     scripts set env flags.
-
-    🇧🇷 `"1"/"true"/"yes"` (qualquer caixa) são verdadeiro; o resto, incluindo
-    string vazia, é falso — casa com o jeito que scripts de shell setam flags.
     """
     return value.strip().lower() in _TRUE_VALUES
 
 
 def _openbao_token(source: Mapping[str, str]) -> str | None:
-    """🇺🇸 `OPENBAO_TOKEN`, or the trimmed contents of the file `OPENBAO_TOKEN_FILE` names.
+    """`OPENBAO_TOKEN`, or the trimmed contents of the file `OPENBAO_TOKEN_FILE` names.
 
     A file is how Kubernetes and Docker Compose hand a process a secret
     without putting it in the environment (`/proc/<pid>/environ` is readable
     by anything running as the same user, a mounted file can be `0400`), so
     the file form is the one the deploy manifests prefer.
-
-    🇧🇷 `OPENBAO_TOKEN`, ou o conteúdo (sem espaços nas pontas) do arquivo que `OPENBAO_TOKEN_FILE` nomeia.
-
-    Um arquivo é como Kubernetes e Docker Compose entregam um segredo a um
-    processo sem colocá-lo no ambiente (`/proc/<pid>/environ` é legível por
-    qualquer coisa rodando como o mesmo usuário, um arquivo montado pode ser
-    `0400`), então a forma em arquivo é a que os manifestos de deploy preferem.
     """
     token = source.get("OPENBAO_TOKEN")
     if token:
@@ -92,10 +71,7 @@ def _openbao_token(source: Mapping[str, str]) -> str | None:
 
 
 def _parse_time_precision(raw: str | None) -> TimePrecision | None:
-    """🇺🇸 `DIAGNOS_TIME_PRECISION`, validated; unset or empty means no truncation.
-
-    🇧🇷 `DIAGNOS_TIME_PRECISION`, validado; ausente ou vazio significa sem truncamento.
-    """
+    """`DIAGNOS_TIME_PRECISION`, validated; unset or empty means no truncation."""
     if not raw:
         return None
     value = raw.strip().lower()
@@ -109,10 +85,7 @@ def _parse_time_precision(raw: str | None) -> TimePrecision | None:
 
 @dataclass(frozen=True)
 class Settings:
-    """🇺🇸 Immutable SDK configuration, usually built by `from_env`.
-
-    🇧🇷 Configuração imutável do SDK, normalmente construída por `from_env`.
-    """
+    """Immutable SDK configuration, usually built by `from_env`."""
 
     api_token: str
     vault_url: str = DEFAULT_VAULT_URL
@@ -122,37 +95,23 @@ class Settings:
     openbao_mount: str = DEFAULT_OPENBAO_MOUNT
     openbao_path_prefix: str = DEFAULT_OPENBAO_PATH_PREFIX
     openbao_namespace: str | None = None
-    # 🇺🇸 Disable core dumps and `ptrace` attach for this process at unlock
-    #    (`crypto/secure.py`). On by default: the process is about to hold
-    #    clinical keys. Turn off only to attach a debugger.
-    # 🇧🇷 Desliga core dumps e o attach de `ptrace` neste processo no unlock
-    #    (`crypto/secure.py`). Ligado por padrão: o processo está prestes a
-    #    segurar chaves clínicas. Desligue só para anexar um debugger.
+    # Disable core dumps and `ptrace` attach for this process at unlock
+    # (`crypto/secure.py`). On by default: the process is about to hold
+    # clinical keys. Turn off only to attach a debugger.
     harden_process: bool = True
-    # 🇺🇸 The workspace's anonymization precision (`month`/`day`/`hour`/`minute`/`second`). The external
-    #    API does not expose it, so set it to the workspace's value and every date is truncated before
-    #    sealing, as the web app does (`diagnos/dates.py`). `None` writes dates as given.
-    # 🇧🇷 A precisão de anonimização do workspace (`month`/`day`/`hour`/`minute`/`second`). A API externa
-    #    não a expõe, então defina com o valor do workspace e toda data é truncada antes de selar, como o
-    #    app web faz (`diagnos/dates.py`). `None` grava as datas como vieram.
+    # The workspace's anonymization precision (`month`/`day`/`hour`/`minute`/`second`). The external
+    # API does not expose it, so set it to the workspace's value and every date is truncated before
+    # sealing, as the web app does (`diagnos/dates.py`). `None` writes dates as given.
     time_precision: TimePrecision | None = None
-    # 🇺🇸 Hosts a presigned storage URL may point at (and their subdomains), HTTPS only — see `storage_hosts.py`.
-    # 🇧🇷 Hosts para onde uma URL de armazenamento pré-assinada pode apontar (e subdomínios), só HTTPS — ver
-    #    `storage_hosts.py`.
+    # Hosts a presigned storage URL may point at (and their subdomains), HTTPS only — see `storage_hosts.py`.
     storage_hosts: tuple[str, ...] = DEFAULT_STORAGE_HOSTS
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> Settings:
-        """🇺🇸 Read the environment variables documented in `docs/PROTOCOL.md §11`.
+        """Read the environment variables documented in `docs/PROTOCOL.md §11`.
 
         `env` defaults to `os.environ` but accepts an explicit mapping so
         tests never have to monkeypatch process-global state.
-
-        🇧🇷 Lê as variáveis de ambiente documentadas em `docs/PROTOCOL.md §11`.
-
-        `env` usa `os.environ` por padrão, mas aceita um mapeamento explícito
-        para os testes nunca precisarem de monkeypatch em estado global do
-        processo.
         """
         source = env if env is not None else os.environ
         api_token = source.get("DIAGNOS_API_TOKEN")
@@ -188,10 +147,7 @@ class Settings:
         )
 
     def __repr__(self) -> str:
-        """🇺🇸 Redacted: both tokens are capable of acting as this workspace / OpenBao path.
-
-        🇧🇷 Redigido: os dois tokens são capazes de agir como este workspace / path do OpenBao.
-        """
+        """Redacted: both tokens are capable of acting as this workspace / OpenBao path."""
         openbao_token = _redact_opaque(self.openbao_token) if self.openbao_token else None
         return (
             f"Settings(api_token={redact_api_token(self.api_token)!r}, vault_url={self.vault_url!r}, "

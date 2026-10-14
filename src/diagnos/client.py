@@ -1,25 +1,13 @@
-"""🇺🇸 `Diagnos`: the one object an application constructs — everything else hangs off it.
+"""`Diagnos`: the one object an application constructs; everything else hangs off it.
 
 `vault = Diagnos(); vault.patients.list()` is the whole point of this
 module: every other file in this package exists to make that call correct
 and safe, and this is where they compose. Nothing below does cryptography or
-speaks HTTP directly — it wires together a `VaultTransport`, a
+speaks HTTP directly. It wires together a `VaultTransport`, a
 `SessionManager` (or a caller-supplied stand-in, for tests) and one lazily
-built resource per kind (`patients`/`exams`/`drives`), all sharing the same
-`EntropyMixer` so the server's response seed (`docs/PROTOCOL.md §4`) reaches
-every DEK and node key this process ever generates.
-
-🇧🇷 `Diagnos`: o único objeto que uma aplicação constrói — todo o resto pendura nele.
-
-`vault = Diagnos(); vault.patients.list()` é o ponto inteiro deste módulo:
-todo outro arquivo deste pacote existe para essa chamada ser correta e
-segura, e é aqui que eles se compõem. Nada abaixo faz criptografia ou fala
-HTTP direto — isto conecta um `VaultTransport`, um `SessionManager` (ou um
-substituto fornecido por quem chama, para testes) e um recurso por tipo
-(`patients`/`exams`/`drives`) construído de forma preguiçosa, todos
-compartilhando o mesmo `EntropyMixer` para a semente de resposta do servidor
-(`docs/PROTOCOL.md §4`) alcançar toda DEK e chave de nó que este processo já
-gerar.
+built resource per kind (`patients`, `exams`, `drives`), all sharing the same
+`EntropyMixer` so that the server's response seed (`docs/PROTOCOL.md §4`)
+reaches every DEK and node key this process ever generates.
 """
 
 from __future__ import annotations
@@ -46,9 +34,15 @@ if TYPE_CHECKING:
 
 
 class Diagnos:
-    """🇺🇸 The SDK's entry point: one service account's live connection to one workspace.
+    """The SDK's entry point: one service account's live connection to one workspace.
 
-    🇧🇷 O ponto de entrada do SDK: a conexão viva de uma service account com um workspace.
+    Construct it once, read documents and files through `patients`, `exams` and `drives`, and let it unlock the
+    session on first use:
+
+        with Diagnos() as vault:
+            page = vault.patients.list()
+
+    Exiting the `with` block closes the HTTP clients but does not end the session; call `lock()` for that.
     """
 
     def __init__(
@@ -61,17 +55,26 @@ class Diagnos:
         transport: VaultTransport | None = None,
         session: SessionManager | None = None,
     ) -> None:
-        """🇺🇸 Builds (or accepts) every layer below `patients`/`exams`/`drives`.
+        """Build (or accept) every layer below `patients`, `exams` and `drives`.
 
-        `transport`/`session` are escape hatches for tests, not something a
-        real application ever passes — see `apps/sdk/tests/test_client.py` for the
-        pattern (a fake `session` that never touches the network).
+        `transport` and `session` are escape hatches for tests, not something
+        a real application ever passes. See `apps/sdk/tests/test_client.py`
+        for the pattern (a fake `session` that never touches the network).
 
-        🇧🇷 Constrói (ou aceita) toda camada abaixo de `patients`/`exams`/`drives`.
+        Args:
+            settings: The configuration, used as is. If omitted, it is read from the environment
+                (`DIAGNOS_API_TOKEN` and friends); see `Settings.from_env`.
+            token: A `DIAGNOS_API_TOKEN` value that replaces the one in the environment. Ignored when `settings`
+                is given.
+            on_prompt: Called with the enrollment prompt (approval link and code) when the session needs a person's
+                approval. If omitted, the prompt is printed to the terminal.
+            auto_unseal: Whether to persist and restore the unlocked session through OpenBao. If omitted, it is
+                enabled exactly when `settings.openbao_addr` is set.
+            transport: A prebuilt transport, for tests.
+            session: A prebuilt session manager, for tests.
 
-        `transport`/`session` são válvulas de escape para teste, nunca algo
-        que uma aplicação de verdade passa — ver `apps/sdk/tests/test_client.py`
-        para o padrão (um `session` falso que nunca toca a rede).
+        Raises:
+            ConfigError: If the token is missing or malformed.
         """
         self._settings = _resolve_settings(settings, token)
         self._token = ServiceAccountToken.parse(self._settings.api_token)
@@ -105,29 +108,17 @@ class Diagnos:
         self._drives: Drives | None = None
 
     def _current_session_keys(self) -> SessionKeys | None:
-        """🇺🇸 The callback `VaultTransport` polls before signing every request.
-
-        🇧🇷 O callback que `VaultTransport` consulta antes de assinar toda requisição.
-        """
+        """Return the session keys, the callback `VaultTransport` polls before signing every request."""
         return self._session.session_keys()
 
     def _keyring_provider(self) -> Keyring:
-        """🇺🇸 The live `Keyring`, auto-unlocking on first use so `vault.patients.list()` just works.
+        """Return the live `Keyring`, auto-unlocking on first use so `vault.patients.list()` just works.
 
         This is the one place laziness is deliberate: `unlock()` is
         documented as idempotent (`session/manager.py`), so paying for it on
-        first resource access — instead of forcing every caller to remember
-        an explicit `unlock()` — is what makes the "30 seconds to your first
+        first resource access, instead of forcing every caller to remember
+        an explicit `unlock()`, is what makes the "30 seconds to your first
         `list()`" README example true without a `with` block.
-
-        🇧🇷 O `Keyring` vivo, com auto-unlock no primeiro uso para `vault.patients.list()` simplesmente funcionar.
-
-        Este é o único lugar em que a preguiça é deliberada: `unlock()` é
-        documentado como idempotente (`session/manager.py`), então pagar por
-        ele no primeiro acesso a um recurso — em vez de forçar quem chama a
-        lembrar de um `unlock()` explícito — é o que torna o exemplo do
-        README "30 segundos até o primeiro `list()`" verdadeiro sem um bloco
-        `with`.
         """
         try:
             keyring = self._session.keyring
@@ -137,42 +128,27 @@ class Diagnos:
 
     @property
     def workspace_id(self) -> str:
-        """🇺🇸 This service account's workspace, read from its token.
-
-        🇧🇷 O workspace desta service account, lido do token dela.
-        """
+        """This service account's workspace, read from its token."""
         return self._token.workspace_id
 
     @property
     def account_id(self) -> str:
-        """🇺🇸 This service account's owning account, read from its token.
-
-        🇧🇷 A conta dona desta service account, lida do token dela.
-        """
+        """This service account's owning account, read from its token."""
         return self._token.account_id
 
     @property
     def name(self) -> str:
-        """🇺🇸 The service account's human-readable name (`slug@<workspace_id>.diagnos.health`).
-
-        🇧🇷 O nome legível da service account (`slug@<workspace_id>.diagnos.health`).
-        """
+        """The service account's human-readable name (`slug@<workspace_id>.diagnos.health`)."""
         return self._token.name
 
     @property
     def key_id(self) -> str:
-        """🇺🇸 Id of the token's key pair — what an admin rotates or revokes.
-
-        🇧🇷 Id do par de chaves do token — o que um admin rotaciona ou revoga.
-        """
+        """The id of the token's key pair, which is what an admin rotates or revokes."""
         return self._token.key_id
 
     @property
     def security_groups(self) -> list[str]:
-        """🇺🇸 Ids of every security group this session holds a DEK for; `[]` before `unlock()`.
-
-        🇧🇷 Ids de todo security group para o qual esta sessão tem uma DEK; `[]` antes de `unlock()`.
-        """
+        """The ids of every security group this session holds a DEK for; `[]` before `unlock()`."""
         try:
             keyring = self._session.keyring
         except SessionExpiredError:
@@ -181,10 +157,7 @@ class Diagnos:
 
     @property
     def patients(self) -> Patients:
-        """🇺🇸 `vault.patients` — built once, on first access.
-
-        🇧🇷 `vault.patients` — construído uma vez, no primeiro acesso.
-        """
+        """The patient records resource, built once on first access."""
         if self._patients is None:
             self._patients = _client_wiring._build_patients(
                 self._transport,
@@ -197,10 +170,7 @@ class Diagnos:
 
     @property
     def exams(self) -> Exams:
-        """🇺🇸 `vault.exams` — built once, on first access.
-
-        🇧🇷 `vault.exams` — construído uma vez, no primeiro acesso.
-        """
+        """The exam records resource, built once on first access."""
         if self._exams is None:
             self._exams = _client_wiring._build_exams(
                 self._transport,
@@ -213,10 +183,7 @@ class Diagnos:
 
     @property
     def drives(self) -> Drives:
-        """🇺🇸 `vault.drives` — built once, on first access.
-
-        🇧🇷 `vault.drives` — construído uma vez, no primeiro acesso.
-        """
+        """The drive (files and folders) resource, built once on first access."""
         if self._drives is None:
             self._drives = Drives(
                 self._transport,
@@ -227,36 +194,35 @@ class Diagnos:
         return self._drives
 
     def unlock(self) -> Keyring:
-        """🇺🇸 Enrolls (or restores from OpenBao) and returns the live `Keyring`; idempotent.
+        """Enroll (or restore from OpenBao) and return the live `Keyring`; idempotent.
 
-        🇧🇷 Faz enrollment (ou restaura do OpenBao) e devolve o `Keyring` vivo; idempotente.
+        Returns:
+            The keyring holding a DEK for every security group the session may use.
+
+        Raises:
+            EnrollmentDeniedError: If a person denied the enrollment in the web app.
+            EnrollmentExpiredError: If nobody approved the enrollment within the window.
+            VaultError: If the vault rejects the enrollment.
         """
         return self._session.unlock()
 
     def lock(self) -> None:
-        """🇺🇸 Ends the session, best-effort server-side, and always wipes local key material.
+        """End the session, best-effort server-side, and always wipe local key material.
 
-        Unlike `close()`, this is never called automatically — see the
+        Unlike `close()`, this is never called automatically; see the
         `__exit__` docstring for why.
-
-        🇧🇷 Encerra a sessão, best-effort do lado do servidor, e sempre apaga o material de chave local.
-
-        Diferente de `close()`, isto nunca é chamado automaticamente — veja
-        a docstring de `__exit__` para o porquê.
         """
         self._session.lock()
 
     def close(self) -> None:
-        """🇺🇸 Closes the underlying HTTP clients. Does not `lock()` — see `__exit__`.
-
-        🇧🇷 Fecha os clients HTTP internos. Não faz `lock()` — veja `__exit__`.
-        """
+        """Close the underlying HTTP clients. This does not `lock()`; see `__exit__`."""
         self._transport.close()
 
     def __enter__(self) -> Diagnos:
-        """🇺🇸 `with Diagnos(...) as vault:` unlocks on entry.
+        """Unlock the session on entry to a `with Diagnos(...) as vault:` block.
 
-        🇧🇷 `with Diagnos(...) as vault:` desbloqueia na entrada.
+        Returns:
+            This client.
         """
         self.unlock()
         return self
@@ -267,31 +233,19 @@ class Diagnos:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """🇺🇸 Closes the HTTP clients but deliberately does not `lock()` the session.
+        """Close the HTTP clients but deliberately do not `lock()` the session.
 
         Exiting a `with` block means "this process is done talking to the
-        vault right now", not "revoke this session forever" — an
+        vault right now", not "revoke this session forever". An
         auto-unsealing worker that restarts a minute later should restore
         the very session this process was using, not be forced to enroll
         again because closing merely freed a socket. Call `lock()` yourself
         when the intent really is to end the session.
-
-        🇧🇷 Fecha os clients HTTP mas deliberadamente não faz `lock()` da sessão.
-
-        Sair de um bloco `with` significa "este processo terminou de falar
-        com o cofre agora", não "revogue esta sessão para sempre" — um
-        worker com auto-unseal que reinicia um minuto depois deveria
-        restaurar a mesma sessão que este processo usava, não ser forçado a
-        um novo enrollment só porque fechar liberou um socket. Chame
-        `lock()` você mesmo quando a intenção for de fato encerrar a sessão.
         """
         self.close()
 
     def __repr__(self) -> str:
-        """🇺🇸 Never the token — only what identifies the workspace/account.
-
-        🇧🇷 Nunca o token — só o que identifica workspace/conta.
-        """
+        """Render the client without the token, showing only what identifies the workspace and account."""
         return (
             f"Diagnos(workspace_id={self.workspace_id!r}, account_id={self.account_id!r}, "
             f"name={self._token.name!r}, api_token={redact_api_token(self._token.raw)!r})"

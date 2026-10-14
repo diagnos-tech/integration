@@ -1,16 +1,8 @@
-"""🇺🇸 `diagnos-api dev-certs`: what it writes, what it refuses, and a real mTLS handshake with its output.
+"""`diagnos-api dev-certs`: what it writes, what it refuses, and a real mTLS handshake with its output.
 
-The last test is the only one in the suite that runs uvicorn with real TLS:
-it serves the app with the generated server pair and CA, then calls
-`/healthz` with the generated client pair, without any, and with a client
+The last test is the only one in the suite that runs uvicorn with real TLS. It serves the app with the generated
+server pair and CA, then calls `/healthz` with the generated client pair, with no client certificate, and with a client
 certificate from a CA nobody trusted.
-
-🇧🇷 `diagnos-api dev-certs`: o que ele grava, o que ele recusa, e um handshake mTLS de verdade com o resultado.
-
-O último teste é o único da suíte que roda o uvicorn com TLS de verdade:
-serve o app com o par do servidor e a CA gerados, depois chama `/healthz`
-com o par de cliente gerado, sem nenhum, e com um certificado de cliente de
-uma CA em que ninguém confiou.
 """
 
 from __future__ import annotations
@@ -40,15 +32,12 @@ from conftest import FakeDiagnos
 
 
 def _load(path: Path) -> x509.Certificate:
-    """🇺🇸 A PEM certificate from disk. 🇧🇷 Um certificado PEM do disco."""
+    """Loads a PEM certificate from disk."""
     return x509.load_pem_x509_certificate(path.read_bytes())
 
 
 def test_generate_writes_a_ca_a_server_and_a_client_the_ca_signed(tmp_path: Path) -> None:
-    """🇺🇸 Six files; keys `0600` in a `0700` directory; both leaves signed by the CA with the right usages.
-
-    🇧🇷 Seis arquivos; chaves `0600` num diretório `0700`; as duas folhas assinadas pela CA com os usos certos.
-    """
+    """Six files; keys `0600` in a `0700` directory; both leaves signed by the CA with the right usages."""
     written = dev_certs.generate(tmp_path / "certs", client_cn="billing-system")
 
     assert stat.S_IMODE((tmp_path / "certs").stat().st_mode) == 0o700
@@ -58,8 +47,7 @@ def test_generate_writes_a_ca_a_server_and_a_client_the_ca_signed(tmp_path: Path
     server.verify_directly_issued_by(ca)
     client.verify_directly_issued_by(ca)
     assert ca.extensions.get_extension_for_class(x509.BasicConstraints).value.ca is True
-    # 🇺🇸 A strict client — Python 3.13's default context — refuses a chain without the key identifiers.
-    # 🇧🇷 Um cliente estrito — o contexto padrão do Python 3.13 — recusa uma cadeia sem os identificadores de chave.
+    # A strict client (Python 3.13's default context) refuses a chain without the key identifiers.
     ca_key_id = ca.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value.digest
     for leaf in (server, client):
         assert leaf.extensions.get_extension_for_class(x509.AuthorityKeyIdentifier).value.key_identifier == ca_key_id
@@ -73,10 +61,7 @@ def test_generate_writes_a_ca_a_server_and_a_client_the_ca_signed(tmp_path: Path
 
 
 def test_generate_never_replaces_files_unless_forced(tmp_path: Path) -> None:
-    """🇺🇸 A second run stops (the client certificate may already be in use); `force` replaces everything.
-
-    🇧🇷 Uma segunda execução para (o certificado de cliente pode já estar em uso); `force` substitui tudo.
-    """
+    """A second run stops (the client certificate may already be in use); `force` replaces everything."""
     first = dev_certs.generate(tmp_path)
     before = first.client.read_bytes()
     with pytest.raises(dev_certs.DevCertsError, match="--force"):
@@ -87,10 +72,7 @@ def test_generate_never_replaces_files_unless_forced(tmp_path: Path) -> None:
 
 
 def test_generate_says_how_to_get_cryptography(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """🇺🇸 Without the optional dependency, the error names the extra to install.
-
-    🇧🇷 Sem a dependência opcional, o erro nomeia o extra a instalar.
-    """
+    """Without the optional dependency, the error names the extra to install."""
     import diagnos.api
 
     monkeypatch.setitem(sys.modules, "diagnos.api._pki", None)
@@ -101,10 +83,7 @@ def test_generate_says_how_to_get_cryptography(monkeypatch: pytest.MonkeyPatch, 
 
 
 def test_the_command_prints_what_to_run_next(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """🇺🇸 `diagnos-api dev-certs DIR` prints the exports and a `curl`; a second run exits 2.
-
-    🇧🇷 `diagnos-api dev-certs DIR` mostra os exports e um `curl`; uma segunda execução sai com 2.
-    """
+    """`diagnos-api dev-certs DIR` prints the exports and a `curl`; a second run exits 2."""
     main.run(["dev-certs", str(tmp_path)])
     out = capsys.readouterr().out
     assert f"export DIAGNOS_API_MTLS_CA_FILE={tmp_path / 'ca.pem'}" in out
@@ -116,7 +95,7 @@ def test_the_command_prints_what_to_run_next(tmp_path: Path, capsys: pytest.Capt
 
 
 def _free_port() -> int:
-    """🇺🇸 A loopback port nobody is listening on. 🇧🇷 Uma porta de loopback em que ninguém escuta."""
+    """Returns a loopback port that nobody is listening on."""
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         return int(probe.getsockname()[1])
@@ -124,10 +103,7 @@ def _free_port() -> int:
 
 @contextmanager
 def _serving(settings: ApiSettings, vault: FakeDiagnos) -> Iterator[str]:
-    """🇺🇸 The app under real uvicorn with mandatory client certificates; yields its base URL.
-
-    🇧🇷 O app sob um uvicorn de verdade com certificado de cliente obrigatório; devolve a URL base.
-    """
+    """Serves the app under real uvicorn with mandatory client certificates and yields its base URL."""
     config = uvicorn.Config(
         create_app(settings, vault),  # type: ignore[arg-type]
         host=settings.host,
@@ -142,7 +118,7 @@ def _serving(settings: ApiSettings, vault: FakeDiagnos) -> Iterator[str]:
     deadline = time.monotonic() + 10
     while not server.started and time.monotonic() < deadline:
         time.sleep(0.02)
-    assert server.started, "uvicorn did not start · o uvicorn não subiu"
+    assert server.started, "uvicorn did not start"
     try:
         yield f"https://localhost:{settings.port}"
     finally:
@@ -151,7 +127,7 @@ def _serving(settings: ApiSettings, vault: FakeDiagnos) -> Iterator[str]:
 
 
 def _client_context(ca: Path, pair: tuple[Path, Path] | None) -> ssl.SSLContext:
-    """🇺🇸 Trusts `ca`; presents `pair` when given. 🇧🇷 Confia em `ca`; apresenta `pair` quando dado."""
+    """Builds a client context that trusts `ca` and presents `pair` when given."""
     context = ssl.create_default_context(cafile=str(ca))
     if pair is not None:
         context.load_cert_chain(certfile=str(pair[0]), keyfile=str(pair[1]))
@@ -159,10 +135,7 @@ def _client_context(ca: Path, pair: tuple[Path, Path] | None) -> ssl.SSLContext:
 
 
 def test_the_generated_certificates_complete_a_real_mtls_handshake(tmp_path: Path, fake_vault: FakeDiagnos) -> None:
-    """🇺🇸 The client pair gets a 200; no certificate, or one from a stranger CA, never reaches a route.
-
-    🇧🇷 O par de cliente recebe 200; sem certificado, ou com um de uma CA estranha, nunca chega a uma rota.
-    """
+    """The client pair gets a 200; no certificate, or one from a stranger CA, never reaches a route."""
     written = dev_certs.generate(tmp_path / "certs")
     stranger = dev_certs.generate(tmp_path / "stranger")
     settings = ApiSettings.from_env({**written.environment(), "DIAGNOS_API_PORT": str(_free_port())})

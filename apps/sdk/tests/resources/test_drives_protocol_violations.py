@@ -1,4 +1,4 @@
-"""🇺🇸 `_Nodes`: what happens when the vault's reservation answer breaks the protocol it is supposed to speak.
+"""`_Nodes`: what happens when the vault's reservation answer breaks the protocol it is supposed to speak.
 
 `test_drives.py` proves the happy paths and the failures a real
 `FakeVault` can produce on its own (a missing `ETag`, a `PUT` that never
@@ -9,20 +9,6 @@ is monkeypatched directly (on the instance, per-test) to hand back exactly
 the malformed answer each defensive check exists for. The last test proves
 the one property `test_a_failed_multipart_is_aborted` cannot: that an
 abort which itself fails never replaces the original error.
-
-🇧🇷 `_Nodes`: o que acontece quando a resposta de reserva do cofre quebra o
-próprio protocolo que deveria falar.
-
-`test_drives.py` prova os caminhos felizes e as falhas que um `FakeVault`
-de verdade consegue produzir sozinho (um `ETag` faltando, um `PUT` que nunca
-chegou). Os cenários aqui — uma reserva sem nó de arquivo nenhum, uma que
-alega um modo de upload desconhecido, um nó single sem URL de upload — são
-violações de protocolo que o próprio `FakeVault` nunca gera, então `_stage`
-é substituído direto (na instância, por teste) para devolver exatamente a
-resposta malformada que cada checagem defensiva existe para pegar. O último
-teste prova a propriedade que `test_a_failed_multipart_is_aborted` não
-consegue: que um abort que falha por conta própria nunca substitui o erro
-original.
 """
 
 from __future__ import annotations
@@ -40,16 +26,13 @@ from vault_double import WORKSPACE_ID, Harness, harness  # noqa: F401 — `harne
 
 
 def _drive(h: Harness, group: str = "sg1") -> Drive:
-    """🇺🇸 One group's drive; `._nodes` is its `_Nodes` engine. 🇧🇷 O drive de um grupo; `._nodes` é o motor `_Nodes`."""
+    """One group's drive; `._nodes` is its `_Nodes` engine."""
     drives = Drives(h.transport, h.keyring_provider, h.entropy, workspace_id=WORKSPACE_ID)
     return drives.drive(group)
 
 
 def _staged_stub(client_ref: str, **overrides: Any) -> StagedNode:
-    """🇺🇸 A minimal, otherwise-valid `StagedNode` a real reservation would never actually send.
-
-    🇧🇷 Um `StagedNode` mínimo, do resto válido, que uma reserva de verdade nunca mandaria de fato.
-    """
+    """A minimal, otherwise-valid `StagedNode` a real reservation would never actually send."""
     fields: dict[str, Any] = {
         "client_ref": client_ref,
         "node_id": "node_x",
@@ -62,17 +45,11 @@ def _staged_stub(client_ref: str, **overrides: Any) -> StagedNode:
 
 
 def test_a_reservation_answering_no_file_node_is_a_protocol_error(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A reservation that answers with a folder (or nothing) for a file `client_ref` is `ProtocolError`.
-
-    🇧🇷 Uma reserva que responde com uma pasta (ou nada) para um `client_ref` de arquivo é `ProtocolError`.
-    """
+    """A reservation that answers with a folder (or nothing) for a file `client_ref` is `ProtocolError`."""
     drive = _drive(harness)
 
     def fake_stage(body: dict[str, Any]) -> list[StagedNode]:
-        """🇺🇸 Answers a file upload's reservation with a folder node, which never happens for real.
-
-        🇧🇷 Responde a reserva de um upload de arquivo com um nó de pasta, o que nunca acontece de verdade.
-        """
+        """Answers a file upload's reservation with a folder node, which never happens for real."""
         (entry,) = body["files"]
         return [_staged_stub(entry["client_ref"], kind="folder")]
 
@@ -83,30 +60,18 @@ def test_a_reservation_answering_no_file_node_is_a_protocol_error(harness: Harne
 
 
 def test_a_reservation_claiming_an_unknown_upload_mode_is_a_protocol_error(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A staged file node with no recognized `mode` (`None`, the shape a folder carries) is `ProtocolError`.
+    """A staged file node with no recognized `mode` (`None`, the shape a folder carries) is `ProtocolError`.
 
     `StagedNode.mode` is a closed `Literal["single", "multipart"] | None` —
     real reservations can never send a made-up third string — so the one
     way to reach `_upload_batch`'s `else` branch is a `kind="file"` entry
     that nonetheless carries `mode=None`, the value only a folder is
     supposed to have.
-
-    🇧🇷 Um nó de arquivo reservado sem `mode` reconhecido (`None`, a forma que
-    uma pasta carrega, não um arquivo) é `ProtocolError`.
-
-    `StagedNode.mode` é um `Literal["single", "multipart"] | None` fechado —
-    reservas de verdade nunca conseguem mandar uma terceira string
-    inventada — então o único jeito de alcançar o ramo `else` de
-    `_upload_batch` é uma entrada `kind="file"` que ainda assim carrega
-    `mode=None`, o valor que só uma pasta deveria ter.
     """
     drive = _drive(harness)
 
     def fake_stage(body: dict[str, Any]) -> list[StagedNode]:
-        """🇺🇸 Answers with a file node whose `mode` is `None` — a shape a real reservation never sends.
-
-        🇧🇷 Responde com um nó de arquivo cujo `mode` é `None` — uma forma que uma reserva de verdade nunca manda.
-        """
+        """Answers with a file node whose `mode` is `None` — a shape a real reservation never sends."""
         (entry,) = body["files"]
         return [_staged_stub(entry["client_ref"], mode=None)]
 
@@ -117,17 +82,11 @@ def test_a_reservation_claiming_an_unknown_upload_mode_is_a_protocol_error(harne
 
 
 def test_a_single_mode_node_with_no_upload_url_is_a_protocol_error(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `mode="single"` with no `upload` URL at all is `ProtocolError`, never an `AttributeError` on `None`.
-
-    🇧🇷 `mode="single"` sem URL de `upload` nenhuma é `ProtocolError`, nunca um `AttributeError` num `None`.
-    """
+    """`mode="single"` with no `upload` URL at all is `ProtocolError`, never an `AttributeError` on `None`."""
     drive = _drive(harness)
 
     def fake_stage(body: dict[str, Any]) -> list[StagedNode]:
-        """🇺🇸 Answers `mode="single"` with no `upload` at all — a shape a real reservation never sends.
-
-        🇧🇷 Responde `mode="single"` sem `upload` nenhum — uma forma que uma reserva de verdade nunca manda.
-        """
+        """Answers `mode="single"` with no `upload` at all — a shape a real reservation never sends."""
         (entry,) = body["files"]
         return [_staged_stub(entry["client_ref"], mode="single", upload=None)]
 
@@ -141,28 +100,18 @@ def test_a_failing_abort_never_hides_the_original_multipart_failure(
     harness: Harness,  # noqa: F811
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """🇺🇸 When both a part upload *and* the best-effort abort that follows it fail, the original error wins.
+    """When both a part upload *and* the best-effort abort that follows it fail, the original error wins.
 
     `_abort`'s own docstring promises it is best-effort — "the vault's sweep
     covers a lost abort" — so a broken abort must never mask what actually
     went wrong first.
-
-    🇧🇷 Quando tanto um upload de parte *quanto* o abort best-effort que o
-    segue falham, o erro original vence.
-
-    A própria docstring de `_abort` promete que ele é best-effort — "a
-    varredura do cofre cobre um abort perdido" — então um abort quebrado
-    nunca pode mascarar o que de fato deu errado primeiro.
     """
     harness.vault.single_threshold = 0
     harness.vault.part_size = 64
     real = harness.vault.handle_storage
 
     def fail_second_part(request: httpx.Request) -> httpx.Response:
-        """🇺🇸 Fails only the second part's `PUT`, so the multipart upload must abort mid-flight.
-
-        🇧🇷 Falha só o `PUT` da segunda parte, então o upload multipart precisa abortar em pleno voo.
-        """
+        """Fails only the second part's `PUT`, so the multipart upload must abort mid-flight."""
         return httpx.Response(500) if str(request.url).endswith("/2") else real(request)
 
     harness.transport._storage_client = httpx.Client(  # noqa: SLF001
@@ -174,15 +123,12 @@ def test_a_failing_abort_never_hides_the_original_multipart_failure(
     def post_and_break_abort(
         path: str, *, json: Any | None = None, query: Any | None = None, signed: bool = True
     ) -> Any:
-        """🇺🇸 Passes every `POST` through except the abort route, which raises instead.
-
-        🇧🇷 Repassa todo `POST` menos a rota de abort, que lança em vez disso.
-        """
+        """Passes every `POST` through except the abort route, which raises instead."""
         if path.endswith("/multipart/abort"):
             raise RuntimeError("the abort route is down too")
         return real_post(path, json=json, query=query, signed=signed)
 
     monkeypatch.setattr(harness.transport, "post", post_and_break_abort)
 
-    with pytest.raises(VaultError):  # 🇺🇸/🇧🇷 the ORIGINAL 500, never the abort's RuntimeError
+    with pytest.raises(VaultError):  # the ORIGINAL 500, never the abort's RuntimeError
         _drive(harness).upload(b"w" * 300, name="w.bin")

@@ -1,4 +1,4 @@
-"""🇺🇸 `_SendMixin`: build one signed request and send it, and opportunistically open `random_seed`.
+"""`_SendMixin`: build one signed request and send it, and opportunistically open `random_seed`.
 
 `VaultTransport.request` calls `_send_once` once per loop iteration and
 `_maybe_deliver_seed` after every response; neither needs the retry loop
@@ -9,18 +9,6 @@ they touch — not `self: VaultTransport` itself, because mypy requires an
 explicit self-type to be a *supertype* of the defining class, and
 `VaultTransport` (which inherits this mixin) is the other way round: a
 subtype of it.
-
-🇧🇷 `_SendMixin`: monta uma requisição assinada e envia, e abre `random_seed` de forma oportunista.
-
-`VaultTransport.request` chama `_send_once` uma vez por volta do laço e
-`_maybe_deliver_seed` depois de toda resposta; nenhum dos dois precisa do
-próprio laço de retentativa, então tirá-los daqui é o que mantém `http.py`
-restrito ao laço e à superfície pública `get`/`post`/`put`/`request`. Seus
-métodos recebem `self: _SendHost`, um `Protocol` estrutural que só nomeia os
-quatro atributos que eles tocam — não `self: VaultTransport` em si, porque
-o mypy exige que um self-type explícito seja um *supertipo* da classe que o
-define, e `VaultTransport` (que herda este mixin) é o contrário disso: um
-subtipo dele.
 """
 
 from __future__ import annotations
@@ -43,10 +31,7 @@ logger = logging.getLogger("diagnos")
 
 
 class _SendHost(Protocol):
-    """🇺🇸 What `_SendMixin` needs from `VaultTransport` — see the module docstring for why this is a `Protocol`.
-
-    🇧🇷 O que `_SendMixin` precisa de `VaultTransport` — ver a docstring do módulo para o porquê de `Protocol`.
-    """
+    """What `_SendMixin` needs from `VaultTransport` — see the module docstring for why this is a `Protocol`."""
 
     _client: httpx.Client
     _session_keys: Callable[[], SessionKeys | None]
@@ -55,10 +40,7 @@ class _SendHost(Protocol):
 
 
 class _SendMixin:
-    """🇺🇸 The per-request half of `VaultTransport`: sign-and-send, plus opportunistic seed delivery.
-
-    🇧🇷 A metade por-requisição de `VaultTransport`: assinar-e-enviar, mais entrega oportunista de seed.
-    """
+    """The per-request half of `VaultTransport`: sign-and-send, plus opportunistic seed delivery."""
 
     def _send_once(
         self: _SendHost,
@@ -70,10 +52,7 @@ class _SendMixin:
         headers: Mapping[str, str],
         signed: bool,
     ) -> httpx.Response:
-        """🇺🇸 Build one request (signing it if asked) and send it — no retry logic here.
-
-        🇧🇷 Monta uma requisição (assinando se pedido) e envia — sem lógica de retentativa aqui.
-        """
+        """Build one request (signing it if asked) and send it — no retry logic here."""
         request = self._client.build_request(method, path, params=query, content=body, headers=dict(headers))
         if signed:
             keys = self._session_keys()
@@ -98,19 +77,12 @@ class _SendMixin:
         return self._client.send(request)
 
     def _maybe_deliver_seed(self: _SendHost, response: httpx.Response) -> None:
-        """🇺🇸 Open the envelope's `random_seed` and hand it to `on_seed` as a `SecretBox`; never fail the call.
+        """Open the envelope's `random_seed` and hand it to `on_seed` as a `SecretBox`; never fail the call.
 
         A seed that is absent or does not open (a body that is not JSON,
         a stale `enc_key` mid-rotation) is a lost contribution to future
         entropy, not a reason to fail a response the vault otherwise answered
         correctly — the SDK still has the OS RNG on its own.
-
-        🇧🇷 Abre o `random_seed` do envelope e entrega a `on_seed` como `SecretBox`; nunca derruba a chamada.
-
-        Uma semente ausente ou que não abre (um corpo que não é JSON, um
-        `enc_key` velho no meio de uma rotação) é uma contribuição perdida
-        para entropia futura, não motivo para falhar uma resposta que o cofre
-        respondeu certo — o SDK ainda tem o RNG do SO por conta própria.
         """
         if self._on_seed is None:
             return

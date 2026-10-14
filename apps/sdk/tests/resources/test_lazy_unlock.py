@@ -1,18 +1,10 @@
-"""🇺🇸 Every resource call asks for the keyring before its first signed request, so it can be a program's first call.
+"""Every resource call asks for the keyring before its first signed request, so it can be a program's first call.
 
 `Diagnos` unlocks lazily inside the keyring provider; a resource that signed
 a request before asking for the keyring would fail with
 `SessionExpiredError` on a fresh client instead of unlocking. The session
 here exists only once the provider has been asked, exactly as with a real
 `Diagnos` before its first `unlock()`.
-
-🇧🇷 Toda chamada de recurso pede o keyring antes da primeira requisição assinada: pode ser a primeira do programa.
-
-O `Diagnos` desbloqueia de forma preguiçosa dentro do provedor de keyring;
-um recurso que assinasse uma requisição antes de pedir o keyring falharia com
-`SessionExpiredError` num cliente novo em vez de desbloquear. A sessão aqui só
-existe depois de o provedor ser consultado, exatamente como num `Diagnos` de
-verdade antes do primeiro `unlock()`.
 """
 
 from __future__ import annotations
@@ -34,28 +26,25 @@ from vault_double import VAULT_URL, WORKSPACE_ID, Harness, harness  # noqa: F401
 
 
 class _LazySession:
-    """🇺🇸 A session that appears only once the keyring was asked for — `Diagnos`'s lazy unlock, in miniature.
-
-    🇧🇷 Uma sessão que só aparece depois de o keyring ser pedido — o unlock preguiçoso do `Diagnos`, em miniatura.
-    """
+    """A session that appears only once the keyring was asked for — `Diagnos`'s lazy unlock, in miniature."""
 
     def __init__(self, keyring: Keyring) -> None:
-        """🇺🇸 Starts locked. 🇧🇷 Começa travada."""
+        """Starts locked."""
         self._keyring = keyring
         self.unlocked = False
 
     def keyring_provider(self) -> Keyring:
-        """🇺🇸 Unlocks, then hands out the keyring. 🇧🇷 Desbloqueia, depois entrega o keyring."""
+        """Unlocks, then hands out the keyring."""
         self.unlocked = True
         return self._keyring
 
     def lock(self) -> None:
-        """🇺🇸 Back to no session. 🇧🇷 De volta a sem sessão."""
+        """Back to no session."""
         self.unlocked = False
 
 
 def _wire(h: Harness) -> tuple[_LazySession, VersionedDocuments[PatientRecord, PatientSummary], Drives]:
-    """🇺🇸 A transport that signs only once the session unlocked. 🇧🇷 Um transporte que só assina depois do unlock."""
+    """A transport that signs only once the session unlocked."""
     lazy = _LazySession(h.keyring)
     token = ServiceAccountToken(
         raw="apikey-test", key_id="key_1", account_id="acc_1", workspace_id=WORKSPACE_ID, name="svc@ws_1"
@@ -96,7 +85,7 @@ CALLS: dict[str, _Call] = {
 
 @pytest.mark.parametrize("name", sorted(CALLS))
 def test_a_locked_client_unlocks_on_its_first_call(harness: Harness, name: str) -> None:  # noqa: F811
-    """🇺🇸 No `SessionExpiredError`: the call unlocks first. 🇧🇷 Sem `SessionExpiredError`: desbloqueia antes."""
+    """No `SessionExpiredError`: the call unlocks first."""
     lazy, documents, drives = _wire(harness)
     record = PatientRecord(legal_name="A", display_name="A")
     document = documents.create(record, security_group="sg1", summary=PatientSummary.of(record, []))

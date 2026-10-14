@@ -1,7 +1,4 @@
-"""🇺🇸 `storage_hosts.py`: which presigned URLs the SDK sends ciphertext to, and how `DIAGNOS_STORAGE_HOSTS` changes it.
-
-🇧🇷 `storage_hosts.py`: para quais URLs pré-assinadas o SDK manda ciphertext, e como `DIAGNOS_STORAGE_HOSTS` muda isso.
-"""
+"""`storage_hosts.py`: which presigned URLs the SDK sends ciphertext to, and how `DIAGNOS_STORAGE_HOSTS` changes it."""
 
 from __future__ import annotations
 
@@ -39,10 +36,7 @@ _TOKEN = ServiceAccountToken(
     ],
 )
 def test_the_default_hosts_accept_the_user_content_domain_and_r2(url: str) -> None:
-    """🇺🇸 The user-content domain and the R2 endpoint the vault signs against today, subdomains included.
-
-    🇧🇷 O domínio de conteúdo de usuário e o endpoint do R2 contra o qual o cofre assina hoje, com subdomínios.
-    """
+    """The user-content domain and the R2 endpoint the vault signs against today, subdomains included."""
     assert storage_host_allowed(url, DEFAULT_STORAGE_HOSTS)
 
 
@@ -58,15 +52,12 @@ def test_the_default_hosts_accept_the_user_content_domain_and_r2(url: str) -> No
     ],
 )
 def test_anything_else_is_refused(url: str) -> None:
-    """🇺🇸 Plain HTTP, a look-alike suffix, a host merely containing the domain, garbage: all refused.
-
-    🇧🇷 HTTP puro, um sufixo parecido, um host que só contém o domínio, lixo: tudo recusado.
-    """
+    """Plain HTTP, a look-alike suffix, a host merely containing the domain, garbage: all refused."""
     assert not storage_host_allowed(url, DEFAULT_STORAGE_HOSTS)
 
 
 def test_the_refusal_names_the_host_and_the_setting() -> None:
-    """🇺🇸 The error says which host and which variable fixes it. 🇧🇷 O erro diz qual host e qual variável resolve."""
+    """The error says which host and which variable fixes it."""
     with pytest.raises(ProtocolError, match="DIAGNOS_STORAGE_HOSTS") as raised:
         require_storage_host("https://files.example.com/x", DEFAULT_STORAGE_HOSTS)
     assert "files.example.com" in str(raised.value)
@@ -82,28 +73,19 @@ def test_the_refusal_names_the_host_and_the_setting() -> None:
     ],
 )
 def test_the_setting_is_a_normalized_list(raw: str | None, expected: tuple[str, ...]) -> None:
-    """🇺🇸 Commas or spaces, `*.`/`.` prefixes dropped, lowercased, deduplicated; blank keeps the defaults.
-
-    🇧🇷 Vírgulas ou espaços, prefixos `*.`/`.` descartados, minúsculas, sem repetição; vazio mantém os padrões.
-    """
+    """Commas or spaces, `*.`/`.` prefixes dropped, lowercased, deduplicated; blank keeps the defaults."""
     assert parse_storage_hosts(raw) == expected
 
 
 @pytest.mark.parametrize("raw", ["https://files.example.com", "files_example.com", "a..b"])
 def test_an_entry_that_is_not_a_host_name_is_a_config_error(raw: str) -> None:
-    """🇺🇸 A URL or an invalid name fails at startup, not on the first upload.
-
-    🇧🇷 Uma URL ou um nome inválido falha na partida, não no primeiro upload.
-    """
+    """A URL or an invalid name fails at startup, not on the first upload."""
     with pytest.raises(ConfigError, match="DIAGNOS_STORAGE_HOSTS"):
         parse_storage_hosts(raw)
 
 
 def test_settings_read_the_variable_and_show_it_in_repr() -> None:
-    """🇺🇸 `Settings.from_env` reads `DIAGNOS_STORAGE_HOSTS`; `repr` shows it (it is not a secret).
-
-    🇧🇷 `Settings.from_env` lê `DIAGNOS_STORAGE_HOSTS`; o `repr` o mostra (não é segredo).
-    """
+    """`Settings.from_env` reads `DIAGNOS_STORAGE_HOSTS`; `repr` shows it (it is not a secret)."""
     settings = Settings.from_env({"DIAGNOS_API_TOKEN": "apikey-x", "DIAGNOS_STORAGE_HOSTS": "files.example.com"})
 
     assert settings.storage_hosts == ("files.example.com",)
@@ -113,10 +95,7 @@ def test_settings_read_the_variable_and_show_it_in_repr() -> None:
 
 @pytest.mark.parametrize("method", ["upload_bytes", "download_bytes", "download_stream"])
 def test_the_transport_refuses_before_sending_anything(method: str) -> None:
-    """🇺🇸 Upload, download and streaming all check the host first — storage never sees the request.
-
-    🇧🇷 Upload, download e streaming conferem o host antes — o armazenamento nunca vê a requisição.
-    """
+    """Upload, download and streaming all check the host first — storage never sees the request."""
     sent: list[httpx.Request] = []
 
     def storage(request: httpx.Request) -> httpx.Response:

@@ -1,4 +1,4 @@
-"""🇺🇸 `VersionedDocuments`: create, path shape, and read — exercised directly against the vault double.
+"""`VersionedDocuments`: create, path shape, and read — exercised directly against the vault double.
 
 List/update/flags live in `test_documents_mutations.py`; both share `_documents_common.py`'s engine
 builders and request-inspection helpers.
@@ -7,16 +7,6 @@ Every assertion about bytes goes through the SDK's own crypto *and* the
 double's independent bookkeeping (the object it stored, the size it signed,
 the `security_context` it handed out), so a test passes only when the SDK
 wrote exactly what the web app would open.
-
-🇧🇷 `VersionedDocuments`: criação, forma do path, e leitura — exercitados direto contra o duplo do cofre.
-
-Listagem/atualização/flags moram em `test_documents_mutations.py`; os dois compartilham os
-construtores de motor e os auxiliares de inspeção de requisição de `_documents_common.py`.
-
-Toda asserção sobre bytes passa pela cripto do próprio SDK *e* pela
-contabilidade independente do duplo (o objeto que guardou, o tamanho que
-assinou, o `security_context` que entregou), então um teste só passa quando
-o SDK gravou exatamente o que o app web abriria.
 """
 
 from __future__ import annotations
@@ -43,10 +33,7 @@ _BASE = f"/api/external/v1/workspaces/{WORKSPACE_ID}"
 
 
 def test_create_sends_the_vault_request_body(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 One group, singular id; the DEK sealed for it; the sealed size; the summary; the `data` stream.
-
-    🇧🇷 Um grupo, id no singular; a DEK selada para ele; o tamanho selado; o resumo; o fluxo `data`.
-    """
+    """One group, singular id; the DEK sealed for it; the sealed size; the summary; the `data` stream."""
     opened = _patients(harness).create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, ["vip"]))
 
     (body,) = _json_bodies(harness, "POST", "/patients")
@@ -61,10 +48,7 @@ def test_create_sends_the_vault_request_body(harness: Harness) -> None:  # noqa:
 
 
 def test_create_stores_what_the_web_app_opens(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 The stored object opens with DEK → content key(version_id, security_context) → raw frame.
-
-    🇧🇷 O objeto guardado abre com DEK → chave de conteúdo(version_id, security_context) → quadro cru.
-    """
+    """The stored object opens with DEK → content key(version_id, security_context) → raw frame."""
     opened = _patients(harness).create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
 
     version_id = opened.index.latest_version_id
@@ -77,10 +61,7 @@ def test_create_stores_what_the_web_app_opens(harness: Harness) -> None:  # noqa
 
 
 def test_create_seals_the_summary_as_encrypted_index(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `encrypted_index` opens under the DEK with the patient index label, and carries the tags.
-
-    🇧🇷 O `encrypted_index` abre sob a DEK com o rótulo de índice de paciente, e carrega as tags.
-    """
+    """`encrypted_index` opens under the DEK with the patient index label, and carries the tags."""
     opened = _patients(harness).create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, ["diabetes"]))
 
     assert opened.index.encrypted_index is not None
@@ -94,10 +75,7 @@ def test_create_seals_the_summary_as_encrypted_index(harness: Harness) -> None: 
 
 
 def test_put_sends_the_signed_size_and_never_sse_c(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `content-length` equals the body; no SSE-C header, on the `PUT` or the `GET` (web-app parity).
-
-    🇧🇷 `content-length` igual ao corpo; nenhum header de SSE-C, nem no `PUT` nem no `GET` (paridade com o app web).
-    """
+    """`content-length` equals the body; no SSE-C header, on the `PUT` or the `GET` (web-app parity)."""
     documents = _patients(harness)
     opened = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     documents.read(opened.index.document_id)
@@ -110,7 +88,7 @@ def test_put_sends_the_signed_size_and_never_sse_c(harness: Harness) -> None:  #
 
 
 def test_create_refuses_a_group_this_session_holds_no_key_for(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Nothing reaches the vault when the group key is missing. 🇧🇷 Nada chega ao cofre sem a chave do grupo."""
+    """Nothing reaches the vault when the group key is missing."""
     with pytest.raises(GroupKeyUnavailable):
         _patients(harness).create(_JANE, security_group="sg_unknown", summary=PatientSummary.of(_JANE, []))
     assert harness.vault.api_requests == []
@@ -120,14 +98,11 @@ def test_a_signed_size_that_does_not_match_is_a_protocol_error(
     harness: Harness,  # noqa: F811
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """🇺🇸 The SDK checks the signed size before uploading. 🇧🇷 O SDK confere o tamanho assinado antes do upload."""
+    """The SDK checks the signed size before uploading."""
     real = harness.vault._signed_upload  # noqa: SLF001
 
     def lying(url: str, size: int) -> dict[str, object]:
-        """🇺🇸 Signs the upload for one byte more than asked, as a lying vault would.
-
-        🇧🇷 Assina o upload para um byte a mais do que o pedido, como um cofre mentiroso faria.
-        """
+        """Signs the upload for one byte more than asked, as a lying vault would."""
         return real(url, size + 1)
 
     monkeypatch.setattr(harness.vault, "_signed_upload", lying)
@@ -140,10 +115,7 @@ def test_a_signed_size_that_does_not_match_is_a_protocol_error(
 
 
 def test_patients_version_routes_carry_the_stream_segment(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Patients have two streams, so versions live under `/streams/data`.
-
-    🇧🇷 Pacientes têm dois fluxos: `/streams/data`.
-    """
+    """Patients have two streams, so versions live under `/streams/data`."""
     documents = _patients(harness)
     opened = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     documents.update(opened.index.document_id, _JANE, summary=lambda current: current or PatientSummary())
@@ -157,7 +129,7 @@ def test_patients_version_routes_carry_the_stream_segment(harness: Harness) -> N
 
 
 def test_exam_version_routes_have_no_stream_segment(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Exams have one stream, so the segment does not exist. 🇧🇷 Exames têm um fluxo, então o segmento não existe."""
+    """Exams have one stream, so the segment does not exist."""
     documents = _exams(harness)
     record = ExamRecord(title="Chest CT")
     opened = documents.create(record, security_group="sg1", summary=ExamSummary.of(record), meta={"patient_id": "p1"})
@@ -172,10 +144,7 @@ def test_exam_version_routes_have_no_stream_segment(harness: Harness) -> None:  
 
 
 def test_read_round_trips_the_record_and_summary(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `read` returns the record, the decrypted summary and the version it came from.
-
-    🇧🇷 `read` devolve o registro, o resumo decifrado e a versão de onde veio.
-    """
+    """`read` returns the record, the decrypted summary and the version it came from."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, ["vip"]))
 
@@ -189,7 +158,7 @@ def test_read_round_trips_the_record_and_summary(harness: Harness) -> None:  # n
 
 
 def test_read_pins_an_older_version(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 `version_id` reads history, never the draft. 🇧🇷 `version_id` lê o histórico, nunca o rascunho."""
+    """`version_id` reads history, never the draft."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     first = created.index.latest_version_id
@@ -206,10 +175,7 @@ def test_read_pins_an_older_version(harness: Harness) -> None:  # noqa: F811
 
 
 def test_read_prefers_a_newer_draft_like_the_web_app(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A draft newer than the latest version wins; `include_draft=False` reads the committed one.
-
-    🇧🇷 Um rascunho mais novo que a versão corrente vence; `include_draft=False` lê a confirmada.
-    """
+    """A draft newer than the latest version wins; `include_draft=False` reads the committed one."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     _seed_patient_draft(harness, created.index, _JANE.model_copy(update={"display_name": "Jane (typing…)"}))
@@ -225,10 +191,7 @@ def test_read_prefers_a_newer_draft_like_the_web_app(harness: Harness) -> None: 
 
 
 def test_a_newer_commit_supersedes_the_draft(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A commit after the draft makes the version win again, without a `GET .../draft`.
-
-    🇧🇷 Um commit depois do rascunho faz a versão vencer de novo, sem `GET .../draft`.
-    """
+    """A commit after the draft makes the version win again, without a `GET .../draft`."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     document_id = created.index.document_id
@@ -247,10 +210,7 @@ def test_a_newer_commit_supersedes_the_draft(harness: Harness) -> None:  # noqa:
 
 
 def test_read_keeps_fields_the_sdk_does_not_model(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 A field the web app added survives a read and a `model_copy` round trip.
-
-    🇧🇷 Um campo que o app web acrescentou sobrevive a uma leitura e a um `model_copy`.
-    """
+    """A field the web app added survives a read and a `model_copy` round trip."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     future = PatientRecord.model_construct(**_JANE.model_dump(exclude_none=True), preferred_language="pt-BR")
@@ -268,7 +228,7 @@ def test_read_keeps_fields_the_sdk_does_not_model(harness: Harness) -> None:  # 
 
 
 def test_read_fails_closed_without_the_group_key(harness: Harness) -> None:  # noqa: F811
-    """🇺🇸 Losing the group key makes the document unreadable. 🇧🇷 Perder a chave do grupo torna o documento ilegível."""
+    """Losing the group key makes the document unreadable."""
     documents = _patients(harness)
     created = documents.create(_JANE, security_group="sg1", summary=PatientSummary.of(_JANE, []))
     del harness.keyring.group_keys["sg1"]

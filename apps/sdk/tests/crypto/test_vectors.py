@@ -1,7 +1,4 @@
-"""🇺🇸 Every crypto primitive against the TypeScript-generated vectors (PROTOCOL is normative, vectors are the proof).
-
-🇧🇷 Toda primitiva de cripto contra os vetores gerados do TypeScript (PROTOCOL é normativo, os vetores são a prova).
-"""
+"""Every crypto primitive against the TypeScript-generated vectors (PROTOCOL is normative, vectors are the proof)."""
 
 from __future__ import annotations
 
@@ -41,18 +38,12 @@ from conftest import VECTORS
 
 
 def load_vector(name: str) -> dict[str, Any]:
-    """🇺🇸 Reads and parses one `tests/vectors/<name>.json` file.
-
-    🇧🇷 Lê e faz o parse de um arquivo `tests/vectors/<name>.json`.
-    """
+    """Reads and parses one `tests/vectors/<name>.json` file."""
     return json.loads((VECTORS / f"{name}.json").read_text("utf-8"))
 
 
 def test_hkdf_with_salt_matches_vector() -> None:
-    """🇺🇸 Same `ikm`/`info`/`salt` as the vault's HKDF reference must yield the same 32 bytes.
-
-    🇧🇷 O mesmo `ikm`/`info`/`salt` da referência de HKDF do cofre precisa gerar os mesmos 32 bytes.
-    """
+    """Same `ikm`/`info`/`salt` as the vault's HKDF reference must yield the same 32 bytes."""
     vector = load_vector("aes_gcm_envelope")["hkdf"]
     okm = hkdf_sha256(
         ikm=b64url_decode(vector["ikm_b64url"]),
@@ -64,20 +55,14 @@ def test_hkdf_with_salt_matches_vector() -> None:
 
 
 def test_hkdf_without_salt_matches_vector() -> None:
-    """🇺🇸 `salt=None` must reproduce RFC 5869's "no salt" output.
-
-    🇧🇷 `salt=None` precisa reproduzir a saída "sem salt" da RFC 5869.
-    """
+    """`salt=None` must reproduce RFC 5869's "no salt" output."""
     vector = load_vector("aes_gcm_envelope")["hkdf"]
     okm = hkdf_sha256(ikm=b64url_decode(vector["ikm_b64url"]), info=vector["info"], length=32, salt=None)
     assert bytes(okm.reveal()) == b64url_decode(vector["okm_no_salt_b64url"])
 
 
 def test_unwrap_key_opens_vector_payload() -> None:
-    """🇺🇸 `unwrap_key` must open a payload sealed by the TypeScript `wrapKey`.
-
-    🇧🇷 `unwrap_key` precisa abrir um payload selado pelo `wrapKey` em TypeScript.
-    """
+    """`unwrap_key` must open a payload sealed by the TypeScript `wrapKey`."""
     vector = load_vector("aes_gcm_envelope")["wrap_key"]
     unwrapped = unwrap_key(
         wrapping_key=b64url_decode(vector["wrapping_key_b64url"]),
@@ -88,10 +73,7 @@ def test_unwrap_key_opens_vector_payload() -> None:
 
 
 def test_decrypt_content_opens_vector_payload() -> None:
-    """🇺🇸 `decrypt_content` must open a payload sealed by the TypeScript `encryptContent`.
-
-    🇧🇷 `decrypt_content` precisa abrir um payload selado pelo `encryptContent` em TypeScript.
-    """
+    """`decrypt_content` must open a payload sealed by the TypeScript `encryptContent`."""
     vector = load_vector("aes_gcm_envelope")["encrypt_content"]
     plaintext = decrypt_content(
         dek=b64url_decode(vector["dek_b64url"]),
@@ -111,10 +93,7 @@ def _hybrid_keypair_from_vector(vector: dict[str, object]) -> HybridKeyPair:
 
 
 def test_open_hybrid_opens_vector_seal() -> None:
-    """🇺🇸 `open_hybrid`, given the vector's secret keys, must open `sealed` to `plaintext_utf8`.
-
-    🇧🇷 `open_hybrid`, com as chaves secretas do vetor, precisa abrir `sealed` para `plaintext_utf8`.
-    """
+    """`open_hybrid`, given the vector's secret keys, must open `sealed` to `plaintext_utf8`."""
     vector = load_vector("hybrid_seal")
     keypair = _hybrid_keypair_from_vector(vector)
     plaintext = open_hybrid(keypair, EncryptedPayload.from_dict(vector["sealed"]), aad=vector["aad"])
@@ -122,10 +101,7 @@ def test_open_hybrid_opens_vector_seal() -> None:
 
 
 def test_open_hybrid_rejects_wrong_aad() -> None:
-    """🇺🇸 A seal bound to one `enrollment_id` must not open under another.
-
-    🇧🇷 Um selo amarrado a um `enrollment_id` não pode abrir sob outro.
-    """
+    """A seal bound to one `enrollment_id` must not open under another."""
     vector = load_vector("hybrid_seal")
     keypair = _hybrid_keypair_from_vector(vector)
     with pytest.raises(CryptoError):
@@ -133,10 +109,7 @@ def test_open_hybrid_rejects_wrong_aad() -> None:
 
 
 def test_decrypt_bytes_matches_vector_plaintext() -> None:
-    """🇺🇸 `decrypt_bytes` on the full framed body must equal the concatenated plaintext chunks.
-
-    🇧🇷 `decrypt_bytes` sobre o corpo framed inteiro precisa dar a concatenação dos chunks de texto claro.
-    """
+    """`decrypt_bytes` on the full framed body must equal the concatenated plaintext chunks."""
     vector = load_vector("secretstream")
     key = b64url_decode(vector["key_b64url"])
     framed_body = b64url_decode(vector["framed_body_b64url"])
@@ -145,16 +118,11 @@ def test_decrypt_bytes_matches_vector_plaintext() -> None:
 
 
 def test_decrypt_stream_at_arbitrary_boundaries_matches_vector() -> None:
-    """🇺🇸 Feeding the framed body one byte at a time must still reassemble correctly.
+    """Feeding the framed body one byte at a time must still reassemble correctly.
 
     This is the whole point of the length-prefix framing (PROTOCOL §9): the
     network never respects our chunk boundaries, so the reader must not
     either.
-
-    🇧🇷 Alimentar o corpo framed um byte por vez ainda precisa remontar corretamente.
-
-    Esse é o ponto inteiro do framing por prefixo de tamanho (PROTOCOL §9): a
-    rede nunca respeita nossas fronteiras de chunk, então o leitor também não pode.
     """
     vector = load_vector("secretstream")
     key = b64url_decode(vector["key_b64url"])
@@ -167,10 +135,7 @@ def test_decrypt_stream_at_arbitrary_boundaries_matches_vector() -> None:
 
 
 def test_document_dek_unwraps_with_the_document_label() -> None:
-    """🇺🇸 A document DEK the web app sealed opens with `DOCUMENT_DEK_INFO` — one label for every resource.
-
-    🇧🇷 Uma DEK de documento que o app web selou abre com `DOCUMENT_DEK_INFO` — um rótulo para todo recurso.
-    """
+    """A document DEK the web app sealed opens with `DOCUMENT_DEK_INFO` — one label for every resource."""
     vector = load_vector("document_content")
     assert vector["dek_info"] == DOCUMENT_DEK_INFO
     dek = unwrap_key(
@@ -180,10 +145,7 @@ def test_document_dek_unwraps_with_the_document_label() -> None:
 
 
 def test_content_key_and_version_body_match_the_web_app() -> None:
-    """🇺🇸 Content key = HKDF(dek, salt=version_id, info=security_context); the raw sealed body opens.
-
-    🇧🇷 Chave de conteúdo = HKDF(dek, salt=version_id, info=security_context); o corpo selado cru abre.
-    """
+    """Content key = HKDF(dek, salt=version_id, info=security_context); the raw sealed body opens."""
     vector = load_vector("document_content")
     dek = b64url_decode(vector["document_dek_b64url"])
     version = vector["version"]
@@ -197,10 +159,7 @@ def test_content_key_and_version_body_match_the_web_app() -> None:
 
 
 def test_draft_body_matches_the_web_app() -> None:
-    """🇺🇸 The draft head opens with its fixed key id (`draft:data` on patients) and the draft label.
-
-    🇧🇷 A cabeça de rascunho abre com o id fixo (`draft:data` em pacientes) e o rótulo de rascunho.
-    """
+    """The draft head opens with its fixed key id (`draft:data` on patients) and the draft label."""
     vector = load_vector("document_content")
     draft = vector["draft"]
     assert draft["info"] == DRAFT_CONTENT_INFO
@@ -216,10 +175,7 @@ def test_draft_body_matches_the_web_app() -> None:
 
 @pytest.mark.parametrize(("name", "resource"), [("patient_index", "patients"), ("exam_index", "exams")])
 def test_encrypted_index_matches_the_web_app(name: str, resource: str) -> None:
-    """🇺🇸 `encrypted_index` opens under the DEK with the resource's index label.
-
-    🇧🇷 O `encrypted_index` abre sob a DEK com o rótulo de índice do recurso.
-    """
+    """`encrypted_index` opens under the DEK with the resource's index label."""
     vector = load_vector("document_content")
     entry = vector[name]
     assert entry["info"] == INDEX_INFO[resource]
@@ -230,10 +186,7 @@ def test_encrypted_index_matches_the_web_app(name: str, resource: str) -> None:
 
 
 def test_version_body_rejects_the_wrong_context_and_short_frames() -> None:
-    """🇺🇸 A different `security_context` or a truncated frame never opens.
-
-    🇧🇷 Outro contexto ou quadro curto nunca abre.
-    """
+    """A different `security_context` or a truncated frame never opens."""
     vector = load_vector("document_content")
     dek = b64url_decode(vector["document_dek_b64url"])
     version = vector["version"]
@@ -245,10 +198,7 @@ def test_version_body_rejects_the_wrong_context_and_short_frames() -> None:
 
 
 def test_seal_version_content_round_trips_with_fresh_salt() -> None:
-    """🇺🇸 Sealing twice gives different bytes (fresh salt/nonce) that both open.
-
-    🇧🇷 Selar duas vezes dá bytes diferentes que abrem.
-    """
+    """Sealing twice gives different bytes (fresh salt/nonce) that both open."""
     vector = load_vector("document_content")
     dek = b64url_decode(vector["document_dek_b64url"])
     first = seal_version_content(dek, "v1", "ctx", b"{}")
@@ -258,10 +208,7 @@ def test_seal_version_content_round_trips_with_fresh_salt() -> None:
 
 
 def test_node_dek_and_name_match_the_web_app() -> None:
-    """🇺🇸 A node DEK unwraps with `imgexam-node-dek-v1`; its name opens under it with `imgexam-node-name-v1`.
-
-    🇧🇷 A DEK de um nó abre com `imgexam-node-dek-v1`; o nome abre sob ela com `imgexam-node-name-v1`.
-    """
+    """A node DEK unwraps with `imgexam-node-dek-v1`; its name opens under it with `imgexam-node-name-v1`."""
     vector = load_vector("node_content")
     assert (vector["dek_info"], vector["name_info"]) == (NODE_DEK_INFO, NODE_NAME_INFO)
     dek = unwrap_key(
@@ -273,10 +220,7 @@ def test_node_dek_and_name_match_the_web_app() -> None:
 
 
 def test_node_content_and_sse_c_keys_match_the_web_app() -> None:
-    """🇺🇸 Content key and its SSE-C sister (and headers) byte for byte with `@repo/magic-files`.
-
-    🇧🇷 Chave de conteúdo e a irmã de SSE-C (e os headers) byte a byte com `@repo/magic-files`.
-    """
+    """Content key and its SSE-C sister (and headers) byte for byte with `@repo/magic-files`."""
     vector = load_vector("node_content")
     dek = b64url_decode(vector["node_dek_b64url"])
     context = vector["security_context"]["value"]
@@ -289,10 +233,7 @@ def test_node_content_and_sse_c_keys_match_the_web_app() -> None:
 
 @pytest.mark.parametrize("index", [0, 1, 2], ids=["remainder", "exact_multiple", "empty"])
 def test_node_bodies_match_the_web_app_framing(index: int) -> None:
-    """🇺🇸 Web-app bodies decrypt, and the SDK's own sealing has exactly the web app's length.
-
-    🇧🇷 Corpos do app web decifram, e a selagem do próprio SDK tem exatamente o tamanho do app web.
-    """
+    """Web-app bodies decrypt, and the SDK's own sealing has exactly the web app's length."""
     vector = load_vector("node_content")
     body = vector["bodies"][index]
     key = b64url_decode(vector["content_key_b64url"])
