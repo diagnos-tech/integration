@@ -1,4 +1,4 @@
-"""The resources a workspace exposes to a service account — patients, exams, drives."""
+"""The resources a workspace exposes to a service account: patients, exams and drives."""
 
 from __future__ import annotations
 

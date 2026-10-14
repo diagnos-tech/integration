@@ -1,17 +1,8 @@
-"""🇺🇸 Enrollment and lock (`docs/PROTOCOL.md §5`): how an SDK process earns, and ends, a session.
+"""Enrollment and lock (`docs/PROTOCOL.md §5`): how an SDK process earns, and ends, a session.
 
-Every test runs the SDK's real `enroll()` — registration, prompt, poll,
-opening the sealed material with the SDK's own private keys — against the
-Pact mock. The approval is sealed to a fixed SDK identity (`_crypto.py`), so
-the contract carries real ciphertext and still never changes between runs.
-
-🇧🇷 Enrollment e lock (`docs/PROTOCOL.md §5`): como um processo do SDK conquista, e encerra, uma sessão.
-
-Todo teste roda o `enroll()` de verdade do SDK — registro, prompt, poll,
-abertura do material selado com as próprias privadas do SDK — contra o mock
-do Pact. A aprovação é selada para uma identidade fixa do SDK (`_crypto.py`),
-então o contrato leva ciphertext de verdade e ainda assim nunca muda entre
-rodadas.
+Every test runs the SDK's real `enroll()` (registration, prompt, poll, and opening the sealed material with the SDK's
+own private keys) against the Pact mock. The approval is sealed to a fixed SDK identity (`_crypto.py`), so the contract
+carries real ciphertext and still never changes between runs.
 """
 
 from __future__ import annotations
@@ -62,10 +53,7 @@ POLL_EXPRESSION = f"{EXTERNAL_PREFIX}/workspaces/${{workspace_id}}/session/regis
 
 @pytest.fixture(autouse=True)
 def _fixed_runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """🇺🇸 Pins the machine-dependent optional `runtime` fields, so the request body is the same on every machine.
-
-    🇧🇷 Fixa os campos opcionais de `runtime` que dependem da máquina, para o corpo ser igual em toda máquina.
-    """
+    """Pins the machine-dependent optional `runtime` fields, so the request body is the same on every machine."""
     monkeypatch.setattr(runtime_module, "_detect_hostname", lambda: "contract-host")
     monkeypatch.setattr(runtime_module, "_detect_user", lambda: "contract")
     monkeypatch.setattr(runtime_module, "_detect_container", lambda: False)
@@ -74,10 +62,7 @@ def _fixed_runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 def _register(pact: Pact) -> None:
-    """🇺🇸 `POST .../session/registry` — identical in every test, so pact_ffi merges it into one interaction.
-
-    🇧🇷 `POST .../session/registry` — idêntico em todo teste, então o pact_ffi o mescla numa interação só.
-    """
+    """`POST .../session/registry` — identical in every test, so pact_ffi merges it into one interaction."""
     keypair = sdk_keypair()
     state, params = workspace_state("a service account can enroll an SDK session")
     (
@@ -123,10 +108,7 @@ def _register(pact: Pact) -> None:
 
 
 def _poll(pact: Pact, *, state: str, description: str, status: int, body: dict[str, object]) -> None:
-    """🇺🇸 `GET .../session/registry/{enrollment_id}` answering `body` under `state`.
-
-    🇧🇷 `GET .../session/registry/{enrollment_id}` respondendo `body` sob `state`.
-    """
+    """`GET .../session/registry/{enrollment_id}` answering `body` under `state`."""
     name, params = workspace_state(state, enrollment_id=ENROLLMENT_ID)
     (
         pact.upon_receiving(description)
@@ -139,10 +121,7 @@ def _poll(pact: Pact, *, state: str, description: str, status: int, body: dict[s
 
 
 def _approval() -> dict[str, object]:
-    """🇺🇸 A real approval: the session and one group DEK, sealed to the fixed SDK identity (AAD = enrollment id).
-
-    🇧🇷 Uma aprovação de verdade: a sessão e uma DEK de grupo, seladas para a identidade fixa do SDK (AAD = id).
-    """
+    """A real approval: the session and one group DEK, sealed to the fixed SDK identity (AAD = enrollment id)."""
     keypair = sdk_keypair()
     session_plaintext = json.dumps(
         {
@@ -168,10 +147,7 @@ def _approval() -> dict[str, object]:
 
 
 def _clock(*readings: float) -> Callable[[], float]:
-    """🇺🇸 A fake `now()` that returns `readings` in order, then keeps returning the last one.
-
-    🇧🇷 Um `now()` falso que devolve `readings` em ordem e depois repete o último.
-    """
+    """A fake `now()` that returns `readings` in order, then keeps returning the last one."""
     values = list(readings)
 
     def _now() -> float:
@@ -181,10 +157,7 @@ def _clock(*readings: float) -> Callable[[], float]:
 
 
 def test_enrollment_approved_opens_the_session_and_group_keys(pact: Pact) -> None:
-    """🇺🇸 Register → approved poll → the SDK opens both sealed payloads into a usable `Keyring`.
-
-    🇧🇷 Registro → poll aprovado → o SDK abre os dois payloads selados num `Keyring` utilizável.
-    """
+    """Register → approved poll → the SDK opens both sealed payloads into a usable `Keyring`."""
     _register(pact)
     _poll(
         pact,
@@ -213,10 +186,7 @@ def test_enrollment_approved_opens_the_session_and_group_keys(pact: Pact) -> Non
 
 
 def test_enrollment_still_pending_keeps_polling_until_it_expires(pact: Pact) -> None:
-    """🇺🇸 `pending` means "ask again later"; past `expires_at` the SDK gives up with `EnrollmentExpiredError`.
-
-    🇧🇷 `pending` significa "pergunte de novo depois"; passado `expires_at` o SDK desiste com `EnrollmentExpiredError`.
-    """
+    """`pending` means "ask again later"; past `expires_at` the SDK gives up with `EnrollmentExpiredError`."""
     _register(pact)
     _poll(
         pact,
@@ -238,10 +208,7 @@ def test_enrollment_still_pending_keeps_polling_until_it_expires(pact: Pact) -> 
 
 
 def test_enrollment_denied_raises(pact: Pact) -> None:
-    """🇺🇸 `denied` is final: the SDK raises `EnrollmentDeniedError` instead of polling again.
-
-    🇧🇷 `denied` é final: o SDK lança `EnrollmentDeniedError` em vez de fazer poll de novo.
-    """
+    """`denied` is final: the SDK raises `EnrollmentDeniedError` instead of polling again."""
     _register(pact)
     _poll(
         pact,
@@ -263,10 +230,7 @@ def test_enrollment_denied_raises(pact: Pact) -> None:
 
 
 def test_enrollment_the_vault_forgot_is_treated_as_expired(pact: Pact) -> None:
-    """🇺🇸 A `404` on poll means the vault already dropped the enrollment — the approval window is closed.
-
-    🇧🇷 Um `404` no poll significa que o cofre já descartou o enrollment — a janela de aprovação fechou.
-    """
+    """A `404` on poll means the vault already dropped the enrollment — the approval window is closed."""
     _register(pact)
     name, params = workspace_state("the vault no longer knows the enrollment", enrollment_id=ENROLLMENT_ID)
     (
@@ -290,17 +254,10 @@ def test_enrollment_the_vault_forgot_is_treated_as_expired(pact: Pact) -> None:
 
 
 def test_lock_ends_the_session_on_the_vault(pact: Pact) -> None:
-    """🇺🇸 `lock()` sends a signed `POST session/lock`; the response's `random_seed` still reaches the SDK's entropy.
+    """`lock()` sends a signed `POST session/lock`; the response's `random_seed` still reaches the SDK's entropy.
 
-    `SessionManager.lock()` is best-effort by design and swallows errors, so
-    the request itself is asserted by Pact: every interaction must have been
-    matched when `serve()` exits.
-
-    🇧🇷 `lock()` manda um `POST session/lock` assinado; o `random_seed` da resposta ainda chega à entropia do SDK.
-
-    `SessionManager.lock()` é best-effort por desenho e engole erros, então a
-    requisição em si é conferida pelo Pact: toda interação precisa ter sido
-    casada quando `serve()` sai.
+    `SessionManager.lock()` is best-effort by design and swallows errors, so the request itself is asserted by Pact:
+    every interaction must have been matched when `serve()` exits.
     """
     declare_clock(pact)
     (

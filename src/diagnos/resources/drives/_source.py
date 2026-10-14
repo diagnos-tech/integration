@@ -1,4 +1,4 @@
-"""Turns any `upload()`/`upload_many()` input into a named, known-size, reopenable plaintext."""
+"""Turns any `upload()` or `upload_many()` input into a named, known-size, reopenable plaintext."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ _EXTRA_MIME_TYPES: Final[dict[str, str]] = {".dcm": "application/dicom", ".dicom
 
 
 def _no_cleanup() -> None:
-    """The default `_PlaintextSource.cleanup`: nothing to remove."""
+    """Do nothing; the default `_PlaintextSource.cleanup`, for sources with nothing to remove."""
 
 
 @dataclass
@@ -34,10 +34,10 @@ class _PlaintextSource:
 
 
 def _plaintext_source(source: str | os.PathLike[str] | bytes | BinaryIO) -> _PlaintextSource:
-    """Normalizes any accepted `upload()` input into a `_PlaintextSource`.
+    """Normalize any accepted `upload()` input into a `_PlaintextSource`.
 
     A path or `bytes` already knows its size. A bare file-like object
-    generally does not (it may not even be seekable) — and a single `PUT`
+    generally does not (it may not even be seekable), and a single `PUT`
     is signed for an exact size, known before staging. Spooling such a
     stream to a temporary file once turns it into the "path" case.
     """
@@ -51,7 +51,7 @@ def _plaintext_source(source: str | os.PathLike[str] | bytes | BinaryIO) -> _Pla
 
 
 def _spool_to_temp_file(handle: BinaryIO) -> _PlaintextSource:
-    """Copies an arbitrary readable stream to disk once, so its size becomes known and re-openable."""
+    """Copy an arbitrary readable stream to disk once, so that its size becomes known and it can be reopened."""
     tmp = tempfile.NamedTemporaryFile(delete=False)
     try:
         shutil.copyfileobj(handle, tmp)
@@ -66,7 +66,14 @@ def _spool_to_temp_file(handle: BinaryIO) -> _PlaintextSource:
 
 
 def guess_mime_type(name: str) -> str | None:
-    """The MIME type a browser would send for `name`, DICOM included; `None` when unknown."""
+    """Guess the MIME type a browser would send for `name`, DICOM included.
+
+    Args:
+        name: The file name.
+
+    Returns:
+        The MIME type, or `None` when unknown.
+    """
     suffix = Path(name).suffix.lower()
     if suffix in _EXTRA_MIME_TYPES:
         return _EXTRA_MIME_TYPES[suffix]
@@ -78,10 +85,15 @@ def guess_mime_type(name: str) -> str | None:
 class UploadSource:
     """One file for `upload_many`: the content plus its name and MIME type.
 
-    `name` defaults to the file name of a path (or of an open file); a
-    `bytes` or anonymous stream needs one explicitly — every node carries a
-    sealed name. `mime_type` defaults to a guess from the name, which is
-    what lets the vault classify DICOM, images and video.
+    `name` defaults to the file name of a path (or of an open file). A
+    `bytes` or anonymous stream needs one explicitly, because every node
+    carries a sealed name. `mime_type` defaults to a guess from the name,
+    which is what lets the vault classify DICOM, images and video.
+
+    Attributes:
+        source: A path, the file's bytes, or an open binary file.
+        name: The file name to seal; see above for the default.
+        mime_type: The MIME type; see above for the default.
     """
 
     source: str | os.PathLike[str] | bytes | BinaryIO
@@ -89,7 +101,11 @@ class UploadSource:
     mime_type: str | None = None
 
     def resolved_name(self) -> str:
-        """The explicit name, else the path's or open file's base name."""
+        """Return the explicit name, else the path's or open file's base name.
+
+        Raises:
+            ValueError: If neither the source nor `name` provides a file name.
+        """
         if self.name:
             return self.name
         if isinstance(self.source, (str, os.PathLike)):
@@ -97,11 +113,8 @@ class UploadSource:
         handle_name = getattr(self.source, "name", None)
         if isinstance(handle_name, str) and handle_name:
             return Path(handle_name).name
-        raise ValueError(
-            "this upload has no file name: pass name=... for bytes or an anonymous stream · este upload não tem nome "
-            "de arquivo: passe name=... para bytes ou um stream anônimo"
-        )
+        raise ValueError("this upload has no file name: pass name=... for bytes or an anonymous stream")
 
     def resolved_mime_type(self, name: str) -> str | None:
-        """The explicit MIME type, else a guess from `name`."""
+        """Return the explicit MIME type, else a guess from `name`."""
         return self.mime_type or guess_mime_type(name)

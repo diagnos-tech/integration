@@ -1,8 +1,8 @@
 """Constants, the batch-upload input type, and small free helpers the write path builds on.
 
-`_PreparedUpload` and `_group_into_parts` are pure data/algorithm — no
-`self`, no network — so they live apart from `_Writing` (`_writing.py`)
-itself, and the vault's own batch/part limits (`services/uploads/policy.ts`,
+`_PreparedUpload` and `_group_into_parts` are pure data and algorithm, with
+no `self` and no network, so they live apart from `_Writing` (`_writing.py`)
+itself. The vault's own batch and part limits (`services/uploads/policy.ts`,
 §13) are named once here instead of scattered across call sites.
 """
 
@@ -43,7 +43,7 @@ class _PreparedUpload:
 
 
 def _group_into_parts(chunks: Iterable[bytes], part_size: int) -> Iterator[tuple[int, bytes]]:
-    """Cuts the framed ciphertext into fixed-size multipart parts, 1-indexed — a cut, not a second encryption."""
+    """Cut the framed ciphertext into fixed-size multipart parts, 1-indexed. This is a cut, not a second encryption."""
     buffer = bytearray()
     part_number = 1
     for chunk in chunks:

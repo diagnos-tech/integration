@@ -1,13 +1,11 @@
-"""`/openapi.json` matches `README.md`'s prefix table, and every operation carries both language flags.
+"""`/openapi.json` matches the prefix table of `README.md`, and its operations are documented in English only.
 
-Every route, parameter and schema is in the generated reference
-(`docs/reference/openapi.json`, kept fresh by `make docs-check`). What stays
-hand-written is the short table of prefixes in `README.md` — what a human
-skims first — so nothing stops it from drifting out of sync with the routers
-as they grow. This file parses that table and checks it both ways: every
-prefix it lists still has a real route under it, and every route FastAPI
-serves falls under a listed prefix. Separately, every operation FastAPI
-actually generated still carries a /
+Every route, parameter and schema is in the generated reference (`docs/reference/openapi.json`, kept fresh by
+`make docs-check`). What stays hand-written is the short table of prefixes in `README.md`, which a human skims first,
+so nothing stops it from drifting out of sync with the routers as they grow. This file parses that table and checks it
+both ways: every prefix it lists still has a real route under it, and every route FastAPI serves falls under a listed
+prefix. Separately, every operation that FastAPI generated carries an English `summary` and `description`, the one
+artifact an external caller reads instead of the source.
 """
 
 from __future__ import annotations
@@ -19,10 +17,14 @@ from fastapi.testclient import TestClient
 
 _README = Path(__file__).parent.parent / "README.md"
 
-# A README row looks like `| `/v1/drives/{sg}` | files and folders … |` — only the first backtick-quoted cell (the prefix) matters here; "What it serves" is prose, not part of the route contract.
+# A README row looks like `| `/v1/drives/{sg}` | files and folders … |`. Only the first backtick-quoted cell (the
+# prefix) matters here; "What it serves" is prose, not part of the route contract.
 _ROW = re.compile(r"^\| `(/[^`]*)` \|", re.MULTILINE)
 
 _METHODS = ("get", "post", "put", "delete", "patch")
+
+# The US and Brazil flag emoji (as escapes) and " · " once marked a translation; Portuguese letters catch the rest.
+_NOT_ENGLISH = re.compile(r"\U0001F1FA\U0001F1F8|\U0001F1E7\U0001F1F7| · |[ãõçáéíóúâêôà]", re.IGNORECASE)
 
 
 def _normalize(path: str) -> str:
@@ -54,11 +56,9 @@ def test_readme_lists_the_documented_prefixes(client: TestClient) -> None:
 def test_every_readme_prefix_has_a_route_and_every_route_a_readme_prefix(client: TestClient) -> None:
     """The README's table and the routers agree both ways: no prefix without a route, no route without a prefix.
 
-    A prefix with nothing under it means the README documents routes that
-    no longer exist; a served path under no prefix means a router was added
-    without a row in the table an integrator reads first — either way,
-    exactly the kind of drift a test should catch instead of a human noticing
-    months later.
+    A prefix with nothing under it means the README documents routes that no longer exist. A served path under no prefix
+    means a router was added without a row in the table that an integrator reads first. Either way, this is exactly the
+    kind of drift a test should catch instead of a human noticing months later.
     """
     prefixes, served = _readme_prefixes(), _served_paths(client)
 
@@ -68,18 +68,39 @@ def test_every_readme_prefix_has_a_route_and_every_route_a_readme_prefix(client:
         assert any(_is_under(path, prefix) for prefix in prefixes), f"{path} is served but under no documented prefix"
 
 
-def test_every_operation_has_both_language_flags_in_summary_or_description(client: TestClient) -> None:
-    """Every operation's `summary`+`description`, combined, carries both and"""
+def _texts(node: object) -> list[str]:
+    """Collects every `summary` and `description` string under `node`, however deeply nested."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in ("summary", "description") and isinstance(value, str):
+                found.append(value)
+            else:
+                found.extend(_texts(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_texts(item))
+    return found
+
+
+def test_every_operation_is_documented_in_english_only(client: TestClient) -> None:
+    """Every operation has a `summary` and a `description`, and no OpenAPI text is bilingual.
+
+    The text under `paths` (operations, parameters, responses), `info` and `tags` comes from this package and is what
+    an integrator reads in `/docs`, so it must carry no translation marker and no Portuguese letters.
+    """
     spec = client.get("/openapi.json").json()
     checked = 0
     for path, item in spec["paths"].items():
         for method, operation in item.items():
             if method not in _METHODS:
                 continue
-            combined = operation.get("summary", "") + operation.get("description", "")
-            assert "🇺🇸" in combined, f"{method.upper()} {path} has no English flag in summary/description"
-            assert "🇧🇷" in combined, f"{method.upper()} {path} has no Portuguese flag in summary/description"
+            assert operation.get("summary"), f"{method.upper()} {path} has no summary"
+            assert operation.get("description"), f"{method.upper()} {path} has no description"
             checked += 1
+
+    for text in _texts(spec["paths"]) + _texts(spec["info"]) + _texts(spec["tags"]):
+        assert not _NOT_ENGLISH.search(text), f"not English-only: {text!r}"
 
     # Guards the loop itself: an empty `spec["paths"]` would make every assertion above vacuously true.
     assert checked >= 20

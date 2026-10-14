@@ -1,8 +1,8 @@
 """Unwraps the vault's response envelope (`docs/PROTOCOL.md §0`).
 
 Every vault response, success or failure, is the same shape. Callers decide
-by `code`, never by `message` (`docs/PROTOCOL.md §0`) — `message` is meant
-for a human, `code` is the contract — so this module's whole job is turning
+by `code`, never by `message` (`docs/PROTOCOL.md §0`): `message` is meant
+for a human, while `code` is the contract. This module's whole job is turning
 `success: false` plus an HTTP status into the one SDK exception the caller
 should catch.
 """
@@ -25,8 +25,8 @@ from diagnos.errors import (
 )
 
 # `docs/PROTOCOL.md §12`. Anything not listed here (5xx included) is a
-# plain `VaultError` — the caller still gets `code`/`status`/`trace_id`, it
-# just has no more specific recovery than "ask a human" or "retry later."
+# plain `VaultError`: the caller still gets `code`, `status` and `trace_id`,
+# it just has no more specific recovery than "ask a human" or "retry later".
 _STATUS_EXCEPTIONS: dict[int, type[VaultError]] = {
     400: ValidationError,
     401: AuthenticationError,
@@ -46,6 +46,16 @@ def unwrap_result(response: httpx.Response) -> Any:
     body) cannot carry a `code` at all, so it becomes `VaultError` with the
     synthetic code `InvalidResponse` rather than an unrelated `JSONDecodeError`
     leaking out of a transport module.
+
+    Args:
+        response: The HTTP response from the vault.
+
+    Returns:
+        The `result` member of a successful envelope.
+
+    Raises:
+        VaultError: If the envelope reports failure, or the body is not JSON. The subclass follows the HTTP status
+            (`docs/PROTOCOL.md §12`).
     """
     request_id = response.headers.get("X-Request-Id")
     try:
@@ -53,7 +63,7 @@ def unwrap_result(response: httpx.Response) -> Any:
     except ValueError as exc:
         raise VaultError(
             code="InvalidResponse",
-            message=("🇺🇸 The vault's response was not valid JSON. 🇧🇷 A resposta do cofre não era JSON válido."),
+            message="The vault's response was not valid JSON.",
             status=response.status_code,
             request_id=request_id,
         ) from exc

@@ -90,7 +90,7 @@ def test_encrypted_size_rejects_a_negative_plaintext_size() -> None:
 def test_decrypt_stream_rejects_a_stream_with_no_header_at_all() -> None:
     """Fewer than `HEADER_BYTES` bytes total (an upload cut off before the header even landed) is `CryptoError`."""
     key = secrets.token_bytes(32)
-    with pytest.raises(CryptoError, match="header ausente"):
+    with pytest.raises(CryptoError, match="header missing"):
         b"".join(decrypt_stream(key, [b"\x00" * (HEADER_BYTES - 1)]))
 
 
@@ -105,7 +105,7 @@ def test_decrypt_stream_with_a_wiped_key_fails_closed() -> None:
     encrypted = b"".join(encrypt_stream(secrets.token_bytes(32), [b"some content"]))
     key.wipe()
 
-    with pytest.raises(CryptoError, match="header inválido"):
+    with pytest.raises(CryptoError, match="invalid header"):
         b"".join(decrypt_stream(key, [encrypted]))
 
 
@@ -127,5 +127,5 @@ def test_decrypt_stream_rejects_a_cutoff_exactly_on_a_frame_boundary() -> None:
     assert len(frames) == 4
     cut_off = b"".join(frames[:-1])
 
-    with pytest.raises(CryptoError, match="TAG_FINAL ausente"):
+    with pytest.raises(CryptoError, match="TAG_FINAL missing"):
         b"".join(decrypt_stream(key, [cut_off]))

@@ -1,33 +1,14 @@
-"""🇺🇸 Versioned patients (`docs/PROTOCOL.md §8`): what the SDK asks of `/patients`, and reads back.
+"""Versioned patients (`docs/PROTOCOL.md §8`): what the SDK asks of `/patients`, and reads back.
 
-Each test drives the SDK's real `Patients` against the Pact mock:
-reserve → `PUT` → commit, open the latest version, prefer a newer draft,
-reserve the next version under a conflict guard, flip a flag without a new
-version, list, and back off on a pending version. The object bodies the SDK
-downloads are sealed here by an independent implementation (`_crypto.py`,
-`cryptography`), following the web app's composition — DEK wrapped with
-`imgexam-patient-dek-v1`, per-object key `HKDF(dek, salt=version_id,
-info=security_context)`, raw `salt ‖ nonce ‖ ciphertext` — so a green run is
-also proof that the SDK opens what the web app writes.
+Each test drives the SDK's real `Patients` against the Pact mock: reserve, `PUT` and commit; open the latest version;
+prefer a newer draft; reserve the next version under a conflict guard; flip a flag without a new version; list; and
+back off on a pending version. The object bodies the SDK downloads are sealed here by an independent implementation
+(`_crypto.py`, `cryptography`), following the web app's composition: DEK wrapped with `imgexam-patient-dek-v1`,
+per-object key `HKDF(dek, salt=version_id, info=security_context)`, and raw `salt ‖ nonce ‖ ciphertext`. A green run is
+therefore also proof that the SDK opens what the web app writes.
 
-Object storage (the presigned `PUT`/`GET`) is not the vault's API and not
-part of the contract: `make_transport(storage=...)` stubs it in memory.
-
-🇧🇷 Pacientes versionados (`docs/PROTOCOL.md §8`): o que o SDK pede a `/patients`, e o que lê de volta.
-
-Cada teste conduz os `Patients` de verdade do SDK contra o mock do
-Pact: reservar → `PUT` → confirmar, abrir a versão corrente, preferir um
-rascunho mais novo, reservar a próxima versão sob trava de conflito, trocar
-uma flag sem versão nova, listar, e recuar diante de uma versão pendente. Os
-corpos de objeto que o SDK baixa são selados aqui por uma implementação
-independente (`_crypto.py`, `cryptography`), seguindo a composição do app
-web — DEK embrulhada com `imgexam-patient-dek-v1`, chave por objeto
-`HKDF(dek, salt=version_id, info=security_context)`, `salt ‖ nonce ‖
-ciphertext` cru — então uma rodada verde também prova que o SDK abre o que o
-app web grava.
-
-O armazenamento de objetos (o `PUT`/`GET` pré-assinado) não é a API do cofre
-nem parte do contrato: `make_transport(storage=...)` o substitui em memória.
+Object storage (the presigned `PUT`/`GET`) is not the vault's API and not part of the contract:
+`make_transport(storage=...)` stubs it in memory.
 """
 
 from __future__ import annotations
@@ -90,10 +71,7 @@ from _wire import (
 
 
 def test_create_patient_reserves_uploads_and_commits_the_first_version(pact: Pact) -> None:
-    """🇺🇸 One group, the DEK sealed for it, the sealed size, the sealed summary → `PUT` → commit.
-
-    🇧🇷 Um grupo, a DEK selada para ele, o tamanho selado, o resumo selado → `PUT` → commit.
-    """
+    """One group, the DEK sealed for it, the sealed size, the sealed summary → `PUT` → commit."""
     size = sealed_length(MARIA)
     wrapped = seal_content(GROUP_KEY, DEK, DOCUMENT_DEK_INFO, label="document/wrapped-dek")
     declare_clock(pact)
@@ -145,10 +123,7 @@ def test_create_patient_reserves_uploads_and_commits_the_first_version(pact: Pac
 
 
 def test_open_patient_decrypts_what_the_web_app_sealed(pact: Pact) -> None:
-    """🇺🇸 Index → DEK (group key) → content key (version, context) → the record; the summary opens too.
-
-    🇧🇷 Índice → DEK (chave do grupo) → chave de conteúdo (versão, contexto) → o registro; o resumo abre também.
-    """
+    """Index → DEK (group key) → content key (version, context) → the record; the summary opens too."""
     declare_clock(pact)
     declare_open_patient(
         pact,
@@ -168,10 +143,7 @@ def test_open_patient_decrypts_what_the_web_app_sealed(pact: Pact) -> None:
 
 
 def test_open_patient_prefers_a_newer_draft(pact: Pact) -> None:
-    """🇺🇸 A draft newer than the latest version wins, as in the web app: `GET .../draft`, then its object.
-
-    🇧🇷 Um rascunho mais novo que a versão corrente vence, como no app web: `GET .../draft`, depois o objeto.
-    """
+    """A draft newer than the latest version wins, as in the web app: `GET .../draft`, then its object."""
     draft_plaintext = MARIA_DRAFT.model_dump_json(exclude_none=True).encode("utf-8")
     draft_body = seal_body(
         content_key(DEK, "draft:data", DRAFT_CONTEXT), draft_plaintext, DRAFT_CONTENT_INFO, label="patient/draft"
@@ -223,10 +195,7 @@ def test_open_patient_prefers_a_newer_draft(pact: Pact) -> None:
 
 
 def test_update_patient_reserves_the_next_version_under_the_conflict_guard(pact: Pact) -> None:
-    """🇺🇸 Read the index → reserve with `expected_latest_version_id` and a new summary → `PUT` → commit.
-
-    🇧🇷 Ler o índice → reservar com `expected_latest_version_id` e resumo novo → `PUT` → commit.
-    """
+    """Read the index → reserve with `expected_latest_version_id` and a new summary → `PUT` → commit."""
     renamed = MARIA.model_copy(update={"display_name": "Maria S."})
     size = sealed_length(renamed)
     state = "a patient has one committed version"
@@ -278,10 +247,7 @@ def test_update_patient_reserves_the_next_version_under_the_conflict_guard(pact:
 
 
 def test_archive_patient_is_a_patch_only_reservation(pact: Pact) -> None:
-    """🇺🇸 Only the flag travels: no `content_length`, no upload, no commit.
-
-    🇧🇷 Só a flag viaja: sem `content_length`, sem upload, sem commit.
-    """
+    """Only the flag travels: no `content_length`, no upload, no commit."""
     name, params = workspace_state(
         "a patient has one committed version",
         document_id=PATIENT_ID,
@@ -321,10 +287,7 @@ def test_archive_patient_is_a_patch_only_reservation(pact: Pact) -> None:
 
 
 def test_list_patients_opens_each_summary_without_downloading(pact: Pact) -> None:
-    """🇺🇸 One page; each row's `encrypted_index` opens under its DEK; `next_cursor: null` ends the walk.
-
-    🇧🇷 Uma página; o `encrypted_index` de cada linha abre sob a DEK; `next_cursor: null` encerra a caminhada.
-    """
+    """One page; each row's `encrypted_index` opens under its DEK; `next_cursor: null` ends the walk."""
     name, params = workspace_state(
         "a patient has one committed version",
         document_id=PATIENT_ID,
@@ -366,10 +329,7 @@ def test_list_patients_opens_each_summary_without_downloading(pact: Pact) -> Non
 
 
 def test_reserving_while_another_version_is_pending_backs_off_then_raises(pact: Pact) -> None:
-    """🇺🇸 `409 DocumentVersionPending` is retried briefly, like the web app, then surfaced as `ConflictError`.
-
-    🇧🇷 `409 DocumentVersionPending` é retentado por pouco tempo, como no app web, depois vira `ConflictError`.
-    """
+    """`409 DocumentVersionPending` is retried briefly, like the web app, then surfaced as `ConflictError`."""
     state = "a patient has a committed version and another one pending"
     declare_clock(pact)
     declare_open_patient(

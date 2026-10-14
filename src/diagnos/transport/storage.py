@@ -1,11 +1,11 @@
-"""`_StorageMixin`: direct R2 object-storage access — no base URL, no `Authorization`, no signature.
+"""`_StorageMixin`: direct R2 object-storage access, with no base URL, no `Authorization` and no signature.
 
-`VaultTransport` mixes this in for `upload_bytes`/`download_bytes`/
-`download_stream`; none of the three need signing, session state, or retry
+`VaultTransport` mixes this in for `upload_bytes`, `download_bytes` and
+`download_stream`. None of the three needs signing, session state or retry
 (that all lives in `http.py`), so splitting them out here is what keeps
 `http.py` down to just what does. Its methods take `self: _StorageHost`, a
-structural `Protocol` naming just `_storage_client` — not `self:
-VaultTransport` itself, because mypy requires an explicit self-type to be a
+structural `Protocol` naming just `_storage_client`, and not `self:
+VaultTransport` itself. mypy requires an explicit self-type to be a
 *supertype* of the defining class, and `VaultTransport` (which inherits this
 mixin) is the other way round: a subtype of it.
 """
@@ -23,7 +23,7 @@ from .storage_hosts import require_storage_host
 
 
 class _StorageHost(Protocol):
-    """What `_StorageMixin` needs from `VaultTransport` — see the module docstring for why this is a `Protocol`."""
+    """What `_StorageMixin` needs from `VaultTransport`; see the module docstring for why this is a `Protocol`."""
 
     _storage_client: httpx.Client
     _storage_hosts: tuple[str, ...]
@@ -35,9 +35,19 @@ class _StorageMixin:
     def upload_bytes(
         self: _StorageHost, url: str, data: bytes | Iterable[bytes], headers: Mapping[str, str]
     ) -> str | None:
-        """`PUT` straight to R2 — no `Authorization`, no signature, `headers` exactly as the vault issued them.
+        """`PUT` straight to R2, with no `Authorization`, no signature and `headers` exactly as the vault issued them.
 
-        Returns the `ETag` the multipart-complete step later needs.
+        Args:
+            url: The presigned URL. It must be HTTPS on an allowed storage host.
+            data: The body, as bytes or an iterable of chunks.
+            headers: The headers the vault issued for this upload.
+
+        Returns:
+            The `ETag` the multipart-complete step later needs, or `None` if the response had none.
+
+        Raises:
+            ProtocolError: If the URL is not on an allowed storage host.
+            VaultError: With code `StorageError` if storage answers with a non-2xx status.
         """
         require_storage_host(url, self._storage_hosts)
         response = self._storage_client.put(url, content=data, headers=dict(headers))
@@ -46,7 +56,19 @@ class _StorageMixin:
         return etag
 
     def download_bytes(self: _StorageHost, url: str, headers: Mapping[str, str] | None = None) -> bytes:
-        """`GET` straight from R2 and buffer the whole body."""
+        """`GET` straight from R2 and buffer the whole body.
+
+        Args:
+            url: The presigned URL. It must be HTTPS on an allowed storage host.
+            headers: Extra headers, such as the SSE-C trio.
+
+        Returns:
+            The response body.
+
+        Raises:
+            ProtocolError: If the URL is not on an allowed storage host.
+            VaultError: With code `StorageError` if storage answers with a non-2xx status.
+        """
         require_storage_host(url, self._storage_hosts)
         response = self._storage_client.get(url, headers=dict(headers) if headers else None)
         _raise_for_storage_error(response)
@@ -58,6 +80,17 @@ class _StorageMixin:
         For the framed drive bodies (`docs/PROTOCOL.md §9`) this lets the
         caller reassemble `secretstream` frames without holding a 64 MiB
         object in memory at once.
+
+        Args:
+            url: The presigned URL. It must be HTTPS on an allowed storage host.
+            headers: Extra headers, such as the SSE-C trio.
+
+        Yields:
+            The body in chunks, as they arrive.
+
+        Raises:
+            ProtocolError: If the URL is not on an allowed storage host.
+            VaultError: With code `StorageError` if storage answers with a non-2xx status.
         """
         require_storage_host(url, self._storage_hosts)
         with self._storage_client.stream("GET", url, headers=dict(headers) if headers else None) as response:
@@ -66,14 +99,11 @@ class _StorageMixin:
 
 
 def _raise_for_storage_error(response: httpx.Response) -> None:
-    """R2 speaks plain HTTP status, not the vault's envelope — no `code` to read."""
+    """Raise on a non-2xx status; R2 speaks plain HTTP status, not the vault's envelope, so there is no `code`."""
     if 200 <= response.status_code < 300:
         return
     raise VaultError(
         code="StorageError",
-        message=(
-            f"🇺🇸 object storage answered HTTP {response.status_code}. "
-            f"🇧🇷 o armazenamento de objetos respondeu HTTP {response.status_code}."
-        ),
+        message=f"object storage answered HTTP {response.status_code}.",
         status=response.status_code,
     )

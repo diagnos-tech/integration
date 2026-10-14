@@ -1,21 +1,9 @@
-"""🇺🇸 Shared ground for the document contract tests: fixed records, vault-shaped bodies, and the SDK wired to Pact.
+"""Shared ground for the document contract tests: fixed records, vault-shaped bodies, and the SDK wired to Pact.
 
-`test_patients.py` and `test_exams.py` declare the interactions; this
-module holds what both need — the fixed keys and records, the index,
-stream and reservation bodies the vault answers with, an in-memory object
-store, and `Patients`/`Exams` built on a real transport pointed at the Pact
-mock. The object bodies are sealed by `_crypto.py`, an implementation
-independent of the SDK, following the web app's composition.
-
-🇧🇷 Base comum dos testes de contrato de documentos: registros fixos, corpos no formato do cofre, e o SDK ligado ao Pact.
-
-`test_patients.py` e `test_exams.py` declaram as interações; este módulo
-guarda o que os dois precisam — as chaves e registros fixos, os corpos de
-índice, stream e reserva com que o cofre responde, um armazenamento de
-objetos em memória, e `Patients`/`Exams` montados sobre um transporte de
-verdade apontado para o mock do Pact. Os corpos de objeto são selados pelo
-`_crypto.py`, uma implementação independente do SDK, seguindo a composição
-do app web.
+`test_patients.py` and `test_exams.py` declare the interactions; this module holds what both need: the fixed keys and
+records, the index, stream and reservation bodies the vault answers with, an in-memory object store, and
+`Patients`/`Exams` built on a real transport pointed at the Pact mock. The object bodies are sealed by `_crypto.py`, an
+implementation independent of the SDK, following the web app's composition.
 """
 
 from __future__ import annotations
@@ -77,8 +65,10 @@ UPLOAD_URL = "https://storage.diagnosusercontent.com/upload?X-Amz-Signature=cont
 DOWNLOAD_URL = "https://storage.diagnosusercontent.com/download?X-Amz-Signature=contract"
 DRAFT_URL = "https://storage.diagnosusercontent.com/draft?X-Amz-Signature=contract"
 
+# The sealed bytes of these records are the examples recorded in the committed contract, so editing the patient's
+# `legal_name` or the exam `title` changes `diagnos-sdk-diagnos-vault.json`; regenerate it (`make contract`) with them.
 MARIA = PatientRecord(legal_name="Maria da Silva", display_name="Maria", birth_date="1984-03-02")
-MARIA_DRAFT = MARIA.model_copy(update={"display_name": "Maria (rascunho)"})
+MARIA_DRAFT = MARIA.model_copy(update={"display_name": "Maria (modified)"})
 MARIA_SUMMARY = PatientSummary.of(MARIA, ["diabetes"])
 SCAN = ExamRecord(title="RM de crânio", modality="MR", exam_date="2026-09-01")
 SCAN_SUMMARY = ExamSummary.of(SCAN)
@@ -89,15 +79,12 @@ BASE = f"{EXTERNAL_PREFIX}/workspaces/{WORKSPACE_ID}"
 
 
 def sealed_length(record: BaseModel) -> int:
-    """🇺🇸 `content_length` the SDK declares: the JSON record plus 44 bytes of framing and tag.
-
-    🇧🇷 O `content_length` que o SDK declara: o registro JSON mais 44 bytes de enquadramento e tag.
-    """
+    """`content_length` the SDK declares: the JSON record plus 44 bytes of framing and tag."""
     return len(record.model_dump_json(exclude_none=True).encode("utf-8")) + 44
 
 
 def summary_payload(resource: str, summary: BaseModel) -> dict[str, str]:
-    """🇺🇸 A real `encrypted_index` under the fixed document DEK. 🇧🇷 Um `encrypted_index` real sob a DEK fixa."""
+    """A real `encrypted_index` under the fixed document DEK."""
     plaintext = summary.model_dump_json(exclude_none=True).encode("utf-8")
     return seal_content(DEK, plaintext, INDEX_INFO[resource], label=f"{resource}/index")
 
@@ -111,10 +98,7 @@ def index_body(
     meta: dict[str, object] | None = None,
     is_archived: bool = False,
 ) -> dict[str, object]:
-    """🇺🇸 `documentIndexResponse` as the SDK reads it: keys, the sealed summary, the `data` stream, flags.
-
-    🇧🇷 `documentIndexResponse` como o SDK o lê: chaves, o resumo selado, o fluxo `data`, flags.
-    """
+    """`documentIndexResponse` as the SDK reads it: keys, the sealed summary, the `data` stream, flags."""
     wrapped = seal_content(GROUP_KEY, DEK, DOCUMENT_DEK_INFO, label="document/wrapped-dek")
     body: dict[str, object] = {
         "document_id": match.str(document_id),
@@ -138,10 +122,7 @@ def index_body(
 
 
 def stream_body(*, size: int, pending: str | None = None, draft: dict[str, object] | None = None) -> dict[str, object]:
-    """🇺🇸 One committed version (`VERSION_1`), optionally a pending id and a draft head.
-
-    🇧🇷 Uma versão confirmada (`VERSION_1`), opcionalmente um id pendente e uma cabeça de rascunho.
-    """
+    """One committed version (`VERSION_1`), optionally a pending id and a draft head."""
     stream: dict[str, object] = {
         "latest_version_id": match.str(VERSION_1),
         "versions": match.each_like(
@@ -160,10 +141,7 @@ def stream_body(*, size: int, pending: str | None = None, draft: dict[str, objec
 
 
 def reservation_body(version_id: str, size: int) -> dict[str, object]:
-    """🇺🇸 What a reservation answers that the SDK uses: the version id, its context, the signed `PUT`.
-
-    🇧🇷 O que uma reserva responde e o SDK usa: o id da versão, o contexto dela, o `PUT` assinado.
-    """
+    """What a reservation answers that the SDK uses: the version id, its context, the signed `PUT`."""
     return {
         "version_id": match.str(version_id),
         "security_context": {"value": match.regex(CONTEXT, regex=B64URL)},
@@ -175,10 +153,7 @@ def reservation_body(version_id: str, size: int) -> dict[str, object]:
 
 
 def keyring() -> Keyring:
-    """🇺🇸 The session plus the one group key the approval in `test_session.py` hands out.
-
-    🇧🇷 A sessão mais a chave de grupo que a aprovação de `test_session.py` entrega.
-    """
+    """The session plus the one group key the approval in `test_session.py` hands out."""
     return Keyring(
         enrollment_id="enr-contract",
         session=session_keys(),
@@ -187,18 +162,15 @@ def keyring() -> Keyring:
 
 
 class Storage:
-    """🇺🇸 In-memory R2: serves fixed objects by URL and records every `PUT`.
-
-    🇧🇷 R2 em memória: serve objetos fixos por URL e registra todo `PUT`.
-    """
+    """In-memory R2: serves fixed objects by URL and records every `PUT`."""
 
     def __init__(self, objects: dict[str, bytes] | None = None) -> None:
-        """🇺🇸 `objects` maps a download URL to its body. 🇧🇷 `objects` mapeia uma URL de download ao corpo."""
+        """`objects` maps a download URL to its body."""
         self.objects = dict(objects or {})
         self.puts: list[httpx.Request] = []
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
-        """🇺🇸 The `httpx.MockTransport` handler. 🇧🇷 O handler do `httpx.MockTransport`."""
+        """The `httpx.MockTransport` handler."""
         if request.method == "PUT":
             self.puts.append(request)
             return httpx.Response(200)
@@ -209,7 +181,7 @@ class Storage:
 def engine(
     url: str, resource: ResourceKind, record: type[Any], summary: type[Any], storage: Storage
 ) -> VersionedDocuments[Any, Any]:
-    """🇺🇸 The SDK's real engine over the mock server, with the contract keyring. 🇧🇷 O motor real do SDK sobre o mock."""
+    """The SDK's real engine over the mock server, with the contract keyring."""
     return VersionedDocuments(
         make_transport(url, storage=storage),
         keyring,
@@ -223,17 +195,17 @@ def engine(
 
 
 def patients_for(url: str, storage: Storage) -> Patients:
-    """🇺🇸 `vault.patients` over the mock server. 🇧🇷 `vault.patients` sobre o mock."""
+    """`vault.patients` over the mock server."""
     return Patients(engine(url, "patients", PatientRecord, PatientSummary, storage))
 
 
 def exams_for(url: str, storage: Storage) -> Exams:
-    """🇺🇸 `vault.exams` over the mock server. 🇧🇷 `vault.exams` sobre o mock."""
+    """`vault.exams` over the mock server."""
     return Exams(engine(url, "exams", ExamRecord, ExamSummary, storage))
 
 
 def sealed_version(record: BaseModel, *, label: str) -> bytes:
-    """🇺🇸 `VERSION_1`'s object body, sealed by the oracle. 🇧🇷 O corpo do objeto de `VERSION_1`, selado pelo oráculo."""
+    """`VERSION_1`'s object body, sealed by the oracle."""
     key = content_key(DEK, VERSION_1, CONTEXT)
     return seal_body(key, record.model_dump_json(exclude_none=True).encode("utf-8"), VERSION_CONTENT_INFO, label=label)
 
@@ -245,10 +217,7 @@ EXAMS_ROUTE = (f"{BASE}/exams", rf"{WS_PATTERN}/exams$", f"{WS_EXPR}/exams")
 
 
 def patient_path(suffix: str = "") -> Any:
-    """🇺🇸 `.../patients/{document_id}{suffix}`, rebuilt from provider state at verification.
-
-    🇧🇷 `.../patients/{document_id}{suffix}`, remontado a partir do provider state na verificação.
-    """
+    """`.../patients/{document_id}{suffix}`, rebuilt from provider state at verification."""
     return path(
         f"{BASE}/patients/{PATIENT_ID}{suffix}",
         pattern=rf"{WS_PATTERN}/patients/[^/]+{suffix}$",
@@ -257,10 +226,7 @@ def patient_path(suffix: str = "") -> Any:
 
 
 def declare_open_patient(pact: Pact, *, state: str, description: str, stream: dict[str, object]) -> None:
-    """🇺🇸 `GET .../patients/{id}?stream=data` under `state`, answering the index plus the latest version.
-
-    🇧🇷 `GET .../patients/{id}?stream=data` sob `state`, respondendo o índice mais a versão corrente.
-    """
+    """`GET .../patients/{id}?stream=data` under `state`, answering the index plus the latest version."""
     name, params = workspace_state(
         state, document_id=PATIENT_ID, version_id=VERSION_1, security_group_id=SECURITY_GROUP_ID
     )
@@ -288,10 +254,7 @@ def declare_open_patient(pact: Pact, *, state: str, description: str, stream: di
 def declare_commit(
     pact: Pact, *, resource: str, document_id: str, version_id: str, description: str, stream: dict[str, object]
 ) -> None:
-    """🇺🇸 `POST .../versions/{version_id}/commit` — with `/streams/data` on patients only.
-
-    🇧🇷 `POST .../versions/{version_id}/commit` — com `/streams/data` só em pacientes.
-    """
+    """`POST .../versions/{version_id}/commit` — with `/streams/data` on patients only."""
     segment = "/streams/data" if resource == "patients" else ""
     summary = MARIA_SUMMARY if resource == "patients" else SCAN_SUMMARY
     meta: dict[str, object] | None = None if resource == "patients" else {"patient_id": match.str(PATIENT_ID)}

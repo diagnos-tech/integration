@@ -1,12 +1,7 @@
-"""🇺🇸 Versioned exams (`docs/PROTOCOL.md §8`): no stream segment, the patient linked in clear `meta`, the report opened.
+"""Versioned exams (`docs/PROTOCOL.md §8`): no stream segment, the patient linked in clear `meta`, the report opened.
 
-Same composition as `test_patients.py` (shared ground in `_documents.py`); an exam differs in its routes and in
-what it may send in clear.
-
-🇧🇷 Exames versionados (`docs/PROTOCOL.md §8`): sem segmento de stream, o paciente em `meta` claro, o laudo aberto.
-
-A mesma composição de `test_patients.py` (base comum em `_documents.py`); um exame muda nas rotas e no que
-pode mandar em claro.
+Same composition as `test_patients.py` (shared ground in `_documents.py`); an exam differs in its routes and in what it
+may send in clear.
 """
 
 from __future__ import annotations
@@ -56,10 +51,7 @@ from _wire import (
 
 
 def test_create_exam_has_no_stream_segment_and_links_the_patient_in_clear_meta(pact: Pact) -> None:
-    """🇺🇸 Exams have one stream: no `/streams/...` in the version routes; only `patient_id` goes in clear.
-
-    🇧🇷 Exames têm um fluxo: sem `/streams/...` nas rotas de versão; só `patient_id` vai em claro.
-    """
+    """Exams have one stream: no `/streams/...` in the version routes; only `patient_id` goes in clear."""
     size = sealed_length(SCAN)
     wrapped = seal_content(GROUP_KEY, DEK, DOCUMENT_DEK_INFO, label="document/wrapped-dek")
     declare_clock(pact)
@@ -107,10 +99,7 @@ def test_create_exam_has_no_stream_segment_and_links_the_patient_in_clear_meta(p
 
 
 def test_open_exam_decrypts_the_report(pact: Pact) -> None:
-    """🇺🇸 `GET .../exams/{id}` without a stream query; the report opens under the version's key.
-
-    🇧🇷 `GET .../exams/{id}` sem query de fluxo; o laudo abre sob a chave da versão.
-    """
+    """`GET .../exams/{id}` without a stream query; the report opens under the version's key."""
     name, params = workspace_state(
         "an exam has one committed version",
         document_id=EXAM_ID,

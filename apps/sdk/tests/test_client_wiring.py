@@ -99,7 +99,7 @@ def test_current_session_keys_callback_reaches_the_live_session() -> None:
         vault.close()
 
     assert result == {"ok": True}
-    # signed with the fake session's own key · assinado com a chave da sessão falsa
+    # Signed with the fake session's own key.
     assert "x-signature-hmac" in seen_headers
 
 

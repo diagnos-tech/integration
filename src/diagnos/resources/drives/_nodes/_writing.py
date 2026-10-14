@@ -1,4 +1,4 @@
-"""`_Writing`: seals and stages nodes, then drives the single-`PUT`/multipart body up (`docs/PROTOCOL.md §9`)."""
+"""`_Writing`: seals and stages nodes, then drives the single-`PUT` or multipart body up (`docs/PROTOCOL.md §9`)."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ class _Writing(_Transfer):
     """The write routes of `_Nodes`: folders and batched uploads."""
 
     def _seal_node(self, group_key: SecretBox, security_group: str, name: str) -> tuple[SecretBox, dict[str, Any]]:
-        """A fresh node DEK plus the sealed name and wrapped key every stage entry carries."""
+        """Return a fresh node DEK plus the sealed name and wrapped key every stage entry carries."""
         dek = generate_dek(self._entropy)
         entry = {
             "client_ref": uuid.uuid4().hex,
@@ -39,12 +39,12 @@ class _Writing(_Transfer):
         return dek, entry
 
     def _stage(self, body: dict[str, Any]) -> builtins.list[StagedNode]:
-        """`POST /nodes/uploads` — one reservation for the whole batch (idempotent per `client_ref`)."""
+        """Call `POST /nodes/uploads` to make one reservation for the whole batch (idempotent per `client_ref`)."""
         result = self._transport.post(f"{self._base}/uploads", json=body)
         return [StagedNode.model_validate(item) for item in result["items"]]
 
     def create_folder(self, name: str, *, security_group: str, parent_id: str | None = None) -> str:
-        """Creates a folder (ready at once — it has no content) and returns its node id."""
+        """Create a folder (ready at once, because it has no content) and return its node id."""
         group_key = self._keyring_provider().group_key(security_group)
         _dek, entry = self._seal_node(group_key, security_group, name)
         body: dict[str, Any] = {"security_group_id": security_group, "files": [{"kind": "folder", **entry}]}
@@ -61,7 +61,7 @@ class _Writing(_Transfer):
         exam_id: str | None = None,
         parent_id: str | None = None,
     ) -> builtins.list[DriveNode]:
-        """Uploads every source, in reservations of up to 100, and returns the ready nodes in input order."""
+        """Upload every source, in reservations of up to 100, and return the ready nodes in input order."""
         items = [item if isinstance(item, UploadSource) else UploadSource(item) for item in sources]
         group_key = self._keyring_provider().group_key(security_group)
         nodes: builtins.list[DriveNode] = []
@@ -71,7 +71,7 @@ class _Writing(_Transfer):
         return nodes
 
     def _prepare(self, item: UploadSource, group_key: SecretBox, security_group: str) -> _PreparedUpload:
-        """Names the file, measures it, and seals what the reservation needs."""
+        """Name the file, measure it, and seal what the reservation needs."""
         name = item.resolved_name()
         plaintext = _plaintext_source(item.source)
         dek, entry = self._seal_node(group_key, security_group, name)
@@ -89,7 +89,7 @@ class _Writing(_Transfer):
         exam_id: str | None,
         parent_id: str | None,
     ) -> builtins.list[DriveNode]:
-        """Stage → upload each file → confirm the single `PUT`s together."""
+        """Stage the batch, upload each file, then confirm the single `PUT` uploads together."""
         prepared = [self._prepare(item, group_key, security_group) for item in batch]
         try:
             body: dict[str, Any] = {
@@ -106,19 +106,14 @@ class _Writing(_Transfer):
             for upload in prepared:
                 node = staged.get(upload.client_ref)
                 if node is None or node.kind != "file":
-                    raise ProtocolError(
-                        f"🇺🇸 the reservation did not return a file node for {upload.client_ref!r}. "
-                        f"🇧🇷 a reserva não devolveu um nó de arquivo para {upload.client_ref!r}."
-                    )
+                    raise ProtocolError(f"the reservation did not return a file node for {upload.client_ref!r}.")
                 if node.mode == "single":
                     self._put_single(node, upload)
                     singles.append(node.node_id)
                 elif node.mode == "multipart":
                     finished[node.node_id] = self._put_multipart(node, upload)
                 else:
-                    raise ProtocolError(
-                        f"🇺🇸 unknown upload mode {node.mode!r}. 🇧🇷 modo de upload desconhecido {node.mode!r}."
-                    )
+                    raise ProtocolError(f"unknown upload mode {node.mode!r}.")
             finished.update(self._complete_singles(singles))
             # A confirmed node the vault did not echo back is fetched, never assumed.
             node_ids = [staged[upload.client_ref].node_id for upload in prepared]

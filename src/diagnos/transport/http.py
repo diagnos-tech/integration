@@ -1,14 +1,15 @@
-"""`VaultTransport` — the one place that speaks HTTP to the vault.
+"""`VaultTransport`, the one place that speaks HTTP to the vault.
 
-Everything above this module (resources, the CLI) calls `request`/`get`/
-`post`/`put` and never touches `httpx` directly, so every retry rule, every
-header, every envelope in `docs/PROTOCOL.md` is enforced exactly once. Two
-transports live inside it: a signed `httpx.Client` for `/api/external/v1`
-(and the unsigned `/time`), and a bare `httpx.Client` with no base URL and no
-`Authorization` for the R2 object storage the vault only ever hands out
-presigned URLs to. The `429`/`5xx` backoff math lives in `_retry.py`, and the
-bare R2 `PUT`/`GET`s live in `storage.py` — this module keeps only what
-needs signing, session state, or the retry loop itself.
+Everything above this module (resources, the CLI) calls `request`, `get`,
+`post` and `put` and never touches `httpx` directly, so every retry rule,
+every header and every envelope in `docs/PROTOCOL.md` is enforced exactly
+once. Two transports live inside it: a signed `httpx.Client` for
+`/api/external/v1` (and the unsigned `/time`), and a bare `httpx.Client` with
+no base URL and no `Authorization` for the R2 object storage, to which the
+vault only ever hands out presigned URLs. The `429` and `5xx` backoff math
+lives in `_retry.py`, and the bare R2 `PUT` and `GET` calls live in
+`storage.py`. This module keeps only what needs signing, session state or the
+retry loop itself.
 """
 
 from __future__ import annotations
@@ -35,10 +36,10 @@ from .token import ServiceAccountToken
 
 
 def _encode_json_body(payload: Any | None) -> bytes:
-    """Same separators the vault expects, and the exact bytes we then sign.
+    """Serialize a JSON body with the separators the vault expects, as the exact bytes that are then signed.
 
-    `separators=(",", ":")` drops the spaces `json.dumps` adds by default;
-    signing has to run over the *literal* bytes sent on the wire, so any
+    `separators=(",", ":")` drops the spaces `json.dumps` adds by default.
+    Signing has to run over the *literal* bytes sent on the wire, so any
     difference between what is signed and what is serialized here would be a
     self-inflicted `401`.
     """
@@ -50,8 +51,8 @@ def _encode_json_body(payload: Any | None) -> bytes:
 class VaultTransport(_StorageMixin, _SendMixin):
     """Signs, sends, retries and unwraps every call to the vault's API.
 
-    `upload_bytes`/`download_bytes`/`download_stream` — the R2 side, which
-    needs none of that — come from `_StorageMixin` (`storage.py`); building,
+    `upload_bytes`, `download_bytes` and `download_stream` (the R2 side, which
+    needs none of that) come from `_StorageMixin` (`storage.py`). Building,
     signing and sending one request, plus opportunistic seed delivery, come
     from `_SendMixin` (`_send.py`).
     """
@@ -68,10 +69,20 @@ class VaultTransport(_StorageMixin, _SendMixin):
         clock: ClockSync | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        """Wrap `settings`/`token` with the callbacks and clients a live session needs."""
-        # `session_keys` is a callback, not a value, because the keys can
-        # rotate (re-enrollment, seed-derived refresh) after this transport is
-        # built; the transport must always ask for the current ones.
+        """Wrap `settings` and `token` with the callbacks and clients a live session needs.
+
+        Args:
+            settings: The SDK configuration.
+            token: The parsed service-account token.
+            session_keys: Returns the current session keys, or `None` when there is no usable session. It is a
+                callback, not a value, because the keys can rotate (re-enrollment, seed-derived refresh) after this
+                transport is built, and the transport must always ask for the current ones.
+            on_seed: Called with each `random_seed` the vault delivers, already opened into a `SecretBox`.
+            client: A prebuilt client for the vault API, for tests.
+            storage_client: A prebuilt client for object storage, for tests.
+            clock: A prebuilt clock-offset tracker, for tests.
+            sleep: The sleep function used between retries; replaced in tests.
+        """
         self._settings = settings
         self._token = token
         self._session_keys = session_keys
@@ -97,7 +108,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         self._storage_client.close()
 
     def __enter__(self) -> VaultTransport:
-        """`with VaultTransport(...):` — no setup beyond `__init__`."""
+        """Enter a `with VaultTransport(...):` block; there is no setup beyond `__init__`."""
         return self
 
     def __exit__(
@@ -110,7 +121,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         self.close()
 
     def get(self, path: str, *, query: Mapping[str, str | int | bool] | None = None, signed: bool = True) -> Any:
-        """`GET` shortcut for `request`."""
+        """Send a `GET`; a shortcut for `request` (see it for the arguments, return value and errors)."""
         return self.request("GET", path, query=query, signed=signed)
 
     def post(
@@ -121,7 +132,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         query: Mapping[str, str | int | bool] | None = None,
         signed: bool = True,
     ) -> Any:
-        """`POST` shortcut for `request`."""
+        """Send a `POST`; a shortcut for `request` (see it for the arguments, return value and errors)."""
         return self.request("POST", path, json=json, query=query, signed=signed)
 
     def put(
@@ -132,7 +143,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         query: Mapping[str, str | int | bool] | None = None,
         signed: bool = True,
     ) -> Any:
-        """`PUT` shortcut for `request`."""
+        """Send a `PUT`; a shortcut for `request` (see it for the arguments, return value and errors)."""
         return self.request("PUT", path, json=json, query=query, signed=signed)
 
     def request(
@@ -144,12 +155,26 @@ class VaultTransport(_StorageMixin, _SendMixin):
         query: Mapping[str, str | int | bool] | None = None,
         signed: bool = True,
     ) -> Any:
-        """Send one API call, retrying the cases `docs/PROTOCOL.md §12` says are safe to retry.
+        """Send one API call, retrying the cases that `docs/PROTOCOL.md §12` says are safe to retry.
 
-        Each loop iteration builds a brand new request — a fresh timestamp
-        and nonce — because every retry rule here (`ReplayDetected`,
+        Each loop iteration builds a brand new request, with a fresh timestamp
+        and nonce, because every retry rule here (`ReplayDetected`,
         `SignatureTimestampSkew`) exists precisely because *reusing* a
         `(timestamp, nonce)` pair is what got rejected in the first place.
+
+        Args:
+            method: The HTTP method.
+            path: The request path, relative to the vault's base URL.
+            json: The JSON body, if any.
+            query: The query parameters, if any.
+            signed: Whether to sign the request. Only the enrollment routes and `/time` go out unsigned.
+
+        Returns:
+            The `result` member of the vault's response envelope.
+
+        Raises:
+            SessionExpiredError: If a signed call is made with no usable session keys.
+            VaultError: If the vault answers with an error envelope. The subclass follows the HTTP status.
         """
         body = _encode_json_body(json)
         headers: dict[str, str] = dict(self._token.authorization_header())

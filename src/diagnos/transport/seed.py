@@ -1,12 +1,12 @@
-"""Opens `random_seed`, the vault's contribution to the SDK's entropy — inside the enclave.
+"""Opens `random_seed`, the vault's contribution to the SDK's entropy, inside the enclave.
 
 `docs/PROTOCOL.md §4`: every response to a signed request carries
-`random_seed: {"nonce", "ciphertext"}` in its JSON envelope — AES-256-GCM
+`random_seed: {"nonce", "ciphertext"}` in its JSON envelope. It is AES-256-GCM
 under the session's `enc_key` with the session id as AAD (binding the seed to
-*this* session so it cannot be replayed into another one), over
+*this* session so that it cannot be replayed into another one), over
 `{"seed": "<32 B b64url>"}`. It travels in the body, not in a header, so it
 stays out of proxy logs and APM traces, which record headers and almost never
-bodies. The SDK mixes it into its own randomness; it never trusts the vault's
+bodies. The SDK mixes it into its own randomness and never trusts the vault's
 contribution alone, so this module only has to recover the 32 bytes, not judge
 whether they are safe to use by themselves. The decryption, the JSON parse and
 the base64 decode all run in Rust: the seed is born as a `SecretBox` and never
@@ -28,11 +28,22 @@ SEED_LENGTH = 32
 def open_random_seed(enc_key: SecretLike, session_id: str, envelope: Mapping[str, Any]) -> SecretBox:
     """Decrypt a `random_seed` envelope (`{"nonce", "ciphertext"}`) into a locked 32-byte box.
 
-    Every failure mode — a missing field, bad base64url, a GCM tag that does
+    Every failure mode (a missing field, bad base64url, a GCM tag that does
     not verify, JSON that is not the expected shape, a seed of the wrong
-    length — collapses into `CryptoError`. Distinguishing "wrong key" from
+    length) collapses into `CryptoError`. Distinguishing "wrong key" from
     "tampered ciphertext" here would hand a decryption oracle to whoever is
     probing a live vault, so the ambiguity is deliberate, per `errors.py`.
+
+    Args:
+        enc_key: The session's `enc_key`.
+        session_id: The session id, used as the AAD.
+        envelope: The `random_seed` member of the response, holding `nonce` and `ciphertext`.
+
+    Returns:
+        The 32-byte seed in a locked box.
+
+    Raises:
+        CryptoError: If the seed does not open for any reason.
     """
     try:
         nonce = b64url_decode(str(envelope["nonce"]))

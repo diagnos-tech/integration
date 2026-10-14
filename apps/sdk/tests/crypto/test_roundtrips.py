@@ -190,7 +190,7 @@ def test_an_exact_multiple_of_the_chunk_ends_with_an_empty_final_frame() -> None
 def test_decrypt_stream_rejects_tampered_byte() -> None:
     """Flipping one ciphertext byte must fail the AEAD, not silently corrupt the plaintext."""
     key = secrets.token_bytes(32)
-    encrypted = bytearray(encrypt_bytes(key, b"conteudo sensivel do exame"))
+    encrypted = bytearray(encrypt_bytes(key, b"sensitive exam content"))
     encrypted[-1] ^= 0x01  # flips a bit inside the final tag
     with pytest.raises(CryptoError):
         b"".join(decrypt_stream(key, [bytes(encrypted)]))
@@ -199,9 +199,9 @@ def test_decrypt_stream_rejects_tampered_byte() -> None:
 def test_decrypt_stream_rejects_data_after_final_tag() -> None:
     """Bytes appended after `TAG_FINAL` must be rejected, not ignored."""
     key = secrets.token_bytes(32)
-    encrypted = encrypt_bytes(key, b"conteudo")
+    encrypted = encrypt_bytes(key, b"content")
     with pytest.raises(CryptoError):
-        b"".join(decrypt_stream(key, [encrypted + b"lixo extra"]))
+        b"".join(decrypt_stream(key, [encrypted + b"extra trailing bytes"]))
 
 
 def test_decrypt_stream_rejects_truncated_stream() -> None:
@@ -264,5 +264,5 @@ def test_entropy_mixer_random_respects_length() -> None:
 def test_entropy_mixer_random_rejects_a_negative_length() -> None:
     """A negative `n` is a caller mistake, not a request for `0` bytes."""
     mixer = EntropyMixer()
-    with pytest.raises(ValueError, match="n não pode ser negativo"):
+    with pytest.raises(ValueError, match="n must not be negative"):
         mixer.random(-1)

@@ -111,14 +111,14 @@ def test_stage_body_is_what_the_vault_validates(harness: Harness) -> None:  # no
 def test_download_round_trips_with_sse_c_on_the_get(harness: Harness, tmp_path: Path) -> None:  # noqa: F811
     """`download` to bytes, to a path and to a file object; the `GET` presents the same SSE-C key."""
     drive = _drive(harness)
-    node = drive.upload(b"conteudo do exame", name="report.pdf")
+    node = drive.upload(b"exam content", name="report.pdf")
     target = tmp_path / "out.pdf"
     buffer = io.BytesIO()
 
-    assert drive.download(node.node_id) == b"conteudo do exame"
+    assert drive.download(node.node_id) == b"exam content"
     assert drive.download(node.node_id, target) is None
     assert drive.download(node.node_id, buffer) is None
-    assert target.read_bytes() == buffer.getvalue() == b"conteudo do exame"
+    assert target.read_bytes() == buffer.getvalue() == b"exam content"
     assert harness.vault.get_requests[-1].headers["x-amz-server-side-encryption-customer-algorithm"] == "AES256"
     assert drive.name_of(drive.get(node.node_id)) == "report.pdf"
 
@@ -260,7 +260,7 @@ def test_a_part_without_an_etag_is_a_protocol_error(harness: Harness) -> None:  
 def test_folders_hold_files_and_filter_the_listing(harness: Harness) -> None:  # noqa: F811
     """A folder is a ready node with a sealed name; `parent_id` places files in it and filters the list."""
     drive = _drive(harness)
-    folder_id = drive.create_folder("Série 1")
+    folder_id = drive.create_folder("Résumé 1")
     inner = drive.upload(b"1", name="IM-1.dcm", parent_id=folder_id)
     drive.upload(b"2", name="outside.txt")
 
@@ -269,7 +269,7 @@ def test_folders_hold_files_and_filter_the_listing(harness: Harness) -> None:  #
 
     assert [node.node_id for node in in_folder] == [inner.node_id]
     assert (folder.kind, folder.status) == ("folder", "ready")
-    assert drive.name_of(folder) == "Série 1"
+    assert drive.name_of(folder) == "Résumé 1"
     with pytest.raises(NotFoundError):
         drive.get(folder_id)
     assert _drive(harness).create_folder("sub", parent_id=folder_id)

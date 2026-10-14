@@ -1,36 +1,15 @@
-"""🇺🇸 Files and folders (`docs/PROTOCOL.md §9`): what the SDK asks of `/nodes`, and reads back.
+"""Files and folders (`docs/PROTOCOL.md §9`): what the SDK asks of `/nodes`, and reads back.
 
-Each test drives the SDK's real `Drives` against the Pact mock: reserve a
-file → `PUT` → confirm, open a ready file and download it, list a group's
-files, create a folder. What the SDK opens — a node's wrapped DEK, its sealed
-name, its framed body, the SSE-C headers storage demands — is produced here
-by an independent implementation (`_crypto.py`: `cryptography` and
-libsodium through `pynacl`), cross-checked against vectors the web app's own
-code generated (`apps/sdk/tests/vectors/node_content.json`); so a green run
-is also proof that the SDK reads what the web app writes, and writes what
-the web app reads.
+Each test drives the SDK's real `Drives` against the Pact mock: reserve a file, `PUT` it and confirm; open a ready file
+and download it; list a group's files; create a folder. What the SDK opens (a node's wrapped DEK, its sealed name, its
+framed body, the SSE-C headers that storage demands) is produced here by an independent implementation (`_crypto.py`:
+`cryptography`, and libsodium through `pynacl`) and cross-checked against vectors that the web app's own code generated
+(`apps/sdk/tests/vectors/node_content.json`). A green run is therefore also proof that the SDK reads what the web app
+writes, and writes what the web app reads.
 
-Multipart uploads are not in this contract: the vault opens and closes them
-through R2's S3 endpoint, which its provider verification (a local
-`wrangler dev`) does not have. The SDK's unit tests cover them against a
-double that models those routes (`apps/sdk/tests/resources/vault_double.py`).
-
-🇧🇷 Arquivos e pastas (`docs/PROTOCOL.md §9`): o que o SDK pede a `/nodes`, e o que lê de volta.
-
-Cada teste conduz os `Drives` de verdade do SDK contra o mock do Pact:
-reservar um arquivo → `PUT` → confirmar, abrir um arquivo pronto e baixá-lo,
-listar os arquivos de um grupo, criar uma pasta. O que o SDK abre — a DEK
-embrulhada de um nó, o nome selado, o corpo enquadrado, os headers de SSE-C
-que o armazenamento exige — é produzido aqui por uma implementação
-independente (`_crypto.py`: `cryptography` e libsodium via `pynacl`),
-conferida contra vetores gerados pelo próprio código do app web
-(`apps/sdk/tests/vectors/node_content.json`); então uma rodada verde também
-prova que o SDK lê o que o app web grava, e grava o que o app web lê.
-
-Uploads multipart não estão neste contrato: o cofre os abre e fecha pelo
-endpoint S3 do R2, que a verificação do provider (um `wrangler dev` local)
-não tem. Os testes unitários do SDK os cobrem contra um dublê que modela
-essas rotas (`apps/sdk/tests/resources/vault_double.py`).
+Multipart uploads are not in this contract: the vault opens and closes them through R2's S3 endpoint, which its
+provider verification (a local `wrangler dev`) does not have. The SDK's unit tests cover them against a double that
+models those routes (`apps/sdk/tests/resources/vault_double.py`).
 """
 
 from __future__ import annotations
@@ -87,10 +66,8 @@ UPLOAD_DEK = fixed_bytes("node/upload-dek")
 NODE_ID = "node-contract"
 FOLDER_ID = "folder-contract"
 EXAM_ID = "exam-contract"
-# 🇺🇸 One idempotency ref per reservation: the vault deduplicates by `(workspace, client_ref)`, so a folder and a
-#    file sharing one ref would come back as the same node — exactly as it should.
-# 🇧🇷 Uma ref de idempotência por reserva: o cofre deduplica por `(workspace, client_ref)`, então uma pasta e um
-#    arquivo com a mesma ref voltariam como o mesmo nó — exatamente como deve ser.
+# One idempotency ref per reservation: the vault deduplicates by `(workspace, client_ref)`, so a folder and a file
+# sharing one ref would come back as the same node, exactly as it should.
 FILE_REF = uuid.UUID(bytes=fixed_bytes("node/client-ref/file", 16)).hex
 FOLDER_REF = uuid.UUID(bytes=fixed_bytes("node/client-ref/folder", 16)).hex
 CONTEXT = b64url(fixed_bytes("node/security-context"))
@@ -100,11 +77,9 @@ DOWNLOAD_URL = "https://storage.diagnosusercontent.com/node-download?X-Amz-Signa
 
 FILE_NAME = "IM-0001-0001.dcm"
 DICOM_MIME = "application/dicom"
-# 🇺🇸 A DICOM preamble is 128 zero bytes then `DICM` — enough to look like one, small enough for one frame.
-# 🇧🇷 Um preâmbulo DICOM são 128 bytes zero e `DICM` — o bastante para parecer um, pequeno para caber num frame.
+# A DICOM preamble is 128 zero bytes then `DICM` — enough to look like one, small enough for one frame.
 PLAINTEXT = bytes(128) + b"DICM" + b"\x02\x00\x00\x00contract"
-# 🇺🇸 `header(24) + one final frame (len 4 + tag 17) + plaintext` — `docs/PROTOCOL.md §9`.
-# 🇧🇷 `header(24) + um frame final (len 4 + tag 17) + texto claro` — `docs/PROTOCOL.md §9`.
+# `header(24) + one final frame (len 4 + tag 17) + plaintext` — `docs/PROTOCOL.md §9`.
 SEALED_SIZE = 24 + 4 + 17 + len(PLAINTEXT)
 
 _WS = rf"^{EXTERNAL_PREFIX}/workspaces/[^/]+"
@@ -114,25 +89,22 @@ _CLIENT_REF = r"^[A-Za-z0-9_-]{1,64}$"
 
 
 def _nodes_path(suffix: str = "") -> Any:
-    """🇺🇸 `…/nodes{suffix}` under the provider's workspace. 🇧🇷 `…/nodes{suffix}` sob o workspace do provider."""
+    """`…/nodes{suffix}` under the provider's workspace."""
     return path(f"{_BASE}{suffix}", pattern=rf"{_WS}/nodes{suffix}$", expression=f"{_WS_EXPR}/nodes{suffix}")
 
 
 def _wrapped_dek() -> dict[str, str]:
-    """🇺🇸 `NODE_DEK` wrapped for the group, as the web app does. 🇧🇷 `NODE_DEK` embrulhada para o grupo."""
+    """`NODE_DEK` wrapped for the group, as the web app does."""
     return seal_content(GROUP_KEY, NODE_DEK, NODE_DEK_INFO, label="node/wrapped-dek")
 
 
 def _sealed_name() -> dict[str, str]:
-    """🇺🇸 `FILE_NAME` sealed under `NODE_DEK`. 🇧🇷 `FILE_NAME` selado sob `NODE_DEK`."""
+    """`FILE_NAME` sealed under `NODE_DEK`."""
     return seal_content(NODE_DEK, FILE_NAME.encode("utf-8"), NODE_NAME_INFO, label="node/name")
 
 
 def _ready_file() -> dict[str, object]:
-    """🇺🇸 A ready file as the SDK reads it: identity, state, size, type, sealed name and key.
-
-    🇧🇷 Um arquivo pronto como o SDK o lê: identidade, estado, tamanho, tipo, nome e chave selados.
-    """
+    """A ready file as the SDK reads it: identity, state, size, type, sealed name and key."""
     return {
         "node_id": match.str(NODE_ID),
         "workspace_id": match.str(WORKSPACE_ID),
@@ -153,10 +125,7 @@ def _ready_file() -> dict[str, object]:
 
 
 def _stage_entry(client_ref: str, **fields: object) -> dict[str, object]:
-    """🇺🇸 What every stage entry carries: an idempotency ref, the sealed name, the wrapped DEK.
-
-    🇧🇷 O que toda entrada de reserva leva: uma ref de idempotência, o nome selado, a DEK embrulhada.
-    """
+    """What every stage entry carries: an idempotency ref, the sealed name, the wrapped DEK."""
     return {
         "client_ref": match.regex(client_ref, regex=_CLIENT_REF),
         "encrypted_name": encrypted(_sealed_name()),
@@ -166,7 +135,7 @@ def _stage_entry(client_ref: str, **fields: object) -> dict[str, object]:
 
 
 def _keyring() -> Keyring:
-    """🇺🇸 The session plus the contract's group key. 🇧🇷 A sessão mais a chave de grupo do contrato."""
+    """The session plus the contract's group key."""
     return Keyring(
         enrollment_id="enr-contract",
         session=session_keys(),
@@ -175,54 +144,39 @@ def _keyring() -> Keyring:
 
 
 def _drives(url: str, storage: Any) -> Drives:
-    """🇺🇸 `vault.drives` over the mock server. 🇧🇷 `vault.drives` sobre o mock."""
+    """`vault.drives` over the mock server."""
     return Drives(make_transport(url, storage=storage), _keyring, EntropyMixer(), workspace_id=WORKSPACE_ID)
 
 
 @pytest.fixture
 def pin_client_ref(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
-    """🇺🇸 Pins the SDK's next `client_ref` (and its DEK) so the mock's canned answer matches them.
+    """Pins the SDK's next `client_ref` (and its DEK) so the mock's canned answer matches them.
 
-    The vault echoes each `client_ref` back and the SDK matches its files by
-    it; a mock cannot echo, so the SDK must draw the ref the example
-    carries. The fixed DEK lets the oracle open what the SDK uploaded.
-
-    🇧🇷 Fixa o próximo `client_ref` do SDK (e a DEK) para a resposta pronta do mock bater com eles.
-
-    O cofre ecoa cada `client_ref` e o SDK casa os arquivos por ele; um mock
-    não ecoa, então o SDK precisa sortear a ref que o exemplo leva. A DEK
-    fixa deixa o oráculo abrir o que o SDK subiu.
+    The vault echoes each `client_ref` back and the SDK matches its files by it. A mock cannot echo, so the SDK must
+    draw the ref that the example carries. The fixed DEK lets the oracle open what the SDK uploaded.
     """
     monkeypatch.setattr(nodes_module, "generate_dek", lambda entropy: SecretBox.from_bytes(bytearray(UPLOAD_DEK)))
 
     def pin(client_ref: str) -> None:
-        """🇺🇸 Every `uuid4()` the SDK draws is now `client_ref`. 🇧🇷 Todo `uuid4()` do SDK vira `client_ref`."""
+        """Every `uuid4()` the SDK draws is now `client_ref`."""
         monkeypatch.setattr(nodes_module, "uuid", types.SimpleNamespace(uuid4=lambda: uuid.UUID(hex=client_ref)))
 
     return pin
 
 
 class _Storage:
-    """🇺🇸 In-memory R2 that enforces SSE-C: every call must carry the node's sister key.
-
-    🇧🇷 R2 em memória que exige SSE-C: toda chamada precisa levar a chave irmã do nó.
-    """
+    """In-memory R2 that enforces SSE-C: every call must carry the node's sister key."""
 
     def __init__(self, dek: bytes, *, body: bytes | None = None) -> None:
-        """🇺🇸 `dek` decides the expected SSE-C key; `body` is served on `GET`.
-
-        🇧🇷 `dek` decide a chave SSE-C esperada; `body` é servido no `GET`.
-        """
+        """`dek` decides the expected SSE-C key; `body` is served on `GET`."""
         self.expected_sse = sse_c_headers(dek, NODE_ID, CONTEXT)
         self.body = body
         self.puts: list[httpx.Request] = []
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
-        """🇺🇸 The `httpx.MockTransport` handler. 🇧🇷 O handler do `httpx.MockTransport`."""
+        """The `httpx.MockTransport` handler."""
         sent = {name: request.headers.get(name) for name in self.expected_sse}
-        assert sent == self.expected_sse, (
-            "SSE-C headers differ from the web app's · headers de SSE-C diferem do app web"
-        )
+        assert sent == self.expected_sse, "SSE-C headers differ from the web app's"
         if request.method == "PUT":
             self.puts.append(request)
             return httpx.Response(200, headers={"etag": '"contract"'})
@@ -234,10 +188,7 @@ class _Storage:
 
 
 def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, pin_client_ref: Callable[[str], None]) -> None:
-    """🇺🇸 One reservation (sealed name, wrapped DEK, framed size, MIME) → signed `PUT` with SSE-C → confirm.
-
-    🇧🇷 Uma reserva (nome selado, DEK embrulhada, tamanho enquadrado, MIME) → `PUT` assinado com SSE-C → confirmar.
-    """
+    """One reservation (sealed name, wrapped DEK, framed size, MIME) → signed `PUT` with SSE-C → confirm."""
     declare_clock(pact)
     name, params = workspace_state(
         "the SDK session holds the key of a security group", security_group_id=SECURITY_GROUP_ID
@@ -309,10 +260,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, pin_client_ref: 
 
 
 def test_create_folder_reserves_a_folder_node(pact: Pact, pin_client_ref: Callable[[str], None]) -> None:
-    """🇺🇸 A folder is a stage entry of `kind: folder`, no size: ready at once, nothing to upload.
-
-    🇧🇷 Uma pasta é uma entrada de reserva `kind: folder`, sem tamanho: pronta na hora, nada a subir.
-    """
+    """A folder is a stage entry of `kind: folder`, no size: ready at once, nothing to upload."""
     declare_clock(pact)
     name, params = workspace_state(
         "the SDK session holds the key of a security group", security_group_id=SECURITY_GROUP_ID
@@ -360,10 +308,7 @@ def test_create_folder_reserves_a_folder_node(pact: Pact, pin_client_ref: Callab
 
 
 def test_download_opens_what_the_web_app_sealed(pact: Pact) -> None:
-    """🇺🇸 Index → DEK (group key) → name; content key and SSE-C sister key (node id, context) → the bytes.
-
-    🇧🇷 Índice → DEK (chave do grupo) → nome; chave de conteúdo e chave irmã SSE-C (id do nó, contexto) → os bytes.
-    """
+    """Index → DEK (group key) → name; content key and SSE-C sister key (node id, context) → the bytes."""
     declare_clock(pact)
     name, params = workspace_state(
         "a folder holds one ready file", security_group_id=SECURITY_GROUP_ID, parent_id=FOLDER_ID, node_id=NODE_ID
@@ -402,17 +347,10 @@ def test_download_opens_what_the_web_app_sealed(pact: Pact) -> None:
 
 
 def test_list_a_folder_decrypts_each_name(pact: Pact) -> None:
-    """🇺🇸 `GET /nodes?security_group_id=…&parent_id=…&limit=50` → one page; every name opens with the group key.
+    """`GET /nodes?security_group_id=…&parent_id=…&limit=50` returns one page; every name opens with the group key.
 
-    Scoped to one folder, as a file browser lists: a group's root may hold
-    folders and files other interactions left there, and every row must
-    match the one shape this interaction pins.
-
-    🇧🇷 `GET /nodes?security_group_id=…&parent_id=…&limit=50` → uma página; todo nome abre com a chave do grupo.
-
-    Restrito a uma pasta, como um navegador de arquivos lista: a raiz de um
-    grupo pode ter pastas e arquivos que outras interações deixaram, e toda
-    linha precisa bater com a única forma que esta interação trava.
+    The listing is scoped to one folder, as a file browser lists: a group's root may hold folders and files that other
+    interactions left there, and every row must match the one shape this interaction pins.
     """
     declare_clock(pact)
     name, params = workspace_state(

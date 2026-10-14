@@ -1,4 +1,4 @@
-"""`_Transfer`: the byte-moving primitives — single `PUT`, multipart parts, abort, and batch completion.
+"""`_Transfer`: the byte-moving primitives (single `PUT`, multipart parts, abort, and batch completion).
 
 Split out of `_writing.py` so that module stays about *what* gets uploaded
 (batching, staging, folders) while this one is purely about *how* the sealed
@@ -22,37 +22,31 @@ class _Transfer(_NodesBase):
     """Sends one staged node's sealed body to storage, single or multipart."""
 
     def _keys(self, node: StagedNode, upload: _PreparedUpload) -> tuple[SecretBox, dict[str, str]]:
-        """The content key and the SSE-C headers for one staged node."""
+        """Return the content key and the SSE-C headers for one staged node."""
         context = node.security_context.value
         content_key = derive_content_key(upload.dek, node.version_id, context)
         return content_key, sse_c_headers(derive_sse_c_key(upload.dek, node.version_id, context))
 
     def _put_single(self, node: StagedNode, upload: _PreparedUpload) -> None:
-        """Seals the whole file and sends it in one signed `PUT` (≤ 64 MiB), with the SSE-C headers."""
+        """Seal the whole file and send it in one signed `PUT` (up to 64 MiB), with the SSE-C headers."""
         if node.upload is None:
-            raise ProtocolError(
-                f"🇺🇸 single-mode node {node.node_id!r} came without an upload URL. "
-                f"🇧🇷 o nó single {node.node_id!r} veio sem URL de upload."
-            )
+            raise ProtocolError(f"single-mode node {node.node_id!r} came without an upload URL.")
         content_key, sse = self._keys(node, upload)
         with upload.plaintext.open() as handle:
             body = b"".join(encrypt_stream(content_key, handle))
         headers = {str(k): str(v) for k, v in (node.upload.get("headers") or {}).items()}
         declared = headers.get("content-length")
         if len(body) != upload.encrypted_bytes or (declared is not None and int(declared) != len(body)):
-            raise ProtocolError(
-                f"🇺🇸 sealed {len(body)} bytes for node {node.node_id!r}, signed for {declared}. "
-                f"🇧🇷 selados {len(body)} bytes para o nó {node.node_id!r}, assinado para {declared}."
-            )
+            raise ProtocolError(f"sealed {len(body)} bytes for node {node.node_id!r}, signed for {declared}.")
         self._transport.upload_bytes(node.upload["url"], body, {**headers, **sse})
 
     def _sign_parts(self, node_id: str, part_numbers: builtins.list[int]) -> dict[int, str]:
-        """`POST /nodes/{id}/multipart/parts` for up to 200 part numbers."""
+        """Call `POST /nodes/{id}/multipart/parts` for up to 200 part numbers and return each part's signed URL."""
         result = self._transport.post(f"{self._base}/{node_id}/multipart/parts", json={"part_numbers": part_numbers})
         return {int(part["part_number"]): str(part["url"]) for part in result["parts"]}
 
     def _put_multipart(self, node: StagedNode, upload: _PreparedUpload) -> DriveNode:
-        """Streams the sealed body up in parts, signing URLs in waves, then completes; aborts on failure.
+        """Stream the sealed body up in parts, signing URLs in waves, then complete; abort on failure.
 
         The reservation usually opens the multipart upload already
         (`upload_id`); only when it did not does the SDK call the recovery
@@ -76,10 +70,7 @@ class _Transfer(_NodesBase):
                         urls.update(self._sign_parts(node.node_id, wave or [part_number]))
                     etag = self._transport.upload_bytes(urls[part_number], chunk, sse)
                     if not etag:
-                        raise ProtocolError(
-                            f"🇺🇸 storage returned no ETag for part {part_number}. "
-                            f"🇧🇷 o armazenamento não devolveu ETag para a parte {part_number}."
-                        )
+                        raise ProtocolError(f"storage returned no ETag for part {part_number}.")
                     parts.append({"part_number": part_number, "etag": etag})
             result = self._transport.post(f"{self._base}/{node.node_id}/multipart/complete", json={"parts": parts})
             return DriveNode.model_validate(result["node"])
@@ -88,14 +79,14 @@ class _Transfer(_NodesBase):
             raise
 
     def _abort(self, node_id: str) -> None:
-        """Best-effort `POST /nodes/{id}/multipart/abort`; the vault's sweep covers a lost abort."""
+        """Call `POST /nodes/{id}/multipart/abort` best-effort; the vault's sweep covers a lost abort."""
         try:
             self._transport.post(f"{self._base}/{node_id}/multipart/abort")
         except Exception:  # noqa: BLE001, S110 — the original failure is the one worth raising
             pass
 
     def _complete_singles(self, node_ids: builtins.list[str]) -> dict[str, DriveNode]:
-        """`POST /nodes/uploads/complete` in calls of up to 200; a `missing` id means the `PUT` never landed."""
+        """Call `POST /nodes/uploads/complete` in batches of up to 200; a `missing` id means the `PUT` never landed."""
         ready: dict[str, DriveNode] = {}
         for start in range(0, len(node_ids), MAX_IDS_PER_COMPLETE_CALL):
             chunk = node_ids[start : start + MAX_IDS_PER_COMPLETE_CALL]
@@ -104,10 +95,7 @@ class _Transfer(_NodesBase):
             if missing:
                 raise ConflictError(
                     code="UploadIncomplete",
-                    message=(
-                        f"🇺🇸 storage has no object for node(s) {missing!r} — upload them again. "
-                        f"🇧🇷 o armazenamento não tem objeto para o(s) nó(s) {missing!r} — suba de novo."
-                    ),
+                    message=f"storage has no object for node(s) {missing!r} — upload them again.",
                     status=409,
                 )
             for raw in result["ready"]:

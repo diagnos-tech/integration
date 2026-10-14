@@ -1,9 +1,9 @@
-"""Pure retry-policy math for `VaultTransport.request`: how long to wait before a `429`/`5xx` retry.
+"""Pure retry-policy math for `VaultTransport.request`: how long to wait before a `429` or `5xx` retry.
 
-Kept separate from the request loop itself (`http.py`) because these are
-pure functions over a response and an attempt count — no signing, no
-session state — unlike `ReplayDetected`/`SignatureTimestampSkew`, which stay
-in `http.py` since retrying them means re-signing a whole new request.
+This is kept separate from the request loop itself (`http.py`) because these
+are pure functions over a response and an attempt count, with no signing and
+no session state. `ReplayDetected` and `SignatureTimestampSkew`, by contrast,
+stay in `http.py` since retrying them means re-signing a whole new request.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from random import SystemRandom
 
 import httpx
 
-# §12: "RateLimitError (...) backoff"; 0.5/1/2 s is a middling curve that
+# §12: "RateLimitError (...) backoff". 0.5/1/2 s is a middling curve that
 # gives the vault a chance to drain without a caller waiting minutes.
 RATE_LIMIT_BACKOFFS_SECONDS = (0.5, 1.0, 2.0)
 MAX_RATE_LIMIT_RETRIES = 3
@@ -24,7 +24,7 @@ _jitter = SystemRandom()
 
 
 def retry_after_seconds(response: httpx.Response) -> float | None:
-    """Honour the vault's own `Retry-After` (seconds) over our guess."""
+    """Return the vault's own `Retry-After` in seconds (it wins over our guess), or `None` if absent or not numeric."""
     value = response.headers.get("Retry-After")
     if value is None:
         return None
@@ -35,7 +35,17 @@ def retry_after_seconds(response: httpx.Response) -> float | None:
 
 
 def rate_limit_wait_seconds(response: httpx.Response, attempts: int) -> float:
-    """Seconds to sleep before the next `429` retry: the vault's `Retry-After` if sent, else a jittered backoff."""
+    """Return the seconds to sleep before the next `429` retry.
+
+    The vault's `Retry-After` wins if it was sent; otherwise the wait is a jittered backoff.
+
+    Args:
+        response: The `429` response.
+        attempts: How many retries have already been made.
+
+    Returns:
+        The wait in seconds.
+    """
     wait_seconds = retry_after_seconds(response)
     if wait_seconds is not None:
         return wait_seconds

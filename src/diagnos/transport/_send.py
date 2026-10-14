@@ -1,11 +1,11 @@
 """`_SendMixin`: build one signed request and send it, and opportunistically open `random_seed`.
 
 `VaultTransport.request` calls `_send_once` once per loop iteration and
-`_maybe_deliver_seed` after every response; neither needs the retry loop
+`_maybe_deliver_seed` after every response. Neither needs the retry loop
 itself, so pulling them out here is what keeps `http.py` down to the loop
-and the public `get`/`post`/`put`/`request` surface. Its methods take
+and the public `get`, `post`, `put` and `request` surface. Its methods take
 `self: _SendHost`, a structural `Protocol` naming just the four attributes
-they touch — not `self: VaultTransport` itself, because mypy requires an
+they touch, and not `self: VaultTransport` itself. mypy requires an
 explicit self-type to be a *supertype* of the defining class, and
 `VaultTransport` (which inherits this mixin) is the other way round: a
 subtype of it.
@@ -31,7 +31,7 @@ logger = logging.getLogger("diagnos")
 
 
 class _SendHost(Protocol):
-    """What `_SendMixin` needs from `VaultTransport` — see the module docstring for why this is a `Protocol`."""
+    """What `_SendMixin` needs from `VaultTransport`; see the module docstring for why this is a `Protocol`."""
 
     _client: httpx.Client
     _session_keys: Callable[[], SessionKeys | None]
@@ -52,16 +52,13 @@ class _SendMixin:
         headers: Mapping[str, str],
         signed: bool,
     ) -> httpx.Response:
-        """Build one request (signing it if asked) and send it — no retry logic here."""
+        """Build one request (signing it if asked) and send it, with no retry logic."""
         request = self._client.build_request(method, path, params=query, content=body, headers=dict(headers))
         if signed:
             keys = self._session_keys()
             if keys is None:
                 raise SessionExpiredError(
-                    "🇺🇸 no session keys available; enroll (or restore from OpenBao) before "
-                    "making signed calls. "
-                    "🇧🇷 nenhuma chave de sessão disponível; faça enrollment (ou restaure do "
-                    "OpenBao) antes de chamadas assinadas."
+                    "no session keys available; enroll (or restore from OpenBao) before making signed calls."
                 )
             if not self._clock.is_synced:
                 self._clock.sync(self._client)
@@ -82,7 +79,7 @@ class _SendMixin:
         A seed that is absent or does not open (a body that is not JSON,
         a stale `enc_key` mid-rotation) is a lost contribution to future
         entropy, not a reason to fail a response the vault otherwise answered
-        correctly — the SDK still has the OS RNG on its own.
+        correctly. The SDK still has the OS RNG on its own.
         """
         if self._on_seed is None:
             return

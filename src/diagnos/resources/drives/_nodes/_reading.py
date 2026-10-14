@@ -38,7 +38,7 @@ class _Reading(_NodesBase):
         limit: int = DEFAULT_PAGE_SIZE,
         cursor: str | None = None,
     ) -> Page[DriveNode]:
-        """One page of nodes (`GET /nodes`), filtered by group, exam and/or folder."""
+        """Fetch one page of nodes (`GET /nodes`), filtered by group, exam and/or folder."""
         # Asking for the keyring unlocks lazily; a signed request cannot go out before there is a session.
         self._keyring_provider()
         query: dict[str, str | int | bool] = {"limit": limit}
@@ -55,7 +55,7 @@ class _Reading(_NodesBase):
         )
 
     def iter_all(self, **filters: Any) -> Iterator[DriveNode]:
-        """Walks every page of `list(**filters)`."""
+        """Walk every page of `list(**filters)`."""
         cursor: str | None = None
         while True:
             page = self.list(**filters, cursor=cursor)
@@ -65,22 +65,21 @@ class _Reading(_NodesBase):
             cursor = page.next_cursor
 
     def node_dek(self, node: DriveNode) -> SecretBox:
-        """Unwraps the node's own DEK with the key of its security group."""
+        """Unwrap the node's own DEK with the key of its security group."""
         wrapped = node.encrypted_keys.get(node.security_group_id)
         if wrapped is None:
             raise CryptoError(
-                f"🇺🇸 node {node.node_id!r} has no DEK sealed for its own security group {node.security_group_id!r}. "
-                f"🇧🇷 o nó {node.node_id!r} não tem DEK selada para o próprio security group {node.security_group_id!r}."
+                f"node {node.node_id!r} has no DEK sealed for its own security group {node.security_group_id!r}."
             )
         group_key = self._keyring_provider().group_key(node.security_group_id)
         return unwrap_key(group_key, wrapped, NODE_DEK_INFO)
 
     def name_of(self, node: DriveNode) -> str:
-        """Opens the node's sealed name."""
+        """Open the node's sealed name."""
         return decrypt_content(self.node_dek(node), node.encrypted_name, NODE_NAME_INFO).decode("utf-8")
 
     def iter_download(self, node_id: str) -> Iterator[bytes]:
-        """Downloads and decrypts one file lazily, a plaintext chunk at a time.
+        """Download and decrypt one file lazily, a plaintext chunk at a time.
 
         Nothing larger than one frame is held in memory, and the first bytes
         reach the caller before the last ones leave storage.
@@ -97,7 +96,7 @@ class _Reading(_NodesBase):
         yield from decrypt_stream(derive_content_key(dek, node.node_id, context), cipher_stream)
 
     def download(self, node_id: str, destination: str | os.PathLike[str] | BinaryIO | None = None) -> bytes | None:
-        """The whole plaintext when `destination` is `None`; else written to it chunk by chunk."""
+        """Return the whole plaintext when `destination` is `None`; otherwise write it there chunk by chunk."""
         chunks = self.iter_download(node_id)
         if destination is None:
             return b"".join(chunks)

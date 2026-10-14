@@ -1,4 +1,4 @@
-"""`_Nodes`: the one engine behind `vault.drives` — every byte of the `/nodes` protocol (`docs/PROTOCOL.md §9`).
+"""`_Nodes`: the one engine behind `vault.drives`, holding every byte of the `/nodes` protocol (`docs/PROTOCOL.md §9`).
 
 It follows the web app's upload pipeline (`@repo/magic-files`) step for
 step, so a file the SDK uploads is one the web app and the vault's
@@ -18,13 +18,13 @@ processor can open:
   signed `PUT` and are confirmed together; large ones go up in parts,
   signed in waves of up to 200 as the upload advances.
 
-This is a package, not a single module, so no file grows past the project's
-~250-line convention: `_support.py` holds constants and pure data/algorithm
-helpers; `_base.py` is shared construction plus the one read both directions
-need; `_reading.py` is list/get/name/download; `_transfer.py` is the raw
-single-`PUT`/multipart byte-moving; `_writing.py` is batching, staging and
-folders, built on `_transfer.py`. `_Nodes` below stitches `_Reading` and
-`_Writing` together.
+This is a package, not a single module, so that no file grows past the
+project's file-size limit. `_support.py` holds constants and pure data and
+algorithm helpers. `_base.py` is shared construction plus the one read both
+directions need. `_reading.py` is list, get, name and download.
+`_transfer.py` is the raw single-`PUT` and multipart byte-moving.
+`_writing.py` is batching, staging and folders, built on `_transfer.py`.
+`_Nodes` below stitches `_Reading` and `_Writing` together.
 """
 
 from __future__ import annotations
@@ -37,8 +37,9 @@ __all__ = ["DEFAULT_PAGE_SIZE", "UploadInput", "_Nodes"]
 
 
 class _Nodes(_Reading, _Writing):
-    """The `/nodes` routes of one workspace: list, read, name, download, upload, folders.
+    """The `/nodes` routes of one workspace: list, read, name, download, upload and folders.
 
-    One instance per `Drive`/`Drives` (`_drive.py`), so both halves share a
-    transport, a keyring and the vault's `security_context` handling.
+    There is one instance per `Drives` (`_drive.py`), shared by every `Drive`
+    it hands out, so that both halves share a transport, a keyring and the
+    vault's `security_context` handling.
     """
