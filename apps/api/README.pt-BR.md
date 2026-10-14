@@ -69,5 +69,5 @@ uv run mypy src
 make docs   # regera docs/reference/openapi.json depois de mudar uma rota
 ```
 
-Os textos `summary` e `description` das rotas são escritos `🇺🇸 … 🇧🇷 …`: chegam ao site de documentação pelo
-documento OpenAPI gerado, e o `make docs-check` recusa um sem as duas línguas.
+Os textos `summary` e `description` das rotas chegam ao site de documentação pelo documento OpenAPI gerado, então são
+escritos para quem nunca abre o código: o que a rota faz, do que precisa, o que pode dar errado.

@@ -71,5 +71,5 @@ uv run mypy src
 
 A command's examples live next to it, in its `epilog` (`diagnos.cli.examples`): they show at the bottom of `--help`
 and in the generated reference, and `make docs-check` fails if the two ever disagree. See
-[CONTRIBUTING.md](https://github.com/diagnos-tech/integration/blob/main/CONTRIBUTING.md) for the bilingual-docstring
-rule and the "`diagnos.cli` imports only `diagnos`" boundary.
+[CONTRIBUTING.md](https://github.com/diagnos-tech/integration/blob/main/CONTRIBUTING.md) for the docstring style and
+the "`diagnos.cli` imports only `diagnos`" boundary.

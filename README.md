@@ -125,7 +125,7 @@ Every badge above is a workflow or what one measures; all but the last two run l
 
 | Badge | What it proves | Locally |
 |---|---|---|
-| **CI** | every layer — base, SDK, CLI, API — passes its tests on CPython 3.11 and 3.13, plus the Rust enclave; lint (Python, Rust, bilingual docstrings, docs), `mypy --strict`, the lockfile, the docs (every example runs, the reference is fresh), the [Pact](https://pact.io) contract the vault verifies, and the workflows themselves (zizmor, actionlint) | `make check` |
+| **CI** | every layer — base, SDK, CLI, API — passes its tests on CPython 3.11 and 3.13, plus the Rust enclave; lint (Python, Rust, docstrings, docs), `mypy --strict`, the lockfile, the docs (every example runs, the reference is fresh), the [Pact](https://pact.io) contract the vault verifies, and the workflows themselves (zizmor, actionlint) | `make check` |
 | **Coverage** | combined branch coverage of the whole `diagnos` package, with a floor that only goes up | `make cov` |
 | **Package** | all seven wheels and the sdist build, and each wheel works installed alone on its platform — bare, then with every extra; both images build | `uv build` |
 | **OpenSSF Scorecard** | the supply-chain practices: pinned dependencies, least-privilege tokens, signed releases, branch protection | — |

@@ -70,5 +70,5 @@ uv run mypy src
 make docs   # regenerate docs/reference/openapi.json after changing a route
 ```
 
-Route `summary` and `description` texts are written `🇺🇸 … 🇧🇷 …`: they reach the documentation site through the
-generated OpenAPI document, and `make docs-check` refuses one without both languages.
+Route `summary` and `description` texts reach the documentation site through the generated OpenAPI document, so they
+are written for readers who never open the code: what the route does, what it needs, what can go wrong.

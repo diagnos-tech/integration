@@ -65,28 +65,30 @@ só — então um `make check` verde na sua máquina significa um pull request v
 ## Convenções de código
 
 Estas regras valem para código (arquivos `.py` e `.rs`); moravam antes em `CONVENTIONS.md`, que este documento
-substitui. Os arquivos em `.github/` são a exceção à regra bilíngue abaixo: os comentários deles são só em inglês.
+substitui.
 
-- **Docstrings bilíngues.** Todo módulo, classe e função pública carrega uma docstring com um parágrafo em inglês
-  prefixado `🇺🇸` seguido do parágrafo em português prefixado `🇧🇷`. Comentário em linha segue o mesmo par em linhas
-  consecutivas. Comentário explica o **porquê** (a ameaça, o custo, a restrição do protocolo), nunca repete o
-  código. Comentários de doc em Rust (`//!` de módulo, `///` de item) seguem a mesma regra à risca.
-  `scripts/check_bilingual.py` (parte do `make lint`) derruba o build quando uma docstring ou comentário de doc está
-  sem uma das bandeiras — em todo o `src/`, e nos testes para o módulo e todo teste, fixture, ajudante e classe de
-  nível de cima.
+- **Só inglês, no estilo do Google.** Código, comentários, docstrings, textos de ajuda, linhas de log e toda mensagem
+  que um usuário pode ver são escritos em inglês. As docstrings seguem o [Google Python Style
+  Guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) — o ruff o impõe com a convenção
+  `google` do pydocstyle: um resumo de uma linha, depois o porquê, o contrato ou a restrição, com `Args:`, `Returns:`
+  e `Raises:` onde a assinatura ainda não diz. Comentários de doc em Rust (`//!` de módulo, `///` de item) seguem a
+  mesma regra, e o `#![deny(missing_docs)]` garante que existam. Comentário explica o **porquê** (a ameaça, o custo, a
+  restrição do protocolo), nunca repete o código. As páginas de documentação são a exceção: saem em inglês e em
+  português (veja [Regra de documentação](#regra-de-documentação)).
 
   ```python no-run
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
-      """🇺🇸 HMAC-SHA512 over the canonical string, hex-encoded.
+      """Signs a canonical request with HMAC-SHA512.
 
-      The vault reconstructs the same string from the raw request; any byte we
-      normalize differently is a 401, so this mirrors `canonical.ts` verbatim.
+      The vault rebuilds the same string from the raw request, and any byte normalized differently is a 401, so
+      this mirrors `canonical.ts` verbatim.
 
-      🇧🇷 HMAC-SHA512 sobre a string canônica, em hex.
+      Args:
+          request: The request, already in canonical form.
+          sign_key: The session's 64-byte signing key.
 
-      O cofre reconstrói a mesma string a partir da requisição crua; qualquer
-      byte normalizado diferente é 401, então isto espelha `canonical.ts` ao pé
-      da letra.
+      Returns:
+          The signature, hex-encoded.
       """
   ```
 
@@ -225,6 +227,6 @@ Antes de abrir um pull request:
       contract`) e commitado.
 - [ ] Toda documentação adicionada ou alterada existe em `NOME.md` e `NOME.pt-BR.md`, com estrutura e conteúdo
       equivalentes.
-- [ ] Docstrings públicas novas ou alteradas (Python e Rust) carregam os dois parágrafos, `🇺🇸` e `🇧🇷`.
+- [ ] Código, comentários e mensagens estão em inglês, e docstrings públicas novas ou alteradas seguem o estilo do Google.
 - [ ] Nenhum segredo, token ou credencial real foi commitado — inclusive em fixtures de teste e exemplos de deploy.
 - [ ] Commits seguem Conventional Commits e têm sign-off (`git commit -s`).

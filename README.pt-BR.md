@@ -127,7 +127,7 @@ Todo badge acima é um workflow ou o que um deles mede; todos menos os dois últ
 
 | Badge | O que prova | Localmente |
 |---|---|---|
-| **CI** | toda camada — base, SDK, CLI, API — passa nos testes no CPython 3.11 e 3.13, mais o enclave Rust; lint (Python, Rust, docstrings bilíngues, documentação), `mypy --strict`, o lockfile, a doc (todo exemplo roda, a referência está em dia), o contrato [Pact](https://pact.io) que o cofre verifica, e os próprios workflows (zizmor, actionlint) | `make check` |
+| **CI** | toda camada — base, SDK, CLI, API — passa nos testes no CPython 3.11 e 3.13, mais o enclave Rust; lint (Python, Rust, docstrings, documentação), `mypy --strict`, o lockfile, a doc (todo exemplo roda, a referência está em dia), o contrato [Pact](https://pact.io) que o cofre verifica, e os próprios workflows (zizmor, actionlint) | `make check` |
 | **Cobertura** | cobertura de ramos combinada do pacote `diagnos` inteiro, com um piso que só sobe | `make cov` |
 | **Pacote** | os sete wheels e o sdist constroem, e cada wheel funciona instalado sozinho na própria plataforma — puro, depois com todo extra; as duas imagens constroem | `uv build` |
 | **OpenSSF Scorecard** | as práticas de cadeia de suprimentos: dependências fixadas, tokens com privilégio mínimo, releases assinados, proteção de branch | — |

@@ -65,27 +65,29 @@ one required check; Package runs when `main` moves, and decides whether it can b
 ## Code conventions
 
 These rules govern code (`.py` and `.rs` files); they used to live in `CONVENTIONS.md`, which this document replaces.
-Files under `.github/` are the exception to the bilingual rule below: their comments are in English only.
 
-- **Bilingual docstrings.** Every module, class and public function carries a docstring with an English paragraph
-  prefixed `🇺🇸` followed by the Portuguese paragraph prefixed `🇧🇷`. Inline comments follow the same pair on
-  consecutive lines. Comments explain the **why** (the threat, the cost, the protocol constraint), never restate the
-  code. Rust doc comments (`//!` for modules, `///` for items) follow the identical rule. `scripts/check_bilingual.py`
-  (part of `make lint`) fails the build when a docstring or doc comment is missing either flag — everywhere in `src/`,
-  and in tests for the module and every top-level test, fixture, helper and class.
+- **English only, Google style.** Code, comments, docstrings, help texts, log lines and every message a user can see
+  are written in English. Docstrings follow the [Google Python Style
+  Guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) — ruff enforces it with
+  pydocstyle's `google` convention: a one-line summary, then the why, the contract or the constraint, with `Args:`,
+  `Returns:` and `Raises:` where the signature does not already say it. Rust doc comments (`//!` for modules, `///`
+  for items) follow the same rule, and `#![deny(missing_docs)]` keeps them present. Comments explain the **why** (the
+  threat, the cost, the protocol constraint), never restate the code. Documentation pages are the exception: they
+  ship in English and Portuguese (see [Documentation rule](#documentation-rule)).
 
   ```python no-run
   def sign(request: CanonicalRequest, sign_key: bytes) -> str:
-      """🇺🇸 HMAC-SHA512 over the canonical string, hex-encoded.
+      """Signs a canonical request with HMAC-SHA512.
 
-      The vault reconstructs the same string from the raw request; any byte we
-      normalize differently is a 401, so this mirrors `canonical.ts` verbatim.
+      The vault rebuilds the same string from the raw request, and any byte normalized differently is a 401, so
+      this mirrors `canonical.ts` verbatim.
 
-      🇧🇷 HMAC-SHA512 sobre a string canônica, em hex.
+      Args:
+          request: The request, already in canonical form.
+          sign_key: The session's 64-byte signing key.
 
-      O cofre reconstrói a mesma string a partir da requisição crua; qualquer
-      byte normalizado diferente é 401, então isto espelha `canonical.ts` ao pé
-      da letra.
+      Returns:
+          The signature, hex-encoded.
       """
   ```
 
@@ -222,6 +224,6 @@ Before you open a pull request:
       contract`) and committed.
 - [ ] Any documentation you added or changed exists in both `NAME.md` and `NAME.pt-BR.md`, with matching structure
       and substance.
-- [ ] New or changed public docstrings (Python and Rust) carry both the `🇺🇸` and `🇧🇷` paragraphs.
+- [ ] Code, comments and messages are in English, and new or changed public docstrings follow the Google style.
 - [ ] No secrets, tokens or real credentials are committed — including in test fixtures and deploy examples.
 - [ ] Commits follow Conventional Commits and are signed off (`git commit -s`).
