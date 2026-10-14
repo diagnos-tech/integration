@@ -94,12 +94,12 @@ a referência diz, mude o código:
 
 | Arquivo | Gerado a partir de | O texto vem de |
 |---|---|---|
-| `openapi.json` | o app FastAPI, `app.openapi()` | `summary`/`description` das rotas e descrições de parâmetro, escritos `🇺🇸 … 🇧🇷 …` |
-| `cli.json` | a árvore de comandos `typer` do `diagnos` | textos `help=` escritos `English · Português`; exemplos do epílogo de cada comando (`diagnos.cli.examples`) |
-| `sdk.json` | `diagnos.__all__`, lido com `inspect` | docstrings, com os parágrafos 🇺🇸/🇧🇷; campos documentados por uma string literal logo abaixo deles |
+| `openapi.json` | o app FastAPI, `app.openapi()` | `summary`/`description` das rotas e descrições de parâmetro |
+| `cli.json` | a árvore de comandos `typer` do `diagnos` | textos `help=`; exemplos do epílogo de cada comando (`diagnos.cli.examples`) |
+| `sdk.json` | `diagnos.__all__`, lido com `inspect` | docstrings; campos documentados por uma string literal logo abaixo deles |
 
-A divisão 🇺🇸/🇧🇷 segue uma regra só, compartilhada com o site (`scripts/docs/bilingual.py`): do 🇺🇸 até o 🇧🇷 é
-inglês, do 🇧🇷 em diante é português; texto sem marcadores é publicado sem tradução, o que a checagem recusa.
+O código é escrito em inglês, então a referência também: cada texto gerado mantém o formato `{en, pt-br}` do site,
+com o mesmo texto em inglês nos dois locales (`scripts/docs/l10n.py`).
 `generatedFrom.commit` registra o commit sobre o qual uma referência foi regerada pela última vez; ele só muda quando o
 conteúdo muda.
 
@@ -119,7 +119,6 @@ O `make docs-check` falha quando:
 - um link relativo, uma âncora, ou um link absoluto para este repositório não resolve;
 - um exemplo executável falha, ou uma linha `diagnos …` usa comando ou flag que não existe;
 - o `diagnos … --help` diverge do `cli.json`, em qualquer sentido;
-- algum texto gerado está sem tradução.
 
 O `make lint`, à parte, confere que *todo* arquivo Markdown do repositório tem o gêmeo, o seletor de idioma e nenhum
 link relativo morto (`scripts/check_docs.py`).

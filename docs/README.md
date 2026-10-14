@@ -102,12 +102,12 @@ reference says, change the code:
 
 | File | Generated from | Text comes from |
 |---|---|---|
-| `openapi.json` | the FastAPI app, `app.openapi()` | route `summary`/`description` and parameter descriptions, written `🇺🇸 … 🇧🇷 …` |
-| `cli.json` | the `typer` command tree of `diagnos` | `help=` texts written `English · Português`; examples from each command's epilog (`diagnos.cli.examples`) |
-| `sdk.json` | `diagnos.__all__`, read with `inspect` | docstrings, with the 🇺🇸/🇧🇷 paragraphs; fields documented by a string literal right under them |
+| `openapi.json` | the FastAPI app, `app.openapi()` | route `summary`/`description` and parameter descriptions |
+| `cli.json` | the `typer` command tree of `diagnos` | `help=` texts; examples from each command's epilog (`diagnos.cli.examples`) |
+| `sdk.json` | `diagnos.__all__`, read with `inspect` | docstrings; fields documented by a string literal right under them |
 
-The 🇺🇸/🇧🇷 split follows one rule, shared with the site (`scripts/docs/bilingual.py`): from 🇺🇸 to 🇧🇷 is English,
-from 🇧🇷 on is Portuguese; text without markers is published untranslated, which the check refuses.
+The code is written in English, so the reference is too: each generated text keeps the site's `{en, pt-br}` shape,
+with the same English text in both locales (`scripts/docs/l10n.py`).
 `generatedFrom.commit` records the commit a reference was last regenerated on top of; it changes only when the
 content does.
 
@@ -127,7 +127,6 @@ make docs-check   # everything below; part of `make check`, so CI runs it on eve
 - a relative link, an anchor, or an absolute link into this repository does not resolve;
 - a runnable example fails, or a `diagnos …` line uses a command or flag that does not exist;
 - `diagnos … --help` disagrees with `cli.json`, in either direction;
-- any generated text is untranslated.
 
 `make lint` separately checks that *every* Markdown file of the repository has its twin, its language switcher and no
 dead relative link (`scripts/check_docs.py`).
