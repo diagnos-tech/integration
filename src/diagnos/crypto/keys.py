@@ -22,6 +22,11 @@ DEK_LENGTH = 32
 # the diagnos name and is baked into every ciphertext already stored, so
 # renaming one would make existing documents unreadable. See
 # `docs/PROTOCOL.md` ("Frozen labels"); the vectors in `tests/vectors/` pin them.
+#
+# `info` for wrapping a document's DEK under its security group's key. One
+# label for patients, exams *and* templates: the web app seals every
+# document DEK with it (`DOCUMENT_DEK_INFO` in its security module), so the
+# `patient` in the name is history, not scope.
 DOCUMENT_DEK_INFO: Final[str] = "imgexam-patient-dek-v1"
 
 # `info` for sealing a document's `encrypted_index` (its list/search summary) under the document DEK.
