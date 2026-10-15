@@ -25,8 +25,9 @@ from nacl.signing import SigningKey, VerifyKey
 from diagnos.crypto.encoding import b64url_decode, b64url_encode
 from diagnos.crypto.secure import SecretBox
 from diagnos.errors import ConfigError, CryptoError
-from diagnos.transport.credential import ServiceAccountCredential, mask_identity
+from diagnos.transport.credential import ServiceAccountCredential
 from diagnos.transport.credential_file import find_identity
+from diagnos.transport.credential_text import mask_identity
 
 
 def fresh(workspace: str = "wsTest") -> tuple[str, str, bytes]:
@@ -81,9 +82,9 @@ def test_parse_splits_on_the_last_colon_and_trims_whitespace() -> None:
         (lambda line: line.replace(":", ""), "no ':'"),
         (lambda line: line.replace("svc_", "acct_"), "identity is malformed"),
         (lambda line: line.replace(".diagnos.health", ".example.com"), "identity is malformed"),
-        (lambda line: line[:-1], "43 base64url"),
-        (lambda line: line + "A", "43 base64url"),
-        (lambda line: line[:-2] + "+/", "43 base64url"),
+        (lambda line: line[:-1], "canonical 43-character"),
+        (lambda line: line + "A", "canonical 43-character"),
+        (lambda line: line[:-2] + "+/", "canonical 43-character"),
     ],
 )
 def test_malformed_lines_are_config_errors_that_never_echo_the_key(mangle: Any, fragment: str) -> None:
@@ -225,3 +226,64 @@ def test_the_constructor_refuses_a_seed_that_is_not_32_bytes() -> None:
     _, identity, _ = fresh()
     with pytest.raises(ConfigError, match="not 32 bytes"):
         ServiceAccountCredential(identity, SecretBox.from_bytes(bytearray(secrets.token_bytes(31))))
+
+
+def _locals_hold(error: BaseException, secret: str) -> list[str]:
+    """🇺🇸 SDK-frame locals whose `repr` has `secret`. 🇧🇷 Locais de quadros do SDK cujo `repr` tem `secret`."""
+    found: list[str] = []
+    tb = error.__traceback__
+    while tb is not None:
+        frame = tb.tb_frame
+        if frame.f_code.co_filename != __file__:
+            found += [
+                f"{frame.f_code.co_name}.{name}" for name, value in frame.f_locals.items() if secret in repr(value)
+            ]
+        tb = tb.tb_next
+    return found
+
+
+def test_no_traceback_frame_keeps_the_key_of_a_rejected_line() -> None:
+    """🇺🇸 Bad identity, swapped halves, legacy prefix: no SDK frame local holds the key when the error is raised.
+
+    🇧🇷 Identidade ruim, metades trocadas, prefixo legado: nenhuma local de quadro do SDK guarda a chave no erro.
+    """
+    _, identity, seed = fresh()
+    key = b64url_encode(seed)
+    bad_identity = identity.replace("svc_", "acct_")
+    for line in (f"{bad_identity}:{key}", f"{key}:{identity}", f"apikey-{key}", f"{identity}:{key}x"):
+        with pytest.raises(ConfigError) as caught:
+            ServiceAccountCredential.parse(line)
+        assert _locals_hold(caught.value, key) == [], line
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [{"identity": "svc_bad@ws.diagnos.health"}, {"key_id": "svc_" + "0" * 32}, {"version": 9}, {"type": "x"}],
+)
+def test_no_traceback_frame_keeps_the_key_of_a_rejected_file(tmp_path: Path, overrides: dict[str, Any]) -> None:
+    """🇺🇸 Same for the JSON file: the text and the parsed `private_key` are gone before any `raise`.
+
+    🇧🇷 O mesmo para o arquivo JSON: o texto e o `private_key` lido somem antes de qualquer `raise`.
+    """
+    _, identity, seed = fresh()
+    path = write_file(tmp_path / "c.json", identity, seed, overrides)
+    with pytest.raises(ConfigError) as caught:
+        ServiceAccountCredential.from_file(path)
+    assert _locals_hold(caught.value, b64url_encode(seed)) == []
+
+
+def test_only_the_canonical_last_character_is_accepted() -> None:
+    """🇺🇸 Like the vault: 4 useful bits in the last char, so a non-canonical spelling is refused.
+
+    🇧🇷 Como o cofre: 4 bits úteis no último caractere, então uma grafia não canônica é recusada.
+    """
+    line, _, _ = fresh()
+    for last in "BZz9_-":
+        with pytest.raises(ConfigError, match="canonical"):
+            ServiceAccountCredential.parse(line[:-1] + last)
+
+
+def test_a_credential_in_the_legacy_variable_says_to_use_diagnos_credential() -> None:
+    """🇺🇸 `svc_…:…` in `DIAGNOS_API_TOKEN` (or `--token`) names the right variable. 🇧🇷 Diz a variável certa."""
+    with pytest.raises(ConfigError, match="This is a credential: use DIAGNOS_CREDENTIAL"):
+        find_identity({"DIAGNOS_API_TOKEN": fresh()[0]})

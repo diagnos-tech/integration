@@ -22,29 +22,20 @@ daqui são feitos para ela nunca poder ser impressa.
 from __future__ import annotations
 
 import os
-import re
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Final, NoReturn, final
 
 from diagnos.crypto import ed25519
-from diagnos.crypto.encoding import b64url_decode, b64url_encode
+from diagnos.crypto.encoding import b64url_encode
 from diagnos.crypto.secure import SecretBox
 from diagnos.errors import ConfigError
 
+from .credential_text import IDENTITY_PATTERN, mask_identity, refuse, reject_line, take_seed
 from .message_signature import identity_headers
 from .signing import new_nonce
 
 if TYPE_CHECKING:
     import httpx
-
-IDENTITY_PATTERN: Final = re.compile(r"(?P<key_id>svc_[0-9a-f]{32})@(?P<workspace_id>[A-Za-z0-9_-]+)\.diagnos\.health")
-SEED_PATTERN: Final = re.compile(r"[A-Za-z0-9_-]{43}")
-_FORMAT_HINT: Final = (
-    "🇺🇸 Expected 'svc_<32 hex>@<workspace_id>.diagnos.health:<43-character base64url key>', exactly as the "
-    "service account page showed it; copy it again in one piece. "
-    "🇧🇷 Esperado 'svc_<32 hex>@<workspace_id>.diagnos.health:<chave base64url de 43 caracteres>', exatamente "
-    "como a página da conta de serviço mostrou; copie de novo, inteira."
-)
 
 NOT_CONFIGURED: Final = (
     "🇺🇸 No diagnos credential found. Set DIAGNOS_CREDENTIAL to the line the service account page showed "
@@ -54,26 +45,6 @@ NOT_CONFIGURED: Final = (
     "serviço mostrou ('svc_…@<workspace>.diagnos.health:<chave>'), ou DIAGNOS_CREDENTIALS_FILE com o JSON baixado, "
     "ou salve esse arquivo como ~/.config/diagnos/credentials.json. Crie uma em Configurações → Contas de serviço."
 )
-
-
-def mask_identity(identity: str) -> str:
-    """🇺🇸 `svc_1a2b…9f0e@ws.diagnos.health`: enough to tell keys apart, not enough to name one in a request.
-
-    🇧🇷 `svc_1a2b…9f0e@ws.diagnos.health`: o bastante para diferenciar chaves, não para nomear uma numa requisição.
-    """
-    match = IDENTITY_PATTERN.fullmatch(identity)
-    if match is None:
-        return "svc_…"
-    key_id = match["key_id"]
-    return f"{key_id[:8]}…{key_id[-4:]}@{match['workspace_id']}.diagnos.health"
-
-
-def _refuse(source: str, problem: str) -> NoReturn:
-    """🇺🇸 A `ConfigError` naming where the credential came from — never a byte of it.
-
-    🇧🇷 Um `ConfigError` dizendo de onde a credencial veio — nunca um byte dela.
-    """
-    raise ConfigError(f"{source}: {problem} {_FORMAT_HINT}")
 
 
 @final
@@ -96,9 +67,9 @@ class ServiceAccountCredential:
         where = source or "credential · credencial"
         match = IDENTITY_PATTERN.fullmatch(identity)
         if match is None:
-            _refuse(where, "🇺🇸 the identity is malformed. 🇧🇷 a identidade está malformada.")
+            refuse(where, "🇺🇸 the identity is malformed. 🇧🇷 a identidade está malformada.")
         if len(seed) != ed25519.SEED_BYTES:
-            _refuse(where, "🇺🇸 the private key is not 32 bytes. 🇧🇷 a chave privada não tem 32 bytes.")
+            refuse(where, "🇺🇸 the private key is not 32 bytes. 🇧🇷 a chave privada não tem 32 bytes.")
         self._identity = identity
         self._key_id = match["key_id"]
         self._workspace_id = match["workspace_id"]
@@ -113,18 +84,20 @@ class ServiceAccountCredential:
 
         🇧🇷 Lê `<identidade>:<semente>`, dividindo no último `:` (a identidade nunca tem um).
         """
-        value = text.strip()
-        if value.startswith("apikey-"):
-            raise ConfigError(
-                f"🇺🇸 {source} holds a legacy 'apikey-' token. Put it in DIAGNOS_API_TOKEN (deprecated, accepted "
-                "until 2027-04-15) or create a new credential: https://dev.diagnos.health/migrating "
-                f"🇧🇷 {source} contém um token legado 'apikey-'. Coloque-o em DIAGNOS_API_TOKEN (obsoleto, aceito "
-                "até 2027-04-15) ou crie uma credencial nova: https://dev.diagnos.health/migrating"
-            )
-        identity, separator, encoded = value.rpartition(":")
-        if not separator:
-            _refuse(source, "🇺🇸 there is no ':' before the key. 🇧🇷 não há ':' antes da chave.")
-        return cls(identity, _seed_from_b64url(encoded, source=source), source=source)
+        # 🇺🇸 Every local that holds the key is deleted before any `raise`: a traceback renderer that prints
+        #    frame locals (Sentry, rich, `cgitb`) must never find it.
+        # 🇧🇷 Toda local que guarda a chave é apagada antes de qualquer `raise`: um renderizador de traceback
+        #    que imprime locais de quadro (Sentry, rich, `cgitb`) nunca pode achá-la.
+        legacy = text.lstrip().startswith("apikey-")
+        identity, separator, encoded = text.strip().rpartition(":")
+        del text
+        seed = take_seed(encoded) if separator and not legacy else None
+        del encoded
+        if legacy or seed is None or IDENTITY_PATTERN.fullmatch(identity) is None:
+            # 🇺🇸 Swapped halves would leave the key in `identity`. 🇧🇷 Trocadas, a chave ficaria em `identity`.
+            del identity
+            reject_line(source, legacy=legacy, separator=bool(separator), seed=seed)
+        return cls(identity, seed, source=source)
 
     @classmethod
     def from_file(cls, path: str | os.PathLike[str]) -> ServiceAccountCredential:
@@ -198,7 +171,9 @@ class ServiceAccountCredential:
 
     def __repr__(self) -> str:
         """🇺🇸 Masked identity, never the key. 🇧🇷 Identidade mascarada, nunca a chave."""
-        return f"ServiceAccountCredential(identity={mask_identity(self._identity)!r}, private_key='<redacted>')"
+        # 🇺🇸 A traceback may print a half-built instance. 🇧🇷 Um traceback pode imprimir uma instância incompleta.
+        identity = mask_identity(getattr(self, "_identity", ""))
+        return f"ServiceAccountCredential(identity={identity!r}, private_key='<redacted>')"
 
     __str__ = __repr__
 
@@ -207,13 +182,3 @@ class ServiceAccountCredential:
         raise TypeError(
             "🇺🇸 ServiceAccountCredential cannot be pickled. 🇧🇷 ServiceAccountCredential não pode ser serializada."
         )
-
-
-def _seed_from_b64url(encoded: str, *, source: str) -> SecretBox:
-    """🇺🇸 43 base64url chars → a 32-byte `SecretBox`; the transient `bytearray` is zeroed by the move.
-
-    🇧🇷 43 caracteres base64url → um `SecretBox` de 32 bytes; o `bytearray` transitório é zerado na mudança.
-    """
-    if SEED_PATTERN.fullmatch(encoded) is None:
-        _refuse(source, "🇺🇸 the key is not 43 base64url characters. 🇧🇷 a chave não tem 43 caracteres base64url.")
-    return SecretBox.from_bytes(bytearray(b64url_decode(encoded)))

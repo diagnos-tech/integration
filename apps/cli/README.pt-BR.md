@@ -22,11 +22,11 @@ pacote único `diagnos`; o código dela mora em `src/diagnos/cli`.
 ```sh
 uv tool install "diagnos[cli]"            # ou: pipx install "diagnos[cli]"
 uv tool install "diagnos[cli,openbao]"    # com auto-unseal via OpenBao, para cron e servidores
-export DIAGNOS_API_TOKEN="apikey-…"       # emitido por um admin do workspace
+export DIAGNOS_CREDENTIAL="svc_…@<workspace_id>.diagnos.health:<chave>"   # de Configurações → Contas de serviço
 ```
 
 Já tem a base (`pip install diagnos`)? O `diagnos setup cli` soma o resto a esse mesmo `diagnos`. Sem Python, a
-imagem também funciona: `docker run --rm -e DIAGNOS_API_TOKEN ghcr.io/diagnos-tech/diagnos patients list`.
+imagem também funciona: `docker run --rm -e DIAGNOS_CREDENTIAL ghcr.io/diagnos-tech/diagnos patients list`.
 
 `--token` em qualquer comando sobrescreve o ambiente naquela invocação, e nunca é ecoado — nem no `--help`, nem na
 saída, nem no `--json`.

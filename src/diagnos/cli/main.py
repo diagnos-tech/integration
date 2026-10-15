@@ -151,7 +151,11 @@ def main(
     token: str | None = typer.Option(
         None,
         "--token",
-        help="Overrides DIAGNOS_API_TOKEN · Sobrescreve DIAGNOS_API_TOKEN",
+        help=(
+            "Legacy apikey- token (until 2027-04-15); the credential comes from DIAGNOS_CREDENTIAL or "
+            "DIAGNOS_CREDENTIALS_FILE · Token apikey- legado (até 2027-04-15); a credencial vem de "
+            "DIAGNOS_CREDENTIAL ou DIAGNOS_CREDENTIALS_FILE"
+        ),
         show_default=False,
     ),
     no_color: bool = typer.Option(False, "--no-color", help="Disable ANSI colors · Desliga cores ANSI"),

@@ -36,6 +36,7 @@ from diagnos.errors import SessionExpiredError
 from diagnos.session.keyring import SessionKeys
 
 from .identity import RequestIdentity
+from .message_signature import wire_target
 from .seed import open_random_seed
 from .signing import new_nonce, signature_headers
 from .timesync import ClockSync
@@ -87,6 +88,8 @@ class _SendMixin:
         (`X-Signature-*`) por cima, que amarra a requisição à sessão E2EE.
         """
         request = self._client.build_request(method, path, params=query, content=body, headers=dict(headers))
+        target = wire_target(request.url.raw_path.decode("ascii"))
+        request.url = request.url.copy_with(raw_path=target.encode("ascii"))
         if self._identity.signs_requests and not self._clock.is_synced:
             self._clock.sync(self._client)
         request.headers.update(self._identity.request_headers(method, request.url, body, self._clock.now_seconds()))

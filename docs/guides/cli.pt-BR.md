@@ -20,7 +20,7 @@ Só o que vem depois de `--` fica intocado.
 |---|---|
 | `--json` | saída para máquina: JSON puro em `stdout`, sem tabelas, painéis ou spinners |
 | `--quiet`, `-q` | sem spinners nem barras de progresso |
-| `--token TOKEN` | sobrescreve `DIAGNOS_API_TOKEN` nesta invocação; nunca é ecoado em lugar nenhum |
+| `--token TOKEN` | o token `apikey-` obsoleto (até 2027-04-15), sobrescrevendo `DIAGNOS_API_TOKEN` nesta invocação; nunca é ecoado em lugar nenhum. A credencial de conta de serviço não tem flag de propósito — uma chave na linha de comando vai parar no `ps` e no histórico do shell: defina `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` ou `~/.config/diagnos/credentials.json` |
 | `--vault-url URL` | sobrescreve `DIAGNOS_VAULT_URL` nesta invocação |
 | `--no-color` | sem nenhum escape ANSI — cores, negrito e esmaecido (a variável de ambiente `NO_COLOR` também) |
 | `--version` | imprime a versão da CLI e sai |

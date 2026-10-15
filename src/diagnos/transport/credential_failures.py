@@ -51,14 +51,15 @@ _HINTS: Final[dict[type[CredentialError], str]] = {
         "Não foi retentada, porque a primeira cópia pode ter passado."
     ),
     CredentialRevokedError: (
-        f"🇺🇸 This key was revoked. Create a new key for the service account ({_PANEL} → Rotate key) and put "
-        f"it in {_REPLACE}. 🇧🇷 Esta chave foi revogada. Crie uma chave nova para a conta de serviço ({_PANEL} "
-        f"→ Girar chave) e coloque-a em {_REPLACE}."
+        f"🇺🇸 This key was revoked. Add a new key to the service account ({_PANEL}), put it in {_REPLACE}, "
+        "then revoke the old one if it is still listed. "
+        f"🇧🇷 Esta chave foi revogada. Adicione uma chave nova à conta de serviço ({_PANEL}), coloque-a em "
+        f"{_REPLACE} e revogue a antiga se ela ainda aparecer."
     ),
     CredentialExpiredError: (
-        f"🇺🇸 This key reached its expiry date. Create a new key ({_PANEL} → Rotate key) and put it in "
-        f"{_REPLACE}. 🇧🇷 Esta chave chegou à data de validade. Crie uma chave nova ({_PANEL} → Girar chave) e "
-        f"coloque-a em {_REPLACE}."
+        f"🇺🇸 This key reached its expiry date. Add a new key to the service account ({_PANEL}), put it in "
+        f"{_REPLACE} and revoke the old one. 🇧🇷 Esta chave chegou à data de validade. Adicione uma chave nova à "
+        f"conta de serviço ({_PANEL}), coloque-a em {_REPLACE} e revogue a antiga."
     ),
     CredentialUnknownError: (
         "🇺🇸 The vault does not know this key. Check DIAGNOS_VAULT_URL points at the environment where the "
