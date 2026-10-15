@@ -200,7 +200,7 @@ def test_identity_properties_read_from_the_token_without_unlocking() -> None:
     vault = Diagnos(settings=_settings(), transport=_FakeTransport(), session=_FakeSession())
     assert vault.workspace_id == "ws_1"
     assert vault.account_id == "acc_1"
-    assert vault.name == "svc@ws_1.diagnos.health"
+    assert (vault.name, vault.email) == ("svc", "svc@ws_1.diagnos.health")
     assert vault.key_id == "key_123"
 
 

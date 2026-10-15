@@ -1,6 +1,6 @@
-"""🇺🇸 The vault's `credential_*` codes: typed exceptions, actionable messages, and the transport's retry rules.
+"""🇺🇸 The vault's `Credential*` codes: typed exceptions, actionable messages, and the transport's retry rules.
 
-🇧🇷 Os códigos `credential_*` do cofre: exceções tipadas, mensagens acionáveis, e as regras de retentativa do transporte.
+🇧🇷 Os códigos `Credential*` do cofre: exceções tipadas, mensagens acionáveis, e as regras de retentativa do transporte.
 """
 
 from __future__ import annotations
@@ -45,14 +45,14 @@ def failure(code: str, status: int, details: dict[str, Any] | None = None, **hea
 @pytest.mark.parametrize(
     ("code", "status", "cls", "base", "advice"),
     [
-        ("credential_signature_invalid", 401, CredentialSignatureError, AuthenticationError, "Copy the credential"),
-        ("credential_replayed", 401, CredentialReplayError, AuthenticationError, "not retried"),
-        ("credential_key_revoked", 401, CredentialRevokedError, AuthenticationError, "Rotate key"),
-        ("credential_key_expired", 401, CredentialExpiredError, AuthenticationError, "expiry"),
-        ("credential_key_unknown", 401, CredentialUnknownError, AuthenticationError, "DIAGNOS_VAULT_URL"),
-        ("credential_workspace_mismatch", 403, WorkspaceMismatchError, DiagnosPermissionError, "target workspace"),
-        ("credential_scope_missing", 403, ScopeMissingError, DiagnosPermissionError, "workspace admin"),
-        ("credential_clock_skew", 401, ClockSkewError, AuthenticationError, "NTP"),
+        ("CredentialSignatureInvalid", 401, CredentialSignatureError, AuthenticationError, "Copy the credential"),
+        ("CredentialReplayed", 401, CredentialReplayError, AuthenticationError, "not retried"),
+        ("CredentialKeyRevoked", 401, CredentialRevokedError, AuthenticationError, "Rotate key"),
+        ("CredentialKeyExpired", 401, CredentialExpiredError, AuthenticationError, "expiry"),
+        ("CredentialKeyUnknown", 401, CredentialUnknownError, AuthenticationError, "DIAGNOS_VAULT_URL"),
+        ("CredentialWorkspaceMismatch", 403, WorkspaceMismatchError, DiagnosPermissionError, "target workspace"),
+        ("CredentialScopeMissing", 403, ScopeMissingError, DiagnosPermissionError, "workspace admin"),
+        ("CredentialClockSkew", 401, ClockSkewError, AuthenticationError, "NTP"),
     ],
 )
 def test_each_code_becomes_its_typed_exception_with_advice(
@@ -79,9 +79,9 @@ def test_each_code_becomes_its_typed_exception_with_advice(
 )
 def test_clock_skew_shows_the_difference_from_server_time(server_time: object) -> None:
     """🇺🇸 Seconds, milliseconds, numeric strings and ISO 8601 all give the same 93 s. 🇧🇷 Todos dão os mesmos 93 s."""
-    response = failure("credential_clock_skew", 401, {"server_time": server_time})
+    response = failure("CredentialClockSkew", 401, {"server_time": server_time})
     error = credential_error(
-        "credential_clock_skew",
+        "CredentialClockSkew",
         "",
         response=response,
         details={"server_time": server_time},
@@ -100,19 +100,19 @@ def test_clock_skew_falls_back_to_the_date_header_and_then_to_no_number() -> Non
 
     🇧🇷 `Date` quando `server_time` falta ou é ilegível; uma frase simples quando nenhum existe.
     """
-    dated = failure("credential_clock_skew", 401, Date="Thu, 09 Oct 2025 08:53:20 GMT")
+    dated = failure("CredentialClockSkew", 401, Date="Thu, 09 Oct 2025 08:53:20 GMT")
     for details in ({}, {"server_time": "yesterday"}, {"server_time": True}, {"server_time": [1]}):
         error = credential_error(
-            "credential_clock_skew", "", response=dated, details=details, trace_id=None, now=1_759_999_950
+            "CredentialClockSkew", "", response=dated, details=details, trace_id=None, now=1_759_999_950
         )
         assert isinstance(error, ClockSkewError)
         assert error.skew_seconds == pytest.approx(-50)
         assert "50 s behind the vault" in error.message
     for header in ({}, {"Date": "not a date"}):
         bare = credential_error(
-            "credential_clock_skew",
+            "CredentialClockSkew",
             "",
-            response=failure("credential_clock_skew", 401, **header),
+            response=failure("CredentialClockSkew", 401, **header),
             details={},
             trace_id=None,
         )
@@ -121,16 +121,22 @@ def test_clock_skew_falls_back_to_the_date_header_and_then_to_no_number() -> Non
         assert "more than 60 s" in bare.message
 
 
-def test_scope_missing_names_the_permission_and_the_group() -> None:
-    """🇺🇸 `details.permission` and `details.security_group_id` reach the message and the attributes.
+def test_scope_missing_names_the_resource_action_and_group() -> None:
+    """🇺🇸 `details.resource`/`action`/`security_group_id` reach the message and the attributes.
 
-    🇧🇷 `details.permission` e `details.security_group_id` chegam à mensagem e aos atributos.
+    🇧🇷 `details.resource`/`action`/`security_group_id` chegam à mensagem e aos atributos.
     """
+    details = {"resource": "patients", "action": "write", "security_group_id": "sg_9"}
     with pytest.raises(ScopeMissingError) as caught:
-        unwrap_result(failure("credential_scope_missing", 403, {"permission": "patients:write", "group": "sg_9"}))
-    assert (caught.value.permission, caught.value.security_group_id) == ("patients:write", "sg_9")
-    assert "lacks 'patients:write' in security group 'sg_9'" in caught.value.message
-    assert caught.value.details == {"permission": "patients:write", "group": "sg_9"}
+        unwrap_result(failure("CredentialScopeMissing", 403, details))
+    error = caught.value
+    assert (error.resource, error.action, error.security_group_id) == ("patients", "write", "sg_9")
+    assert "lacks the permission 'write' on 'patients' in security group 'sg_9'" in error.message
+    assert error.details == details
+    for partial, expected in (({"action": "read"}, "permission 'read'."), ({}, "permission (unnamed).")):
+        with pytest.raises(ScopeMissingError) as unnamed:
+            unwrap_result(failure("CredentialScopeMissing", 403, partial))
+        assert expected in unnamed.value.message
 
 
 def test_other_codes_keep_their_status_class_and_now_carry_details() -> None:
@@ -160,7 +166,7 @@ def test_the_transport_signs_unsigned_calls_too_and_resyncs_once_on_clock_skew()
     🇧🇷 Identidade numa chamada estilo enrollment, `/time` antes da 1ª assinatura, uma ressincronização no relógio.
     """
     seen: list[httpx.Request] = []
-    answers = iter([failure("credential_clock_skew", 401), httpx.Response(200, json={"success": True, "result": 7})])
+    answers = iter([failure("CredentialClockSkew", 401), httpx.Response(200, json={"success": True, "result": 7})])
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
@@ -183,8 +189,8 @@ def test_a_second_clock_skew_and_a_replay_are_raised_not_retried() -> None:
     🇧🇷 Relógio duas vezes → `ClockSkewError`; replay nunca é retentado (a primeira cópia pode ter chegado).
     """
     for code, cls, calls in (
-        ("credential_clock_skew", ClockSkewError, 2),
-        ("credential_replayed", CredentialReplayError, 1),
+        ("CredentialClockSkew", ClockSkewError, 2),
+        ("CredentialReplayed", CredentialReplayError, 1),
     ):
         attempts: list[int] = []
 
@@ -204,7 +210,7 @@ def test_a_server_time_beside_errors_is_read_too() -> None:
     body = {
         "success": False,
         "server_time": 1_000_000_000,
-        "errors": [{"code": "credential_clock_skew", "message": ""}],
+        "errors": [{"code": "CredentialClockSkew", "message": ""}],
     }
     with pytest.raises(ClockSkewError) as caught:
         unwrap_result(httpx.Response(401, json=body))

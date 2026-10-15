@@ -153,12 +153,12 @@ class RateLimitError(VaultError):
 
 
 class CredentialError(VaultError):
-    """🇺🇸 The vault refused the service account credential itself (`credential_*` codes); the message says the fix.
+    """🇺🇸 The vault refused the service account credential itself (`Credential*` codes); the message says the fix.
 
     Catch this to handle every credential failure at once; each subclass is
     also an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).
 
-    🇧🇷 O cofre recusou a própria credencial da conta de serviço (códigos `credential_*`); a mensagem diz a correção.
+    🇧🇷 O cofre recusou a própria credencial da conta de serviço (códigos `Credential*`); a mensagem diz a correção.
 
     Capture esta para tratar toda falha de credencial de uma vez; cada
     subclasse também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403).
@@ -166,20 +166,20 @@ class CredentialError(VaultError):
 
 
 class CredentialSignatureError(CredentialError, AuthenticationError):
-    """🇺🇸 `credential_signature_invalid`: wrong credential, or the body changed in transit.
+    """🇺🇸 `CredentialSignatureInvalid`: wrong credential, or the body changed in transit.
 
-    🇧🇷 `credential_signature_invalid`: credencial errada, ou o corpo mudou no caminho.
+    🇧🇷 `CredentialSignatureInvalid`: credencial errada, ou o corpo mudou no caminho.
     """
 
 
 class CredentialReplayError(CredentialError, AuthenticationError):
-    """🇺🇸 `credential_replayed`: the vault already saw this nonce. 🇧🇷 O cofre já viu este nonce."""
+    """🇺🇸 `CredentialReplayed`: the vault already saw this nonce. 🇧🇷 O cofre já viu este nonce."""
 
 
 class ClockSkewError(CredentialError, AuthenticationError):
-    """🇺🇸 `credential_clock_skew`: this machine's clock is outside the vault's ±60 s window.
+    """🇺🇸 `CredentialClockSkew`: this machine's clock is outside the vault's ±60 s window.
 
-    🇧🇷 `credential_clock_skew`: o relógio desta máquina está fora da janela de ±60 s do cofre.
+    🇧🇷 `CredentialClockSkew`: o relógio desta máquina está fora da janela de ±60 s do cofre.
     """
 
     skew_seconds: float | None = None
@@ -192,32 +192,34 @@ class ClockSkewError(CredentialError, AuthenticationError):
 
 
 class CredentialRevokedError(CredentialError, AuthenticationError):
-    """🇺🇸 `credential_key_revoked`: an admin revoked this key. 🇧🇷 Um admin revogou esta chave."""
+    """🇺🇸 `CredentialKeyRevoked`: an admin revoked this key. 🇧🇷 Um admin revogou esta chave."""
 
 
 class CredentialExpiredError(CredentialError, AuthenticationError):
-    """🇺🇸 `credential_key_expired`: the key passed its expiry. 🇧🇷 A chave passou da validade."""
+    """🇺🇸 `CredentialKeyExpired`: the key passed its expiry. 🇧🇷 A chave passou da validade."""
 
 
 class CredentialUnknownError(CredentialError, AuthenticationError):
-    """🇺🇸 `credential_key_unknown`: the vault has no such key (mistyped, deleted, or another environment).
+    """🇺🇸 `CredentialKeyUnknown`: the vault has no such key (mistyped, deleted, or another environment).
 
-    🇧🇷 `credential_key_unknown`: o cofre não tem esta chave (digitada errado, apagada, ou de outro ambiente).
+    🇧🇷 `CredentialKeyUnknown`: o cofre não tem esta chave (digitada errado, apagada, ou de outro ambiente).
     """
 
 
 class WorkspaceMismatchError(CredentialError, DiagnosPermissionError):
-    """🇺🇸 `credential_workspace_mismatch`: the credential belongs to another workspace.
+    """🇺🇸 `CredentialWorkspaceMismatch`: the credential belongs to another workspace.
 
-    🇧🇷 `credential_workspace_mismatch`: a credencial é de outro workspace.
+    🇧🇷 `CredentialWorkspaceMismatch`: a credencial é de outro workspace.
     """
 
 
 class ScopeMissingError(CredentialError, DiagnosPermissionError):
-    """🇺🇸 `credential_scope_missing`: the service account lacks a permission. 🇧🇷 Falta uma permissão à conta."""
+    """🇺🇸 `CredentialScopeMissing`: the service account lacks a permission. 🇧🇷 Falta uma permissão à conta."""
 
-    permission: str | None = None
-    """🇺🇸 The missing permission, when the vault names it. 🇧🇷 A permissão que falta, quando o cofre a nomeia."""
+    resource: str | None = None
+    """🇺🇸 The resource the permission is about (`details.resource`). 🇧🇷 O recurso da permissão (`details.resource`)."""
+    action: str | None = None
+    """🇺🇸 The missing action on it (`details.action`). 🇧🇷 A ação que falta sobre ele (`details.action`)."""
     security_group_id: str | None = None
     """🇺🇸 The group it is missing in, when named. 🇧🇷 O grupo em que ela falta, quando nomeado."""
 

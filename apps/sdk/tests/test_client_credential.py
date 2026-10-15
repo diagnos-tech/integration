@@ -55,7 +55,7 @@ def test_the_one_line_form_exposes_the_identity_and_masks_it_in_repr() -> None:
     vault = client(credential=line)
     assert (vault.identity, vault.workspace_id, vault.key_id) == (identity, "wsClient", identity.split("@")[0])
     assert vault.account_id is None
-    assert vault.name == identity
+    assert (vault.name, vault.email) == (None, None)
     assert vault.credential_kind == "ed25519"
     assert seed not in repr(vault)
     assert identity[4:36] not in repr(vault)
@@ -72,7 +72,8 @@ def test_a_path_a_credential_object_and_explicit_settings_all_work(tmp_path: Pat
     document = {"type": "diagnos_service_account", "version": 1, "identity": identity, "private_key": seed}
     path.write_text(json.dumps({**document, "service_account": "ingest"}), encoding="utf-8")
     path.chmod(0o600)
-    assert client(credential=path).name == "ingest"
+    from_file = client(credential=path)
+    assert (from_file.name, from_file.email) == ("ingest", "ingest@wsClient.diagnos.health")
     credential = ServiceAccountCredential.parse(line)
     assert client(credential=credential).identity == identity
     settings = Settings(vault_url="https://vault.test", api_token=legacy_token())
@@ -106,7 +107,8 @@ def test_the_legacy_token_still_works_and_warns_at_the_callers_line(monkeypatch:
     assert "2027-04-15" in str(legacy[0].message)
     assert "DIAGNOS_CREDENTIAL" in str(legacy[0].message)
     assert (vault.credential_kind, vault.identity, vault.account_id) == ("legacy_apikey", None, "acc_9")
-    assert (vault.workspace_id, vault.key_id, vault.name) == ("wsLegacy", "key_9", "bot@wsLegacy.diagnos.health")
+    assert (vault.workspace_id, vault.key_id, vault.name) == ("wsLegacy", "key_9", "bot")
+    assert vault.email == "bot@wsLegacy.diagnos.health"
     assert "api_token='apikey-…" in repr(vault)
     assert issubclass(LegacyTokenWarning, DeprecationWarning)
 

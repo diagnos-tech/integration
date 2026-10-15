@@ -7067,7 +7067,7 @@
           "content": {
             "errors": [
               {
-                "code": "credential_key_revoked",
+                "code": "CredentialKeyRevoked",
                 "message": "…"
               }
             ],

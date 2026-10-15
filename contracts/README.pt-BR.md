@@ -91,7 +91,7 @@ exatamente como já reassina o HMAC de sessão (`X-Signature-*`), que continua e
 
 Três interações mantêm travado o `Authorization: Bearer apikey-<jwt>` obsoleto até o cofre deixar de aceitá-lo
 (2027-04-15) — a descrição delas diz "on a legacy apikey- token". Uma interação trava uma falha de credencial:
-`401 credential_key_revoked` no registro.
+`401 CredentialKeyRevoked` no registro.
 
 ## Provider states e geradores de path
 
@@ -127,7 +127,7 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
 | Provider state | Parâmetros | O cofre precisa semear |
 |---|---|---|
 | `a service account can enroll an SDK session` | `workspace_id` | Um workspace e uma service account cuja chave Ed25519 ativa consegue registrar chaves públicas híbridas em `session/registry`. |
-| `the service account's key was revoked` | `workspace_id` | Uma service account cuja chave foi revogada — o registro responde `401 credential_key_revoked`. |
+| `the service account's key was revoked` | `workspace_id` | Uma service account cuja chave foi revogada — o registro responde `401 CredentialKeyRevoked`. |
 | `a legacy apikey- token can enroll an SDK session` | `workspace_id` | Uma service account com um token `apikey-` legado capaz de registrar em `session/registry`. |
 | `an enrollment opened with a legacy apikey- token is waiting for an admin` | `workspace_id`, `enrollment_id` | Um enrollment pendente desse token legado — `GET` nele devolve `"status": "pending"`. |
 | `an SDK session opened with a legacy apikey- token is active` | `workspace_id` | Uma sessão ativa desse token legado, para a qual o cofre aceita um `session/lock`. |

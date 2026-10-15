@@ -1,6 +1,6 @@
 {
   "generatedFrom": {
-    "commit": "cf7b0bc",
+    "commit": "0b35abb",
     "package": "diagnos",
     "version": "0.2.0"
   },
@@ -30,8 +30,8 @@
             "AuthenticationError"
           ],
           "doc": {
-            "en": "`credential_clock_skew`: this machine's clock is outside the vault's ±60 s window.",
-            "pt-br": "`credential_clock_skew`: o relógio desta máquina está fora da janela de ±60 s do cofre."
+            "en": "`CredentialClockSkew`: this machine's clock is outside the vault's ±60 s window.",
+            "pt-br": "`CredentialClockSkew`: o relógio desta máquina está fora da janela de ±60 s do cofre."
           },
           "kind": "exception",
           "members": [
@@ -87,8 +87,8 @@
             "VaultError"
           ],
           "doc": {
-            "en": "The vault refused the service account credential itself (`credential_*` codes); the message says the fix.\n\nCatch this to handle every credential failure at once; each subclass is\nalso an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).",
-            "pt-br": "O cofre recusou a própria credencial da conta de serviço (códigos `credential_*`); a mensagem diz a correção.\n\nCapture esta para tratar toda falha de credencial de uma vez; cada\nsubclasse também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403)."
+            "en": "The vault refused the service account credential itself (`Credential*` codes); the message says the fix.\n\nCatch this to handle every credential failure at once; each subclass is\nalso an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).",
+            "pt-br": "O cofre recusou a própria credencial da conta de serviço (códigos `Credential*`); a mensagem diz a correção.\n\nCapture esta para tratar toda falha de credencial de uma vez; cada\nsubclasse também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403)."
           },
           "kind": "exception",
           "members": [],
@@ -101,7 +101,7 @@
             "AuthenticationError"
           ],
           "doc": {
-            "en": "`credential_key_expired`: the key passed its expiry.",
+            "en": "`CredentialKeyExpired`: the key passed its expiry.",
             "pt-br": "A chave passou da validade."
           },
           "kind": "exception",
@@ -115,7 +115,7 @@
             "AuthenticationError"
           ],
           "doc": {
-            "en": "`credential_replayed`: the vault already saw this nonce.",
+            "en": "`CredentialReplayed`: the vault already saw this nonce.",
             "pt-br": "O cofre já viu este nonce."
           },
           "kind": "exception",
@@ -129,7 +129,7 @@
             "AuthenticationError"
           ],
           "doc": {
-            "en": "`credential_key_revoked`: an admin revoked this key.",
+            "en": "`CredentialKeyRevoked`: an admin revoked this key.",
             "pt-br": "Um admin revogou esta chave."
           },
           "kind": "exception",
@@ -143,8 +143,8 @@
             "AuthenticationError"
           ],
           "doc": {
-            "en": "`credential_signature_invalid`: wrong credential, or the body changed in transit.",
-            "pt-br": "`credential_signature_invalid`: credencial errada, ou o corpo mudou no caminho."
+            "en": "`CredentialSignatureInvalid`: wrong credential, or the body changed in transit.",
+            "pt-br": "`CredentialSignatureInvalid`: credencial errada, ou o corpo mudou no caminho."
           },
           "kind": "exception",
           "members": [],
@@ -157,8 +157,8 @@
             "AuthenticationError"
           ],
           "doc": {
-            "en": "`credential_key_unknown`: the vault has no such key (mistyped, deleted, or another environment).",
-            "pt-br": "`credential_key_unknown`: o cofre não tem esta chave (digitada errado, apagada, ou de outro ambiente)."
+            "en": "`CredentialKeyUnknown`: the vault has no such key (mistyped, deleted, or another environment).",
+            "pt-br": "`CredentialKeyUnknown`: o cofre não tem esta chave (digitada errado, apagada, ou de outro ambiente)."
           },
           "kind": "exception",
           "members": [],
@@ -2163,18 +2163,27 @@
             "DiagnosPermissionError"
           ],
           "doc": {
-            "en": "`credential_scope_missing`: the service account lacks a permission.",
+            "en": "`CredentialScopeMissing`: the service account lacks a permission.",
             "pt-br": "Falta uma permissão à conta."
           },
           "kind": "exception",
           "members": [
             {
               "doc": {
-                "en": "The missing permission, when the vault names it.",
-                "pt-br": "A permissão que falta, quando o cofre a nomeia."
+                "en": "The resource the permission is about (`details.resource`).",
+                "pt-br": "O recurso da permissão (`details.resource`)."
               },
               "kind": "attribute",
-              "name": "permission",
+              "name": "resource",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "The missing action on it (`details.action`).",
+                "pt-br": "A ação que falta sobre ele (`details.action`)."
+              },
+              "kind": "attribute",
+              "name": "action",
               "signature": ": str | None"
             },
             {
@@ -2613,8 +2622,8 @@
             "DiagnosPermissionError"
           ],
           "doc": {
-            "en": "`credential_workspace_mismatch`: the credential belongs to another workspace.",
-            "pt-br": "`credential_workspace_mismatch`: a credencial é de outro workspace."
+            "en": "`CredentialWorkspaceMismatch`: the credential belongs to another workspace.",
+            "pt-br": "`CredentialWorkspaceMismatch`: a credencial é de outro workspace."
           },
           "kind": "exception",
           "members": [],

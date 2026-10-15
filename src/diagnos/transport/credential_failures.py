@@ -1,4 +1,4 @@
-"""🇺🇸 The vault's `credential_*` error codes → typed exceptions whose message says exactly what to do.
+"""🇺🇸 The vault's `Credential*` error codes → typed exceptions whose message says exactly what to do.
 
 The vault's own message says *what* happened; the SDK appends *what to do
 about it*, because the person reading a traceback at 3 a.m. should not need
@@ -6,7 +6,7 @@ the docs open. Nothing here ever includes the seed, a signature or a token:
 the inputs are the error envelope and the response headers, never the
 request.
 
-🇧🇷 Os códigos de erro `credential_*` do cofre → exceções tipadas cuja mensagem diz exatamente o que fazer.
+🇧🇷 Os códigos de erro `Credential*` do cofre → exceções tipadas cuja mensagem diz exatamente o que fazer.
 
 A mensagem do próprio cofre diz *o que* aconteceu; o SDK acrescenta *o que
 fazer*, porque quem lê um traceback às 3 da manhã não deveria precisar da doc
@@ -74,14 +74,14 @@ _HINTS: Final[dict[type[CredentialError], str]] = {
     ),
 }
 _CLASSES: Final[dict[str, type[CredentialError]]] = {
-    "credential_signature_invalid": CredentialSignatureError,
-    "credential_replayed": CredentialReplayError,
-    "credential_clock_skew": ClockSkewError,
-    "credential_key_revoked": CredentialRevokedError,
-    "credential_key_expired": CredentialExpiredError,
-    "credential_key_unknown": CredentialUnknownError,
-    "credential_workspace_mismatch": WorkspaceMismatchError,
-    "credential_scope_missing": ScopeMissingError,
+    "CredentialSignatureInvalid": CredentialSignatureError,
+    "CredentialReplayed": CredentialReplayError,
+    "CredentialClockSkew": ClockSkewError,
+    "CredentialKeyRevoked": CredentialRevokedError,
+    "CredentialKeyExpired": CredentialExpiredError,
+    "CredentialKeyUnknown": CredentialUnknownError,
+    "CredentialWorkspaceMismatch": WorkspaceMismatchError,
+    "CredentialScopeMissing": ScopeMissingError,
 }
 
 
@@ -144,18 +144,25 @@ def _clock_hint(server: datetime | None, now: float) -> tuple[str, float | None]
     ), skew
 
 
-def _scope_hint(details: dict[str, Any]) -> tuple[str, str | None, str | None]:
-    """🇺🇸 The scope sentence, the permission and the group. 🇧🇷 A frase do escopo, a permissão e o grupo."""
-    permission = details.get("permission")
-    group = details.get("security_group_id", details.get("group"))
-    what = f"'{permission}'" if isinstance(permission, str) else "a permission · uma permissão"
-    where = f" in security group '{group}'" if isinstance(group, str) else ""
-    where_pt = f" no grupo de segurança '{group}'" if isinstance(group, str) else ""
+def _scope_hint(details: dict[str, Any]) -> tuple[str, dict[str, str | None]]:
+    """🇺🇸 The scope sentence and `resource`/`action`/`security_group_id`. 🇧🇷 A frase do escopo e os três campos."""
+    fields: dict[str, str | None] = {
+        name: value if isinstance(value := details.get(name), str) else None
+        for name in ("resource", "action", "security_group_id")
+    }
+    resource, action, group = fields["resource"], fields["action"], fields["security_group_id"]
+    if action and resource:
+        what, what_pt = f"'{action}' on '{resource}'", f"'{action}' em '{resource}'"
+    else:
+        what = what_pt = f"'{action or resource}'" if action or resource else ""
+    where = f" in security group '{group}'" if group else ""
+    where_pt = f" no grupo de segurança '{group}'" if group else ""
     hint = (
-        f"🇺🇸 This service account lacks {what}{where}. Ask a workspace admin to grant it ({_PANEL}). "
-        f"🇧🇷 Falta {what} a esta conta de serviço{where_pt}. Peça a um admin do workspace para concedê-la ({_PANEL})."
+        f"🇺🇸 This service account lacks the permission {what or '(unnamed)'}{where}. Ask a workspace admin to grant "
+        f"it ({_PANEL}). 🇧🇷 Falta à conta de serviço a permissão {what_pt or '(sem nome)'}{where_pt}. Peça a um "
+        f"admin do workspace para concedê-la ({_PANEL})."
     )
-    return hint, permission if isinstance(permission, str) else None, group if isinstance(group, str) else None
+    return hint, fields
 
 
 def credential_error(
@@ -167,9 +174,9 @@ def credential_error(
     trace_id: str | None,
     now: float | None = None,
 ) -> CredentialError | None:
-    """🇺🇸 The typed exception for a `credential_*` code, or `None` for any other code.
+    """🇺🇸 The typed exception for a `Credential*` code, or `None` for any other code.
 
-    🇧🇷 A exceção tipada para um código `credential_*`, ou `None` para qualquer outro código.
+    🇧🇷 A exceção tipada para um código `Credential*`, ou `None` para qualquer outro código.
     """
     cls = _CLASSES.get(code)
     if cls is None:
@@ -180,8 +187,8 @@ def credential_error(
         hint, skew = _clock_hint(server, time.time() if now is None else now)
         extra = {"skew_seconds": skew, "server_time": server}
     elif cls is ScopeMissingError:
-        hint, permission, group = _scope_hint(details)
-        extra = {"permission": permission, "security_group_id": group}
+        hint, fields = _scope_hint(details)
+        extra = dict(fields)
     else:
         hint = _HINTS[cls]
     error = cls(
