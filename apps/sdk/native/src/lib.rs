@@ -8,7 +8,7 @@
 //! excluded from core dumps, fenced by guard pages, wiped on fork and zeroed
 //! the moment the box is dropped — and whose bytes never cross back into the
 //! Python heap, because every operation that needs them (HMAC, HKDF, AES-GCM,
-//! X25519 + ML-KEM, secretstream) runs here, in Rust, against the locked page.
+//! X25519 + ML-KEM, Ed25519, secretstream) runs here, in Rust, against the locked page.
 //!
 //! The crate is deliberately small: it is a *boundary*, not a crypto library.
 //! Every primitive is a thin, audited RustCrypto/dalek implementation; every
@@ -25,7 +25,7 @@
 //! guard pages, apagadas no fork e zeradas no instante em que a caixa é
 //! descartada — e cujos bytes nunca voltam ao heap do Python, porque toda
 //! operação que precisa deles (HMAC, HKDF, AES-GCM, X25519 + ML-KEM,
-//! secretstream) roda aqui, em Rust, contra a página travada.
+//! Ed25519, secretstream) roda aqui, em Rust, contra a página travada.
 //!
 //! O crate é pequeno de propósito: é uma *fronteira*, não uma biblioteca de
 //! criptografia. Toda primitiva é uma implementação fina e auditada do
@@ -53,6 +53,7 @@
 
 pub mod aead;
 mod buffer;
+pub mod ed25519;
 pub mod entropy;
 pub mod error;
 pub mod hybrid;
@@ -79,6 +80,8 @@ fn _secure(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<stream::SecretStreamPull>()?;
     m.add_class::<entropy::EntropyPool>()?;
     m.add_function(wrap_pyfunction!(hybrid::seal_hybrid, m)?)?;
+    m.add_function(wrap_pyfunction!(ed25519::ed25519_sign, m)?)?;
+    m.add_function(wrap_pyfunction!(ed25519::ed25519_public_key, m)?)?;
     m.add_function(wrap_pyfunction!(process::harden_process, m)?)?;
     m.add_function(wrap_pyfunction!(process::memory_status, m)?)?;
     m.add("SecureError", m.py().get_type::<error::SecureError>())?;
@@ -90,5 +93,8 @@ fn _secure(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("MLKEM768_PUBLIC_BYTES", hybrid::MLKEM768_PUBLIC_BYTES)?;
     m.add("MLKEM768_SECRET_BYTES", hybrid::MLKEM768_SECRET_BYTES)?;
     m.add("MLKEM768_CIPHERTEXT_BYTES", hybrid::MLKEM768_CIPHERTEXT_BYTES)?;
+    m.add("ED25519_SEED_BYTES", ed25519::ED25519_SEED_BYTES)?;
+    m.add("ED25519_PUBLIC_BYTES", ed25519::ED25519_PUBLIC_BYTES)?;
+    m.add("ED25519_SIGNATURE_BYTES", ed25519::ED25519_SIGNATURE_BYTES)?;
     Ok(())
 }

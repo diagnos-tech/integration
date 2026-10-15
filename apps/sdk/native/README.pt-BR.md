@@ -4,8 +4,8 @@
 
 Um crate Rust pequeno, embarcado no wheel `diagnos` pelo maturin, que guarda
 todo segredo que o SDK algum dia tem — chaves de sessão, DEKs de grupo,
-chaves de documento, a própria identidade X25519 + ML-KEM-768 do SDK, o pool
-de entropia — e executa toda operação que precisa de um. O Python só segura
+chaves de documento, a própria identidade X25519 + ML-KEM-768 do SDK, a semente
+Ed25519 da credencial de conta de serviço, o pool de entropia — e executa toda operação que precisa de um. O Python só segura
 um handle, `SecretBox`. As mesmas garantias chegam à linha de comando e à
 API REST (`diagnos[cli]`, `diagnos[api]`) de graça: elas nunca tocam uma
 chave, chamam o SDK.
@@ -101,6 +101,7 @@ native/
 │   ├── buffer.rs       buffers do Python entram, memória Rust zerada sai; origens graváveis são zeradas
 │   ├── kdf.rs           HMAC-SHA512, HKDF-SHA256
 │   ├── aead.rs          AES-256-GCM
+│   ├── ed25519.rs       assinatura / chave pública Ed25519 sobre uma semente num SecretBox (a credencial de conta de serviço)
 │   ├── hybrid.rs        selo/abertura X25519 + ML-KEM-768, HybridKeyPair, leitura da sessão selada
 │   ├── secretstream.rs  crypto_secretstream_xchacha20poly1305 do libsodium, bit a bit igual, sobre um estado travado de 44 bytes
 │   ├── stream.rs        SecretStreamPush / SecretStreamPull (GIL liberado a cada pedaço)
