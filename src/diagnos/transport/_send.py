@@ -35,6 +35,7 @@ from diagnos.crypto.secure import SecretBox
 from diagnos.errors import SessionExpiredError
 from diagnos.session.keyring import SessionKeys
 
+from .identity import RequestIdentity
 from .seed import open_random_seed
 from .signing import new_nonce, signature_headers
 from .timesync import ClockSync
@@ -49,6 +50,7 @@ class _SendHost(Protocol):
     """
 
     _client: httpx.Client
+    _identity: RequestIdentity
     _session_keys: Callable[[], SessionKeys | None]
     _clock: ClockSync
     _on_seed: Callable[[SecretBox], None] | None
@@ -70,11 +72,24 @@ class _SendMixin:
         headers: Mapping[str, str],
         signed: bool,
     ) -> httpx.Response:
-        """🇺🇸 Build one request (signing it if asked) and send it — no retry logic here.
+        """🇺🇸 Build one request (identity on every one, session HMAC if `signed`) and send it — no retry logic here.
 
-        🇧🇷 Monta uma requisição (assinando se pedido) e envia — sem lógica de retentativa aqui.
+        The identity headers go on *every* external request, `signed` or not:
+        the credential is what proves which service account is calling, even
+        before any session exists (enrollment). `signed` only adds the session
+        HMAC (`X-Signature-*`) on top, which ties a request to the E2EE session.
+
+        🇧🇷 Monta uma requisição (identidade em toda uma, HMAC de sessão se `signed`) e envia — sem retentativa aqui.
+
+        Os headers de identidade vão em *toda* requisição externa, `signed` ou
+        não: a credencial é o que prova qual conta de serviço chama, mesmo antes
+        de existir sessão (enrollment). `signed` só soma o HMAC de sessão
+        (`X-Signature-*`) por cima, que amarra a requisição à sessão E2EE.
         """
         request = self._client.build_request(method, path, params=query, content=body, headers=dict(headers))
+        if self._identity.signs_requests and not self._clock.is_synced:
+            self._clock.sync(self._client)
+        request.headers.update(self._identity.request_headers(method, request.url, body, self._clock.now_seconds()))
         if signed:
             keys = self._session_keys()
             if keys is None:

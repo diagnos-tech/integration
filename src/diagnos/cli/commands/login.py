@@ -51,10 +51,11 @@ def login(
         vault = context.build_client(opts, on_prompt=on_prompt, auto_unseal=auto_unseal)
         vault.unlock()
 
+    security_groups = vault.security_groups
     result = {
         "workspace_id": vault.workspace_id,
         "account_id": vault.account_id,
-        "security_groups": vault.security_groups,
+        "security_groups": security_groups,
     }
     if opts.json_output:
         print_json(result)
@@ -62,7 +63,7 @@ def login(
     console.print("[bold green]Enrolled · Sessão estabelecida[/bold green]")
     console.print(f"  workspace_id: {result['workspace_id']}")
     console.print(f"  account_id:   {result['account_id']}")
-    console.print(f"  groups · grupos: {', '.join(result['security_groups']) or '—'}")
+    console.print(f"  groups · grupos: {', '.join(security_groups) or '—'}")
     if context.is_hosted():
         console.print(
             "[dim]Kept in memory by the diagnos agent until `diagnos logout` or the idle timeout — next commands "

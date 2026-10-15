@@ -17,6 +17,9 @@ novo, esperar, comprar crédito, refazer o enrollment, corrigir a entrada).
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 
 class DiagnosError(Exception):
     """🇺🇸 Base of every SDK error. 🇧🇷 Base de todo erro do SDK."""
@@ -74,6 +77,11 @@ class VaultError(DiagnosError):
     """
     request_id: str | None
     """🇺🇸 The `X-Request-Id` of the failed response. 🇧🇷 O `X-Request-Id` da resposta que falhou."""
+    details: dict[str, Any]
+    """🇺🇸 The error's `details` — data to recover with (`server_time`, the missing permission); often empty.
+
+    🇧🇷 Os `details` do erro — dados para se recuperar (`server_time`, a permissão que falta); muitas vezes vazio.
+    """
 
     def __init__(
         self,
@@ -83,6 +91,7 @@ class VaultError(DiagnosError):
         status: int,
         trace_id: str | None = None,
         request_id: str | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         """🇺🇸 `code`/`status` decide the class; `trace_id`/`request_id` find the event server-side.
 
@@ -94,6 +103,7 @@ class VaultError(DiagnosError):
         self.status = status
         self.trace_id = trace_id
         self.request_id = request_id
+        self.details = dict(details or {})
 
 
 class ValidationError(VaultError):
@@ -140,6 +150,76 @@ class RateLimitError(VaultError):
 
     🇧🇷 429 — devagar; o SDK já tentou de novo com backoff.
     """
+
+
+class CredentialError(VaultError):
+    """🇺🇸 The vault refused the service account credential itself (`credential_*` codes); the message says the fix.
+
+    Catch this to handle every credential failure at once; each subclass is
+    also an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).
+
+    🇧🇷 O cofre recusou a própria credencial da conta de serviço (códigos `credential_*`); a mensagem diz a correção.
+
+    Capture esta para tratar toda falha de credencial de uma vez; cada
+    subclasse também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403).
+    """
+
+
+class CredentialSignatureError(CredentialError, AuthenticationError):
+    """🇺🇸 `credential_signature_invalid`: wrong credential, or the body changed in transit.
+
+    🇧🇷 `credential_signature_invalid`: credencial errada, ou o corpo mudou no caminho.
+    """
+
+
+class CredentialReplayError(CredentialError, AuthenticationError):
+    """🇺🇸 `credential_replayed`: the vault already saw this nonce. 🇧🇷 O cofre já viu este nonce."""
+
+
+class ClockSkewError(CredentialError, AuthenticationError):
+    """🇺🇸 `credential_clock_skew`: this machine's clock is outside the vault's ±60 s window.
+
+    🇧🇷 `credential_clock_skew`: o relógio desta máquina está fora da janela de ±60 s do cofre.
+    """
+
+    skew_seconds: float | None = None
+    """🇺🇸 Local minus vault time, in seconds (positive: ahead); `None` if the vault sent no time.
+
+    🇧🇷 Hora local menos a do cofre, em segundos (positivo: adiantado); `None` se o cofre não mandou a hora.
+    """
+    server_time: datetime | None = None
+    """🇺🇸 The vault's time, from `server_time` or `Date`. 🇧🇷 A hora do cofre, de `server_time` ou `Date`."""
+
+
+class CredentialRevokedError(CredentialError, AuthenticationError):
+    """🇺🇸 `credential_key_revoked`: an admin revoked this key. 🇧🇷 Um admin revogou esta chave."""
+
+
+class CredentialExpiredError(CredentialError, AuthenticationError):
+    """🇺🇸 `credential_key_expired`: the key passed its expiry. 🇧🇷 A chave passou da validade."""
+
+
+class CredentialUnknownError(CredentialError, AuthenticationError):
+    """🇺🇸 `credential_key_unknown`: the vault has no such key (mistyped, deleted, or another environment).
+
+    🇧🇷 `credential_key_unknown`: o cofre não tem esta chave (digitada errado, apagada, ou de outro ambiente).
+    """
+
+
+class WorkspaceMismatchError(CredentialError, DiagnosPermissionError):
+    """🇺🇸 `credential_workspace_mismatch`: the credential belongs to another workspace.
+
+    🇧🇷 `credential_workspace_mismatch`: a credencial é de outro workspace.
+    """
+
+
+class ScopeMissingError(CredentialError, DiagnosPermissionError):
+    """🇺🇸 `credential_scope_missing`: the service account lacks a permission. 🇧🇷 Falta uma permissão à conta."""
+
+    permission: str | None = None
+    """🇺🇸 The missing permission, when the vault names it. 🇧🇷 A permissão que falta, quando o cofre a nomeia."""
+    security_group_id: str | None = None
+    """🇺🇸 The group it is missing in, when named. 🇧🇷 O grupo em que ela falta, quando nomeado."""
 
 
 class EnrollmentDeniedError(DiagnosError):

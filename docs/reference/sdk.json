@@ -1,8 +1,8 @@
 {
   "generatedFrom": {
-    "commit": "df1f5e3",
+    "commit": "cf7b0bc",
     "package": "diagnos",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "modules": [
     {
@@ -22,7 +22,40 @@
           "kind": "exception",
           "members": [],
           "name": "AuthenticationError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "AuthenticationError"
+          ],
+          "doc": {
+            "en": "`credential_clock_skew`: this machine's clock is outside the vault's ±60 s window.",
+            "pt-br": "`credential_clock_skew`: o relógio desta máquina está fora da janela de ±60 s do cofre."
+          },
+          "kind": "exception",
+          "members": [
+            {
+              "doc": {
+                "en": "Local minus vault time, in seconds (positive: ahead); `None` if the vault sent no time.",
+                "pt-br": "Hora local menos a do cofre, em segundos (positivo: adiantado); `None` se o cofre não mandou a hora."
+              },
+              "kind": "attribute",
+              "name": "skew_seconds",
+              "signature": ": float | None"
+            },
+            {
+              "doc": {
+                "en": "The vault's time, from `server_time` or `Date`.",
+                "pt-br": "A hora do cofre, de `server_time` ou `Date`."
+              },
+              "kind": "attribute",
+              "name": "server_time",
+              "signature": ": datetime | None"
+            }
+          ],
+          "name": "ClockSkewError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
           "bases": [
@@ -47,7 +80,90 @@
           "kind": "exception",
           "members": [],
           "name": "ConflictError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "VaultError"
+          ],
+          "doc": {
+            "en": "The vault refused the service account credential itself (`credential_*` codes); the message says the fix.\n\nCatch this to handle every credential failure at once; each subclass is\nalso an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).",
+            "pt-br": "O cofre recusou a própria credencial da conta de serviço (códigos `credential_*`); a mensagem diz a correção.\n\nCapture esta para tratar toda falha de credencial de uma vez; cada\nsubclasse também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403)."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "CredentialError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "AuthenticationError"
+          ],
+          "doc": {
+            "en": "`credential_key_expired`: the key passed its expiry.",
+            "pt-br": "A chave passou da validade."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "CredentialExpiredError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "AuthenticationError"
+          ],
+          "doc": {
+            "en": "`credential_replayed`: the vault already saw this nonce.",
+            "pt-br": "O cofre já viu este nonce."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "CredentialReplayError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "AuthenticationError"
+          ],
+          "doc": {
+            "en": "`credential_key_revoked`: an admin revoked this key.",
+            "pt-br": "Um admin revogou esta chave."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "CredentialRevokedError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "AuthenticationError"
+          ],
+          "doc": {
+            "en": "`credential_signature_invalid`: wrong credential, or the body changed in transit.",
+            "pt-br": "`credential_signature_invalid`: credencial errada, ou o corpo mudou no caminho."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "CredentialSignatureError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "AuthenticationError"
+          ],
+          "doc": {
+            "en": "`credential_key_unknown`: the vault has no such key (mistyped, deleted, or another environment).",
+            "pt-br": "`credential_key_unknown`: o cofre não tem esta chave (digitada errado, apagada, ou de outro ambiente)."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "CredentialUnknownError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
           "bases": [
@@ -62,48 +178,23 @@
           "name": "CryptoError"
         },
         {
-          "bases": [],
+          "bases": [
+            "IdentityView"
+          ],
           "doc": {
-            "en": "The SDK's entry point: one service account's live connection to one workspace.",
-            "pt-br": "O ponto de entrada do SDK: a conexão viva de uma service account com um workspace."
+            "en": "The SDK's entry point: one service account's live connection to one workspace.\n\n`Diagnos()` (or `Diagnos.from_env()`) finds the credential in\n`DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` or\n`~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` takes one\nexplicitly. The identity properties (`workspace_id`, `key_id`,\n`identity`…) come from `IdentityView`.",
+            "pt-br": "O ponto de entrada do SDK: a conexão viva de uma service account com um workspace.\n\n`Diagnos()` (ou `Diagnos.from_env()`) acha a credencial em\n`DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` ou\n`~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` recebe uma\nexplícita. As propriedades de identidade (`workspace_id`, `key_id`,\n`identity`…) vêm de `IdentityView`."
           },
           "kind": "class",
           "members": [
             {
               "doc": {
-                "en": "This service account's workspace, read from its token.",
-                "pt-br": "O workspace desta service account, lido do token dela."
+                "en": "Everything from the environment (`env`, default `os.environ`); `options` go to the constructor.",
+                "pt-br": "Tudo do ambiente (`env`, padrão `os.environ`); `options` vão para o construtor."
               },
-              "kind": "property",
-              "name": "workspace_id",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "This service account's owning account, read from its token.",
-                "pt-br": "A conta dona desta service account, lida do token dela."
-              },
-              "kind": "property",
-              "name": "account_id",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "The service account's human-readable name (`slug@<workspace_id>.diagnos.health`).",
-                "pt-br": "O nome legível da service account (`slug@<workspace_id>.diagnos.health`)."
-              },
-              "kind": "property",
-              "name": "name",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "Id of the token's key pair — what an admin rotates or revokes.",
-                "pt-br": "Id do par de chaves do token — o que um admin rotaciona ou revoga."
-              },
-              "kind": "property",
-              "name": "key_id",
-              "signature": ": str"
+              "kind": "method",
+              "name": "from_env",
+              "signature": "(env: Mapping[str, str] | None = None, **options: Any) -> Diagnos"
             },
             {
               "doc": {
@@ -170,7 +261,7 @@
             }
           ],
           "name": "Diagnos",
-          "signature": "(settings: Settings | None = None, *, token: str | None = None, on_prompt: PromptCallback | None = None, auto_unseal: bool | None = None, transport: VaultTransport | None = None, session: SessionManager | None = None)"
+          "signature": "(settings: Settings | None = None, *, credential: CredentialLike | None = None, token: str | None = None, on_prompt: PromptCallback | None = None, auto_unseal: bool | None = None, transport: VaultTransport | None = None, session: SessionManager | None = None)"
         },
         {
           "bases": [
@@ -195,7 +286,7 @@
           "kind": "exception",
           "members": [],
           "name": "DiagnosPermissionError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
           "bases": [
@@ -1179,108 +1270,6 @@
           "signature": "(*, index: DocumentIndex, summary: ExamSummary | None = None)"
         },
         {
-          "bases": [],
-          "doc": {
-            "en": "`vault.exams` — list, read, create, update, archive/unarchive, delete/restore.",
-            "pt-br": "`vault.exams` — listar, ler, criar, atualizar, arquivar/desarquivar, apagar/restaurar."
-          },
-          "kind": "class",
-          "members": [
-            {
-              "doc": {
-                "en": "One page of exams, each with its decrypted summary (title, modality, date).",
-                "pt-br": "Uma página de exames, cada um com o resumo decifrado (título, modalidade, data)."
-              },
-              "kind": "method",
-              "name": "list",
-              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50, cursor: str | None = None) -> Page[ExamListItem]"
-            },
-            {
-              "doc": {
-                "en": "Every exam, across all pages.",
-                "pt-br": "Todo exame, por todas as páginas."
-              },
-              "kind": "method",
-              "name": "iter_all",
-              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50) -> Iterator[ExamListItem]"
-            },
-            {
-              "doc": {
-                "en": "Fetches and decrypts one exam: the newest content (draft included), or `version_id`.",
-                "pt-br": "Busca e decifra um exame: o conteúdo mais novo (rascunho incluído), ou `version_id`."
-              },
-              "kind": "method",
-              "name": "get",
-              "signature": "(exam_id: str, *, version_id: str | None = None, include_draft: bool = True) -> Exam"
-            },
-            {
-              "doc": {
-                "en": "The exam's metadata — group, versions, flags, clear `meta` — without opening the record.",
-                "pt-br": "O metadado do exame — grupo, versões, flags, `meta` em claro — sem abrir o registro."
-              },
-              "kind": "method",
-              "name": "index",
-              "signature": "(exam_id: str) -> DocumentIndex"
-            },
-            {
-              "doc": {
-                "en": "Seals `record`, links it to `patient_id` in clear `meta`, and creates the exam.\n\n`patient_id` is required and clear on purpose — it is the axis the\nvault itself uses to route and authorize an exam without ever\nopening its encrypted content. Everything else, modality included,\nstays sealed.",
-                "pt-br": "Sela `record`, liga ao `patient_id` no `meta` em claro, e cria o exame.\n\n`patient_id` é obrigatório e em claro de propósito — é o eixo que o\npróprio cofre usa para rotear e autorizar um exame sem nunca abrir o\nconteúdo cifrado. Todo o resto, modalidade inclusive, fica selado."
-              },
-              "kind": "method",
-              "name": "create",
-              "signature": "(record: ExamRecord | Mapping[str, Any], *, patient_id: str, security_group: str) -> Exam"
-            },
-            {
-              "doc": {
-                "en": "Seals a new complete version of `record` (see `Patients.update` for the conflict guard).",
-                "pt-br": "Sela uma versão nova e completa de `record` (ver `Patients.update` para a trava de conflito)."
-              },
-              "kind": "method",
-              "name": "update",
-              "signature": "(exam_id: str, record: ExamRecord | Mapping[str, Any], *, expected_latest_version_id: str | None = None) -> Exam"
-            },
-            {
-              "doc": {
-                "en": "Marks the exam archived (no new version).",
-                "pt-br": "Marca o exame arquivado (sem versão nova)."
-              },
-              "kind": "method",
-              "name": "archive",
-              "signature": "(exam_id: str) -> DocumentIndex"
-            },
-            {
-              "doc": {
-                "en": "Clears the archived flag (no new version).",
-                "pt-br": "Tira a flag de arquivado (sem versão nova)."
-              },
-              "kind": "method",
-              "name": "unarchive",
-              "signature": "(exam_id: str) -> DocumentIndex"
-            },
-            {
-              "doc": {
-                "en": "Moves the exam to the trash — a flag, never a hard delete; `restore` undoes it.",
-                "pt-br": "Manda o exame para a lixeira — uma flag, nunca um apagar de verdade; `restore` desfaz."
-              },
-              "kind": "method",
-              "name": "delete",
-              "signature": "(exam_id: str) -> DocumentIndex"
-            },
-            {
-              "doc": {
-                "en": "Takes the exam out of the trash.",
-                "pt-br": "Tira o exame da lixeira."
-              },
-              "kind": "method",
-              "name": "restore",
-              "signature": "(exam_id: str) -> DocumentIndex"
-            }
-          ],
-          "name": "Exams",
-          "signature": "(documents: VersionedDocuments[ExamRecord, ExamSummary], *, time_precision: TimePrecision | None = None)"
-        },
-        {
           "bases": [
             "BaseModel"
           ],
@@ -1399,6 +1388,108 @@
           "signature": "(*, title: str | None = None, modality: str | None = None, exam_date: str | None = None)"
         },
         {
+          "bases": [],
+          "doc": {
+            "en": "`vault.exams` — list, read, create, update, archive/unarchive, delete/restore.",
+            "pt-br": "`vault.exams` — listar, ler, criar, atualizar, arquivar/desarquivar, apagar/restaurar."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "One page of exams, each with its decrypted summary (title, modality, date).",
+                "pt-br": "Uma página de exames, cada um com o resumo decifrado (título, modalidade, data)."
+              },
+              "kind": "method",
+              "name": "list",
+              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50, cursor: str | None = None) -> Page[ExamListItem]"
+            },
+            {
+              "doc": {
+                "en": "Every exam, across all pages.",
+                "pt-br": "Todo exame, por todas as páginas."
+              },
+              "kind": "method",
+              "name": "iter_all",
+              "signature": "(*, security_group: str | None = None, include_deleted: bool = False, limit: int = 50) -> Iterator[ExamListItem]"
+            },
+            {
+              "doc": {
+                "en": "Fetches and decrypts one exam: the newest content (draft included), or `version_id`.",
+                "pt-br": "Busca e decifra um exame: o conteúdo mais novo (rascunho incluído), ou `version_id`."
+              },
+              "kind": "method",
+              "name": "get",
+              "signature": "(exam_id: str, *, version_id: str | None = None, include_draft: bool = True) -> Exam"
+            },
+            {
+              "doc": {
+                "en": "The exam's metadata — group, versions, flags, clear `meta` — without opening the record.",
+                "pt-br": "O metadado do exame — grupo, versões, flags, `meta` em claro — sem abrir o registro."
+              },
+              "kind": "method",
+              "name": "index",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Seals `record`, links it to `patient_id` in clear `meta`, and creates the exam.\n\n`patient_id` is required and clear on purpose — it is the axis the\nvault itself uses to route and authorize an exam without ever\nopening its encrypted content. Everything else, modality included,\nstays sealed.",
+                "pt-br": "Sela `record`, liga ao `patient_id` no `meta` em claro, e cria o exame.\n\n`patient_id` é obrigatório e em claro de propósito — é o eixo que o\npróprio cofre usa para rotear e autorizar um exame sem nunca abrir o\nconteúdo cifrado. Todo o resto, modalidade inclusive, fica selado."
+              },
+              "kind": "method",
+              "name": "create",
+              "signature": "(record: ExamRecord | Mapping[str, Any], *, patient_id: str, security_group: str) -> Exam"
+            },
+            {
+              "doc": {
+                "en": "Seals a new complete version of `record` (see `Patients.update` for the conflict guard).",
+                "pt-br": "Sela uma versão nova e completa de `record` (ver `Patients.update` para a trava de conflito)."
+              },
+              "kind": "method",
+              "name": "update",
+              "signature": "(exam_id: str, record: ExamRecord | Mapping[str, Any], *, expected_latest_version_id: str | None = None) -> Exam"
+            },
+            {
+              "doc": {
+                "en": "Marks the exam archived (no new version).",
+                "pt-br": "Marca o exame arquivado (sem versão nova)."
+              },
+              "kind": "method",
+              "name": "archive",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Clears the archived flag (no new version).",
+                "pt-br": "Tira a flag de arquivado (sem versão nova)."
+              },
+              "kind": "method",
+              "name": "unarchive",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Moves the exam to the trash — a flag, never a hard delete; `restore` undoes it.",
+                "pt-br": "Manda o exame para a lixeira — uma flag, nunca um apagar de verdade; `restore` desfaz."
+              },
+              "kind": "method",
+              "name": "delete",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            },
+            {
+              "doc": {
+                "en": "Takes the exam out of the trash.",
+                "pt-br": "Tira o exame da lixeira."
+              },
+              "kind": "method",
+              "name": "restore",
+              "signature": "(exam_id: str) -> DocumentIndex"
+            }
+          ],
+          "name": "Exams",
+          "signature": "(documents: VersionedDocuments[ExamRecord, ExamSummary], *, time_precision: TimePrecision | None = None)"
+        },
+        {
           "bases": [
             "DiagnosError"
           ],
@@ -1409,6 +1500,18 @@
           "kind": "exception",
           "members": [],
           "name": "GroupKeyUnavailable"
+        },
+        {
+          "bases": [
+            "DeprecationWarning"
+          ],
+          "doc": {
+            "en": "The `apikey-` token is deprecated; the vault stops accepting it on 2027-04-15.",
+            "pt-br": "O token `apikey-` está obsoleto; o cofre deixa de aceitá-lo em 2027-04-15."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "LegacyTokenWarning"
         },
         {
           "bases": [
@@ -1446,7 +1549,7 @@
           "kind": "exception",
           "members": [],
           "name": "NotFoundError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
           "bases": [
@@ -2039,7 +2142,7 @@
           "kind": "exception",
           "members": [],
           "name": "QuotaError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
           "bases": [
@@ -2052,7 +2155,169 @@
           "kind": "exception",
           "members": [],
           "name": "RateLimitError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "DiagnosPermissionError"
+          ],
+          "doc": {
+            "en": "`credential_scope_missing`: the service account lacks a permission.",
+            "pt-br": "Falta uma permissão à conta."
+          },
+          "kind": "exception",
+          "members": [
+            {
+              "doc": {
+                "en": "The missing permission, when the vault names it.",
+                "pt-br": "A permissão que falta, quando o cofre a nomeia."
+              },
+              "kind": "attribute",
+              "name": "permission",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "The group it is missing in, when named.",
+                "pt-br": "O grupo em que ela falta, quando nomeado."
+              },
+              "kind": "attribute",
+              "name": "security_group_id",
+              "signature": ": str | None"
+            }
+          ],
+          "name": "ScopeMissingError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "A parsed service account credential: identity in the clear, seed locked in the enclave.",
+            "pt-br": "Uma credencial de conta de serviço lida: identidade em claro, semente travada no enclave."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "Every request carries a `created` timestamp.",
+                "pt-br": "Toda requisição leva um timestamp `created`."
+              },
+              "kind": "attribute",
+              "name": "signs_requests",
+              "signature": ": Final"
+            },
+            {
+              "doc": {
+                "en": "Parse `<identity>:<seed>`, split on the last `:` (the identity never contains one).",
+                "pt-br": "Lê `<identidade>:<semente>`, dividindo no último `:` (a identidade nunca tem um)."
+              },
+              "kind": "method",
+              "name": "parse",
+              "signature": "(text: str, *, source: str = 'DIAGNOS_CREDENTIAL') -> ServiceAccountCredential"
+            },
+            {
+              "doc": {
+                "en": "Load the JSON file downloaded when the credential was created.",
+                "pt-br": "Carrega o JSON baixado na criação."
+              },
+              "kind": "method",
+              "name": "from_file",
+              "signature": "(path: str | os.PathLike[str]) -> ServiceAccountCredential"
+            },
+            {
+              "doc": {
+                "en": "`DIAGNOS_CREDENTIAL`, else `DIAGNOS_CREDENTIALS_FILE`, else `~/.config/diagnos/credentials.json`.",
+                "pt-br": "`DIAGNOS_CREDENTIAL`, senão `DIAGNOS_CREDENTIALS_FILE`, senão `~/.config/diagnos/credentials.json`."
+              },
+              "kind": "method",
+              "name": "from_env",
+              "signature": "(env: Mapping[str, str] | None = None) -> ServiceAccountCredential"
+            },
+            {
+              "doc": {
+                "en": "`svc_<hex>@<workspace_id>.diagnos.health` — the `keyid` of every signature.",
+                "pt-br": "`svc_<hex>@<workspace_id>.diagnos.health` — o `keyid` de toda assinatura."
+              },
+              "kind": "property",
+              "name": "identity",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "`svc_<hex>`: what an admin rotates or revokes.",
+                "pt-br": "`svc_<hex>`: o que um admin gira ou revoga."
+              },
+              "kind": "property",
+              "name": "key_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The workspace the key belongs to.",
+                "pt-br": "O workspace a que a chave pertence."
+              },
+              "kind": "property",
+              "name": "workspace_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The account's name, when the credential file carries it.",
+                "pt-br": "O nome da conta, quando o arquivo o traz."
+              },
+              "kind": "property",
+              "name": "service_account",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "The public key, base64url (43 chars) — compare it with the panel's.",
+                "pt-br": "A chave pública, base64url."
+              },
+              "kind": "property",
+              "name": "public_key",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Where it was read from (env var or file path).",
+                "pt-br": "De onde foi lida (variável ou caminho)."
+              },
+              "kind": "property",
+              "name": "source",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Ed25519 signature of `message`, made in the enclave.",
+                "pt-br": "Assinatura Ed25519, feita no enclave."
+              },
+              "kind": "method",
+              "name": "sign",
+              "signature": "(message: bytes) -> bytes"
+            },
+            {
+              "doc": {
+                "en": "The RFC 9421 headers for one attempt — a fresh nonce every call, so a retry is never a replay.",
+                "pt-br": "Os headers RFC 9421 de uma tentativa — nonce novo a cada chamada, para retentar nunca ser replay."
+              },
+              "kind": "method",
+              "name": "request_headers",
+              "signature": "(method: str, url: httpx.URL, body: bytes, created: int) -> dict[str, str]"
+            },
+            {
+              "doc": {
+                "en": "Zero the seed now; it cannot sign afterwards.",
+                "pt-br": "Zera a semente agora; depois não assina."
+              },
+              "kind": "method",
+              "name": "wipe",
+              "signature": "() -> None"
+            }
+          ],
+          "name": "ServiceAccountCredential",
+          "signature": "(identity: str, seed: SecretBox, *, service_account: str | None = None, source: str = '')"
         },
         {
           "bases": [
@@ -2081,7 +2346,7 @@
               },
               "kind": "attribute",
               "name": "api_token",
-              "signature": ": str"
+              "signature": ": str | None = None"
             },
             {
               "doc": {
@@ -2175,16 +2440,25 @@
             },
             {
               "doc": {
+                "en": "",
+                "pt-br": ""
+              },
+              "kind": "attribute",
+              "name": "credential",
+              "signature": ": ServiceAccountCredential | None = None"
+            },
+            {
+              "doc": {
                 "en": "Read the environment variables documented in `docs/PROTOCOL.md §11`.\n\n`env` defaults to `os.environ` but accepts an explicit mapping so\ntests never have to monkeypatch process-global state.",
                 "pt-br": "Lê as variáveis de ambiente documentadas em `docs/PROTOCOL.md §11`.\n\n`env` usa `os.environ` por padrão, mas aceita um mapeamento explícito\npara os testes nunca precisarem de monkeypatch em estado global do\nprocesso."
               },
               "kind": "method",
               "name": "from_env",
-              "signature": "(env: Mapping[str, str] | None = None) -> Settings"
+              "signature": "(env: Mapping[str, str] | None = None, *, credential: ServiceAccountCredential | None = None) -> Settings"
             }
           ],
           "name": "Settings",
-          "signature": "(api_token: str, vault_url: str = 'https://vault.diagnos.health', timeout_seconds: float = 30.0, openbao_addr: str | None = None, openbao_token: str | None = None, openbao_mount: str = 'secret', openbao_path_prefix: str = 'diagnos', openbao_namespace: str | None = None, harden_process: bool = True, time_precision: TimePrecision | None = None, storage_hosts: tuple[str, ...] = ('diagnosusercontent.com', 'r2.cloudflarestorage.com'))"
+          "signature": "(api_token: str | None = None, vault_url: str = 'https://vault.diagnos.health', timeout_seconds: float = 30.0, openbao_addr: str | None = None, openbao_token: str | None = None, openbao_mount: str = 'secret', openbao_path_prefix: str = 'diagnos', openbao_namespace: str | None = None, harden_process: bool = True, time_precision: TimePrecision | None = None, storage_hosts: tuple[str, ...] = ('diagnosusercontent.com', 'r2.cloudflarestorage.com'), credential: ServiceAccountCredential | None = None)"
         },
         {
           "doc": {
@@ -2263,7 +2537,7 @@
           "kind": "exception",
           "members": [],
           "name": "ValidationError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
           "bases": [
@@ -2319,10 +2593,33 @@
               "kind": "attribute",
               "name": "request_id",
               "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "The error's `details` — data to recover with (`server_time`, the missing permission); often empty.",
+                "pt-br": "Os `details` do erro — dados para se recuperar (`server_time`, a permissão que falta); muitas vezes vazio."
+              },
+              "kind": "attribute",
+              "name": "details",
+              "signature": ": dict[str, Any]"
             }
           ],
           "name": "VaultError",
-          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None)"
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
+        },
+        {
+          "bases": [
+            "CredentialError",
+            "DiagnosPermissionError"
+          ],
+          "doc": {
+            "en": "`credential_workspace_mismatch`: the credential belongs to another workspace.",
+            "pt-br": "`credential_workspace_mismatch`: a credencial é de outro workspace."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "WorkspaceMismatchError",
+          "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
           "doc": {

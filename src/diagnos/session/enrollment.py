@@ -41,7 +41,7 @@ from diagnos.session.runtime import collect_runtime
 # `token.workspace_id`) que nunca exigem o objeto da classe.
 if TYPE_CHECKING:
     from diagnos.transport.http import VaultTransport
-    from diagnos.transport.token import ServiceAccountToken
+    from diagnos.transport.identity import RequestIdentity
 
 # 🇺🇸 The one shape a session DEK — and every group DEK — must have
 # (`docs/PROTOCOL.md §5`): raw AES-256-GCM key material, nothing wrapped
@@ -118,7 +118,7 @@ def _open_group_keys(keypair: HybridKeyPair, enrollment_id: str, sealed_group_ke
 
 def enroll(
     transport: VaultTransport,
-    token: ServiceAccountToken,
+    token: RequestIdentity,
     keypair: HybridKeyPair,
     *,
     on_prompt: PromptCallback,
@@ -129,17 +129,19 @@ def enroll(
 
     Both the registration `POST` and the poll `GET` go out `signed=False`
     (`docs/PROTOCOL.md §5`): a signature would need a session's `sign_key`,
-    and the entire point of this call is that no session exists yet — Bearer
-    auth alone is enough to prove which service account is asking, and the
-    approval itself is the human decision that grants everything else.
+    and the entire point of this call is that no session exists yet — the
+    credential's own signature (RFC 9421, or the legacy bearer) is enough to
+    prove which service account is asking, and the approval itself is the
+    human decision that grants everything else.
 
     🇧🇷 Registra o par de chaves, mostra o prompt, faz poll até a aprovação, abre o material selado.
 
     Tanto o `POST` de registro quanto o `GET` do poll saem `signed=False`
     (`docs/PROTOCOL.md §5`): uma assinatura precisaria do `sign_key` de uma
     sessão, e o ponto inteiro desta chamada é que nenhuma sessão existe
-    ainda — só o Bearer já basta para provar qual service account está
-    pedindo, e a própria aprovação é a decisão humana que concede o resto.
+    ainda — a própria assinatura da credencial (RFC 9421, ou o bearer
+    legado) já basta para provar qual service account está pedindo, e a
+    própria aprovação é a decisão humana que concede o resto.
     """
     path = _registry_path(token.workspace_id)
     registration = transport.post(

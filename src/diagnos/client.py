@@ -24,10 +24,12 @@ gerar.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
 from diagnos import _client_wiring
+from diagnos._client_identity import CredentialLike, IdentityView, resolve_identity
 from diagnos._client_wiring import _print_enrollment_prompt_fallback, _resolve_settings
 from diagnos.crypto import EntropyMixer
 from diagnos.errors import SessionExpiredError
@@ -39,22 +41,34 @@ from diagnos.session.manager import SessionManager
 from diagnos.session.unseal import OpenBaoStore
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport
-from diagnos.transport.token import ServiceAccountToken, redact_api_token
 
 if TYPE_CHECKING:
     from diagnos.session.keyring import Keyring, SessionKeys
 
 
-class Diagnos:
+class Diagnos(IdentityView):
     """🇺🇸 The SDK's entry point: one service account's live connection to one workspace.
 
+    `Diagnos()` (or `Diagnos.from_env()`) finds the credential in
+    `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` or
+    `~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` takes one
+    explicitly. The identity properties (`workspace_id`, `key_id`,
+    `identity`…) come from `IdentityView`.
+
     🇧🇷 O ponto de entrada do SDK: a conexão viva de uma service account com um workspace.
+
+    `Diagnos()` (ou `Diagnos.from_env()`) acha a credencial em
+    `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` ou
+    `~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` recebe uma
+    explícita. As propriedades de identidade (`workspace_id`, `key_id`,
+    `identity`…) vêm de `IdentityView`.
     """
 
     def __init__(
         self,
         settings: Settings | None = None,
         *,
+        credential: CredentialLike | None = None,
         token: str | None = None,
         on_prompt: PromptCallback | None = None,
         auto_unseal: bool | None = None,
@@ -63,25 +77,27 @@ class Diagnos:
     ) -> None:
         """🇺🇸 Builds (or accepts) every layer below `patients`/`exams`/`drives`.
 
+        `credential` is a `ServiceAccountCredential`, its one-line form or the
+        path of its JSON file; `token` is the deprecated `apikey-` token.
         `transport`/`session` are escape hatches for tests, not something a
-        real application ever passes — see `apps/sdk/tests/test_client.py` for the
-        pattern (a fake `session` that never touches the network).
+        real application ever passes — see `apps/sdk/tests/test_client.py`.
 
         🇧🇷 Constrói (ou aceita) toda camada abaixo de `patients`/`exams`/`drives`.
 
+        `credential` é uma `ServiceAccountCredential`, sua forma de uma linha
+        ou o caminho do JSON; `token` é o token `apikey-` obsoleto.
         `transport`/`session` são válvulas de escape para teste, nunca algo
-        que uma aplicação de verdade passa — ver `apps/sdk/tests/test_client.py`
-        para o padrão (um `session` falso que nunca toca a rede).
+        que uma aplicação de verdade passa — ver `apps/sdk/tests/test_client.py`.
         """
-        self._settings = _resolve_settings(settings, token)
-        self._token = ServiceAccountToken.parse(self._settings.api_token)
+        self._settings = _resolve_settings(settings, token, credential)
+        self._identity = resolve_identity(self._settings)
         self._entropy = EntropyMixer()
         self._transport = (
             transport
             if transport is not None
             else VaultTransport(
                 self._settings,
-                self._token,
+                self._identity,
                 session_keys=self._current_session_keys,
                 on_seed=self._entropy.mix,
             )
@@ -92,13 +108,13 @@ class Diagnos:
         else:
             auto_unseal_enabled = auto_unseal if auto_unseal is not None else self._settings.openbao_addr is not None
             store = (
-                OpenBaoStore(self._settings, workspace_id=self._token.workspace_id, account_id=self._token.account_id)
+                OpenBaoStore(self._settings, workspace_id=self.workspace_id, account_id=self.account_id or self.key_id)
                 if auto_unseal_enabled
                 else None
             )
             resolved_prompt = on_prompt if on_prompt is not None else _print_enrollment_prompt_fallback()
             session_kwargs: dict[str, Any] = {"store": store, "on_prompt": resolved_prompt}
-            self._session = SessionManager(self._settings, self._token, self._transport, **session_kwargs)
+            self._session = SessionManager(self._settings, self._identity, self._transport, **session_kwargs)
 
         self._patients: Patients | None = None
         self._exams: Exams | None = None
@@ -135,37 +151,13 @@ class Diagnos:
             keyring = None
         return keyring if keyring is not None else self._session.unlock()
 
-    @property
-    def workspace_id(self) -> str:
-        """🇺🇸 This service account's workspace, read from its token.
+    @classmethod
+    def from_env(cls, env: Mapping[str, str] | None = None, **options: Any) -> Diagnos:
+        """🇺🇸 Everything from the environment (`env`, default `os.environ`); `options` go to the constructor.
 
-        🇧🇷 O workspace desta service account, lido do token dela.
+        🇧🇷 Tudo do ambiente (`env`, padrão `os.environ`); `options` vão para o construtor.
         """
-        return self._token.workspace_id
-
-    @property
-    def account_id(self) -> str:
-        """🇺🇸 This service account's owning account, read from its token.
-
-        🇧🇷 A conta dona desta service account, lida do token dela.
-        """
-        return self._token.account_id
-
-    @property
-    def name(self) -> str:
-        """🇺🇸 The service account's human-readable name (`slug@<workspace_id>.diagnos.health`).
-
-        🇧🇷 O nome legível da service account (`slug@<workspace_id>.diagnos.health`).
-        """
-        return self._token.name
-
-    @property
-    def key_id(self) -> str:
-        """🇺🇸 Id of the token's key pair — what an admin rotates or revokes.
-
-        🇧🇷 Id do par de chaves do token — o que um admin rotaciona ou revoga.
-        """
-        return self._token.key_id
+        return cls(Settings.from_env(env), **options)
 
     @property
     def security_groups(self) -> list[str]:
@@ -288,11 +280,8 @@ class Diagnos:
         self.close()
 
     def __repr__(self) -> str:
-        """🇺🇸 Never the token — only what identifies the workspace/account.
+        """🇺🇸 Never the seed or the token — only what identifies the workspace and the key, masked.
 
-        🇧🇷 Nunca o token — só o que identifica workspace/conta.
+        🇧🇷 Nunca a semente nem o token — só o que identifica o workspace e a chave, mascarado.
         """
-        return (
-            f"Diagnos(workspace_id={self.workspace_id!r}, account_id={self.account_id!r}, "
-            f"name={self._token.name!r}, api_token={redact_api_token(self._token.raw)!r})"
-        )
+        return f"Diagnos(workspace_id={self.workspace_id!r}, {self._identity_repr()})"

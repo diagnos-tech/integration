@@ -25,6 +25,8 @@ from typing import cast
 from diagnos.dates import TIME_PRECISIONS, TimePrecision
 from diagnos.errors import ConfigError
 
+from .credential import NOT_CONFIGURED, ServiceAccountCredential
+from .credential_file import FoundIdentity, find_identity
 from .storage_hosts import DEFAULT_STORAGE_HOSTS, parse_storage_hosts
 from .token import redact_api_token
 
@@ -114,7 +116,9 @@ class Settings:
     🇧🇷 Configuração imutável do SDK, normalmente construída por `from_env`.
     """
 
-    api_token: str
+    # 🇺🇸 The deprecated `apikey-<jwt>` token (accepted until 2027-04-15); `credential` wins when both are set.
+    # 🇧🇷 O token `apikey-<jwt>` obsoleto (aceito até 2027-04-15); `credential` vence quando os dois existem.
+    api_token: str | None = None
     vault_url: str = DEFAULT_VAULT_URL
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     openbao_addr: str | None = None
@@ -140,9 +144,14 @@ class Settings:
     # 🇧🇷 Hosts para onde uma URL de armazenamento pré-assinada pode apontar (e subdomínios), só HTTPS — ver
     #    `storage_hosts.py`.
     storage_hosts: tuple[str, ...] = DEFAULT_STORAGE_HOSTS
+    # 🇺🇸 The service account credential (`DIAGNOS_CREDENTIAL` and friends, see `credential_file.py`).
+    # 🇧🇷 A credencial da conta de serviço (`DIAGNOS_CREDENTIAL` e companhia, ver `credential_file.py`).
+    credential: ServiceAccountCredential | None = None
 
     @staticmethod
-    def from_env(env: Mapping[str, str] | None = None) -> Settings:
+    def from_env(
+        env: Mapping[str, str] | None = None, *, credential: ServiceAccountCredential | None = None
+    ) -> Settings:
         """🇺🇸 Read the environment variables documented in `docs/PROTOCOL.md §11`.
 
         `env` defaults to `os.environ` but accepts an explicit mapping so
@@ -155,16 +164,11 @@ class Settings:
         processo.
         """
         source = env if env is not None else os.environ
-        api_token = source.get("DIAGNOS_API_TOKEN")
-        if not api_token:
-            raise ConfigError(
-                "🇺🇸 DIAGNOS_API_TOKEN is required and was not found in the environment; "
-                "set it to the 'apikey-<jwt>' token a workspace admin issued for this "
-                "service account. "
-                "🇧🇷 DIAGNOS_API_TOKEN é obrigatório e não foi encontrado no ambiente; "
-                "defina como o token 'apikey-<jwt>' que um admin do workspace emitiu "
-                "para esta service account."
-            )
+        # 🇺🇸 An explicit `credential` replaces discovery (`credential_file.py`); everything else still comes from `env`.
+        # 🇧🇷 Uma `credential` explícita substitui a descoberta (`credential_file.py`); o resto ainda vem de `env`.
+        found = FoundIdentity(credential=credential) if credential is not None else find_identity(source)
+        if found.credential is None and found.api_token is None:
+            raise ConfigError(NOT_CONFIGURED)
         timeout_raw = source.get("DIAGNOS_TIMEOUT_SECONDS")
         try:
             timeout_seconds = float(timeout_raw) if timeout_raw else DEFAULT_TIMEOUT_SECONDS
@@ -174,7 +178,8 @@ class Settings:
                 f"🇧🇷 DIAGNOS_TIMEOUT_SECONDS={timeout_raw!r} não é um número."
             ) from exc
         return Settings(
-            api_token=api_token,
+            api_token=found.api_token,
+            credential=found.credential,
             vault_url=source.get("DIAGNOS_VAULT_URL") or DEFAULT_VAULT_URL,
             timeout_seconds=timeout_seconds,
             openbao_addr=source.get("OPENBAO_ADDR") or None,
@@ -193,8 +198,9 @@ class Settings:
         🇧🇷 Redigido: os dois tokens são capazes de agir como este workspace / path do OpenBao.
         """
         openbao_token = _redact_opaque(self.openbao_token) if self.openbao_token else None
+        api_token = redact_api_token(self.api_token) if self.api_token else None
         return (
-            f"Settings(api_token={redact_api_token(self.api_token)!r}, vault_url={self.vault_url!r}, "
+            f"Settings(credential={self.credential!r}, api_token={api_token!r}, vault_url={self.vault_url!r}, "
             f"timeout_seconds={self.timeout_seconds!r}, "
             f"openbao_addr={self.openbao_addr!r}, openbao_token={openbao_token!r}, "
             f"openbao_mount={self.openbao_mount!r}, openbao_path_prefix={self.openbao_path_prefix!r}, "

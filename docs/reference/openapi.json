@@ -4,7 +4,7 @@
     "title": "diagnos API",
     "summary": "🇺🇸 REST facade over the diagnos SDK, authenticated by mutual TLS. 🇧🇷 Fachada REST sobre o SDK diagnos, autenticada por mTLS mútuo.",
     "description": "🇺🇸 A thin HTTP face over the diagnos SDK: one process, one service account, one live session. Every route requires a client certificate signed by the CA this deployment trusts — there is no other credential. Every non-2xx response is `{\"error\": {\"code\", \"message\", \"trace_id\"}}`; branch on `code`. 🇧🇷 Uma face HTTP fina sobre o SDK diagnos: um processo, uma service account, uma sessão viva. Toda rota exige um certificado de cliente assinado pela CA em que este deployment confia — não existe outra credencial. Toda resposta não-2xx é `{\"error\": {\"code\", \"message\", \"trace_id\"}}`; decida por `code`.",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
     "/v1/patients": {
@@ -4800,7 +4800,14 @@
             "title": "Workspace Id"
           },
           "account_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Account Id"
           },
           "security_groups": {

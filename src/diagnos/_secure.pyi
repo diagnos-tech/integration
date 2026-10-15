@@ -28,6 +28,9 @@ X25519_SECRET_BYTES: Final[int]
 MLKEM768_PUBLIC_BYTES: Final[int]
 MLKEM768_SECRET_BYTES: Final[int]
 MLKEM768_CIPHERTEXT_BYTES: Final[int]
+ED25519_SEED_BYTES: Final[int]
+ED25519_PUBLIC_BYTES: Final[int]
+ED25519_SIGNATURE_BYTES: Final[int]
 
 class SecureError(Exception):
     """🇺🇸 Any failure inside the enclave. 🇧🇷 Qualquer falha dentro do enclave."""
@@ -118,5 +121,7 @@ class EntropyPool:
 def seal_hybrid(
     x25519_public: _Buffer, mlkem768_public: _Buffer, plaintext: _Buffer, aad: _Buffer
 ) -> tuple[bytes, bytes, bytes]: ...
+def ed25519_public_key(seed: SecretBox) -> bytes: ...
+def ed25519_sign(seed: SecretBox, message: _Buffer) -> bytes: ...
 def harden_process() -> dict[str, Any]: ...
 def memory_status() -> dict[str, Any]: ...

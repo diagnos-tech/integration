@@ -47,13 +47,21 @@ from ._extras import MissingExtraError, require
 from ._version import __version__
 
 if TYPE_CHECKING:
+    from ._client_identity import LegacyTokenWarning
     from .client import Diagnos
     from .crypto.secure import MemoryLockWarning, memory_status
     from .dates import TimePrecision, to_iso_instant, truncate_timestamp
     from .errors import (
         AuthenticationError,
+        ClockSkewError,
         ConfigError,
         ConflictError,
+        CredentialError,
+        CredentialExpiredError,
+        CredentialReplayError,
+        CredentialRevokedError,
+        CredentialSignatureError,
+        CredentialUnknownError,
         CryptoError,
         DiagnosError,
         DiagnosPermissionError,
@@ -63,9 +71,11 @@ if TYPE_CHECKING:
         ProtocolError,
         QuotaError,
         RateLimitError,
+        ScopeMissingError,
         SessionExpiredError,
         ValidationError,
         VaultError,
+        WorkspaceMismatchError,
     )
     from .models import (
         DocumentDraft,
@@ -92,19 +102,28 @@ if TYPE_CHECKING:
     from .session.enrollment import EnrollmentPrompt
     from .session.keyring import GroupKeyUnavailable
     from .transport.config import Settings
+    from .transport.credential import ServiceAccountCredential
 
 # 🇺🇸 The same imports as the `TYPE_CHECKING` block above, as data: which module each public SDK name lives in.
 #    `wrappers/py/tests/test_facade.py` holds the two lists equal and `__all__` to their union.
 # 🇧🇷 Os mesmos imports do bloco `TYPE_CHECKING` acima, como dado: em que módulo vive cada nome público do SDK.
 #    O `wrappers/py/tests/test_facade.py` mantém as duas listas iguais e o `__all__` igual à união delas.
 _SDK: Final[dict[str, tuple[str, ...]]] = {
+    "._client_identity": ("LegacyTokenWarning",),
     ".client": ("Diagnos",),
     ".crypto.secure": ("MemoryLockWarning", "memory_status"),
     ".dates": ("TimePrecision", "to_iso_instant", "truncate_timestamp"),
     ".errors": (
         "AuthenticationError",
+        "ClockSkewError",
         "ConfigError",
         "ConflictError",
+        "CredentialError",
+        "CredentialExpiredError",
+        "CredentialReplayError",
+        "CredentialRevokedError",
+        "CredentialSignatureError",
+        "CredentialUnknownError",
         "CryptoError",
         "DiagnosError",
         "DiagnosPermissionError",
@@ -114,9 +133,11 @@ _SDK: Final[dict[str, tuple[str, ...]]] = {
         "ProtocolError",
         "QuotaError",
         "RateLimitError",
+        "ScopeMissingError",
         "SessionExpiredError",
         "ValidationError",
         "VaultError",
+        "WorkspaceMismatchError",
     ),
     ".models": (
         "DocumentDraft",
@@ -143,6 +164,7 @@ _SDK: Final[dict[str, tuple[str, ...]]] = {
     ".session.enrollment": ("EnrollmentPrompt",),
     ".session.keyring": ("GroupKeyUnavailable",),
     ".transport.config": ("Settings",),
+    ".transport.credential": ("ServiceAccountCredential",),
 }
 _ORIGIN: Final = {name: module for module, names in _SDK.items() for name in names}
 
@@ -175,8 +197,15 @@ if not TYPE_CHECKING:  # pragma: no branch — always true at runtime
 
 __all__ = [
     "AuthenticationError",
+    "ClockSkewError",
     "ConfigError",
     "ConflictError",
+    "CredentialError",
+    "CredentialExpiredError",
+    "CredentialReplayError",
+    "CredentialRevokedError",
+    "CredentialSignatureError",
+    "CredentialUnknownError",
     "CryptoError",
     "Diagnos",
     "DiagnosError",
@@ -194,10 +223,11 @@ __all__ = [
     "EnrollmentPrompt",
     "Exam",
     "ExamListItem",
-    "Exams",
     "ExamRecord",
     "ExamSummary",
+    "Exams",
     "GroupKeyUnavailable",
+    "LegacyTokenWarning",
     "MemoryLockWarning",
     "MissingExtraError",
     "NotFoundError",
@@ -212,12 +242,15 @@ __all__ = [
     "ProtocolError",
     "QuotaError",
     "RateLimitError",
+    "ScopeMissingError",
+    "ServiceAccountCredential",
     "SessionExpiredError",
     "Settings",
     "TimePrecision",
     "UploadSource",
     "ValidationError",
     "VaultError",
+    "WorkspaceMismatchError",
     "memory_status",
     "to_iso_instant",
     "truncate_timestamp",
