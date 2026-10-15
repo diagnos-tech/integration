@@ -63,9 +63,9 @@ def _fixed_runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 def test_a_revoked_key_cannot_open_an_enrollment(pact: Pact) -> None:
-    """🇺🇸 `401 credential_key_revoked` on registration becomes `CredentialRevokedError`, telling how to rotate.
+    """🇺🇸 `401 CredentialKeyRevoked` on registration becomes `CredentialRevokedError`, telling how to rotate.
 
-    🇧🇷 `401 credential_key_revoked` no registro vira `CredentialRevokedError`, dizendo como girar a chave.
+    🇧🇷 `401 CredentialKeyRevoked` no registro vira `CredentialRevokedError`, dizendo como girar a chave.
     """
     declare_clock(pact)
     state, params = workspace_state("the service account's key was revoked")
@@ -75,7 +75,7 @@ def test_a_revoked_key_cannot_open_an_enrollment(pact: Pact) -> None:
         .with_request("POST", path(REGISTRY, pattern=REGISTRY_PATTERN, expression=REGISTRY_EXPRESSION))
         .with_headers(identity_headers(body=True))
         .will_respond_with(401)
-        .with_body(failure("credential_key_revoked"), content_type="application/json")
+        .with_body(failure("CredentialKeyRevoked"), content_type="application/json")
     )
 
     with pact.serve() as server, pytest.raises(CredentialRevokedError, match="Rotate key"):

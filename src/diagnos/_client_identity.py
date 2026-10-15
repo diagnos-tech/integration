@@ -138,14 +138,24 @@ class IdentityView:
         return self._identity.account_id if isinstance(self._identity, ServiceAccountToken) else None
 
     @property
-    def name(self) -> str:
-        """🇺🇸 The service account's name, or the credential's identity when the name is unknown.
+    def name(self) -> str | None:
+        """🇺🇸 The service account's short name (the slug); `None` when only the one-line credential is known.
 
-        🇧🇷 O nome da conta de serviço, ou a identidade da credencial quando o nome é desconhecido.
+        🇧🇷 O nome curto da conta de serviço (o slug); `None` quando só a credencial de uma linha é conhecida.
         """
         if isinstance(self._identity, ServiceAccountToken):
-            return self._identity.name
-        return self._identity.service_account or self._identity.identity
+            return self._identity.name.partition("@")[0]
+        account = self._identity.service_account
+        return account.partition("@")[0] if account else None
+
+    @property
+    def email(self) -> str | None:
+        """🇺🇸 The account's full address, `<name>@<workspace_id>.diagnos.health`; `None` without a name.
+
+        🇧🇷 O endereço completo da conta, `<name>@<workspace_id>.diagnos.health`; `None` sem nome.
+        """
+        name = self.name
+        return f"{name}@{self.workspace_id}.diagnos.health" if name else None
 
     @property
     def key_id(self) -> str:

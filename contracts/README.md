@@ -89,7 +89,7 @@ re-signs the session HMAC (`X-Signature-*`), which stays on every session route.
 
 Three interactions keep the deprecated `Authorization: Bearer apikey-<jwt>` pinned until the vault stops accepting
 it (2027-04-15) — their descriptions say "on a legacy apikey- token". One interaction pins a credential failure:
-`401 credential_key_revoked` on registration.
+`401 CredentialKeyRevoked` on registration.
 
 ## Provider states and path generators
 
@@ -123,7 +123,7 @@ Every provider state name in the current contract, and what the vault must seed 
 | Provider state | Params | The vault must seed |
 |---|---|---|
 | `a service account can enroll an SDK session` | `workspace_id` | A workspace and a service account whose active Ed25519 key can register hybrid public keys against `session/registry`. |
-| `the service account's key was revoked` | `workspace_id` | A service account whose key was revoked — registration answers `401 credential_key_revoked`. |
+| `the service account's key was revoked` | `workspace_id` | A service account whose key was revoked — registration answers `401 CredentialKeyRevoked`. |
 | `a legacy apikey- token can enroll an SDK session` | `workspace_id` | A service account holding a legacy `apikey-` token able to register against `session/registry`. |
 | `an enrollment opened with a legacy apikey- token is waiting for an admin` | `workspace_id`, `enrollment_id` | A pending enrollment of that legacy token — `GET` on it returns `"status": "pending"`. |
 | `an SDK session opened with a legacy apikey- token is active` | `workspace_id` | An active session of that legacy token the vault will accept a `session/lock` for. |

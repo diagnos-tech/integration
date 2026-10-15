@@ -32,13 +32,16 @@ has the three-step migration.
 - `ServiceAccountCredential` (`parse`, `from_file`, `from_env`, `identity`, `key_id`, `workspace_id`,
   `service_account`, `public_key`), `Diagnos(credential=…)` (the credential, its one-line form or the path of its
   file) and `Diagnos.from_env(env=None, **options)`; `Settings.credential` and `Settings.from_env(credential=…)`.
-- `Diagnos.identity` and `Diagnos.credential_kind` (`"ed25519"` or `"legacy_apikey"`).
+- `Diagnos.identity`, `Diagnos.email` (`<name>@<workspace_id>.diagnos.health`) and `Diagnos.credential_kind`
+  (`"ed25519"` or `"legacy_apikey"`).
 - Typed errors for every credential failure, each one saying exactly what to do: `CredentialError` (catch-all),
   `CredentialSignatureError`, `CredentialReplayError`, `ClockSkewError` (with `skew_seconds` and `server_time`,
   read from the error's `server_time` or the response's `Date`, and printed as "N s ahead/behind the vault"),
   `CredentialRevokedError`, `CredentialExpiredError`, `CredentialUnknownError` (all `AuthenticationError`),
-  `WorkspaceMismatchError` and `ScopeMissingError` (with `permission` and `security_group_id`; both
-  `DiagnosPermissionError`). `VaultError.details` carries the error's recovery data.
+  `WorkspaceMismatchError` and `ScopeMissingError` (with `resource`, `action` and `security_group_id`; both
+  `DiagnosPermissionError`), one per vault code (`CredentialSignatureInvalid`, `CredentialReplayed`,
+  `CredentialClockSkew`, `CredentialKeyRevoked`, `CredentialKeyExpired`, `CredentialKeyUnknown`,
+  `CredentialWorkspaceMismatch`, `CredentialScopeMissing`). `VaultError.details` carries the error's recovery data.
 - The enclave signs Ed25519 (`ed25519-dalek`, the same dalek family as its X25519), checked against the RFC 8032
   vectors and RFC 9421 Appendix B.2.6.
 - cargo-fuzz targets for the enclave's AEAD, secretstream and hybrid-seal parsers, run weekly (`make fuzz` locally).
@@ -48,11 +51,13 @@ has the three-step migration.
 
 ### Changed
 
+- `Diagnos.name` is the service account's short name (the slug), no longer the full address — that is
+  `Diagnos.email`; both are `None` when only the one-line credential is known (the file carries the name).
 - `Diagnos.account_id` is `None` with a service account credential (its identity is the key itself); the REST API's
   `GET /v1/session` returns `account_id: null` in that case. With OpenBao auto-unseal, a credential's session is
   kept at `<prefix>/<workspace_id>/<key_id>`.
-- A `credential_clock_skew` answer re-syncs the clock against `GET /time` and retries once, like
-  `SignatureTimestampSkew`; `credential_replayed` is never retried, because the first copy may have gone through.
+- A `CredentialClockSkew` answer re-syncs the clock against `GET /time` and retries once, like
+  `SignatureTimestampSkew`; `CredentialReplayed` is never retried, because the first copy may have gone through.
 - The contract (`contracts/diagnos-sdk-diagnos-vault.json`) now describes the credential's headers on every
   interaction, keeps three interactions on the legacy token, and adds a revoked-key registration.
 - The PyPI summary is now "SDK, CLI & API to integrate with diagnos.health".
