@@ -1,11 +1,4 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://diagnos.health/brand/svg/diagnos-lockup-white.svg">
-    <img src="https://diagnos.health/brand/svg/diagnos-lockup-gradient.svg" alt="diagnos" width="260">
-  </picture>
-</p>
-
-</br>
+[![diagnos](https://diagnos.health/brand/svg/diagnos-lockup-gradient.svg)](https://diagnos.health)
 
 # integration
 
@@ -29,7 +22,7 @@ envelope de chave. Tudo que é clínico é cifrado **dentro do seu processo** an
 ciphertext. Este pacote faz disso o caminho *fácil*.
 
 > [!NOTE]
-> **Situação: prévia 0.1.0.** Toda superfície — enrollment, sessões, assinatura de requisições, pacientes, exames,
+> **Situação: prévia 0.2.0.** Toda superfície — enrollment, sessões, assinatura de requisições, pacientes, exames,
 > arquivos e pastas — fala o protocolo atual do cofre e é verificada contra ele pelos
 > [testes de contrato](contracts/README.pt-BR.md). Limites conhecidos, e as questões ainda em aberto do lado do cofre,
 > estão em [docs/COMPATIBILITY.pt-BR.md](docs/COMPATIBILITY.pt-BR.md).
@@ -43,7 +36,7 @@ ciphertext. Este pacote faz disso o caminho *fácil*.
 | `pip install "diagnos[cli]"` | [a CLI](apps/cli/README.pt-BR.md) — `diagnos login`, `diagnos patients list`, … | scripts, operação, uma olhada rápida |
 | `pip install "diagnos[api]"` | [a API REST](apps/api/README.pt-BR.md) — `diagnos-api`, ou a imagem assinada dela | seu sistema fala HTTP, não Python |
 
-Mesmo token, mesmo fluxo de aprovação, mesmas garantias: a CLI e a API são cascas finas sobre o SDK — nunca
+Mesma credencial, mesmo fluxo de aprovação, mesmas garantias: a CLI e a API são cascas finas sobre o SDK — nunca
 reimplementam um único byte de criptografia. Um pacote traz os três; um extra só soma as dependências de uma camada.
 Ou deixe a base fazer, passo a passo:
 
@@ -58,16 +51,22 @@ Todo release é assinado com Sigstore e traz proveniência de build — [verifiq
 Quem programa em outras linguagens ganha os mesmos quatro comandos da base pelos [wrappers](wrappers/README.pt-BR.md).
 
 > [!NOTE]
-> Até a `0.1.0` estar no PyPI, instale do código-fonte — [Instalação](docs/guides/install.pt-BR.md) tem os comandos,
+> Até a `0.2.0` estar no PyPI, instale do código-fonte — [Instalação](docs/guides/install.pt-BR.md) tem os comandos,
 > e o [toolchain Rust](https://rustup.rs/) que o build precisa.
 
 ## Começando
 
-**1. Consiga um token.** Um admin do workspace emite um token de service account no app web do diagnos:
+**1. Consiga uma credencial.** Um admin do workspace abre *Configurações → Contas de serviço* no app web do
+diagnos, cria uma conta de serviço e copia a credencial dela — mostrada uma vez, porque o cofre guarda só a metade
+pública da chave:
 
 ```sh
-export DIAGNOS_API_TOKEN="apikey-…"
+export DIAGNOS_CREDENTIAL="svc_<32 hex>@<workspace_id>.diagnos.health:<chave>"
 ```
+
+> [!NOTE]
+> O token `apikey-` em `DIAGNOS_API_TOKEN` está obsoleto: funciona, com aviso, até **2027-04-15**.
+> O [MIGRATING.pt-BR.md](MIGRATING.pt-BR.md#do-token-apikey--para-uma-credencial-de-conta-de-serviço-020) troca em três passos.
 
 **2. Faça o enrollment.** A primeira execução imprime um link e um código de 6 dígitos; um admin aprova no app web e
 escolhe quais security groups este processo pode ler.
@@ -87,14 +86,16 @@ diagnos logout         # revoga e apaga as chaves
 ```
 
 **3. Use.** Pacientes, exames e arquivos pendem do mesmo objeto — `vault.patients`, `vault.exams`, `vault.drives`. O
-[início rápido](docs/guides/quickstart.pt-BR.md) vai daqui até o primeiro paciente e o primeiro arquivo cifrados.
+[início rápido](docs/guides/quickstart.pt-BR.md) vai daqui até o primeiro paciente e o primeiro arquivo cifrados, e
+[`examples/`](examples/README.pt-BR.md) tem programas completos para copiar: subir um arquivo, pacientes, exames,
+tratamento de erros.
 
 Um nome, três grafias: um **security group** é `security_group=` no SDK (`security_group_id` no que ele devolve),
 `--group` / `DIAGNOS_GROUP` na CLI, e `security_group` ou `{sg}` na API.
 
 As chaves privadas nunca saem do processo e nada é gravado em disco, então um processo novo precisa de uma nova
 aprovação — isso é o desenho, não uma limitação. A CLI mantém a sessão num único processo em segundo plano entre o
-`login` e o `logout`. [Autenticação](docs/guides/authentication.pt-BR.md) mostra o enrollment inteiro, e
+`login` e o `logout`. [Autenticação](docs/guides/authentication.pt-BR.md) mostra a credencial e o enrollment inteiro, e
 [Sessões](docs/guides/sessions.pt-BR.md#auto-unseal-com-openbao) como servidores reiniciam sem humano.
 
 ## O que vem de graça
@@ -124,7 +125,7 @@ com auto-unseal do OpenBao para AWS KMS, Azure Key Vault, GCP KMS, Transit, Sham
 | Comece aqui | Depois |
 |---|---|
 | [Início rápido](docs/guides/quickstart.pt-BR.md) · [Instalação](docs/guides/install.pt-BR.md) · [Conceitos](docs/guides/concepts.pt-BR.md) | [Autenticação](docs/guides/authentication.pt-BR.md) · [Sessões](docs/guides/sessions.pt-BR.md) · [Configuração](docs/guides/configuration.pt-BR.md) |
-| [Pacientes](docs/guides/patients.pt-BR.md) · [Exames](docs/guides/exams.pt-BR.md) · [Arquivos](docs/guides/files.pt-BR.md) | [Erros](docs/guides/errors.pt-BR.md) · [Modelo de segurança](docs/guides/security.pt-BR.md) |
+| [Pacientes](docs/guides/patients.pt-BR.md) · [Exames](docs/guides/exams.pt-BR.md) · [Arquivos](docs/guides/files.pt-BR.md) · [Exemplos](examples/README.pt-BR.md) | [Erros](docs/guides/errors.pt-BR.md) · [Modelo de segurança](docs/guides/security.pt-BR.md) |
 | [Guia da CLI](docs/guides/cli.pt-BR.md) · [Guia da API REST](docs/guides/api.pt-BR.md) | [Implantação](apps/api/deploy/README.pt-BR.md) · [Protocolo](docs/PROTOCOL.pt-BR.md) · [Compatibilidade](docs/COMPATIBILITY.pt-BR.md) |
 
 O site de desenvolvedores publica estas mesmas páginas em `/dev/docs`, mais uma referência gerada a partir do código —
@@ -168,6 +169,7 @@ integration/
 │   ├── sdk/native/    diagnos._secure  enclave de memória em Rust
 │   └── api/deploy/    compose · k8s    manifestos prontos para rodar
 ├── wrappers/          contract.json    os quatro comandos da base, para toda linguagem · py/: o de Python
+├── examples/          NN-nome/main.py  programas completos e executáveis para o SDK
 ├── contracts/         Pact             contrato do consumidor com o cofre + os testes dele
 ├── docs/              guides/          a documentação · reference/ gerada a partir do código
 │                      PROTOCOL.md      formatos de bytes normativos · COMPATIBILITY.md · site.json

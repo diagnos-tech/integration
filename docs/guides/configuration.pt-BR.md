@@ -10,7 +10,9 @@ também; elas só acrescentam as próprias flags e variáveis por cima.
 
 | Variável | Padrão | O que faz |
 |---|---|---|
-| `DIAGNOS_API_TOKEN` | — (obrigatória) | o token da service account, `apikey-<jwt>` — veja [Autenticação](authentication.pt-BR.md) |
+| `DIAGNOS_CREDENTIAL` | — (uma das três fontes de credencial é obrigatória) | a credencial da service account, numa linha: `svc_<hex>@<workspace_id>.diagnos.health:<chave>` — veja [Autenticação](authentication.pt-BR.md) |
+| `DIAGNOS_CREDENTIALS_FILE` | não definida | o caminho do JSON da credencial baixado na criação, lido quando `DIAGNOS_CREDENTIAL` não existe; na falta dele, `~/.config/diagnos/credentials.json` |
+| `DIAGNOS_API_TOKEN` | não definida | **obsoleto, deixa de funcionar em 2027-04-15**: o token legado `apikey-<jwt>`, usado só quando nenhuma credencial é achada, com um `LegacyTokenWarning` — veja o [MIGRATING.pt-BR.md](../../MIGRATING.pt-BR.md#do-token-apikey--para-uma-credencial-de-conta-de-serviço-020) |
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | onde o cofre mora; mude só para um cofre de staging ou self-hosted |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | o timeout de cada requisição HTTP, em segundos |
 | `DIAGNOS_TIME_PRECISION` | não definida | a precisão de anonimização do workspace — `month`, `day`, `hour`, `minute` ou `second`; as datas são truncadas nela antes de selar ([por quê](patients.pt-BR.md#datas-e-precisão-de-tempo)) |
@@ -18,8 +20,8 @@ também; elas só acrescentam as próprias flags e variáveis por cima.
 | `DIAGNOS_MEMORY_LOCK` | `best-effort` | `require` se recusa a guardar uma chave que o SO não trava na RAM — veja [abaixo](#memória-e-hardening-do-processo) |
 | `DIAGNOS_HARDEN_PROCESS` | `1` | `0` pula desligar core dumps e o attach de debugger no unlock — só enquanto depura |
 
-Um `DIAGNOS_API_TOKEN` ausente ou um valor inválido lança `ConfigError` nomeando a variável, quando o `Diagnos` é
-construído — antes de qualquer chamada de rede, nunca depois, no meio de uma requisição.
+Nenhuma credencial em nenhuma das fontes, uma malformada ou um valor inválido lança `ConfigError` nomeando a
+variável, quando o `Diagnos` é construído — antes de qualquer chamada de rede, nunca depois, no meio de uma requisição.
 
 ## OpenBao
 
@@ -61,30 +63,31 @@ logo depois.
 ## Sem o ambiente: `Settings`
 
 Para testes, para um processo que fala como várias service accounts, ou quando a configuração vem de outro lugar,
-monte um `Settings` você mesmo. Ele é imutável e o `repr` dele redige os dois tokens:
+monte um `Settings` você mesmo. Ele é imutável e o `repr` dele mascara a credencial e redige o token legado:
 
 ```python
 import os
 
-from diagnos import Diagnos, Settings
+from diagnos import Diagnos, ServiceAccountCredential, Settings
 
 settings = Settings(
-    api_token=os.environ["DIAGNOS_API_TOKEN"],
+    credential=ServiceAccountCredential.parse(os.environ["DIAGNOS_CREDENTIAL"]),
     timeout_seconds=10,
     time_precision="day",
 )
 vault = Diagnos(settings=settings)
-print(settings)  # api_token='apikey-…' — nunca o token em si
+print(settings)  # credential='svc_0000…0000@ws_1.diagnos.health' — nunca a chave
 ```
 
 `Settings(...)` ignora o ambiente por inteiro, OpenBao inclusive: todo campo não informado fica com o padrão.
-`Settings.from_env(mapping)` lê as mesmas variáveis de acima de qualquer mapeamento, e `Diagnos(token=…)` troca só o
-token enquanto todo o resto continua vindo do ambiente.
+`Settings.from_env(mapping)` lê as mesmas variáveis de acima de qualquer mapeamento, e `Diagnos(credential=…)` troca só
+a identidade enquanto todo o resto continua vindo do ambiente (o obsoleto `Diagnos(token=…)` faz o mesmo com o
+token legado).
 
 ## A CLI e a API REST
 
-- A **CLI** aceita `--token` e `--vault-url` em qualquer lugar da linha, sobrescrevendo `DIAGNOS_API_TOKEN` e
-  `DIAGNOS_VAULT_URL` para uma invocação; as outras flags globais estão no [guia da CLI](cli.pt-BR.md#opções-globais).
+- A **CLI** aceita `--token` e `--vault-url` em qualquer lugar da linha, sobrescrevendo `DIAGNOS_VAULT_URL` (e, para
+  o token legado, `DIAGNOS_API_TOKEN`) para uma invocação; as outras flags globais estão no [guia da CLI](cli.pt-BR.md#opções-globais).
   Ela também lê `DIAGNOS_GROUP`, o security group sob o qual uma gravação sela quando `--group` não é dado;
   `DIAGNOS_AGENT`, em que `off` mantém cada comando no próprio processo; e `DIAGNOS_AGENT_IDLE_MINUTES`, quanto tempo
   o agente de sessão espera sem comando antes de encerrar a sessão (padrão `480`) — veja

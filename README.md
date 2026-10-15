@@ -1,11 +1,4 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://diagnos.health/brand/svg/diagnos-lockup-white.svg">
-    <img src="https://diagnos.health/brand/svg/diagnos-lockup-gradient.svg" alt="diagnos" width="260">
-  </picture>
-</p>
-
-</br>
+[![diagnos](https://diagnos.health/brand/svg/diagnos-lockup-gradient.svg)](https://diagnos.health)
 
 # integration
 
@@ -29,7 +22,7 @@ HMAC or a key envelope yourself. Everything clinical is encrypted **inside your 
 vault only ever sees ciphertext. This package makes that the *easy* path.
 
 > [!NOTE]
-> **Status: 0.1.0 preview.** Every surface — enrollment, sessions, request signing, patients, exams, files and
+> **Status: 0.2.0 preview.** Every surface — enrollment, sessions, request signing, patients, exams, files and
 > folders — speaks the vault's current protocol and is verified against it by the [contract tests](contracts/README.md).
 > Known limits, and the questions still open on the vault side, are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
@@ -42,7 +35,7 @@ vault only ever sees ciphertext. This package makes that the *easy* path.
 | `pip install "diagnos[cli]"` | [the CLI](apps/cli/README.md) — `diagnos login`, `diagnos patients list`, … | scripts, operations, a quick look |
 | `pip install "diagnos[api]"` | [the REST API](apps/api/README.md) — `diagnos-api`, or its signed image | your system speaks HTTP, not Python |
 
-Same token, same approval flow, same guarantees: the CLI and the API are thin shells over the SDK — they never
+Same credential, same approval flow, same guarantees: the CLI and the API are thin shells over the SDK — they never
 reimplement a single byte of cryptography. One package carries all three; an extra only adds a layer's
 dependencies. Or let the base do it, step by step:
 
@@ -57,16 +50,21 @@ Every release is signed with Sigstore and carries build provenance — [verify i
 Developers in other languages get the same four base commands through [wrappers](wrappers/README.md).
 
 > [!NOTE]
-> Until `0.1.0` is on PyPI, install from source — [Install](docs/guides/install.md) has the commands, and the
+> Until `0.2.0` is on PyPI, install from source — [Install](docs/guides/install.md) has the commands, and the
 > [Rust toolchain](https://rustup.rs/) the build needs.
 
 ## Quick start
 
-**1. Get a token.** A workspace admin issues a service-account token in the diagnos web app:
+**1. Get a credential.** A workspace admin opens *Settings → Service accounts* in the diagnos web app, creates a
+service account and copies its credential — shown once, because the vault keeps only the public half of the key:
 
 ```sh
-export DIAGNOS_API_TOKEN="apikey-…"
+export DIAGNOS_CREDENTIAL="svc_<32 hex>@<workspace_id>.diagnos.health:<key>"
 ```
+
+> [!NOTE]
+> The `apikey-` token in `DIAGNOS_API_TOKEN` is deprecated: it works, with a warning, until **2027-04-15**.
+> [MIGRATING.md](MIGRATING.md#from-the-apikey--token-to-a-service-account-credential-020) swaps it in three steps.
 
 **2. Enroll.** The first run prints a link and a 6-digit code; an admin approves it in the web app and picks which
 security groups this process may read.
@@ -86,14 +84,15 @@ diagnos logout         # revokes it and wipes the keys
 ```
 
 **3. Use it.** Patients, exams and files hang off the same object — `vault.patients`, `vault.exams`,
-`vault.drives`. The [quickstart](docs/guides/quickstart.md) goes from here to your first encrypted patient and file.
+`vault.drives`. The [quickstart](docs/guides/quickstart.md) goes from here to your first encrypted patient and file, and
+[`examples/`](examples/README.md) has complete programs to copy: upload a file, patients, exams, error handling.
 
 One name, three spellings: a **security group** is `security_group=` in the SDK (`security_group_id` on what it
 returns), `--group` / `DIAGNOS_GROUP` in the CLI, and `security_group` or `{sg}` in the API.
 
 Private keys never leave the process and nothing is written to disk, so a new process needs a new approval — that is
 the design, not a limitation. The CLI keeps its session in one background process between `login` and `logout`.
-[Authentication](docs/guides/authentication.md) shows the whole enrollment, and
+[Authentication](docs/guides/authentication.md) shows the credential and the whole enrollment, and
 [Sessions](docs/guides/sessions.md#auto-unseal-with-openbao) how servers restart without a human.
 
 ## What you get for free
@@ -122,7 +121,7 @@ OpenBao auto-unseal for AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir and s
 | Start here | Then |
 |---|---|
 | [Quickstart](docs/guides/quickstart.md) · [Install](docs/guides/install.md) · [Concepts](docs/guides/concepts.md) | [Authentication](docs/guides/authentication.md) · [Sessions](docs/guides/sessions.md) · [Configuration](docs/guides/configuration.md) |
-| [Patients](docs/guides/patients.md) · [Exams](docs/guides/exams.md) · [Files](docs/guides/files.md) | [Errors](docs/guides/errors.md) · [Security model](docs/guides/security.md) |
+| [Patients](docs/guides/patients.md) · [Exams](docs/guides/exams.md) · [Files](docs/guides/files.md) · [Examples](examples/README.md) | [Errors](docs/guides/errors.md) · [Security model](docs/guides/security.md) |
 | [CLI guide](docs/guides/cli.md) · [REST API guide](docs/guides/api.md) | [Deploying](apps/api/deploy/README.md) · [Protocol](docs/PROTOCOL.md) · [Compatibility](docs/COMPATIBILITY.md) |
 
 The developer site publishes these same pages at `/dev/docs`, plus a reference generated from the code — every
@@ -166,6 +165,7 @@ integration/
 │   ├── sdk/native/    diagnos._secure  Rust memory enclave
 │   └── api/deploy/    compose · k8s    ready-to-run manifests
 ├── wrappers/          contract.json    the four base commands, for every language · py/: the Python one
+├── examples/          NN-name/main.py  complete, runnable programs for the SDK
 ├── contracts/         Pact             consumer contract with the vault + its tests
 ├── docs/              guides/          the documentation · reference/ generated from the code
 │                      PROTOCOL.md      normative byte formats · COMPATIBILITY.md · site.json

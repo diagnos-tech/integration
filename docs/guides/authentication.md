@@ -2,45 +2,76 @@
 
 **English** · [Português (Brasil)](authentication.pt-BR.md)
 
-A diagnos process needs two things before it can read a single record: a **token** that says which service account
-it is, and an **enrollment** that a person approved, which says what this particular process may decrypt. Neither is
-enough alone — a leaked token cannot decrypt anything without a human approving the process that holds it.
+A diagnos process needs two things before it can read a single record: a **credential** that says which service
+account it is, and an **enrollment** that a person approved, which says what this particular process may decrypt.
+Neither is enough alone — a leaked credential cannot decrypt anything without a human approving the process that
+holds it.
 
-## The service-account token
+## The service account credential
 
-A workspace admin creates a service account in the diagnos web app and issues its token, an `apikey-` followed by a
-JWT. The SDK reads four claims from it, without verifying the signature — only the vault holds the key to do that:
+A workspace admin creates a service account in the diagnos web app (*Settings → Service accounts*). The key pair is
+born in the admin's browser: the vault keeps only the public key, so nobody — the vault included — can act as the
+service account without what the admin saved. The private half is shown **once**, as one line:
 
-| Claim | Exposed as | Meaning |
-|---|---|---|
-| `workspace_id` | `vault.workspace_id` | the workspace every URL is built for |
-| `account_id` | `vault.account_id` | the account that owns the service account |
-| `name` | `vault.name` | `slug@<workspace_id>.diagnos.health`, for humans |
-| `sub` | `vault.key_id` | the token's key id — what an admin rotates or revokes |
+```text
+svc_<32 hex>@<workspace_id>.diagnos.health:<43-character key>
+```
+
+Before the last `:` is the *identity*, which reads like an e-mail address and names one key of one service account in
+one workspace. After it is the private key, a 32-byte Ed25519 seed. The SDK moves the seed into its Rust enclave the
+moment it parses the line and signs every request with it ([HTTP Message Signatures, RFC 9421](https://www.rfc-editor.org/rfc/rfc9421)):
+there is no bearer secret to steal off the wire, and each request carries a fresh signature and nonce, so a copied
+request is refused.
+
+| Exposed as | Meaning |
+|---|---|
+| `vault.workspace_id` | the workspace every URL is built for |
+| `vault.identity` | `svc_<hex>@<workspace_id>.diagnos.health` |
+| `vault.key_id` | `svc_<hex>` — the key an admin rotates or revokes |
+| `vault.name`, `vault.email` | the account's short name and address; `None` when only the one-line form is known (the downloaded file carries the name) |
+| `vault.account_id` | `None`: the identity is the key itself |
+| `vault.credential_kind` | `"ed25519"` |
 
 ```python
 from diagnos import Diagnos
 
-vault = Diagnos()  # parses DIAGNOS_API_TOKEN; nothing touches the network yet
-print(vault.workspace_id, vault.account_id, vault.name, vault.key_id)
-print(repr(vault))  # the token itself is always redacted
+vault = Diagnos()  # parses DIAGNOS_CREDENTIAL; nothing touches the network yet
+print(vault.workspace_id, vault.key_id, vault.credential_kind)
+print(repr(vault))  # the identity is masked, the key is never shown
 ```
 
-There are three ways to hand the token over, most common first:
+The SDK looks for the credential in this order, and the first one found wins:
 
-| How | When |
+| Where | When |
 |---|---|
-| `DIAGNOS_API_TOKEN` in the environment | always, unless you have a reason not to |
-| `Diagnos(token="apikey-…")` | one process that talks as two service accounts |
-| `Diagnos(settings=Settings(api_token=…))` | no environment at all — see [Configuration](configuration.md) |
+| `Diagnos(credential=…)` | one process that talks as two service accounts: the line, the path of the JSON file, or a `ServiceAccountCredential` |
+| `DIAGNOS_CREDENTIAL` in the environment | the usual case: a secret store straight into the variable |
+| `DIAGNOS_CREDENTIALS_FILE` | the path of the JSON file downloaded at creation — a Kubernetes or Compose secret mounted `0400` |
+| `~/.config/diagnos/credentials.json` | that same file on a workstation, `chmod 600`; no variable needed |
 
-The CLI also takes `--token` for a single invocation. The token has no expiry claim: revocation is server-side, and a
-revoked token fails its next signed call with `DiagnosPermissionError` (`ServiceAccountRevoked`).
+`Diagnos(settings=Settings(credential=…))` takes it with no environment at all — see [Configuration](configuration.md).
+A key can carry an expiry, and an admin can rotate it by creating a second key next to the first, switching the
+process over and revoking the old one — revocation is server-side, and the next signed call fails with
+`CredentialRevokedError` (see [Errors](errors.md#credential-failures)).
 
 > [!WARNING]
-> The token is a bearer credential: anyone who holds it can *ask* for an enrollment as this service account. Keep it
-> in a secret store or a mounted file, never in a repository or a log line. The SDK never prints it — every `repr`
-> shows only its last four characters.
+> The key is a secret: anyone who holds it can *ask* for an enrollment as this service account. Keep it in a secret
+> store or a mounted file, never in a repository or a log line. The SDK never prints it — `repr` and `str` show only
+> a masked identity, and a credential refuses to be pickled.
+
+### The legacy `apikey-` token
+
+> [!IMPORTANT]
+> `DIAGNOS_API_TOKEN` (an `apikey-` followed by a JWT) is **deprecated and stops working on 2027-04-15**. Until then
+> the SDK still accepts it when no credential is configured, emits a `LegacyTokenWarning` pointing at your own line and
+> logs one warning per process. [MIGRATING.md](../../MIGRATING.md#from-the-apikey--token-to-a-service-account-credential-020)
+> swaps it for a credential in three steps.
+
+The token has no key of its own to sign with: the SDK reads four claims from it without verifying the signature, and
+sends it as a bearer on every request. With it `vault.account_id`, `vault.name` and `vault.key_id` come from those
+claims, `vault.identity` is `None` and `vault.credential_kind` is `"legacy_apikey"`. It can be handed over as
+`DIAGNOS_API_TOKEN`, `Diagnos(token="apikey-…")` or `Settings(api_token=…)`, and the CLI takes `--token` for one
+invocation. An explicit `token=` hides the credential variables, so the argument you typed always wins.
 
 ## Enrollment
 
@@ -86,7 +117,7 @@ Next to the code, the approval page shows the `runtime` the process described it
 | `container`, `cloud` | `true`, `aws` (detected, best effort) |
 
 > [!IMPORTANT]
-> Approve only an enrollment you started and whose runtime you recognize. An approval is what turns a token into the
+> Approve only an enrollment you started and whose runtime you recognize. An approval is what turns a credential into the
 > ability to decrypt a group's data.
 
 ### Waiting for the approval
@@ -179,7 +210,10 @@ The fix is a new enrollment that includes the group: restart the process (or cle
 - **One service account per integration**, and one per replica if it runs as several processes: an admin can then
   revoke exactly one of them.
 - **The fewest groups that work.** An enrollment can decrypt everything in the groups it holds.
-- **The token comes from a secret store** — a Kubernetes Secret, your CI's secret variables — straight into
-  `DIAGNOS_API_TOKEN`, never from a file in the repository. `diagnos` itself never logs it.
+- **The credential comes from a secret store** — a Kubernetes Secret, your CI's secret variables — straight into
+  `DIAGNOS_CREDENTIAL` (or a mounted `DIAGNOS_CREDENTIALS_FILE`), never from a file in the repository. `diagnos`
+  itself never logs it.
+- **Rotate with overlap.** Create the new key, deploy it, then revoke the old one; a service account can hold up to five
+  keys at once, so there is no window without access.
 - **Servers restart without a human** only through OpenBao auto-unseal — a deliberate trade described in
   [Sessions](sessions.md).

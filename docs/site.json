@@ -31,8 +31,8 @@
           "id": "quickstart",
           "source": "docs/guides/quickstart.md",
           "description": {
-            "en": "From a service-account token to your first encrypted patient and file in five minutes, with the Python SDK or the diagnos CLI.",
-            "pt-br": "De um token de service account ao primeiro paciente e arquivo cifrados em cinco minutos, com o SDK Python ou a CLI diagnos."
+            "en": "From a service account credential to your first encrypted patient and file in five minutes, with the Python SDK or the diagnos CLI.",
+            "pt-br": "De uma credencial de service account ao primeiro paciente e arquivo cifrados em cinco minutos, com o SDK Python ou a CLI diagnos."
           }
         },
         {
@@ -55,8 +55,8 @@
           "id": "authentication",
           "source": "docs/guides/authentication.md",
           "description": {
-            "en": "How a diagnos process earns access: the service-account token, the enrollment link and code, and the admin approval that grants groups.",
-            "pt-br": "Como um processo diagnos ganha acesso: o token da service account, o link e o código de enrollment e a aprovação que concede grupos."
+            "en": "How a diagnos process earns access: the Ed25519 service account credential, the enrollment link and code, and the admin approval that grants groups.",
+            "pt-br": "Como um processo diagnos ganha acesso: a credencial Ed25519 da service account, o link e o código de enrollment e a aprovação que concede grupos."
           }
         }
       ]

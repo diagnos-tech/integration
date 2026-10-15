@@ -26,17 +26,28 @@ classDiagram
     VaultError <|-- NotFoundError
     VaultError <|-- ConflictError
     VaultError <|-- RateLimitError
+    VaultError <|-- CredentialError
+    CredentialError <|-- CredentialSignatureError
+    CredentialError <|-- CredentialReplayError
+    CredentialError <|-- ClockSkewError
+    CredentialError <|-- CredentialRevokedError
+    CredentialError <|-- CredentialExpiredError
+    CredentialError <|-- CredentialUnknownError
+    CredentialError <|-- WorkspaceMismatchError
+    CredentialError <|-- ScopeMissingError
 ```
 
 `VaultError` e as subclasses significam *o cofre respondeu com um erro*; carregam o `code` do cofre, o `status` HTTP,
 e o `trace_id` e o `request_id` de que um chamado de suporte precisa. Todo o resto sob `DiagnosError` é decidido
-localmente, antes ou depois de falar com o cofre.
+localmente, antes ou depois de falar com o cofre. `CredentialError` e as subclasses são o cofre recusando a própria
+credencial da service account; cada uma é *também* um `AuthenticationError` (401) ou um `DiagnosPermissionError`
+(403), então o código que captura os pais continua funcionando — veja [Falhas de credencial](#falhas-de-credencial).
 
 ## Toda exceção
 
 | Classe | Lançada quando | O que fazer | Saída da CLI | Status da API |
 |---|---|---|---|---|
-| `ConfigError` | `DIAGNOS_API_TOKEN` ausente ou malformado; uma variável de ambiente inválida; OpenBao configurado sem o extra `openbao` | corrija a configuração | `2` | sai com `2` na subida |
+| `ConfigError` | nenhuma credencial em `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` ou no arquivo padrão (ou `DIAGNOS_API_TOKEN` como fallback legado), ou uma malformada; uma variável de ambiente inválida; OpenBao configurado sem o extra `openbao` | corrija a configuração | `2` | sai com `2` na subida |
 | `EnrollmentDeniedError` | um admin negou o enrollment | nada a retentar — pergunte o motivo | `3` | a subida falha |
 | `EnrollmentExpiredError` | ninguém aprovou antes de `expires_at` | rode de novo para um link e um código novos | `3` | a subida falha |
 | `SessionExpiredError` | uma chamada assinada sem sessão viva | `unlock()` de novo (as chamadas de recurso fazem isso por você) | `3` | `401` `session_expired` |
@@ -44,9 +55,9 @@ localmente, antes ou depois de falar com o cofre.
 | `CryptoError` | um envelope não abriu: chave errada ou bytes adulterados, indistinguíveis de propósito | não retente; reporte | `1` | `500` `crypto_error` |
 | `ProtocolError` | o cofre respondeu algo que o protocolo não permite | não retente; reporte com a versão do SDK, ou atualize | `1` | `502` `protocol_error` |
 | `ValidationError` | o cofre recusou a requisição como inválida (400, 413) | corrija a entrada | `1` | `400` |
-| `AuthenticationError` | token, sessão ou assinatura recusados (401) | em geral, refaça o enrollment | `3` | `401` |
+| `AuthenticationError` | credencial, sessão ou assinatura recusadas (401) | em geral, refaça o enrollment | `3` | `401` |
 | `QuotaError` | o workspace não tem crédito para isto (402); nada foi feito | compre crédito, ou espere o orçamento | `5` | `402` |
-| `DiagnosPermissionError` | esta service account não pode fazer isto aqui (403), inclusive um token revogado | peça a um admin | `3` | `403` |
+| `DiagnosPermissionError` | esta service account não pode fazer isto aqui (403), inclusive a credencial de outro workspace ou uma permissão faltando | peça a um admin | `3` | `403` |
 | `NotFoundError` | documento, versão ou arquivo inexistente (404) | confira o id | `4` | `404` |
 | `ConflictError` | uma versão pendente ou mais nova, um replay, ou um upload que não chegou ao armazenamento (409) | leia de novo e combine, ou suba de novo | `7` | `409` |
 | `RateLimitError` | ainda com limite de taxa depois do backoff do próprio SDK (429) | vá mais devagar; tente depois | `6` | `429` |
@@ -76,6 +87,8 @@ assinatura nova a cada vez, e só lança quando retentar deixou de fazer sentido
 |---|---|---|
 | a primeira requisição assinada de um processo | sincroniza o relógio com `GET /time` (mediana de três) | — |
 | `401 SignatureTimestampSkew` | ressincroniza o relógio, retenta uma vez | `AuthenticationError` |
+| `401 CredentialClockSkew` | ressincroniza o relógio, retenta uma vez | `ClockSkewError` |
+| `401 CredentialReplayed` | nada: a primeira cópia pode ter passado | `CredentialReplayError` |
 | `409 ReplayDetected` | retenta uma vez com um nonce novo | `ConflictError` |
 | `429` | espera o `Retry-After` se veio, senão 0,5 s, 1 s, 2 s com jitter — três retentativas | `RateLimitError` |
 | qualquer `5xx` | uma retentativa depois de 1 s | `VaultError` |
@@ -89,12 +102,49 @@ Um conflito é uma classe com muitas causas; `code` diz qual. O que sobra para v
 bytes de um arquivo nunca chegaram ao armazenamento — suba aquele arquivo de novo. `RateLimitError` e `VaultError`
 valem mais uma tentativa depois de uma pausa maior.
 
+## Falhas de credencial
+
+A credencial da service account assina toda requisição, e o cofre confere a assinatura antes de olhar qualquer outra
+coisa. Quando ele recusa, o SDK lança a classe abaixo e acrescenta o que fazer à mensagem do cofre, então um traceback
+às 3 da manhã basta. Capture a classe específica sobre a qual você pode agir, depois `CredentialError` para o resto —
+a ordem importa, porque cada uma é também um `AuthenticationError` ou um `DiagnosPermissionError`.
+
+| Classe | `code` do cofre | Também | Significado | O que fazer |
+|---|---|---|---|---|
+| `CredentialSignatureError` | `CredentialSignatureInvalid` | `AuthenticationError` | a assinatura não confere | copie a credencial de novo, inteira; procure um proxy que altere requisições |
+| `CredentialReplayError` | `CredentialReplayed` | `AuthenticationError` | o cofre já viu este nonce | algo reenviou a requisição; o SDK não a retenta |
+| `ClockSkewError` | `CredentialClockSkew` | `AuthenticationError` | este relógio está fora de ±60 s | ative o NTP; `skew_seconds` e `server_time` dizem por quanto |
+| `CredentialRevokedError` | `CredentialKeyRevoked` | `AuthenticationError` | um admin revogou esta chave | crie uma chave nova e troque |
+| `CredentialExpiredError` | `CredentialKeyExpired` | `AuthenticationError` | a chave passou da validade | crie uma chave nova e troque |
+| `CredentialUnknownError` | `CredentialKeyUnknown` | `AuthenticationError` | o cofre não conhece esta chave | confira se `DIAGNOS_VAULT_URL` aponta para onde a credencial foi criada |
+| `WorkspaceMismatchError` | `CredentialWorkspaceMismatch` | `DiagnosPermissionError` | a credencial é de outro workspace | use a credencial do workspace de destino |
+| `ScopeMissingError` | `CredentialScopeMissing` | `DiagnosPermissionError` | falta uma permissão à conta | peça a um admin; `resource`, `action` e `security_group_id` a nomeiam |
+
+```python
+from diagnos import ClockSkewError, CredentialError, Diagnos, ScopeMissingError
+
+vault = Diagnos()
+try:
+    vault.patients.list()
+except ClockSkewError as error:  # as classes mais específicas primeiro
+    print(f"este relógio está {error.skew_seconds} s fora do cofre ({error.server_time})")
+except ScopeMissingError as error:
+    print("falta", error.action, "em", error.resource, "no grupo", error.security_group_id)
+except CredentialError as error:  # revogada, expirada, desconhecida, outro workspace, assinatura ruim…
+    print("credencial recusada:", error)
+```
+
+O [`examples/05-error-handling`](../../examples/05-error-handling/README.pt-BR.md) transforma cada classe desta
+página numa mensagem que diz o que fazer.
+
 ## Diferença de relógio
 
-Toda requisição assinada carrega um horário que o cofre só aceita dentro de ±120 segundos do próprio relógio. Um
-notebook com relógio errado ou um container sem NTP assinaria toda requisição rumo a uma recusa, então o SDK mede a
-diferença contra o cofre antes da primeira chamada assinada e a aplica a toda assinatura, e ressincroniza uma vez se
-o cofre ainda reclamar. Você não configura nada disso.
+Toda requisição assinada carrega um horário que o cofre só aceita dentro de ±60 segundos (a assinatura da credencial)
+ou ±120 segundos (a assinatura da sessão) do próprio relógio. Um notebook com relógio errado ou um container sem NTP
+assinaria toda requisição rumo a uma recusa, então o SDK mede a diferença contra o cofre antes da primeira chamada
+assinada e a aplica a toda assinatura, e ressincroniza uma vez se o cofre ainda reclamar. Quando nem isso resolve,
+lança `ClockSkewError`, cujo `skew_seconds` é a hora local menos a do cofre (positivo: adiantado). Você não configura
+nada disso.
 
 > [!NOTE]
 > A diferença corrige só as assinaturas. A expiração da sessão é julgada pelo relógio local, então um relógio horas

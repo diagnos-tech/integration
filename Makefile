@@ -41,7 +41,7 @@ lint: lint-py lint-rust lint-docs ## 🇺🇸 Every static check (no tests) · �
 lint-py:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run python scripts/check_bilingual.py src apps wrappers contracts scripts
+	uv run python scripts/check_bilingual.py src apps wrappers contracts scripts examples
 	uv run python scripts/check_file_size.py
 
 lint-rust:
@@ -51,8 +51,11 @@ lint-rust:
 lint-docs:
 	uv run python scripts/check_docs.py
 
-types: ## 🇺🇸 mypy --strict: the package, contract tests, scripts · 🇧🇷 mypy --strict: o pacote, contrato, scripts
+types: ## 🇺🇸 mypy --strict: the package, contract tests, scripts, examples · 🇧🇷 mypy --strict: o pacote, contrato, scripts, exemplos
 	uv run mypy src contracts/tests scripts
+	@# 🇺🇸 One run per example: every one is a `main.py`, and mypy refuses two modules of the same name in one run.
+	@# 🇧🇷 Uma execução por exemplo: todos são um `main.py`, e o mypy recusa dois módulos de mesmo nome numa execução.
+	for example in examples/*/main.py; do uv run mypy "$$example" || exit 1; done
 
 test: test-py test-rust ## 🇺🇸 Unit tests: every Python layer and Rust · 🇧🇷 Testes unitários: toda camada Python e Rust
 

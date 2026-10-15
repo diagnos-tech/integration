@@ -21,7 +21,7 @@ repos:
         types: [python]
       - id: bilingual-docstrings
         name: bilingual docstrings · docstrings bilíngues
-        entry: uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts
+        entry: uv run python scripts/check_bilingual.py apps/sdk apps/cli apps/api contracts scripts examples
         language: system
         pass_filenames: false
         types_or: [python, rust]

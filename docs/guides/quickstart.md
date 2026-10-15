@@ -2,7 +2,7 @@
 
 **English** · [Português (Brasil)](quickstart.pt-BR.md)
 
-From a service-account token to your first encrypted patient and file, in about five minutes. Every byte of clinical
+From a service account credential to your first encrypted patient and file, in about five minutes. Every byte of clinical
 data below is encrypted inside your own process before it touches the network; the vault only ever stores
 ciphertext.
 
@@ -11,11 +11,11 @@ ciphertext.
 | You need | Where it comes from |
 |---|---|
 | Python 3.11, 3.12 or 3.13 | [python.org](https://www.python.org/downloads/) or your package manager |
-| A service-account token (`apikey-…`) | A workspace admin creates it in the diagnos web app |
+| A service account credential (`svc_…@<workspace>.diagnos.health:…`) | A workspace admin creates it in the diagnos web app (*Settings → Service accounts*) and copies it once |
 | Someone who can approve an enrollment | A workspace admin, with the web app open |
 
 > [!NOTE]
-> The token identifies *which* service account is asking. It does not unlock anything by itself: the first run
+> The credential identifies *which* service account is asking. It does not unlock anything by itself: the first run
 > prints a link and a 6-digit code that an admin approves — see [Authentication](authentication.md) for why.
 
 ## 1. Install
@@ -28,14 +28,16 @@ uv tool install "diagnos[cli]"    # optional: the full `diagnos` command
 Until the first PyPI release, install from source — [Install](install.md) has the exact commands, including the
 Rust toolchain the source build needs.
 
-## 2. Hand the token to the process
+## 2. Hand the credential to the process
 
 ```sh
-export DIAGNOS_API_TOKEN="apikey-…"
+export DIAGNOS_CREDENTIAL="svc_<32 hex>@<workspace_id>.diagnos.health:<key>"
 ```
 
-The SDK reads it from the environment; the CLI also accepts `--token` for a single invocation. Nothing ever prints
-it back: every `repr` in the SDK is redacted.
+The SDK reads it from the environment (or from the JSON file the page offers, through `DIAGNOS_CREDENTIALS_FILE`); the
+private key moves into the Rust enclave and signs every request. Nothing ever prints it back: every `repr` in the SDK
+is masked. The old `DIAGNOS_API_TOKEN` still works until 2027-04-15, with a warning — see
+[Authentication](authentication.md#the-legacy-apikey--token).
 
 ## 3. Enroll and write your first patient
 

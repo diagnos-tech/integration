@@ -12,7 +12,7 @@ groups `sg_oncology` and `sg_radiology`.
 
 The working directory is a fresh temporary folder holding the files the
 guides upload (`FIXTURES`), and the environment carries a sandbox
-`DIAGNOS_API_TOKEN` — so a snippet reads exactly like production code.
+`DIAGNOS_CREDENTIAL` — so a snippet reads exactly like production code.
 
 🇧🇷 O sandbox em que todo snippet executável da doc roda: o SDK de verdade, um cofre em memória, nada mais falso.
 
@@ -27,7 +27,7 @@ de enrollment, onde todo registro é aprovado no primeiro poll com os grupos
 `sg_oncology` e `sg_radiology`.
 
 O diretório de trabalho é uma pasta temporária nova com os arquivos que os
-guias sobem (`FIXTURES`), e o ambiente carrega um `DIAGNOS_API_TOKEN` de
+guias sobem (`FIXTURES`), e o ambiente carrega uma `DIAGNOS_CREDENTIAL` de
 sandbox — então um snippet se lê exatamente como código de produção.
 """
 
@@ -81,14 +81,12 @@ def _b64url_decode(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
-def sandbox_token() -> str:
-    """🇺🇸 An `apikey-<jwt>` for the double's workspace; the SDK never verifies the signature, so none is real.
+def sandbox_credential() -> str:
+    """🇺🇸 A `DIAGNOS_CREDENTIAL` line for the double's workspace: an obviously fake all-zero key, signed for real.
 
-    🇧🇷 Um `apikey-<jwt>` para o workspace do duplo; o SDK nunca confere a assinatura, então nenhuma é real.
+    🇧🇷 Uma linha `DIAGNOS_CREDENTIAL` para o workspace do duplo: chave falsa (toda zero), assinada de verdade.
     """
-    header = _b64url(json.dumps({"alg": "EdDSA", "typ": "JWT"}).encode())
-    claims = {"sub": "key_docs", "account_id": "acc_docs", "workspace_id": WORKSPACE_ID, "name": "docs@ws_1"}
-    return f"apikey-{header}.{_b64url(json.dumps(claims).encode())}.{_b64url(b'sandbox')}"
+    return f"svc_{'0' * 32}@{WORKSPACE_ID}.diagnos.health:{_b64url(bytes(32))}"
 
 
 def _envelope(result: object, status: int = 200) -> httpx.Response:
@@ -199,7 +197,7 @@ def sandbox() -> Iterator[SandboxVault]:
         for key in [key for key in os.environ if key.startswith(("DIAGNOS_", "OPENBAO_"))]:
             del os.environ[key]
         os.environ.update(
-            {"DIAGNOS_API_TOKEN": sandbox_token(), "DIAGNOS_VAULT_URL": VAULT_URL, "DIAGNOS_HARDEN_PROCESS": "0"}
+            {"DIAGNOS_CREDENTIAL": sandbox_credential(), "DIAGNOS_VAULT_URL": VAULT_URL, "DIAGNOS_HARDEN_PROCESS": "0"}
         )
         for name, content in FIXTURES.items():
             (Path(workdir) / name).parent.mkdir(parents=True, exist_ok=True)
