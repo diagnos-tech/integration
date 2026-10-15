@@ -343,8 +343,8 @@
           "id": "migrating",
           "source": "MIGRATING.md",
           "description": {
-            "en": "Moving from the imgexam packages to diagnos: renamed packages, CLI, image and environment variables, and what did not change on purpose.",
-            "pt-br": "Migrando dos pacotes imgexam para o diagnos: pacotes, CLI, imagem e variáveis de ambiente renomeados, e o que de propósito não mudou."
+            "en": "From the apikey- token to a service account credential (0.2.0), and from the imgexam packages to diagnos (0.1.0): what changed and how to move.",
+            "pt-br": "Do token apikey- para uma credencial de conta de serviço (0.2.0), e dos pacotes imgexam para o diagnos (0.1.0): o que mudou e como migrar."
           }
         },
         {

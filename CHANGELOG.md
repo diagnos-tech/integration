@@ -8,16 +8,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This file is English-only and exempt from the repository's bilingual-documentation pairing rule
 (`scripts/check_docs.py`).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-15
 
-### Fixed
-
-- The Rust enclave's secretstream panicked (a `PanicException` in Python) on associated data longer than 16 bytes,
-  instead of authenticating it: the padding arithmetic underflowed. Found by the new fuzz targets. The SDK's own file
-  encryption passes no associated data and was not affected.
+`0.2.0` replaces the service account's `apikey-` token with a **service account credential**: an Ed25519 key whose
+identity reads like an e-mail address, `svc_<hex>@<workspace_id>.diagnos.health`, and which signs every request
+instead of sending a reusable bearer. The `apikey-` token keeps working, with a deprecation warning, until the vault
+stops accepting it on **2027-04-15** — [`MIGRATING.md`](MIGRATING.md#from-the-apikey--token-to-a-service-account-credential-020)
+has the three-step migration.
 
 ### Added
 
+- **Service account credential.** `DIAGNOS_CREDENTIAL="svc_<hex>@<workspace_id>.diagnos.health:<key>"` (one line,
+  copied once from the service account page), or `DIAGNOS_CREDENTIALS_FILE` pointing at the JSON downloaded at
+  creation, or that file saved as `~/.config/diagnos/credentials.json` — read in this order. The private key (a
+  32-byte Ed25519 seed) moves into the Rust enclave the moment it is parsed and never reaches the Python heap again;
+  `repr`/`str` mask the identity and never show the key, and the credential refuses to be pickled. A credential
+  file readable by other users still loads, with a warning to `chmod 600` it.
+- **Signed requests (RFC 9421).** Every request to `/api/external/v1` carries `Signature-Input`, `Signature` (Ed25519
+  over `@method`, `@path`, `@query` when there is one, `content-digest` when there is a body, `created`, a 16-byte
+  `nonce`, the full identity as `keyid`, `alg="ed25519"`) and, with a body, `Content-Digest` (RFC 9530). No
+  `Authorization` header is sent. Every attempt — retries included — gets a fresh nonce. The session HMAC
+  (`X-Signature-*`) is unchanged and still rides on every session route.
+- `ServiceAccountCredential` (`parse`, `from_file`, `from_env`, `identity`, `key_id`, `workspace_id`,
+  `service_account`, `public_key`), `Diagnos(credential=…)` (the credential, its one-line form or the path of its
+  file) and `Diagnos.from_env(env=None, **options)`; `Settings.credential` and `Settings.from_env(credential=…)`.
+- `Diagnos.identity` and `Diagnos.credential_kind` (`"ed25519"` or `"legacy_apikey"`).
+- Typed errors for every credential failure, each one saying exactly what to do: `CredentialError` (catch-all),
+  `CredentialSignatureError`, `CredentialReplayError`, `ClockSkewError` (with `skew_seconds` and `server_time`,
+  read from the error's `server_time` or the response's `Date`, and printed as "N s ahead/behind the vault"),
+  `CredentialRevokedError`, `CredentialExpiredError`, `CredentialUnknownError` (all `AuthenticationError`),
+  `WorkspaceMismatchError` and `ScopeMissingError` (with `permission` and `security_group_id`; both
+  `DiagnosPermissionError`). `VaultError.details` carries the error's recovery data.
+- The enclave signs Ed25519 (`ed25519-dalek`, the same dalek family as its X25519), checked against the RFC 8032
+  vectors and RFC 9421 Appendix B.2.6.
 - cargo-fuzz targets for the enclave's AEAD, secretstream and hybrid-seal parsers, run weekly (`make fuzz` locally).
 - CodeQL analysis of the Python package, the Rust enclave and the workflows on every pull request.
 - Every release carries its SLSA provenance (`diagnos-<version>.intoto.jsonl`) and a signed CycloneDX SBOM of its
@@ -25,9 +48,28 @@ This file is English-only and exempt from the repository's bilingual-documentati
 
 ### Changed
 
+- `Diagnos.account_id` is `None` with a service account credential (its identity is the key itself); the REST API's
+  `GET /v1/session` returns `account_id: null` in that case. With OpenBao auto-unseal, a credential's session is
+  kept at `<prefix>/<workspace_id>/<key_id>`.
+- A `credential_clock_skew` answer re-syncs the clock against `GET /time` and retries once, like
+  `SignatureTimestampSkew`; `credential_replayed` is never retried, because the first copy may have gone through.
+- The contract (`contracts/diagnos-sdk-diagnos-vault.json`) now describes the credential's headers on every
+  interaction, keeps three interactions on the legacy token, and adds a revoked-key registration.
 - The PyPI summary is now "SDK, CLI & API to integrate with diagnos.health".
 - Releases: `main` is fast-forwarded to the `develop` commit being released, never merged into, so both branches keep
   one linear history; Package runs on that push.
+
+### Deprecated
+
+- `DIAGNOS_API_TOKEN` / `Diagnos(token=…)` / `--token` (`apikey-<jwt>`): still accepted, with a
+  `LegacyTokenWarning` (a `DeprecationWarning`, attributed to the caller's line) and one log line per process. The
+  vault stops accepting the token on 2027-04-15.
+
+### Fixed
+
+- The Rust enclave's secretstream panicked (a `PanicException` in Python) on associated data longer than 16 bytes,
+  instead of authenticating it: the padding arithmetic underflowed. Found by the new fuzz targets. The SDK's own file
+  encryption passes no associated data and was not affected.
 
 ## [0.1.0] - 2026-10-13
 

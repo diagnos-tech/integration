@@ -1,6 +1,77 @@
-# Migrating from imgexam
+# Migrating
 
 **English** · [Português (Brasil)](MIGRATING.pt-BR.md)
+
+Two migrations, newest first: from the `apikey-` token to a service account credential (`0.2.0`), and from the former
+`imgexam` packages to `diagnos` (`0.1.0`).
+
+## From the `apikey-` token to a service account credential (0.2.0)
+
+`0.2.0` authenticates with a **service account credential**: an Ed25519 key pair born in the browser of whoever
+creates it, whose identity reads like an e-mail address — `svc_<32 hex>@<workspace_id>.diagnos.health` — and whose
+private key signs every request (HTTP Message Signatures, RFC 9421). The vault keeps only the public key, so nobody,
+the vault included, can act as your service account without the file or line you saved. Nothing reusable travels:
+each request carries a fresh signature and nonce, and a copied request is refused.
+
+The `apikey-` token keeps working until **2027-04-15**. Until then `diagnos` accepts it and emits a
+`LegacyTokenWarning` (a `DeprecationWarning`) pointing at your own line, plus one log line per process; the vault
+answers it with `Deprecation`, `Sunset` and `Link` headers. After that date the vault refuses it.
+
+### Three steps
+
+1. **Create the credential.** In the web app, open *Settings → Service accounts*, pick the service account (or create
+   one) and create a key. The page shows the credential **once**: copy the `DIAGNOS_CREDENTIAL` line, or download the
+   credential file. An existing account can get a new key next to its token — both work while you migrate.
+2. **Swap the environment variable.** Replace `DIAGNOS_API_TOKEN` with one of these (the SDK reads them in this
+   order):
+
+   | Where | How |
+   |---|---|
+   | `DIAGNOS_CREDENTIAL` | `export DIAGNOS_CREDENTIAL="svc_…@<workspace_id>.diagnos.health:<key>"` — the one line the page showed |
+   | `DIAGNOS_CREDENTIALS_FILE` | the path of the downloaded JSON file (a Kubernetes or Compose secret mounted `0400`) |
+   | `~/.config/diagnos/credentials.json` | the downloaded file saved there, `chmod 600` — no variable needed |
+
+   `DIAGNOS_API_TOKEN` still counts if none of the first two is set, so remove it once the new credential works.
+3. **Revoke the token.** Back in *Settings → Service accounts*, revoke the old `apikey-` key.
+
+Code that builds `Diagnos()` with no arguments needs no change. Code that passes the token explicitly:
+
+```python no-run
+# before (deprecated, works until 2027-04-15)
+vault = Diagnos(token=os.environ["DIAGNOS_API_TOKEN"])
+
+# after
+vault = Diagnos()  # DIAGNOS_CREDENTIAL, the file variable, or the default file
+vault = Diagnos(credential=os.environ["MY_CREDENTIAL"])  # the one-line form from anywhere
+vault = Diagnos(credential=Path("/run/secrets/diagnos.json"))
+vault = Diagnos.from_env()  # the same as Diagnos(), spelled out
+```
+
+### What else changed
+
+| Before (`apikey-`) | After (credential) |
+|---|---|
+| `Authorization: Bearer apikey-<jwt>` on every request | `Signature-Input` + `Signature` (+ `Content-Digest` with a body); no `Authorization` |
+| `vault.account_id` — the account id from the token | `None`: the identity is the key (`vault.identity`, `vault.key_id`) |
+| OpenBao path `<prefix>/<workspace_id>/<account_id>` | `<prefix>/<workspace_id>/<key_id>` — the first unlock after switching enrolls once |
+| a revoked or wrong token: `AuthenticationError` | `CredentialRevokedError`, `CredentialUnknownError`, `ClockSkewError`… — all `CredentialError`, each saying what to do |
+| `--token apikey-…` (CLI) | the same three sources; `--token` still takes a legacy token |
+
+The session HMAC (`X-Signature-*`), the enrollment (six-digit code, human approval) and everything end-to-end
+encrypted are unchanged: the credential replaces only the proof of identity.
+
+### Errors you may meet while migrating
+
+| Exception | What it means | What to do |
+|---|---|---|
+| `ConfigError` "No diagnos credential found" | none of the three sources is set | set `DIAGNOS_CREDENTIAL` (or the file) |
+| `ConfigError` "holds a legacy 'apikey-' token" | the token went into `DIAGNOS_CREDENTIAL` | put it back in `DIAGNOS_API_TOKEN`, or use the new credential |
+| `CredentialSignatureError` | the key does not match the identity | copy the credential again, whole |
+| `ClockSkewError` | this machine's clock is more than 60 s off; the message shows by how much | turn on automatic time (NTP) |
+| `CredentialRevokedError` / `CredentialExpiredError` | the key was revoked or expired | create a new key and swap it in |
+| `ScopeMissingError` | the service account lacks a permission (named in the message) | ask a workspace admin to grant it |
+
+## From imgexam (0.1.0)
 
 This project was renamed from `imgexam` to `diagnos`, and its three packages became one, `diagnos`, with extras.
 Nothing was published to PyPI under any of the old names. This guide is for anyone who ran an internal or
@@ -10,9 +81,9 @@ from-source checkout of the former `imgexam` monorepo, or of the short-lived thr
 `0.1.0` is the first version of `diagnos` ever published — see [`CHANGELOG.md`](CHANGELOG.md). It restarts the
 versioning at `0.1.0` regardless of what `imgexam`'s internal version numbers were.
 
-## What changed
+### What changed
 
-### Packages, modules, classes, exceptions
+#### Packages, modules, classes, exceptions
 
 | Before (`imgexam`) | After (`diagnos`) |
 |---|---|
@@ -34,14 +105,14 @@ from imgexam import Imgexam, ImgexamError
 from diagnos import Diagnos, DiagnosError
 ```
 
-### CLI command and Docker image
+#### CLI command and Docker image
 
 | Before | After |
 |---|---|
 | `imgexam` (command) | `diagnos` (command) |
 | `imgexam-api` (Docker image) | `ghcr.io/diagnos-tech/diagnos-api` (Docker image) |
 
-### From three packages to one
+#### From three packages to one
 
 Before `0.1.0` shipped, the project was briefly three packages — `diagnos` (the SDK), `diagnos-cli` and
 `diagnos-api`. It is now one, `diagnos`, whose base installs no dependency at all and whose layers are extras. Code
@@ -58,12 +129,12 @@ that only does `from diagnos import …` keeps working unchanged, as long as the
 | `docker build -f apps/api/Dockerfile .` | `docker build --target api .` — or the signed `ghcr.io/diagnos-tech/diagnos-api` |
 | `uv sync --all-packages`, `uv run --package …` | `uv sync`, `uv run …` — every extra is installed for development |
 
-### Default vault URL
+#### Default vault URL
 
 The default vault URL changed from the previous internal address to `https://vault.diagnos.health`. If you set
 `DIAGNOS_VAULT_URL` (see below) explicitly, this does not affect you.
 
-### Environment variables
+#### Environment variables
 
 Every `IMGEXAM_*` environment variable was renamed to `DIAGNOS_*`, with no other change in meaning or accepted
 values:
@@ -89,7 +160,7 @@ values:
 `OPENBAO_PATH_PREFIX`, `OPENBAO_NAMESPACE`) were never `IMGEXAM_`-prefixed and are unchanged — OpenBao is a separate
 product with its own naming. One of them changes behaviour, though: see the next section.
 
-### OpenBao auto-unseal: the default KV path prefix
+#### OpenBao auto-unseal: the default KV path prefix
 
 The **default** value of the OpenBao KV path prefix (`DEFAULT_OPENBAO_PATH_PREFIX` in
 `src/diagnos/transport/config.py`) changed from `"imgexam"` to `"diagnos"`. It is still overridden by the
@@ -105,7 +176,7 @@ that does not exist yet, so it will look like the saved session vanished. You ha
 
 Either is safe — there is no silent data loss, only a saved session that needs to be found again or re-created.
 
-### What did NOT change, on purpose
+#### What did NOT change, on purpose
 
 Two categories of constant were deliberately **not** renamed, because they are persisted cryptographic wire
 constants rather than product names:
@@ -119,7 +190,7 @@ Renaming any of these would make every piece of ciphertext already produced unde
 OpenBao static-seal install keyed to `imgexam-static-v1` — permanently unreadable. They are documented as frozen
 next to their definitions and in [`CONTRIBUTING.md`](CONTRIBUTING.md); do not rename them in a fork or a patch.
 
-## Find/replace checklist
+### Find/replace checklist
 
 Going through a checkout or a downstream fork, in roughly the order that will catch the most with the least risk of
 a false match:
@@ -142,7 +213,7 @@ a false match:
 - [ ] **Leave untouched**: every `imgexam-*-v1` string in `crypto/`, `native/src/hybrid/`, `apps/sdk/tests/vectors/`,
       and `imgexam-static-v1` in `apps/api/deploy/k8s/autounseal/static/seal.hcl`.
 
-## A one-liner to adapt
+### A one-liner to adapt
 
 This covers the mechanical renames only — imports, the class/exception names, the CLI command, and the Docker image.
 It deliberately does **not** touch environment variables (review those by hand against the table above, since some
