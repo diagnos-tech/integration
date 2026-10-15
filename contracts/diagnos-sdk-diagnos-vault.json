@@ -32,11 +32,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -60,12 +66,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -356,8 +380,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -371,12 +398,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -667,8 +703,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -682,12 +721,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -989,8 +1037,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -1004,12 +1055,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -1314,11 +1374,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -1342,12 +1408,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -1626,11 +1710,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -1725,12 +1815,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -1891,11 +1999,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -1989,12 +2103,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -2162,11 +2294,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -2268,12 +2406,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -2410,8 +2566,11 @@
       ],
       "request": {
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -2425,12 +2584,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -2537,8 +2705,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"@query\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -2552,12 +2723,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"@query\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -2834,8 +3014,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"@query\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -2849,12 +3032,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"@query\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -3140,26 +3332,17 @@
       "type": "Synchronous/HTTP"
     },
     {
-      "description": "an SDK process opens a patient that has a version pending",
+      "description": "an SDK process on a legacy apikey- token ends its session",
       "pending": false,
       "providerStates": [
         {
-          "name": "a patient has a committed version and another one pending",
+          "name": "an SDK session opened with a legacy apikey- token is active",
           "params": {
-            "document_id": "pat-contract",
-            "security_group_id": "sg-contract",
-            "version_id": "ver-contract-1",
             "workspace_id": "ws-contract"
           }
         }
       ],
       "request": {
-        "generators": {
-          "path": {
-            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}",
-            "type": "ProviderState"
-          }
-        },
         "headers": {
           "Authorization": [
             "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
@@ -3182,6 +3365,438 @@
                 {
                   "match": "regex",
                   "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            },
+            "X-Signature-Hmac": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{128}$"
+                }
+              ]
+            },
+            "X-Signature-Nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{22,}$"
+                }
+              ]
+            },
+            "X-Signature-Timestamp": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{10}$"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/session/lock"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "random_seed": {
+              "ciphertext": "2D93pWzghNj9XV0EcPL-nf3pG9iI_WaYwFqB5AwrW5sXQfp3MVOWt429v38wo7JP5vi3dBpkW6BpmdgKbKLYNpHE62l1Kw",
+              "nonce": "6yTa3QhXk0268hTV"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.random_seed.ciphertext": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            },
+            "$.random_seed.nonce": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]+$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process on a legacy apikey- token polls an enrollment nobody has approved yet",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "an enrollment opened with a legacy apikey- token is waiting for an admin",
+          "params": {
+            "enrollment_id": "enr-contract",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry/${enrollment_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry/[^/]+$"
+              }
+            ]
+          }
+        },
+        "method": "GET",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry/enr-contract"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "status": "pending"
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process on a legacy apikey- token registers its hybrid public keys to request a session",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a legacy apikey- token can enroll an SDK session",
+          "params": {
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "public_keys": {
+              "mlkem768": "7eGgpvkkbIyNrJV-k_goYQSrLkINFspS2oQ9YHBrf1BFn-TGVdKnGDOe8GQ-rJAvFlYXdiFy2TCoCvC7DNu4rEMRs6qdisYeJXG_RYysjjA6IQDJm9la4fVVKzcAzFOatCLF-AiRwglThuk5aPenEIuT6XE325lPxmuxZNPE5DmuzzOt81Odg1CpMqsNaCeSFXYsLqYdoLtgQGqFzQCY1yQVtEcZ1pewGzWjH4M856bIViR-HymY_oNYlfpqi_C8Y0Vt8_sULkfB53W4G1cg9RlNOvqnx3RFKrFkIEe2QPZ1haw0J4x6zaM1ADgqfnOrrkVCVwaBA3GuXYpJ3MqPZxmh3PwKBWmtYVQbhlAUUANbKgwocceTqUIVorGHgGsMuRNQKdtkt2YUYJBuuNesDDE613ukPiczwkk8nHUWLee6byIuJrd7zjFHETS5TvlDDfij6YG6LKUh09eekqZk-xRdtXnBztAwi-auG9W9q0qnvtkwsaxkgZdfJsNcUNeMkQFJUMAC9ac1CuIR1ddobYsZ55kD_oAg3dO4pop9mvmWzNOX9hgqmSG1ktDJarmqw2qIO3CTieCHtmEQynENbFJ9-uLBehU_tMN_K2iQl9ZsBtNEk8SdHEtrrnaAE_N40Gons3aqg0wKUCgd1SohyaicWFWTXpKUoDJWJFqUvjYYVBFN15FjK_CjHlLFadJENDTAbwZ4qJIMpUx44qYu74lhLrPJbGlPI5ZFfjEISEsIB6yooglqHEhAjqYvpeOjtrkvHudUETiKAbJpF0rBVim5sMG0QZZ8Odx0uoBYg4xkXOC1qPpELrpcw_UKKgbPA2V_2ha3Exmt5Ptrd2MkK2mdaDq0b4Ay0HZnjjKtoKE17VQChVtRK9YX9Zu_oZw2O0coTeUQUZzBvJUEzXm19HoYdqNP_1IB49YPiEhE1DCKyzjAJmktB-yn61tBs1QYzgPH20q59soqprpvNNhk9jk_4tEij9hc0ujI8wVZWkNP1sVf_crBiJAvVTAOPdCOwpgGJHuip0N3J3GGsioi3nhkxeB2BlPJA0M4LROlvCh3_7tRFepqlYTAsXRbXnDCavYTujSmgRQkndzH9fsq0IcAOqwYAWrNpcJdHuV3kexBw7EDq2O_JszCjsJ7z9irqxwFIXpJe2rGlcp8aIpi8kjNpiCAJ_KXbJW0ZvmqJFc5sJW3ekzHAhiPG_WvVJA3UOoUbWAqHEBBR8Cd96gEP9GdgfwQY6gVE0J5jaBlrutU-xY4ySUw_qPIX8wjcoSlj9BEuRh7msEmfwdmW7RV71KmAjQ3-MDOfyyT8HcuW4iIQdi02usIJ8ynV_EQFbo893QJ8ktDYwoEmqhJ0QWTa5h-BuWiNDyZAhwPuOYFxRxhK9em4eTPcgRfgwBA8-ss_xBBhQnLsDAEFhGzF_DK3Um6xhYC3_SebboEXdOqafZkVQEdErbJTLtusxcxvAkvA7WZy0pwG2o15Mwy9cMfvkGndzAzCDg-PsgK3ueFnCOB_ik6F5SnaaQ5cGdd-fOx5AfabqHWRo4zuaomJb4ZodivQfqUltQcMsSRIa4RlS8",
+              "x25519": "8_hmo9QvBabOVchVT90fpct-UwbkFcy-KuKzwqd6GQQ"
+            },
+            "runtime": {
+              "arch": "x86_64",
+              "container": false,
+              "hostname": "contract-host",
+              "language": "python 3.12",
+              "os": "linux",
+              "sdk_name": "diagnos-python",
+              "sdk_version": "0.2.0",
+              "user": "contract"
+            }
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Authorization": [
+            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          ],
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.public_keys.mlkem768": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{1579}$"
+                }
+              ]
+            },
+            "$.public_keys.x25519": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[A-Za-z0-9_-]{43}$"
+                }
+              ]
+            },
+            "$.runtime.arch": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.container": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "boolean"
+                }
+              ]
+            },
+            "$.runtime.hostname": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.language": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^python 3\\.[0-9]+$"
+                }
+              ]
+            },
+            "$.runtime.os": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.sdk_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runtime.user": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Authorization": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "result": {
+              "approval_url": "https://app.diagnos.health/sdk/approve/enr-contract",
+              "code": "482915",
+              "enrollment_id": "enr-contract",
+              "expires_at": 1780000600,
+              "poll_interval_seconds": 2
+            },
+            "success": true
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.result.approval_url": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^https?://.+$"
+                }
+              ]
+            },
+            "$.result.code": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9]{6}$"
+                }
+              ]
+            },
+            "$.result.enrollment_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.result.expires_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.result.poll_interval_seconds": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "number"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "an SDK process opens a patient that has a version pending",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a patient has a committed version and another one pending",
+          "params": {
+            "document_id": "pat-contract",
+            "security_group_id": "sg-contract",
+            "version_id": "ver-contract-1",
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/patients/${document_id}",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"@query\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
+          ],
+          "X-Signature-Hmac": [
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+          ],
+          "X-Signature-Nonce": [
+            "kDaXg_BmYp9xJAWLUDP18g"
+          ],
+          "X-Signature-Timestamp": [
+            "1780000000"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"@query\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -3520,8 +4135,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"@query\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -3535,12 +4153,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"@query\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -3910,8 +4537,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"@query\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -3925,12 +4555,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"@query\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -4261,8 +4900,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -4276,12 +4918,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -4616,18 +5267,30 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ]
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             }
@@ -4752,18 +5415,30 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ]
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             }
@@ -4833,18 +5508,30 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ]
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             }
@@ -4914,18 +5601,30 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ]
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             }
@@ -5016,8 +5715,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -5031,12 +5733,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -5308,7 +6019,7 @@
               "language": "python 3.12",
               "os": "linux",
               "sdk_name": "diagnos-python",
-              "sdk_version": "0.1.0",
+              "sdk_version": "0.2.0",
               "user": "contract"
             }
           },
@@ -5322,11 +6033,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ]
         },
         "matchingRules": {
@@ -5408,12 +6125,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             }
@@ -5542,11 +6277,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -5605,12 +6346,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -5779,11 +6538,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -5894,12 +6659,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -6074,8 +6857,11 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -6089,12 +6875,21 @@
         },
         "matchingRules": {
           "header": {
-            "Authorization": {
+            "Signature": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },
@@ -6196,6 +6991,129 @@
       "type": "Synchronous/HTTP"
     },
     {
+      "description": "an SDK process signs with a revoked key",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "the service account's key was revoked",
+          "params": {
+            "workspace_id": "ws-contract"
+          }
+        }
+      ],
+      "request": {
+        "generators": {
+          "path": {
+            "expression": "/api/external/v1/workspaces/${workspace_id}/session/registry",
+            "type": "ProviderState"
+          }
+        },
+        "headers": {
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Content-Digest": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
+                }
+              ]
+            }
+          },
+          "path": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "^/api/external/v1/workspaces/[^/]+/session/registry$"
+              }
+            ]
+          }
+        },
+        "method": "POST",
+        "path": "/api/external/v1/workspaces/ws-contract/session/registry"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "errors": [
+              {
+                "code": "credential_key_revoked",
+                "message": "…"
+              }
+            ],
+            "success": false
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.errors": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.errors[*].code": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "equality"
+                }
+              ]
+            },
+            "$.errors[*].message": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 401
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
       "description": "an SDK process tries to reserve a version while another is pending",
       "pending": false,
       "providerStates": [
@@ -6229,11 +7147,17 @@
           }
         },
         "headers": {
-          "Authorization": [
-            "Bearer apikey-eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiYWNjLWNvbnRyYWN0IiwibmFtZSI6ImNvbnRyYWN0QHdzLWNvbnRyYWN0LmRpYWdub3MuaGVhbHRoIiwic3ViIjoia2V5LWNvbnRyYWN0Iiwid29ya3NwYWNlX2lkIjoid3MtY29udHJhY3QifQ.Hefc2LqXUz3leneyUH5sb9_uc-0wThsaRD5hj1Kye7rCEWzOoXeo0A7Tb9EyyH23Lv1fs8fvstmaJXmlDkAC1g"
+          "Content-Digest": [
+            "sha-256=:RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=:"
           ],
           "Content-Type": [
             "application/json"
+          ],
+          "Signature": [
+            "diagnos=:NROz2vH4ckqpdi+b3lZfk6Q2HqGzkmZoIjSHUqQuPR1MU6wOx+B9gS3xGt8m9VQTor3GEcah365XcAaKtzn1vw==:"
+          ],
+          "Signature-Input": [
+            "diagnos=(\"@method\" \"@path\" \"content-digest\");created=1780000000;keyid=\"svc_4735eceeb1f52ae35da324b174efd1aa@ws-contract.diagnos.health\";nonce=\"VQ3IMYmaXNV9sEy3_k_ZyQ\";alg=\"ed25519\""
           ],
           "X-Signature-Hmac": [
             "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -6284,12 +7208,30 @@
             }
           },
           "header": {
-            "Authorization": {
+            "Content-Digest": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": "^Bearer apikey-[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$"
+                  "regex": "^sha-256=:[A-Za-z0-9+/]{43}=:$"
+                }
+              ]
+            },
+            "Signature": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=:[A-Za-z0-9+/]{86}==:$"
+                }
+              ]
+            },
+            "Signature-Input": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^diagnos=\\(\"@method\"\\ \"@path\"\\ \"content\\-digest\"\\);created=[0-9]{10};keyid=\"svc_[0-9a-f]{32}@[A-Za-z0-9_-]+\\.diagnos\\.health\";nonce=\"[A-Za-z0-9_-]{22}\";alg=\"ed25519\"$"
                 }
               ]
             },

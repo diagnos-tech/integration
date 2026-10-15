@@ -74,6 +74,23 @@ Straight from `_wire.py`'s module docstring, because they are the whole point of
    `"mode": "single"`, `"success": true` are literal — a renamed enum value is a broken SDK. Ids, timestamps and
    ciphertext are matchers (regex/type) — a different id from the real vault is not a broken SDK.
 
+## Identity: the service account credential, and the legacy token
+
+Every interaction authenticates the way SDK `0.2.0` does: an Ed25519 service account credential signing each
+request with HTTP Message Signatures (RFC 9421) — `Signature-Input`, `Signature` and, with a body, `Content-Digest`
+(RFC 9530) — and **no `Authorization` header**. The credential is derived from fixed labels in
+`contracts/tests/_identity.py` (identity `svc_<hex>@ws-contract.diagnos.health`; `_identity.public_key()` prints
+its public key), never stored. The headers are pinned by shape: the exact covered components of that request
+(`"@method" "@path"`, plus `"@query"` with a query string and `"content-digest"` with a body), the parameter order
+`created`, `keyid`, `nonce`, `alg="ed25519"`, and the base64 framing. Because `created` and `nonce` are fresh on
+every request, the vault's provider verification must **re-sign each replayed request** with a key it seeded for
+the provider state (replacing `Signature-Input` and `Signature`, keeping the component list), exactly as it already
+re-signs the session HMAC (`X-Signature-*`), which stays on every session route.
+
+Three interactions keep the deprecated `Authorization: Bearer apikey-<jwt>` pinned until the vault stops accepting
+it (2027-04-15) — their descriptions say "on a legacy apikey- token". One interaction pins a credential failure:
+`401 credential_key_revoked` on registration.
+
 ## Provider states and path generators
 
 Every interaction that needs the vault in a specific condition declares a `providerStates` entry: a name plus
@@ -105,7 +122,11 @@ Every provider state name in the current contract, and what the vault must seed 
 
 | Provider state | Params | The vault must seed |
 |---|---|---|
-| `a service account can enroll an SDK session` | `workspace_id` | A workspace and a service-account token able to register hybrid public keys against `session/registry`. |
+| `a service account can enroll an SDK session` | `workspace_id` | A workspace and a service account whose active Ed25519 key can register hybrid public keys against `session/registry`. |
+| `the service account's key was revoked` | `workspace_id` | A service account whose key was revoked — registration answers `401 credential_key_revoked`. |
+| `a legacy apikey- token can enroll an SDK session` | `workspace_id` | A service account holding a legacy `apikey-` token able to register against `session/registry`. |
+| `an enrollment opened with a legacy apikey- token is waiting for an admin` | `workspace_id`, `enrollment_id` | A pending enrollment of that legacy token — `GET` on it returns `"status": "pending"`. |
+| `an SDK session opened with a legacy apikey- token is active` | `workspace_id` | An active session of that legacy token the vault will accept a `session/lock` for. |
 | `an admin approved the enrollment for one security group` | `workspace_id`, `enrollment_id` | A pending enrollment that an admin has approved, with at least one security group's DEK sealed to the SDK's registered public keys. |
 | `an enrollment is waiting for an admin` | `workspace_id`, `enrollment_id` | An enrollment that exists but has not been approved or denied yet — `GET` on it returns `"status": "pending"`. |
 | `an admin denied the enrollment` | `workspace_id`, `enrollment_id` | An enrollment an admin has explicitly denied — `GET` on it returns `"status": "denied"`. |
@@ -127,8 +148,9 @@ Every provider state name in the current contract, and what the vault must seed 
    or a new `test_<area>.py` for a new surface).
 2. **Declare the interaction** on the `pact` fixture: `pact.upon_receiving("a description in plain English")`, then
    `.given(state_name, params)` if it needs a provider state (use `workspace_state()` from `_wire.py` to always
-   carry `workspace_id`), `.with_request(...)`, `.with_headers(...)` (reuse `bearer_header()` /
-   `signed_headers()` from `_wire.py`), `.with_body(...)`, `.will_respond_with(status)`, `.with_body(...)` for the
+   carry `workspace_id`), `.with_request(...)`, `.with_headers(...)` (reuse `identity_headers(query=…, body=…)`
+   from `_identity.py`, or `signed_headers(query=…, body=…)` from `_wire.py` on a session route),
+   `.with_body(...)`, `.will_respond_with(status)`, `.with_body(...)` for the
    response.
 3. **Apply the matcher/literal rules above** to every field of the response body: `match.regex`/`match.str`/
    `match.int`/`match.each_like` for shape-only fields, a bare value or `literal(...)` (`_wire.py`) for anything the

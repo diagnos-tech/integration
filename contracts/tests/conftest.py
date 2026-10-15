@@ -50,6 +50,7 @@ from diagnos.session.keyring import SessionKeys
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport
 
+from _identity import credential
 from _wire import API_TOKEN, CONSUMER, PROVIDER, TOKEN, session_keys
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[1]
@@ -194,22 +195,26 @@ def make_transport(
     signed: bool = True,
     on_seed: Callable[[SecretBox], None] | None = None,
     storage: Callable[[httpx.Request], httpx.Response] = _no_storage,
+    legacy: bool = False,
 ) -> VaultTransport:
     """🇺🇸 The SDK's real `VaultTransport`, pointed at the mock server, with the contract's session (if `signed`).
 
     Only the R2 side is stubbed: presigned object-storage URLs are not the
-    vault's API, so they are not part of this contract.
+    vault's API, so they are not part of this contract. `legacy` swaps the
+    service account credential for the deprecated `apikey-` token.
 
     🇧🇷 O `VaultTransport` real do SDK, apontado para o mock server, com a sessão do contrato (se `signed`).
 
     Só o lado do R2 é substituído: URLs pré-assinadas de armazenamento de
     objetos não são a API do cofre, então não fazem parte deste contrato.
+    `legacy` troca a credencial de conta de serviço pelo token `apikey-` obsoleto.
     """
     keys: SessionKeys | None = session_keys() if signed else None
-    settings = Settings(api_token=API_TOKEN, vault_url=url)
+    signer = credential()
+    settings = Settings(api_token=API_TOKEN, vault_url=url) if legacy else Settings(credential=signer, vault_url=url)
     return VaultTransport(
         settings,
-        TOKEN,
+        TOKEN if legacy else signer,
         session_keys=lambda: keys,
         on_seed=on_seed,
         client=httpx.Client(base_url=url, timeout=10.0),
