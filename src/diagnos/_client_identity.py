@@ -22,7 +22,8 @@ from typing import Final, Literal
 
 from diagnos.errors import ConfigError
 from diagnos.transport.config import Settings
-from diagnos.transport.credential import NOT_CONFIGURED, ServiceAccountCredential, mask_identity
+from diagnos.transport.credential import NOT_CONFIGURED, ServiceAccountCredential
+from diagnos.transport.credential_text import mask_identity
 from diagnos.transport.token import ServiceAccountToken, redact_api_token
 
 logger = logging.getLogger("diagnos")

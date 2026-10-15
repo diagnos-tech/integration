@@ -78,7 +78,7 @@ def test_a_revoked_key_cannot_open_an_enrollment(pact: Pact) -> None:
         .with_body(failure("CredentialKeyRevoked"), content_type="application/json")
     )
 
-    with pact.serve() as server, pytest.raises(CredentialRevokedError, match="Rotate key"):
+    with pact.serve() as server, pytest.raises(CredentialRevokedError, match="Add a new key"):
         enroll(
             make_transport(str(server.url), signed=False),
             credential(),

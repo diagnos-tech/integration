@@ -44,6 +44,9 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Final
 
 from ._extras import MissingExtraError, require
+
+# 🇺🇸 `_SDK`: the `TYPE_CHECKING` imports below, as data. 🇧🇷 `_SDK`: os imports de `TYPE_CHECKING` abaixo, como dado.
+from ._public_names import SDK as _SDK
 from ._version import __version__
 
 if TYPE_CHECKING:
@@ -104,68 +107,6 @@ if TYPE_CHECKING:
     from .transport.config import Settings
     from .transport.credential import ServiceAccountCredential
 
-# 🇺🇸 The same imports as the `TYPE_CHECKING` block above, as data: which module each public SDK name lives in.
-#    `wrappers/py/tests/test_facade.py` holds the two lists equal and `__all__` to their union.
-# 🇧🇷 Os mesmos imports do bloco `TYPE_CHECKING` acima, como dado: em que módulo vive cada nome público do SDK.
-#    O `wrappers/py/tests/test_facade.py` mantém as duas listas iguais e o `__all__` igual à união delas.
-_SDK: Final[dict[str, tuple[str, ...]]] = {
-    "._client_identity": ("LegacyTokenWarning",),
-    ".client": ("Diagnos",),
-    ".crypto.secure": ("MemoryLockWarning", "memory_status"),
-    ".dates": ("TimePrecision", "to_iso_instant", "truncate_timestamp"),
-    ".errors": (
-        "AuthenticationError",
-        "ClockSkewError",
-        "ConfigError",
-        "ConflictError",
-        "CredentialError",
-        "CredentialExpiredError",
-        "CredentialReplayError",
-        "CredentialRevokedError",
-        "CredentialSignatureError",
-        "CredentialUnknownError",
-        "CryptoError",
-        "DiagnosError",
-        "DiagnosPermissionError",
-        "EnrollmentDeniedError",
-        "EnrollmentExpiredError",
-        "NotFoundError",
-        "ProtocolError",
-        "QuotaError",
-        "RateLimitError",
-        "ScopeMissingError",
-        "SessionExpiredError",
-        "ValidationError",
-        "VaultError",
-        "WorkspaceMismatchError",
-    ),
-    ".models": (
-        "DocumentDraft",
-        "DocumentIndex",
-        "DocumentListItem",
-        "DocumentStream",
-        "DocumentVersion",
-        "DriveNode",
-        "Exam",
-        "ExamListItem",
-        "ExamRecord",
-        "ExamSummary",
-        "Page",
-        "Patient",
-        "PatientAddress",
-        "PatientListItem",
-        "PatientRecord",
-        "PatientSummary",
-        "PersonalIdentifier",
-    ),
-    ".resources.drives": ("Drive", "Drives", "UploadSource"),
-    ".resources.exams": ("Exams",),
-    ".resources.patients": ("Patients",),
-    ".session.enrollment": ("EnrollmentPrompt",),
-    ".session.keyring": ("GroupKeyUnavailable",),
-    ".transport.config": ("Settings",),
-    ".transport.credential": ("ServiceAccountCredential",),
-}
 _ORIGIN: Final = {name: module for module, names in _SDK.items() for name in names}
 
 

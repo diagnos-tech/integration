@@ -47,7 +47,7 @@ def failure(code: str, status: int, details: dict[str, Any] | None = None, **hea
     [
         ("CredentialSignatureInvalid", 401, CredentialSignatureError, AuthenticationError, "Copy the credential"),
         ("CredentialReplayed", 401, CredentialReplayError, AuthenticationError, "not retried"),
-        ("CredentialKeyRevoked", 401, CredentialRevokedError, AuthenticationError, "Rotate key"),
+        ("CredentialKeyRevoked", 401, CredentialRevokedError, AuthenticationError, "Add a new key"),
         ("CredentialKeyExpired", 401, CredentialExpiredError, AuthenticationError, "expiry"),
         ("CredentialKeyUnknown", 401, CredentialUnknownError, AuthenticationError, "DIAGNOS_VAULT_URL"),
         ("CredentialWorkspaceMismatch", 403, WorkspaceMismatchError, DiagnosPermissionError, "target workspace"),

@@ -45,12 +45,47 @@ from typing import Final
 import httpx
 
 SIGNATURE_LABEL: Final = "diagnos"
+# 🇺🇸 The WHATWG URL percent-encode sets (path, special-scheme query): what `new URL()` on the vault escapes.
+# 🇧🇷 Os conjuntos de percent-encode da URL WHATWG (path, query especial): o que o `new URL()` do cofre escapa.
+_PATH_SET: Final = frozenset(' "#<>`{}')
+_QUERY_SET: Final = frozenset(" \"#<>'")
 ALGORITHM: Final = "ed25519"
 
 
 def _b64(data: bytes) -> str:
     """🇺🇸 Standard base64 with padding — what RFC 8941 byte sequences use. 🇧🇷 base64 padrão com padding (RFC 8941)."""
     return base64.b64encode(data).decode("ascii")
+
+
+def _escape(part: str, escaped: frozenset[str]) -> str:
+    """🇺🇸 Escape controls, non-ASCII and `escaped`; `%XX` stay. 🇧🇷 Escapa controles, não ASCII e `escaped`."""
+    return "".join(
+        "".join(f"%{byte:02X}" for byte in char.encode("utf-8"))
+        if ord(char) < 0x21 or ord(char) > 0x7E or char in escaped
+        else char
+        for char in part
+    )
+
+
+def wire_target(raw_path: str) -> str:
+    """🇺🇸 The request target exactly as the vault's `new URL()` re-serializes it — sent *and* signed in this form.
+
+    httpx leaves a few bytes raw that WHATWG URL escapes (a `'` in a query
+    written into the path string becomes `%27` on the vault), and the vault
+    signs over its own parse. Escaping them first makes the bytes on the wire
+    and the bytes the vault reconstructs the same; already-escaped `%XX` are
+    never touched, so nothing is decoded or double-encoded.
+
+    🇧🇷 O alvo da requisição exatamente como o `new URL()` do cofre o re-serializa — enviado *e* assinado assim.
+
+    O httpx deixa crus alguns bytes que a URL WHATWG escapa (um `'` numa query
+    escrita na string do path vira `%27` no cofre), e o cofre assina sobre o
+    próprio parse. Escapá-los antes faz os bytes no fio e os que o cofre
+    remonta serem os mesmos; `%XX` já escapados nunca são tocados, então nada
+    é decodificado nem codificado duas vezes.
+    """
+    path, separator, query = raw_path.partition("?")
+    return _escape(path, _PATH_SET) + separator + _escape(query, _QUERY_SET)
 
 
 def content_digest(body: bytes) -> str:

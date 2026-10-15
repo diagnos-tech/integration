@@ -22,11 +22,11 @@ returns — tables for people, JSON for scripts, stable exit codes for both. It 
 ```sh
 uv tool install "diagnos[cli]"            # or: pipx install "diagnos[cli]"
 uv tool install "diagnos[cli,openbao]"    # with OpenBao auto-unseal, for cron jobs and servers
-export DIAGNOS_API_TOKEN="apikey-…"       # issued by a workspace admin
+export DIAGNOS_CREDENTIAL="svc_…@<workspace_id>.diagnos.health:<key>"   # from Settings → Service accounts
 ```
 
 Already have the base (`pip install diagnos`)? `diagnos setup cli` adds the rest to that same `diagnos`. Without
-Python, the image works too: `docker run --rm -e DIAGNOS_API_TOKEN ghcr.io/diagnos-tech/diagnos patients list`.
+Python, the image works too: `docker run --rm -e DIAGNOS_CREDENTIAL ghcr.io/diagnos-tech/diagnos patients list`.
 
 `--token` on any command overrides the environment for that one invocation, and is never echoed — not in `--help`,
 not in output, not in `--json`.

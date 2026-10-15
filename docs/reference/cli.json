@@ -78,8 +78,8 @@
             "--token"
           ],
           "help": {
-            "en": "Overrides DIAGNOS_API_TOKEN",
-            "pt-br": "Sobrescreve DIAGNOS_API_TOKEN"
+            "en": "Legacy apikey- token (until 2027-04-15); the credential comes from DIAGNOS_CREDENTIAL or DIAGNOS_CREDENTIALS_FILE",
+            "pt-br": "Token apikey- legado (até 2027-04-15); a credencial vem de DIAGNOS_CREDENTIAL ou DIAGNOS_CREDENTIALS_FILE"
           },
           "kind": "option",
           "name": "token",
@@ -1927,7 +1927,7 @@
     }
   ],
   "generatedFrom": {
-    "commit": "cf7b0bc",
+    "commit": "c586928",
     "package": "diagnos",
     "version": "0.2.0"
   },

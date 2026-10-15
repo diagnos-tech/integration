@@ -38,9 +38,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
+from diagnos.crypto.secure import SecretBox
 from diagnos.errors import ConfigError
 
-from .credential import ServiceAccountCredential, _seed_from_b64url
+from .credential import ServiceAccountCredential
+from .credential_text import BAD_SEED, take_seed
 
 FILE_TYPE: Final = "diagnos_service_account"
 FILE_VERSION: Final = 1
@@ -67,6 +69,32 @@ def _field(data: Mapping[str, Any], name: str, where: str) -> str:
     return value
 
 
+def _load(path: Path) -> tuple[dict[str, Any] | None, SecretBox | None, int]:
+    """🇺🇸 The file's JSON *without* `private_key`, the key moved into a box, and the file mode.
+
+    The only function that ever sees the file's text; it raises only before
+    reading it, so no traceback frame can hold the key.
+
+    🇧🇷 O JSON do arquivo *sem* `private_key`, a chave movida para uma caixa, e o modo do arquivo.
+
+    A única função que vê o texto do arquivo; só lança antes de lê-lo, então
+    nenhum quadro de traceback consegue guardar a chave.
+    """
+    mode = path.stat().st_mode
+    raw = path.read_text(encoding="utf-8")
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        data = None
+    del raw
+    if not isinstance(data, dict):
+        return None, None, mode
+    encoded = data.pop("private_key", None)
+    seed = take_seed(encoded) if isinstance(encoded, str) else None
+    del encoded
+    return data, seed, mode
+
+
 def credential_from_file(path: str | os.PathLike[str]) -> ServiceAccountCredential:
     """🇺🇸 Load the JSON credential file (`{"type":"diagnos_service_account","version":1,…}`).
 
@@ -74,18 +102,14 @@ def credential_from_file(path: str | os.PathLike[str]) -> ServiceAccountCredenti
     """
     where = os.fspath(path)
     try:
-        raw = Path(path).read_text(encoding="utf-8")
-        mode = Path(path).stat().st_mode
-    except OSError as exc:
+        data, seed, mode = _load(Path(path))
+    except (OSError, UnicodeDecodeError) as exc:
+        reason = exc.strerror if isinstance(exc, OSError) else "not UTF-8"
         raise ConfigError(
-            f"🇺🇸 {where}: the credential file could not be read ({exc.strerror}). "
-            f"🇧🇷 {where}: o arquivo de credencial não pôde ser lido ({exc.strerror})."
+            f"🇺🇸 {where}: the credential file could not be read ({reason}). "
+            f"🇧🇷 {where}: o arquivo de credencial não pôde ser lido ({reason})."
         ) from None
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        data = None
-    if not isinstance(data, dict) or data.get("type") != FILE_TYPE:
+    if data is None or data.get("type") != FILE_TYPE:
         raise ConfigError(
             f'🇺🇸 {where}: not a diagnos credential file (expected JSON with "type": "{FILE_TYPE}"). '
             f'🇧🇷 {where}: não é um arquivo de credencial diagnos (esperado JSON com "type": "{FILE_TYPE}").'
@@ -96,7 +120,8 @@ def credential_from_file(path: str | os.PathLike[str]) -> ServiceAccountCredenti
             f"diagnos. 🇧🇷 {where}: a versão {data.get('version')!r} do arquivo é mais nova que este SDK; atualize."
         )
     identity = _field(data, "identity", where)
-    seed = _seed_from_b64url(_field(data, "private_key", where), source=where)
+    if seed is None:
+        raise ConfigError(f"{where}: 'private_key' — {BAD_SEED}")
     service_account = data.get("service_account") if isinstance(data.get("service_account"), str) else None
     credential = ServiceAccountCredential(identity, seed, service_account=service_account, source=where)
     for name, expected in (("key_id", credential.key_id), ("workspace_id", credential.workspace_id)):
@@ -133,6 +158,13 @@ def find_identity(env: Mapping[str, str]) -> FoundIdentity:
     if env.get("DIAGNOS_CREDENTIALS_FILE"):
         return FoundIdentity(credential=credential_from_file(env["DIAGNOS_CREDENTIALS_FILE"]))
     if env.get("DIAGNOS_API_TOKEN"):
+        if env["DIAGNOS_API_TOKEN"].lstrip().startswith("svc_"):
+            raise ConfigError(
+                "🇺🇸 DIAGNOS_API_TOKEN (or --token / token=) holds a service account credential ('svc_…:…'), not "
+                "an 'apikey-' token. This is a credential: use DIAGNOS_CREDENTIAL (or Diagnos(credential=…)) instead. "
+                "🇧🇷 DIAGNOS_API_TOKEN (ou --token / token=) contém uma credencial de conta de serviço ('svc_…:…'), "
+                "não um token 'apikey-'. Isto é uma credencial: use DIAGNOS_CREDENTIAL (ou Diagnos(credential=…))."
+            )
         return FoundIdentity(api_token=env["DIAGNOS_API_TOKEN"])
     default = default_credentials_path(env)
     if default.is_file():

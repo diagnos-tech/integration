@@ -20,7 +20,7 @@ what comes after `--` is left alone.
 |---|---|
 | `--json` | machine-readable output: plain JSON on `stdout`, no tables, panels or spinners |
 | `--quiet`, `-q` | no spinners or progress bars |
-| `--token TOKEN` | overrides `DIAGNOS_API_TOKEN` for this invocation; never echoed anywhere |
+| `--token TOKEN` | the deprecated `apikey-` token (until 2027-04-15), overriding `DIAGNOS_API_TOKEN` for this invocation; never echoed anywhere. The service account credential has no flag on purpose — a key on the command line ends up in `ps` and shell history: set `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` or `~/.config/diagnos/credentials.json` |
 | `--vault-url URL` | overrides `DIAGNOS_VAULT_URL` for this invocation |
 | `--no-color` | no ANSI escapes at all — colors, bold and dim (so does the `NO_COLOR` environment variable) |
 | `--version` | prints the CLI version and exits |

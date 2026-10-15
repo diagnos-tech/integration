@@ -22,14 +22,17 @@ from __future__ import annotations
 import base64
 import io
 import json
+import secrets
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from rich.console import Console
 
-from diagnos import EnrollmentPrompt
+from diagnos import ConfigError, EnrollmentPrompt
 from diagnos.cli import context
 from diagnos.cli.context import CliOptions
+from diagnos.crypto.encoding import b64url_encode
 
 
 def _fake_token(*, workspace_id: str = "ws_ctx", account_id: str = "acct_ctx") -> str:
@@ -113,3 +116,19 @@ def test_enrollment_progress_never_starts_the_spinner_when_quiet(monkeypatch: py
     assert not fake_status.start.called
     assert not fake_status.stop.called
     assert "https://vault.test/approve/enr_2" in console.file.getvalue()
+
+
+def test_the_cli_takes_the_credential_from_the_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """🇺🇸 `DIAGNOS_CREDENTIAL` needs no flag; a credential passed to `--token` says where it belongs.
+
+    🇧🇷 `DIAGNOS_CREDENTIAL` não precisa de flag; uma credencial passada a `--token` diz onde deve ir.
+    """
+    identity = f"svc_{secrets.token_hex(16)}@ws_cred.diagnos.health"
+    line = f"{identity}:{b64url_encode(secrets.token_bytes(32))}"
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("DIAGNOS_API_TOKEN", raising=False)
+    monkeypatch.setenv("DIAGNOS_CREDENTIAL", line)
+    vault = context.build_client(CliOptions())
+    assert (vault.identity, vault.credential_kind) == (identity, "ed25519")
+    with pytest.raises(ConfigError, match="use DIAGNOS_CREDENTIAL"):
+        context.build_client(CliOptions(token=line))
