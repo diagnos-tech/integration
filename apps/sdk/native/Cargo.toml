@@ -6,7 +6,7 @@
 #    publicado sozinho no crates.io. Veja README.md para o modelo de ameaça.
 [package]
 name = "diagnos-secure"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -35,6 +35,11 @@ chacha20 = { version = "0.10", features = ["xchacha"] }
 poly1305 = "0.9"
 base64 = "0.23"
 x25519-dalek = { version = "3.0", features = ["static_secrets", "zeroize"] }
+# 🇺🇸 The service account credential (`src/ed25519.rs`); same dalek family as `x25519-dalek`, so it shares its
+#    `curve25519-dalek`. `zeroize` (a default feature) wipes the expanded signing key on drop.
+# 🇧🇷 A credencial de conta de serviço (`src/ed25519.rs`); mesma família dalek do `x25519-dalek`, então divide o
+#    `curve25519-dalek` dele. `zeroize` (feature padrão) apaga a chave de assinatura expandida no drop.
+ed25519-dalek = "3.0"
 ml-kem = { version = "0.3", features = ["zeroize"] }
 rand_core = "0.10"
 getrandom = "0.4"
