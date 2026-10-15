@@ -1,0 +1,5 @@
+{
+  "command": ["python", "main.py"],
+  "timeout_seconds": 180,
+  "stdout_includes": ["ClockSkewError: this machine's clock is 95 s ahead", "ScopeMissingError:", "live call ok:"]
+}
