@@ -1,0 +1,6 @@
+{
+  "command": ["python", "main.py"],
+  "timeout_seconds": 240,
+  "expect": { "patients": 1, "exams": 1, "nodes": 1 },
+  "stdout_includes": ["exam created:", "file attached:", "exam read: Chest X-ray (CR)", "exams of the patient: 1"]
+}

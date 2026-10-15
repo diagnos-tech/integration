@@ -1,0 +1,6 @@
+{
+  "command": ["python", "main.py"],
+  "timeout_seconds": 180,
+  "expect": { "patients": 1 },
+  "stdout_includes": ["patient created:", "patients listed:", "patient read: Jane Example"]
+}

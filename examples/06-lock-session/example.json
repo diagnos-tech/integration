@@ -1,0 +1,5 @@
+{
+  "command": ["python", "main.py"],
+  "timeout_seconds": 180,
+  "stdout_includes": ["unlocked:", "work done:", "locked: 0 group(s) held after lock()"]
+}
