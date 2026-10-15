@@ -10,7 +10,9 @@ them too; they only add their own flags and variables on top.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `DIAGNOS_API_TOKEN` | — (required) | the service-account token, `apikey-<jwt>` — see [Authentication](authentication.md) |
+| `DIAGNOS_CREDENTIAL` | — (one of the three credential sources is required) | the service account credential, one line: `svc_<hex>@<workspace_id>.diagnos.health:<key>` — see [Authentication](authentication.md) |
+| `DIAGNOS_CREDENTIALS_FILE` | unset | the path of the credential JSON downloaded at creation, read when `DIAGNOS_CREDENTIAL` is unset; failing that, `~/.config/diagnos/credentials.json` |
+| `DIAGNOS_API_TOKEN` | unset | **deprecated, stops working on 2027-04-15**: the legacy `apikey-<jwt>` token, used only when no credential is found, with a `LegacyTokenWarning` — see [MIGRATING.md](../../MIGRATING.md#from-the-apikey--token-to-a-service-account-credential-020) |
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | where the vault lives; change it only for a staging or self-hosted vault |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | the timeout of each HTTP request, in seconds |
 | `DIAGNOS_TIME_PRECISION` | unset | the workspace's anonymization precision — `month`, `day`, `hour`, `minute` or `second`; dates are truncated to it before sealing ([why](patients.md#dates-and-time-precision)) |
@@ -18,8 +20,8 @@ them too; they only add their own flags and variables on top.
 | `DIAGNOS_MEMORY_LOCK` | `best-effort` | `require` refuses to hold a key the OS will not lock in RAM — see [below](#memory-and-process-hardening) |
 | `DIAGNOS_HARDEN_PROCESS` | `1` | `0` skips disabling core dumps and debugger attach at unlock — only while debugging |
 
-A missing `DIAGNOS_API_TOKEN` or an invalid value raises `ConfigError` naming the variable, when the `Diagnos` is
-built — before any network call, never later, halfway through a request.
+No credential in any of the sources, a malformed one, or an invalid value raises `ConfigError` naming the variable,
+when the `Diagnos` is built — before any network call, never later, halfway through a request.
 
 ## OpenBao
 
@@ -60,30 +62,31 @@ unlocks — the moment it starts holding clinical keys. Set `0` only to attach a
 ## Without the environment: `Settings`
 
 For tests, for a process that talks as several service accounts, or when configuration comes from somewhere else,
-build a `Settings` yourself. It is immutable and its `repr` redacts both tokens:
+build a `Settings` yourself. It is immutable and its `repr` masks the credential and redacts the legacy token:
 
 ```python
 import os
 
-from diagnos import Diagnos, Settings
+from diagnos import Diagnos, ServiceAccountCredential, Settings
 
 settings = Settings(
-    api_token=os.environ["DIAGNOS_API_TOKEN"],
+    credential=ServiceAccountCredential.parse(os.environ["DIAGNOS_CREDENTIAL"]),
     timeout_seconds=10,
     time_precision="day",
 )
 vault = Diagnos(settings=settings)
-print(settings)  # api_token='apikey-…' — never the token itself
+print(settings)  # credential='svc_0000…0000@ws_1.diagnos.health' — never the key
 ```
 
 `Settings(...)` ignores the environment entirely, OpenBao included: every field not given takes its default.
-`Settings.from_env(mapping)` reads the same variables as above from any mapping, and `Diagnos(token=…)` replaces only
-the token while everything else still comes from the environment.
+`Settings.from_env(mapping)` reads the same variables as above from any mapping, and `Diagnos(credential=…)` replaces
+only the identity while everything else still comes from the environment (the deprecated `Diagnos(token=…)` does the
+same for the legacy token).
 
 ## The CLI and the REST API
 
-- The **CLI** takes `--token` and `--vault-url` anywhere on the line, overriding `DIAGNOS_API_TOKEN` and
-  `DIAGNOS_VAULT_URL` for one invocation; its other global flags are in the [CLI guide](cli.md#global-options). It
+- The **CLI** takes `--token` and `--vault-url` anywhere on the line, overriding `DIAGNOS_VAULT_URL` (and, for
+  the legacy token, `DIAGNOS_API_TOKEN`) for one invocation; its other global flags are in the [CLI guide](cli.md#global-options). It
   also reads `DIAGNOS_GROUP`, the security group a write seals under when `--group` is not given; `DIAGNOS_AGENT`,
   where `off` keeps every command in its own process; and `DIAGNOS_AGENT_IDLE_MINUTES`, how long the session agent
   waits without a command before it ends the session (default `480`) — see

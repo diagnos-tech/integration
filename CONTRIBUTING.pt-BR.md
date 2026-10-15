@@ -122,6 +122,16 @@ idioma logo abaixo do H1 apontando para o irmão. `scripts/check_docs.py` (parte
 quando um documento não tem irmão, não tem seletor, ou tem um link relativo morto. `CHANGELOG.md` e os arquivos sob
 `.github/` são isentos — veja a docstring desse script para a regra exata.
 
+## Exemplos
+
+`examples/NN-nome/` guarda um programa completo por pasta: um `main.py` (tipado, `mypy --strict`, docstrings
+bilíngues, a credencial lida de `DIAGNOS_CREDENTIAL`, nunca um segredo no arquivo), um `README.md` e um
+`README.pt-BR.md`, e opcionalmente um `example.json` para o harness ponta a ponta (`command`, `timeout_seconds`,
+`expect` — o mínimo de documentos novos por `patients`/`exams`/`nodes` — e `stdout_includes`). O `make types` checa
+cada `main.py` sozinho, e o `make test` roda todo exemplo contra o sandbox da doc, então uma mudança no SDK que quebra
+um deles derruba o build. Um exemplo novo deve mostrar algo que nenhum outro mostra, e rodar contra um workspace
+descartável.
+
 ## Mudando o comportamento HTTP do SDK
 
 Se sua mudança toca o que o `VaultTransport` manda para, ou lê de, o cofre, o contrato dele precisa mudar junto:

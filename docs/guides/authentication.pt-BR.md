@@ -2,46 +2,74 @@
 
 [English](authentication.md) · **Português (Brasil)**
 
-Um processo diagnos precisa de duas coisas antes de ler um único registro: um **token** que diz qual service account
-ele é, e um **enrollment** que uma pessoa aprovou, que diz o que este processo em particular pode decifrar. Nenhum dos
-dois basta sozinho — um token vazado não decifra nada sem uma pessoa aprovar o processo que o segura.
+Um processo diagnos precisa de duas coisas antes de ler um único registro: uma **credencial** que diz qual service
+account ele é, e um **enrollment** que uma pessoa aprovou, que diz o que este processo em particular pode decifrar.
+Nenhum dos dois basta sozinho — uma credencial vazada não decifra nada sem uma pessoa aprovar o processo que a segura.
 
-## O token da service account
+## A credencial da service account
 
-Um admin do workspace cria uma service account no app web do diagnos e emite o token dela, um `apikey-` seguido de
-um JWT. O SDK lê quatro claims dele, sem conferir a assinatura — só o cofre tem a chave para isso:
+Um admin do workspace cria uma service account no app web do diagnos (*Configurações → Contas de serviço*). O par de
+chaves nasce no navegador do admin: o cofre guarda só a chave pública, então ninguém — o cofre inclusive — age como a
+service account sem o que o admin guardou. A metade privada aparece **uma vez**, numa linha só:
 
-| Claim | Exposta como | Significado |
-|---|---|---|
-| `workspace_id` | `vault.workspace_id` | o workspace para o qual toda URL é montada |
-| `account_id` | `vault.account_id` | a conta dona da service account |
-| `name` | `vault.name` | `slug@<workspace_id>.diagnos.health`, para humanos |
-| `sub` | `vault.key_id` | o id da chave do token — o que um admin rotaciona ou revoga |
+```text
+svc_<32 hex>@<workspace_id>.diagnos.health:<chave de 43 caracteres>
+```
+
+Antes do último `:` está a *identidade*, que se lê como um e-mail e nomeia uma chave de uma service account de um
+workspace. Depois dele está a chave privada, uma semente Ed25519 de 32 bytes. O SDK move a semente para o enclave Rust
+no instante em que lê a linha e assina toda requisição com ela ([HTTP Message Signatures, RFC 9421](https://www.rfc-editor.org/rfc/rfc9421)):
+não há segredo bearer para roubar do fio, e cada requisição leva assinatura e nonce novos, então uma cópia é recusada.
+
+| Exposta como | Significado |
+|---|---|
+| `vault.workspace_id` | o workspace para o qual toda URL é montada |
+| `vault.identity` | `svc_<hex>@<workspace_id>.diagnos.health` |
+| `vault.key_id` | `svc_<hex>` — a chave que um admin gira ou revoga |
+| `vault.name`, `vault.email` | o nome curto e o endereço da conta; `None` quando só a forma de uma linha é conhecida (o arquivo baixado traz o nome) |
+| `vault.account_id` | `None`: a identidade é a própria chave |
+| `vault.credential_kind` | `"ed25519"` |
 
 ```python
 from diagnos import Diagnos
 
-vault = Diagnos()  # lê DIAGNOS_API_TOKEN; nada toca a rede ainda
-print(vault.workspace_id, vault.account_id, vault.name, vault.key_id)
-print(repr(vault))  # o token em si é sempre redigido
+vault = Diagnos()  # lê DIAGNOS_CREDENTIAL; nada toca a rede ainda
+print(vault.workspace_id, vault.key_id, vault.credential_kind)
+print(repr(vault))  # a identidade é mascarada, a chave nunca aparece
 ```
 
-Há três jeitos de entregar o token, do mais comum ao menos:
+O SDK procura a credencial nesta ordem, e vale a primeira que achar:
 
-| Como | Quando |
+| Onde | Quando |
 |---|---|
-| `DIAGNOS_API_TOKEN` no ambiente | sempre, a menos que você tenha um motivo para não |
-| `Diagnos(token="apikey-…")` | um processo que fala como duas service accounts |
-| `Diagnos(settings=Settings(api_token=…))` | sem ambiente nenhum — veja [Configuração](configuration.pt-BR.md) |
+| `Diagnos(credential=…)` | um processo que fala como duas service accounts: a linha, o caminho do JSON ou uma `ServiceAccountCredential` |
+| `DIAGNOS_CREDENTIAL` no ambiente | o caso comum: um cofre de segredos direto para a variável |
+| `DIAGNOS_CREDENTIALS_FILE` | o caminho do JSON baixado na criação — um secret do Kubernetes ou do Compose montado `0400` |
+| `~/.config/diagnos/credentials.json` | esse mesmo arquivo numa estação de trabalho, `chmod 600`; sem variável |
 
-A CLI também aceita `--token` para uma única invocação. O token não tem claim de expiração: a revogação é do lado do
-servidor, e um token revogado falha na chamada assinada seguinte com `DiagnosPermissionError`
-(`ServiceAccountRevoked`).
+`Diagnos(settings=Settings(credential=…))` a recebe sem ambiente nenhum — veja [Configuração](configuration.pt-BR.md).
+Uma chave pode ter validade, e um admin a gira criando uma segunda chave ao lado da primeira, trocando o processo e
+revogando a antiga — a revogação é do lado do servidor, e a chamada assinada seguinte falha com
+`CredentialRevokedError` (veja [Erros](errors.pt-BR.md#falhas-de-credencial)).
 
 > [!WARNING]
-> O token é uma credencial bearer: quem o tem consegue *pedir* um enrollment como esta service account. Guarde-o num
-> cofre de segredos ou num arquivo montado, nunca num repositório ou numa linha de log. O SDK nunca o imprime — todo
-> `repr` mostra só os quatro últimos caracteres.
+> A chave é um segredo: quem a tem consegue *pedir* um enrollment como esta service account. Guarde-a num cofre de
+> segredos ou num arquivo montado, nunca num repositório ou numa linha de log. O SDK nunca a imprime — `repr` e `str`
+> mostram só uma identidade mascarada, e uma credencial se recusa a ser serializada com pickle.
+
+### O token legado `apikey-`
+
+> [!IMPORTANT]
+> `DIAGNOS_API_TOKEN` (um `apikey-` seguido de um JWT) está **obsoleto e deixa de funcionar em 2027-04-15**. Até lá
+> o SDK ainda o aceita quando nenhuma credencial está configurada, emite um `LegacyTokenWarning` apontando para a sua
+> própria linha e registra um aviso por processo. O [MIGRATING.pt-BR.md](../../MIGRATING.pt-BR.md#do-token-apikey--para-uma-credencial-de-conta-de-serviço-020)
+> troca por uma credencial em três passos.
+
+O token não tem chave própria para assinar: o SDK lê quatro claims dele sem conferir a assinatura, e o envia como
+bearer em toda requisição. Com ele, `vault.account_id`, `vault.name` e `vault.key_id` vêm dessas claims,
+`vault.identity` é `None` e `vault.credential_kind` é `"legacy_apikey"`. Ele pode ser entregue como
+`DIAGNOS_API_TOKEN`, `Diagnos(token="apikey-…")` ou `Settings(api_token=…)`, e a CLI aceita `--token` para uma única
+invocação. Um `token=` explícito esconde as variáveis de credencial, então o argumento que você digitou sempre vence.
 
 ## Enrollment
 
@@ -87,7 +115,7 @@ Ao lado do código, a página de aprovação mostra o `runtime` com que o proces
 | `container`, `cloud` | `true`, `aws` (detectados, best-effort) |
 
 > [!IMPORTANT]
-> Aprove só um enrollment que você iniciou e cujo runtime você reconhece. Uma aprovação é o que transforma um token
+> Aprove só um enrollment que você iniciou e cujo runtime você reconhece. Uma aprovação é o que transforma uma credencial
 > na capacidade de decifrar os dados de um grupo.
 
 ### Esperando a aprovação
@@ -180,7 +208,10 @@ A correção é um enrollment novo que inclua o grupo: reinicie o processo (ou l
 - **Uma service account por integração**, e uma por réplica se ela roda como vários processos: um admin consegue
   então revogar exatamente uma delas.
 - **O mínimo de grupos que funciona.** Um enrollment decifra tudo nos grupos que ele tem.
-- **O token vem de um cofre de segredos** — um Secret do Kubernetes, as variáveis secretas da sua CI — direto para
-  `DIAGNOS_API_TOKEN`, nunca de um arquivo no repositório. O `diagnos` em si nunca o loga.
+- **A credencial vem de um cofre de segredos** — um Secret do Kubernetes, as variáveis secretas da sua CI — direto
+  para `DIAGNOS_CREDENTIAL` (ou um `DIAGNOS_CREDENTIALS_FILE` montado), nunca de um arquivo no repositório. O
+  `diagnos` em si nunca a loga.
+- **Gire com sobreposição.** Crie a chave nova, faça o deploy dela e só então revogue a antiga; uma service account
+  guarda até cinco chaves ao mesmo tempo, então não há janela sem acesso.
 - **Servidores reiniciam sem uma pessoa** só pelo auto-unseal com OpenBao — uma troca deliberada, descrita em
   [Sessões](sessions.pt-BR.md).
