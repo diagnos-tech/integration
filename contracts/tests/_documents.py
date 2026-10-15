@@ -269,7 +269,7 @@ def declare_open_patient(pact: Pact, *, state: str, description: str, stream: di
         .given(name, params)
         .with_request("GET", patient_path())
         .with_query_parameter("stream", "data")
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(query=True))
         .will_respond_with(200)
         .with_body(
             ok(

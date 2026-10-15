@@ -48,6 +48,7 @@ from diagnos.session.keyring import SessionKeys
 from diagnos.transport.token import ServiceAccountToken
 
 from _crypto import b64url, fixed_bytes, random_seed
+from _identity import identity_headers
 
 CONSUMER = "diagnos-sdk"
 PROVIDER = "diagnos-vault"
@@ -156,9 +157,15 @@ def from_state(example: str, name: str) -> GenericMatcher[str]:
 
 
 def bearer_header() -> Headers:
-    """🇺🇸 `Authorization` on every request (`docs/PROTOCOL.md §1`) — its shape, not our fixed token.
+    """🇺🇸 The deprecated `Authorization: Bearer apikey-…` (accepted until 2027-04-15) — its shape, not our token.
 
-    🇧🇷 `Authorization` em toda requisição (`docs/PROTOCOL.md §1`) — a forma, não o nosso token fixo.
+    Only the legacy interactions use it; every other one carries the
+    credential's RFC 9421 headers (`_identity.py`).
+
+    🇧🇷 O `Authorization: Bearer apikey-…` obsoleto (aceito até 2027-04-15) — a forma, não o nosso token.
+
+    Só as interações legadas o usam; toda outra leva os headers RFC 9421 da
+    credencial (`_identity.py`).
     """
     return _headers(
         {
@@ -169,22 +176,27 @@ def bearer_header() -> Headers:
     )
 
 
-def signed_headers() -> Headers:
-    """🇺🇸 Bearer plus the three `X-Signature-*` headers (`docs/PROTOCOL.md §3`).
+def signed_headers(*, query: bool = False, body: bool = False, legacy: bool = False) -> Headers:
+    """🇺🇸 The identity headers plus the three session `X-Signature-*` headers (`docs/PROTOCOL.md §3`).
 
-    The vault's verification re-signs each replayed request with a session it
-    seeded itself; what this contract pins is that the SDK always sends all
-    four, in the right shape.
+    `query`/`body` say which RFC 9421 components the request covers; `legacy`
+    swaps the credential's signature for the deprecated bearer. The vault's
+    verification re-signs each replayed request with a session (and a key) it
+    seeded itself; what this contract pins is that the SDK always sends them
+    all, in the right shape.
 
-    🇧🇷 Bearer mais os três headers `X-Signature-*` (`docs/PROTOCOL.md §3`).
+    🇧🇷 Os headers de identidade mais os três headers de sessão `X-Signature-*` (`docs/PROTOCOL.md §3`).
 
-    A verificação do cofre reassina cada requisição repetida com uma sessão
-    que ela mesma semeou; o que este contrato trava é que o SDK sempre manda
-    os quatro, na forma certa.
+    `query`/`body` dizem quais componentes RFC 9421 a requisição cobre;
+    `legacy` troca a assinatura da credencial pelo bearer obsoleto. A
+    verificação do cofre reassina cada requisição repetida com uma sessão (e
+    uma chave) que ela mesma semeou; o que este contrato trava é que o SDK
+    sempre manda todos, na forma certa.
     """
+    identity = bearer_header() if legacy else identity_headers(query=query, body=body)
     return _headers(
         {
-            **bearer_header(),
+            **identity,
             "X-Signature-Timestamp": match.regex(str(SERVER_TIME_MS // 1000), regex=r"^[0-9]{10}$"),
             "X-Signature-Nonce": match.regex(b64url(fixed_bytes("nonce", 16)), regex=r"^[A-Za-z0-9_-]{22,}$"),
             "X-Signature-Hmac": match.regex("0" * 128, regex=r"^[0-9a-f]{128}$"),

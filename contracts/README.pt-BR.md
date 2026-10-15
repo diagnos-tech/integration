@@ -76,6 +76,23 @@ Direto da docstring de módulo de `_wire.py`, porque são o ponto inteiro de um 
    quebrado. Ids, timestamps e ciphertext são matchers (regex/tipo) — um id diferente vindo do cofre de verdade não
    é um SDK quebrado.
 
+## Identidade: a credencial de conta de serviço, e o token legado
+
+Toda interação se autentica do jeito que o SDK `0.2.0` faz: uma credencial Ed25519 de conta de serviço assinando
+cada requisição com HTTP Message Signatures (RFC 9421) — `Signature-Input`, `Signature` e, com corpo,
+`Content-Digest` (RFC 9530) — e **sem header `Authorization`**. A credencial é derivada de rótulos fixos em
+`contracts/tests/_identity.py` (identidade `svc_<hex>@ws-contract.diagnos.health`; `_identity.public_key()` imprime
+a chave pública), nunca guardada. Os headers são travados pela forma: os componentes cobertos exatos daquela
+requisição (`"@method" "@path"`, mais `"@query"` com query string e `"content-digest"` com corpo), a ordem dos
+parâmetros `created`, `keyid`, `nonce`, `alg="ed25519"`, e o enquadramento base64. Como `created` e `nonce` são novos
+a cada requisição, a verificação do provider no cofre precisa **reassinar cada requisição repetida** com uma chave
+que ela semeou para o provider state (trocando `Signature-Input` e `Signature`, mantendo a lista de componentes),
+exatamente como já reassina o HMAC de sessão (`X-Signature-*`), que continua em toda rota de sessão.
+
+Três interações mantêm travado o `Authorization: Bearer apikey-<jwt>` obsoleto até o cofre deixar de aceitá-lo
+(2027-04-15) — a descrição delas diz "on a legacy apikey- token". Uma interação trava uma falha de credencial:
+`401 credential_key_revoked` no registro.
+
 ## Provider states e geradores de path
 
 Toda interação que precisa do cofre numa condição específica declara uma entrada `providerStates`: um nome mais
@@ -109,7 +126,11 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
 
 | Provider state | Parâmetros | O cofre precisa semear |
 |---|---|---|
-| `a service account can enroll an SDK session` | `workspace_id` | Um workspace e um token de service account capaz de registrar chaves públicas híbridas em `session/registry`. |
+| `a service account can enroll an SDK session` | `workspace_id` | Um workspace e uma service account cuja chave Ed25519 ativa consegue registrar chaves públicas híbridas em `session/registry`. |
+| `the service account's key was revoked` | `workspace_id` | Uma service account cuja chave foi revogada — o registro responde `401 credential_key_revoked`. |
+| `a legacy apikey- token can enroll an SDK session` | `workspace_id` | Uma service account com um token `apikey-` legado capaz de registrar em `session/registry`. |
+| `an enrollment opened with a legacy apikey- token is waiting for an admin` | `workspace_id`, `enrollment_id` | Um enrollment pendente desse token legado — `GET` nele devolve `"status": "pending"`. |
+| `an SDK session opened with a legacy apikey- token is active` | `workspace_id` | Uma sessão ativa desse token legado, para a qual o cofre aceita um `session/lock`. |
 | `an admin approved the enrollment for one security group` | `workspace_id`, `enrollment_id` | Um enrollment pendente que um admin aprovou, com a DEK de ao menos um security group selada para as chaves públicas que o SDK registrou. |
 | `an enrollment is waiting for an admin` | `workspace_id`, `enrollment_id` | Um enrollment que existe mas ainda não foi aprovado nem negado — `GET` nele devolve `"status": "pending"`. |
 | `an admin denied the enrollment` | `workspace_id`, `enrollment_id` | Um enrollment que um admin negou explicitamente — `GET` nele devolve `"status": "denied"`. |
@@ -131,8 +152,9 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
    `test_session.py`, ou um novo `test_<area>.py` para uma superfície nova).
 2. **Declare a interação** na fixture `pact`: `pact.upon_receiving("uma descrição em inglês simples")`, depois
    `.given(nome_do_state, params)` se precisar de provider state (use `workspace_state()` de `_wire.py` para sempre
-   levar `workspace_id`), `.with_request(...)`, `.with_headers(...)` (reaproveite `bearer_header()` /
-   `signed_headers()` de `_wire.py`), `.with_body(...)`, `.will_respond_with(status)`, `.with_body(...)` para a
+   levar `workspace_id`), `.with_request(...)`, `.with_headers(...)` (reaproveite `identity_headers(query=…,
+   body=…)` de `_identity.py`, ou `signed_headers(query=…, body=…)` de `_wire.py` numa rota de sessão),
+   `.with_body(...)`, `.will_respond_with(status)`, `.with_body(...)` para a
    resposta.
 3. **Aplique as regras de matcher/literal acima** a todo campo do corpo de resposta: `match.regex`/`match.str`/
    `match.int`/`match.each_like` para campos onde só a forma importa, um valor puro ou `literal(...)` (`_wire.py`)

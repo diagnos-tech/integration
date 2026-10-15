@@ -246,7 +246,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, pin_client_ref: 
         pact.upon_receiving("an SDK process reserves the upload of one file")
         .given(name, params)
         .with_request("POST", _nodes_path("/uploads"))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body(
             {
                 "security_group_id": literal(SECURITY_GROUP_ID),
@@ -285,7 +285,7 @@ def test_upload_reserves_puts_and_confirms_one_file(pact: Pact, pin_client_ref: 
         pact.upon_receiving("an SDK process confirms the files it uploaded")
         .given(name, params)
         .with_request("POST", _nodes_path("/uploads/complete"))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body({"node_ids": [from_state(NODE_ID, "node_id")]}, content_type="application/json")
         .will_respond_with(200)
         .with_body(ok({"ready": match.each_like(_ready_file()), "missing": []}), content_type="application/json")
@@ -321,7 +321,7 @@ def test_create_folder_reserves_a_folder_node(pact: Pact, pin_client_ref: Callab
         pact.upon_receiving("an SDK process creates a folder")
         .given(name, params)
         .with_request("POST", _nodes_path("/uploads"))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body(
             {
                 "security_group_id": literal(SECURITY_GROUP_ID),
@@ -425,7 +425,7 @@ def test_list_a_folder_decrypts_each_name(pact: Pact) -> None:
         .with_query_parameter("security_group_id", SECURITY_GROUP_ID)
         .with_query_parameter("parent_id", from_state(FOLDER_ID, "parent_id"))
         .with_query_parameter("limit", "50")
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(query=True))
         .will_respond_with(200)
         .with_body(ok({"items": match.each_like(_ready_file()), "next_cursor": None}), content_type="application/json")
     )

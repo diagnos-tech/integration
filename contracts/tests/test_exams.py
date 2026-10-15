@@ -70,7 +70,7 @@ def test_create_exam_has_no_stream_segment_and_links_the_patient_in_clear_meta(p
         pact.upon_receiving("an SDK process creates an exam and reserves its first version")
         .given(name, params)
         .with_request("POST", path(EXAMS_ROUTE[0], pattern=EXAMS_ROUTE[1], expression=EXAMS_ROUTE[2]))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body(
             {
                 "security_group_id": literal(SECURITY_GROUP_ID),

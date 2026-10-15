@@ -104,7 +104,7 @@ def test_create_patient_reserves_uploads_and_commits_the_first_version(pact: Pac
         pact.upon_receiving("an SDK process creates a patient and reserves its first version")
         .given(name, params)
         .with_request("POST", path(PATIENTS_ROUTE[0], pattern=PATIENTS_ROUTE[1], expression=PATIENTS_ROUTE[2]))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body(
             {
                 "security_group_id": literal(SECURITY_GROUP_ID),
@@ -244,7 +244,7 @@ def test_update_patient_reserves_the_next_version_under_the_conflict_guard(pact:
         pact.upon_receiving("an SDK process reserves the next version of a patient's data stream")
         .given(name, params)
         .with_request("POST", patient_path("/streams/data/versions"))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body(
             {
                 "content_length": match.int(size),
@@ -293,7 +293,7 @@ def test_archive_patient_is_a_patch_only_reservation(pact: Pact) -> None:
         pact.upon_receiving("an SDK process archives a patient without a new version")
         .given(name, params)
         .with_request("POST", patient_path("/streams/data/versions"))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body({"is_archived": literal(True)}, content_type="application/json")
         .will_respond_with(200)
         .with_body(
@@ -337,7 +337,7 @@ def test_list_patients_opens_each_summary_without_downloading(pact: Pact) -> Non
         .given(name, params)
         .with_request("GET", path(PATIENTS_ROUTE[0], pattern=PATIENTS_ROUTE[1], expression=PATIENTS_ROUTE[2]))
         .with_query_parameter("limit", "50")
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(query=True))
         .will_respond_with(200)
         .with_body(
             ok(
@@ -385,7 +385,7 @@ def test_reserving_while_another_version_is_pending_backs_off_then_raises(pact: 
         pact.upon_receiving("an SDK process tries to reserve a version while another is pending")
         .given(name, params)
         .with_request("POST", patient_path("/streams/data/versions"))
-        .with_headers(signed_headers())
+        .with_headers(signed_headers(body=True))
         .with_body(
             {
                 "content_length": match.int(sealed_length(MARIA)),
