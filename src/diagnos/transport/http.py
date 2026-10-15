@@ -35,16 +35,16 @@ from typing import Any
 import httpx
 
 from diagnos.crypto.secure import SecretBox
-from diagnos.errors import AuthenticationError, ConflictError
+from diagnos.errors import AuthenticationError, ClockSkewError, ConflictError
 from diagnos.session.keyring import SessionKeys
 
 from ._retry import MAX_RATE_LIMIT_RETRIES, SERVER_ERROR_BACKOFF_SECONDS, rate_limit_wait_seconds
 from ._send import _SendMixin
 from .config import Settings
 from .envelope import unwrap_result
+from .identity import RequestIdentity
 from .storage import _StorageMixin
 from .timesync import ClockSync
-from .token import ServiceAccountToken
 
 
 def _encode_json_body(payload: Any | None) -> bytes:
@@ -86,7 +86,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
     def __init__(
         self,
         settings: Settings,
-        token: ServiceAccountToken,
+        identity: RequestIdentity,
         *,
         session_keys: Callable[[], SessionKeys | None],
         on_seed: Callable[[SecretBox], None] | None = None,
@@ -95,9 +95,9 @@ class VaultTransport(_StorageMixin, _SendMixin):
         clock: ClockSync | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        """🇺🇸 Wrap `settings`/`token` with the callbacks and clients a live session needs.
+        """🇺🇸 Wrap `settings`/`identity` with the callbacks and clients a live session needs.
 
-        🇧🇷 Envolve `settings`/`token` com os callbacks e clients de que uma sessão viva precisa.
+        🇧🇷 Envolve `settings`/`identity` com os callbacks e clients de que uma sessão viva precisa.
         """
         # 🇺🇸 `session_keys` is a callback, not a value, because the keys can
         # rotate (re-enrollment, seed-derived refresh) after this transport is
@@ -106,7 +106,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         # rotacionar (novo enrollment, refresh via semente) depois do
         # transporte pronto; ele sempre precisa pedir as atuais.
         self._settings = settings
-        self._token = token
+        self._identity = identity
         self._session_keys = session_keys
         self._on_seed = on_seed
         self._client = (
@@ -201,7 +201,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         `(timestamp, nonce)` foi o que foi rejeitado da primeira vez.
         """
         body = _encode_json_body(json)
-        headers: dict[str, str] = dict(self._token.authorization_header())
+        headers: dict[str, str] = {}
         if json is not None:
             headers["Content-Type"] = "application/json"
 
@@ -235,7 +235,8 @@ class VaultTransport(_StorageMixin, _SendMixin):
                     continue
                 raise
             except AuthenticationError as exc:
-                if signed and exc.code == "SignatureTimestampSkew" and not skew_retried:
+                clock_skew = isinstance(exc, ClockSkewError) or (signed and exc.code == "SignatureTimestampSkew")
+                if clock_skew and not skew_retried:
                     skew_retried = True
                     self._clock.sync(self._client)
                     continue

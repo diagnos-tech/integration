@@ -21,9 +21,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, ClassVar
 
 from diagnos.crypto.encoding import b64url_decode
 from diagnos.errors import ConfigError
+
+if TYPE_CHECKING:
+    import httpx
 
 _PREFIX = "apikey-"
 _REQUIRED_CLAIMS = ("sub", "account_id", "workspace_id", "name")
@@ -51,6 +55,8 @@ class ServiceAccountToken:
     🇧🇷 A forma decodificada de `DIAGNOS_API_TOKEN`, propositalmente sem
     conferir a assinatura.
     """
+
+    signs_requests: ClassVar[bool] = False
 
     raw: str
     key_id: str
@@ -123,6 +129,13 @@ class ServiceAccountToken:
         🇧🇷 O único header que toda requisição precisa, assinada ou não.
         """
         return {"Authorization": f"Bearer {self.raw}"}
+
+    def request_headers(self, method: str, url: httpx.URL, body: bytes, created: int) -> dict[str, str]:
+        """🇺🇸 `RequestIdentity`: the same bearer on every attempt — the reason this token is deprecated.
+
+        🇧🇷 `RequestIdentity`: o mesmo bearer em toda tentativa — o motivo de este token estar obsoleto.
+        """
+        return self.authorization_header()
 
     def __repr__(self) -> str:
         """🇺🇸 Redacted: this repr ends up in logs and tracebacks. 🇧🇷 Redigido: este repr acaba em log e traceback."""

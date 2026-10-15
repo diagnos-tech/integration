@@ -34,19 +34,19 @@ from diagnos.session.unseal import OpenBaoStore, UnsealedState
 # 🇺🇸 Same reasoning as `enrollment.py`/`unseal.py`: `diagnos.transport`
 # eagerly imports `diagnos.session.keyring`, so importing any of its
 # submodules at module scope here would close an import cycle. `Settings`,
-# `VaultTransport` and `ServiceAccountToken` are only ever used as type
+# `VaultTransport` and `RequestIdentity` are only ever used as type
 # hints — every real use below is a duck-typed call/attribute the manager
 # receives already constructed.
 # 🇧🇷 Mesmo raciocínio de `enrollment.py`/`unseal.py`: `diagnos.transport`
 # importa `diagnos.session.keyring` de forma antecipada, então importar
 # qualquer submódulo dele aqui no nível do módulo fecharia um ciclo.
-# `Settings`, `VaultTransport` e `ServiceAccountToken` só são usados como
+# `Settings`, `VaultTransport` e `RequestIdentity` só são usados como
 # type hint — todo uso real abaixo é uma chamada/atributo duck-typed que o
 # manager recebe já construído.
 if TYPE_CHECKING:
     from diagnos.transport.config import Settings
     from diagnos.transport.http import VaultTransport
-    from diagnos.transport.token import ServiceAccountToken
+    from diagnos.transport.identity import RequestIdentity
 
 logger = logging.getLogger("diagnos")
 
@@ -98,7 +98,7 @@ class SessionManager:
     def __init__(
         self,
         settings: Settings,
-        token: ServiceAccountToken,
+        token: RequestIdentity,
         transport: VaultTransport,
         *,
         on_prompt: PromptCallback = default_prompt,

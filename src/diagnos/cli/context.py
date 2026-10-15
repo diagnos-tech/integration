@@ -126,6 +126,10 @@ def make_client(
     """
     env = dict(os.environ)
     if options.token is not None:
+        # 🇺🇸 The flag names the credential outright, so a credential in the environment must not outrank it.
+        # 🇧🇷 A flag nomeia a credencial de vez, então uma credencial no ambiente não pode passar à frente dela.
+        env.pop("DIAGNOS_CREDENTIAL", None)
+        env.pop("DIAGNOS_CREDENTIALS_FILE", None)
         env["DIAGNOS_API_TOKEN"] = options.token
     if options.vault_url is not None:
         env["DIAGNOS_VAULT_URL"] = options.vault_url

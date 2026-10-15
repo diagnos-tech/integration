@@ -32,6 +32,8 @@ from diagnos.errors import (
     VaultError,
 )
 
+from .credential_failures import credential_error
+
 # 🇺🇸 `docs/PROTOCOL.md §12`. Anything not listed here (5xx included) is a
 # plain `VaultError` — the caller still gets `code`/`status`/`trace_id`, it
 # just has no more specific recovery than "ask a human" or "retry later."
@@ -84,7 +86,16 @@ def unwrap_result(response: httpx.Response) -> Any:
     code = first.get("code", "Unknown") if isinstance(first, dict) else "Unknown"
     message = first.get("message", "") if isinstance(first, dict) else ""
     trace_id = first.get("trace_id") if isinstance(first, dict) else None
+    raw_details = first.get("details") if isinstance(first, dict) else None
+    details = dict(raw_details) if isinstance(raw_details, dict) else {}
+    # 🇺🇸 `server_time` may also sit beside `errors` at the top of the envelope; a clock-skew answer reads both.
+    # 🇧🇷 `server_time` também pode vir ao lado de `errors` no topo do envelope; a resposta de relógio lê os dois.
+    if isinstance(data, dict) and "server_time" in data:
+        details.setdefault("server_time", data["server_time"])
 
+    typed = credential_error(code, message, response=response, details=details, trace_id=trace_id)
+    if typed is not None:
+        raise typed
     exception_class = _STATUS_EXCEPTIONS.get(response.status_code, VaultError)
     raise exception_class(
         code=code,
@@ -92,4 +103,5 @@ def unwrap_result(response: httpx.Response) -> Any:
         status=response.status_code,
         trace_id=trace_id,
         request_id=request_id,
+        details=details,
     )

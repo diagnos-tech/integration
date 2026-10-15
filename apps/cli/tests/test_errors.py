@@ -20,6 +20,7 @@ engole a exceção ele mesmo, antes que ela chegasse ao nosso wrapper).
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -168,7 +169,7 @@ def test_every_documented_error_class_maps_to_its_readme_exit_code(
 
 
 def test_a_missing_api_token_is_a_configuration_error_not_a_crash(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     """🇺🇸 With no `DIAGNOS_API_TOKEN` and no `--token`, `build_client` itself raises — end to end, no fake.
 
@@ -191,7 +192,9 @@ def test_a_missing_api_token_is_a_configuration_error_not_a_crash(
     ("um `--vault-url` malformado" é a mesma categoria de falha, antes de
     qualquer corpo de comando ou fake rodar).
     """
-    monkeypatch.delenv("DIAGNOS_API_TOKEN", raising=False)
+    for name in ("DIAGNOS_API_TOKEN", "DIAGNOS_CREDENTIAL", "DIAGNOS_CREDENTIALS_FILE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(sys, "argv", ["diagnos", "status"])
 
     with pytest.raises(SystemExit) as exc_info:
@@ -202,4 +205,4 @@ def test_a_missing_api_token_is_a_configuration_error_not_a_crash(
     assert "Traceback" not in captured.err
     assert captured.out == ""
     assert "Configuration error" in captured.err
-    assert "DIAGNOS_API_TOKEN" in captured.err
+    assert "DIAGNOS_CREDENTIAL" in captured.err

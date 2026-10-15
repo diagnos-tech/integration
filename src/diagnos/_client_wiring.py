@@ -20,10 +20,10 @@ conexão de instância.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from diagnos._client_identity import CredentialLike, resolve_settings
 from diagnos.crypto import EntropyMixer
 from diagnos.dates import TimePrecision
 from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary
@@ -38,28 +38,26 @@ if TYPE_CHECKING:
     from diagnos.transport.http import VaultTransport
 
 
-def _resolve_settings(settings: Settings | None, token: str | None) -> Settings:
-    """🇺🇸 `settings` wins outright; `token` overrides only `DIAGNOS_API_TOKEN` on top of the real environment.
+def _resolve_settings(
+    settings: Settings | None, token: str | None, credential: CredentialLike | None = None
+) -> Settings:
+    """🇺🇸 `settings` wins outright; an explicit `credential` or `token` overrides only the identity of the environment.
 
-    Routing an explicit `token` through `Settings.from_env` (instead of
+    Routing an explicit identity through `Settings.from_env` (instead of
     hand-building a `Settings`) means `vault_url`/`time_precision`/OpenBao config
-    still come from the environment exactly as they would without `token` —
-    a caller passing a token is choosing *which credential* to use, not
-    opting out of every other env var.
+    still come from the environment exactly as they would without it — a
+    caller passing a credential is choosing *which identity* to use, not
+    opting out of every other env var. The rules live in `_client_identity.py`.
 
-    🇧🇷 `settings` vence direto; `token` sobrescreve só `DIAGNOS_API_TOKEN` em cima do ambiente de verdade.
+    🇧🇷 `settings` vence direto; uma `credential` ou `token` explícito sobrescreve só a identidade do ambiente.
 
-    Rotear um `token` explícito por `Settings.from_env` (em vez de montar um
-    `Settings` à mão) faz `vault_url`/`time_precision`/config do OpenBao continuarem
-    vindo do ambiente exatamente como viriam sem `token` — quem chama
-    passando um token está escolhendo *qual credencial* usar, não saindo de
-    toda outra variável de ambiente.
+    Rotear uma identidade explícita por `Settings.from_env` (em vez de montar
+    um `Settings` à mão) faz `vault_url`/`time_precision`/config do OpenBao
+    continuarem vindo do ambiente exatamente como viriam sem ela — quem chama
+    passando uma credencial está escolhendo *qual identidade* usar, não saindo
+    de toda outra variável de ambiente. As regras vivem em `_client_identity.py`.
     """
-    if settings is not None:
-        return settings
-    if token is not None:
-        return Settings.from_env({**os.environ, "DIAGNOS_API_TOKEN": token})
-    return Settings.from_env()
+    return resolve_settings(settings, token, credential)
 
 
 def _print_enrollment_prompt_fallback() -> PromptCallback:
