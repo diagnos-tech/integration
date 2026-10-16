@@ -88,12 +88,20 @@ def runtime_dir(env: Mapping[str, str]) -> Path:
 
 
 def identity(env: Mapping[str, str], token: str | None, vault_url: str | None) -> tuple[str, str] | None:
-    """🇺🇸 The `(vault_url, api_token)` a command would use — flags over the environment; `None` without a token.
+    """🇺🇸 The legacy `(vault_url, api_token)` a command would use; `None` when a service account token is in play.
 
-    🇧🇷 O `(vault_url, api_token)` que um comando usaria — flags acima do ambiente; `None` sem token.
+    The agent exists for the `apikey-` token's human approval. A `dgn_sk1_`
+    token — `--token`, or `DIAGNOS_TOKEN`, which wins over the legacy
+    variable — opens its own session per command, so it never reaches one.
+
+    🇧🇷 O `(vault_url, api_token)` legado que um comando usaria; `None` quando um token de conta de serviço vale.
+
+    O agente existe para a aprovação humana do token `apikey-`. Um token
+    `dgn_sk1_` — `--token`, ou `DIAGNOS_TOKEN`, que vence a variável legada —
+    abre a própria sessão a cada comando, então nunca chega a um.
     """
-    api_token = token or env.get("DIAGNOS_API_TOKEN")
-    if not api_token:
+    api_token = token or (None if env.get("DIAGNOS_TOKEN") else env.get("DIAGNOS_API_TOKEN"))
+    if not api_token or not api_token.startswith("apikey-"):
         return None
     return (vault_url or env.get("DIAGNOS_VAULT_URL") or Settings(api_token=api_token).vault_url), api_token
 

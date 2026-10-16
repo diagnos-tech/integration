@@ -125,13 +125,13 @@ def test_files_list_all_flag_ignores_cursor(runner: CliRunner, patched_build_cli
     assert names == ["iter_all"]
 
 
-def test_login_last_auto_unseal_flag_on_the_command_line_wins(
+def test_session_start_last_auto_unseal_flag_on_the_command_line_wins(
     runner: CliRunner, monkeypatch: pytest.MonkeyPatch, fake_vault: FakeDiagnos
 ) -> None:
     """🇺🇸 `click`'s own rule for a `--flag/--no-flag` pair: whichever spelling comes last decides the value.
 
     Bypasses `patched_build_client` on purpose (it ignores every argument) to
-    capture the actual `auto_unseal` value `login` passes through —
+    capture the actual `auto_unseal` value `session start` passes through —
     `--auto-unseal --no-auto-unseal` and its reverse must disagree, or this
     "last one wins" precedence would not be locked down at all.
 
@@ -139,7 +139,7 @@ def test_login_last_auto_unseal_flag_on_the_command_line_wins(
     que vier por último decide o valor.
 
     Contorna `patched_build_client` de propósito (ele ignora todo argumento)
-    para capturar o valor real de `auto_unseal` que `login` repassa —
+    para capturar o valor real de `auto_unseal` que `session start` repassa —
     `--auto-unseal --no-auto-unseal` e o inverso precisam discordar, senão
     esta precedência de "o último vence" não estaria travada de jeito nenhum.
     """
@@ -154,8 +154,8 @@ def test_login_last_auto_unseal_flag_on_the_command_line_wins(
 
     monkeypatch.setattr(context_module, "build_client", _capturing_build_client)
 
-    runner.invoke(typer_app, ["login", "--auto-unseal", "--no-auto-unseal"])
-    runner.invoke(typer_app, ["login", "--no-auto-unseal", "--auto-unseal"])
+    runner.invoke(typer_app, ["session", "start", "--auto-unseal", "--no-auto-unseal"])
+    runner.invoke(typer_app, ["session", "start", "--no-auto-unseal", "--auto-unseal"])
 
     assert seen == [False, True]
 

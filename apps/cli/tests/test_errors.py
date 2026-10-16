@@ -171,7 +171,7 @@ def test_every_documented_error_class_maps_to_its_readme_exit_code(
 def test_a_missing_api_token_is_a_configuration_error_not_a_crash(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
-    """🇺🇸 With no `DIAGNOS_API_TOKEN` and no `--token`, `build_client` itself raises — end to end, no fake.
+    """🇺🇸 With no token anywhere and no `--token`, `build_client` itself raises — end to end, no fake.
 
     Deliberately the one test in this file that does *not* use
     `patched_build_client`: `Settings.from_env` (`context.build_client`'s
@@ -181,7 +181,7 @@ def test_a_missing_api_token_is_a_configuration_error_not_a_crash(
     `--vault-url`" is the same category of failure, before any command body
     or fake ever runs).
 
-    🇧🇷 Sem `DIAGNOS_API_TOKEN` nem `--token`, o próprio `build_client`
+    🇧🇷 Sem token em lugar nenhum nem `--token`, o próprio `build_client`
     lança — ponta a ponta, sem fake.
 
     De propósito o único teste deste arquivo que *não* usa
@@ -192,8 +192,6 @@ def test_a_missing_api_token_is_a_configuration_error_not_a_crash(
     ("um `--vault-url` malformado" é a mesma categoria de falha, antes de
     qualquer corpo de comando ou fake rodar).
     """
-    for name in ("DIAGNOS_API_TOKEN", "DIAGNOS_CREDENTIAL", "DIAGNOS_CREDENTIALS_FILE"):
-        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(sys, "argv", ["diagnos", "status"])
 
@@ -205,4 +203,6 @@ def test_a_missing_api_token_is_a_configuration_error_not_a_crash(
     assert "Traceback" not in captured.err
     assert captured.out == ""
     assert "Configuration error" in captured.err
-    assert "DIAGNOS_CREDENTIAL" in captured.err
+    assert "diagnos login" in captured.err
+    assert "DIAGNOS_TOKEN" in captured.err
+    assert list(tmp_path.iterdir()) == []

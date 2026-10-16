@@ -115,13 +115,22 @@ def test_runtime_dir_refuses_a_symlink(tmp_path: Path) -> None:
 def test_identity_prefers_flags_then_environment_then_the_default_vault() -> None:
     """🇺🇸 Same precedence as every command: `--token`/`--vault-url`, then the environment, then the default.
 
+    Only a legacy `apikey-` token has an agent; a service account token —
+    in `--token` or in `DIAGNOS_TOKEN`, which beats the legacy variable —
+    has none.
+
     🇧🇷 A mesma precedência de todo comando: `--token`/`--vault-url`, depois o ambiente, depois o padrão.
+
+    Só um token legado `apikey-` tem agente; um token de conta de serviço —
+    em `--token` ou em `DIAGNOS_TOKEN`, que vence a variável legada — não tem.
     """
-    env = {"DIAGNOS_API_TOKEN": "env-token", "DIAGNOS_VAULT_URL": "https://env.example"}
-    assert identity(env, "flag-token", "https://flag.example") == ("https://flag.example", "flag-token")
-    assert identity(env, None, None) == ("https://env.example", "env-token")
-    assert identity({"DIAGNOS_API_TOKEN": "t"}, None, None) == ("https://vault.diagnos.health", "t")
+    env = {"DIAGNOS_API_TOKEN": "apikey-env", "DIAGNOS_VAULT_URL": "https://env.example"}
+    assert identity(env, "apikey-flag", "https://flag.example") == ("https://flag.example", "apikey-flag")
+    assert identity(env, None, None) == ("https://env.example", "apikey-env")
+    assert identity({"DIAGNOS_API_TOKEN": "apikey-t"}, None, None) == ("https://vault.diagnos.health", "apikey-t")
     assert identity({}, None, "https://x.example") is None
+    assert identity(env, "dgn_sk1_flag", None) is None
+    assert identity({**env, "DIAGNOS_TOKEN": "dgn_sk1_env"}, None, None) is None
 
 
 def test_socket_path_is_one_per_identity_and_never_names_the_token(tmp_path: Path) -> None:

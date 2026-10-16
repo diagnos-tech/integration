@@ -1,27 +1,30 @@
-"""🇺🇸 Turns CLI options into a live `Diagnos`, and renders the enrollment prompt in `rich`.
+"""🇺🇸 Turns CLI options into a live `Diagnos`, and renders the legacy enrollment prompt in `rich`.
 
 `build_client` is the one seam every command calls through — and the one
 seam `apps/cli/tests` monkeypatch to hand back a fake `Diagnos` that never
-touches the network. `enrollment_progress` exists because enrollment is not
-only `login`'s problem: `unlock()` is lazy (`apps/sdk/README.md`), so *any*
-command's first resource access can block on a human approval, and every
-one of them deserves the same rich panel and spinner, not just `login`.
+touches the network. The token comes from `--token`, `DIAGNOS_TOKEN`, the
+system keyring (`diagnos login`) or OpenBao, in that order
+(`diagnos/transport/token_sources.py`); a token taken from the environment
+of an interactive terminal earns one hint towards `diagnos login`.
+`enrollment_progress` only matters for the legacy `apikey-` token, whose
+`unlock()` can block on a human approval in any command.
 
-🇧🇷 Transforma opções da CLI numa `Diagnos` viva, e renderiza o prompt de
-enrollment em `rich`.
+🇧🇷 Transforma opções da CLI numa `Diagnos` viva, e renderiza o prompt de enrollment legado em `rich`.
 
-`build_client` é o único ponto por onde todo comando passa — e o único
-ponto que `apps/cli/tests` faz monkeypatch para devolver uma `Diagnos` falsa que
-nunca toca a rede. `enrollment_progress` existe porque enrollment não é só
-problema do `login`: `unlock()` é preguiçoso (`apps/sdk/README.md`), então o
-primeiro acesso a um recurso de *qualquer* comando pode bloquear numa
-aprovação humana, e todos merecem o mesmo painel rich e o mesmo spinner, não
-só o `login`.
+`build_client` é o único ponto por onde todo comando passa — e o único ponto
+que `apps/cli/tests` faz monkeypatch para devolver uma `Diagnos` falsa que
+nunca toca a rede. O token vem de `--token`, `DIAGNOS_TOKEN`, do chaveiro do
+sistema (`diagnos login`) ou do OpenBao, nessa ordem
+(`diagnos/transport/token_sources.py`); um token tirado do ambiente de um
+terminal interativo ganha uma dica apontando para o `diagnos login`.
+`enrollment_progress` só importa para o token legado `apikey-`, cujo
+`unlock()` pode bloquear numa aprovação humana em qualquer comando.
 """
 
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -53,6 +56,7 @@ ClientFactory = Callable[[CliOptions, Callable[[EnrollmentPrompt], None] | None,
 # 🇧🇷 Definido só dentro do agente de sessão (`agent/server.py`): todo comando então divide o único client do agente.
 _client_factory: ClientFactory | None = None
 _agent_stop_requested = False
+_environment_hinted = False
 
 
 def host_clients(factory: ClientFactory | None) -> None:
@@ -100,6 +104,14 @@ def build_client(
     return make_client(options, on_prompt=on_prompt, auto_unseal=auto_unseal)
 
 
+def environment(options: CliOptions) -> dict[str, str]:
+    """🇺🇸 The real environment with `--vault-url` on top. 🇧🇷 O ambiente de verdade com `--vault-url` por cima."""
+    env = dict(os.environ)
+    if options.vault_url is not None:
+        env["DIAGNOS_VAULT_URL"] = options.vault_url
+    return env
+
+
 def make_client(
     options: CliOptions,
     *,
@@ -111,36 +123,57 @@ def make_client(
     Routing overrides through `Settings.from_env` (instead of hand-building
     a `Settings`) mirrors `client.py`'s own `_resolve_settings`: every other
     env var (`DIAGNOS_TIMEOUT_SECONDS`, `OPENBAO_*`) still applies exactly as
-    it would without `--token`/`--vault-url` — a flag is choosing one
-    credential or endpoint, not opting out of the rest of the configuration.
+    it would without `--token`/`--vault-url` — a flag is choosing one token
+    or endpoint, not opting out of the rest of the configuration. The CLI,
+    unlike a library call on an explicit mapping, does look in the keyring.
 
-    🇧🇷 Constrói a `Diagnos` desta invocação; `--token`/`--vault-url`
-    sobrescrevem o ambiente de verdade por cima dele.
+    🇧🇷 Constrói a `Diagnos` desta invocação; `--token`/`--vault-url` sobrescrevem o ambiente de verdade.
 
     Rotear as sobrescritas por `Settings.from_env` (em vez de montar um
     `Settings` à mão) espelha o próprio `_resolve_settings` de `client.py`:
-    toda outra variável de ambiente (`DIAGNOS_TIMEOUT_SECONDS`,
-    `OPENBAO_*`) continua valendo exatamente como valeria sem
-    `--token`/`--vault-url` — uma flag está escolhendo uma credencial ou um
-    endpoint, não saindo do resto da configuração.
+    toda outra variável de ambiente (`DIAGNOS_TIMEOUT_SECONDS`, `OPENBAO_*`)
+    continua valendo exatamente como valeria sem `--token`/`--vault-url` —
+    uma flag está escolhendo um token ou um endpoint, não saindo do resto da
+    configuração. A CLI, diferente de uma chamada de biblioteca sobre um
+    mapeamento explícito, procura no chaveiro.
     """
-    env = dict(os.environ)
-    if options.token is not None:
-        # 🇺🇸 The flag names the credential outright, so a credential in the environment must not outrank it.
-        # 🇧🇷 A flag nomeia a credencial de vez, então uma credencial no ambiente não pode passar à frente dela.
-        env.pop("DIAGNOS_CREDENTIAL", None)
-        env.pop("DIAGNOS_CREDENTIALS_FILE", None)
-        env["DIAGNOS_API_TOKEN"] = options.token
-    if options.vault_url is not None:
-        env["DIAGNOS_VAULT_URL"] = options.vault_url
-    settings = Settings.from_env(env)
-    return Diagnos(settings=settings, on_prompt=on_prompt, auto_unseal=auto_unseal)
+    settings = Settings.from_env(environment(options), token=options.token, keyring=True)
+    vault = Diagnos(settings=settings, on_prompt=on_prompt, auto_unseal=auto_unseal)
+    hint_environment_token(vault.token_source, quiet=options.quiet)
+    return vault
+
+
+def hint_environment_token(source: str, *, quiet: bool) -> None:
+    """🇺🇸 Once per run: a token from `DIAGNOS_TOKEN` in an interactive terminal belongs in the keyring.
+
+    `DIAGNOS_TOKEN` is how CI and containers receive a secret; on a
+    workstation it sits in the shell's environment (and often its history),
+    where every process the user starts can read it.
+
+    🇧🇷 Uma vez por execução: um token de `DIAGNOS_TOKEN` num terminal interativo deveria estar no chaveiro.
+
+    `DIAGNOS_TOKEN` é como CI e containers recebem um segredo; numa estação
+    de trabalho ele fica no ambiente do shell (e muitas vezes no histórico),
+    onde todo processo que a pessoa sobe consegue lê-lo.
+    """
+    global _environment_hinted
+    if _environment_hinted or quiet or source != "DIAGNOS_TOKEN":
+        return
+    if not (sys.stdin.isatty() and sys.stderr.isatty()):
+        return
+    _environment_hinted = True
+    Console(stderr=True, highlight=False).print(
+        "[yellow]DIAGNOS_TOKEN is meant for CI and containers; on this machine `diagnos login` keeps the token in "
+        "the system keyring (or OpenBao), out of the shell's environment.\n"
+        "DIAGNOS_TOKEN é para CI e containers; nesta máquina o `diagnos login` guarda o token no chaveiro do "
+        "sistema (ou no OpenBao), fora do ambiente do shell.[/yellow]"
+    )
 
 
 def _render_prompt_panel(console: Console, prompt: EnrollmentPrompt) -> None:
-    """🇺🇸 The link and the big, spaced-out code a human types to approve this SDK session.
+    """🇺🇸 The link and the big, spaced-out code a human types to approve this SDK session (legacy token only).
 
-    🇧🇷 O link e o código grande, espaçado, que uma pessoa digita para aprovar esta sessão de SDK.
+    🇧🇷 O link e o código grande, espaçado, que uma pessoa digita para aprovar esta sessão de SDK (só o legado).
     """
     spaced_code = "  ".join(prompt.code)
     body = (
@@ -153,8 +186,10 @@ def _render_prompt_panel(console: Console, prompt: EnrollmentPrompt) -> None:
         # 🇺🇸 Outside the agent this approval dies with the process — say how to keep it.
         # 🇧🇷 Fora do agente esta aprovação morre com o processo — diga como mantê-la.
         body += (
-            "\n\n[dim]Tip: `diagnos login` keeps the session for the next commands.\n"
-            "Dica: `diagnos login` mantém a sessão para os próximos comandos.[/dim]"
+            "\n\n[dim]Tip: `diagnos session start` keeps the session for the next commands; a service account "
+            "token (`diagnos login`) needs no approval at all.\n"
+            "Dica: `diagnos session start` mantém a sessão para os próximos comandos; um token de conta de serviço "
+            "(`diagnos login`) não precisa de aprovação nenhuma.[/dim]"
         )
     console.print(Panel(body, title="diagnos · enrollment", expand=False))
 

@@ -1,45 +1,56 @@
-"""🇺🇸 `diagnos logout` — revoke the kept session and stop the agent.
+"""🇺🇸 `diagnos logout` — forget the stored token (keyring and OpenBao) and stop a legacy session agent.
 
-Inside the agent it asks the agent to lock the one session (revoked on the
-vault, keys wiped) and exit; the agent does both before this command's
-reply reaches the terminal. Run in-process there is
-no kept session to end — each command's session already died with it — so
-it just says so.
+What `diagnos login` stored is deleted from the system keyring and, when
+`OPENBAO_ADDR` is configured, from OpenBao. `DIAGNOS_TOKEN` is the shell's,
+not ours to clear, so it is only named if it is still set. Run inside the
+legacy session agent (`diagnos session start`), it also asks the agent to
+lock its session and exit.
 
-🇧🇷 `diagnos logout` — revoga a sessão guardada e para o agente.
+🇧🇷 `diagnos logout` — esquece o token guardado (chaveiro e OpenBao) e para um agente de sessão legado.
 
-Dentro do agente, pede ao agente para travar a única sessão (revogada no
-cofre, chaves apagadas) e sair; o agente faz os dois antes de a resposta
-deste comando chegar ao terminal. Rodando no próprio processo
-não há sessão guardada para encerrar — a sessão de cada comando já morreu
-com ele — então só avisa isso.
+O que o `diagnos login` guardou é apagado do chaveiro do sistema e, quando
+`OPENBAO_ADDR` está configurada, do OpenBao. O `DIAGNOS_TOKEN` é do shell,
+não cabe a nós limpá-lo, então só é citado se continuar definido. Rodando
+dentro do agente de sessão legado (`diagnos session start`), também pede ao
+agente para travar a sessão e sair.
 """
 
 from __future__ import annotations
 
+import os
+
 import typer
 
+from diagnos import Settings, forget_token
 from diagnos.cli import context
 from diagnos.cli.context import CliOptions
 from diagnos.cli.render import get_console, print_json
 
 
 def logout(ctx: typer.Context) -> None:
-    """🇺🇸 Locks the agent's session and stops it; without an agent, reports there was nothing to end.
+    """🇺🇸 Deletes the stored token and stops the agent, then says what was removed.
 
-    🇧🇷 Trava a sessão do agente e o para; sem agente, avisa que não havia nada a encerrar.
+    🇧🇷 Apaga o token guardado e para o agente, depois diz o que foi removido.
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
+    removed = forget_token(settings=Settings.without_token(context.environment(opts)))
     hosted = context.is_hosted()
     if hosted:
         context.request_agent_stop()
+    still_set = bool(os.environ.get("DIAGNOS_TOKEN"))
     if opts.json_output:
-        print_json({"logged_out": hosted})
-    elif not opts.quiet:
-        message = (
-            "[green]Logged out · Sessão encerrada[/green]"
-            if hosted
-            else "[dim]No session kept for this token · Nenhuma sessão guardada para este token[/dim]"
+        print_json({"removed_from": removed, "agent_stopped": hosted, "diagnos_token_still_set": still_set})
+        return
+    if opts.quiet:
+        return
+    for where in removed:
+        console.print(f"[green]Token removed from · Token removido de:[/green] {where}")
+    if not removed:
+        console.print("[dim]No stored token · Nenhum token guardado[/dim]")
+    if hosted:
+        console.print("[green]Session agent stopped · Agente de sessão parado[/green]")
+    if still_set:
+        console.print(
+            "[yellow]DIAGNOS_TOKEN is still set in this shell · DIAGNOS_TOKEN continua definida neste shell[/yellow]"
         )
-        console.print(message)

@@ -45,7 +45,9 @@ from .conftest import EXAM_INDEX, PATIENT_INDEX, FakeDiagnos
 # documento, nada mais na stdout" ser checado em todo lugar, não só onde um
 # teste de caminho feliz já chamava `json.loads`.
 JSON_COMMANDS: list[list[str]] = [
-    ["login"],
+    ["session", "start"],
+    ["whoami"],
+    ["logout"],
     ["status"],
     ["status", "--check"],
     ["groups"],
@@ -173,14 +175,14 @@ def test_no_color_strips_the_color_codes_readme_promises(
     esta asserção para um comando que nunca sequer tentou colorir a saída.
     """
     monkeypatch.setenv("FORCE_COLOR", "1")
-    colored = runner.invoke(typer_app, ["login"], color=True)
-    plain = runner.invoke(typer_app, ["--no-color", "login"], color=True)
+    colored = runner.invoke(typer_app, ["session", "start"], color=True)
+    plain = runner.invoke(typer_app, ["--no-color", "session", "start"], color=True)
 
     assert colored.exit_code == 0
     assert plain.exit_code == 0
-    # 🇺🇸 `32` is the green SGR number `[bold green]Enrolled...[/bold green]`
+    # 🇺🇸 `32` is the green SGR number `[bold green]Session open...[/bold green]`
     # renders as; it must appear with color and never with `--no-color`.
-    # 🇧🇷 `32` é o número SGR do verde que `[bold green]Enrolled...[/bold green]`
+    # 🇧🇷 `32` é o número SGR do verde que `[bold green]Session open...[/bold green]`
     # renderiza; precisa aparecer com cor e nunca com `--no-color`.
     assert "\x1b[1;32m" in colored.output
     assert "\x1b[1;32m" not in plain.output
@@ -210,7 +212,7 @@ def test_no_color_removes_every_ansi_escape_sequence(
     especificamente números de cor) ainda veria sequências de escape.
     """
     monkeypatch.setenv("FORCE_COLOR", "1")
-    result = runner.invoke(typer_app, ["--no-color", "login"], color=True)
+    result = runner.invoke(typer_app, ["--no-color", "session", "start"], color=True)
 
     assert result.exit_code == 0
     assert "\x1b[" not in result.output
