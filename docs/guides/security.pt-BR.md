@@ -37,10 +37,10 @@ disponibilidade.
 
 | O cofre vê | O cofre nunca vê |
 |---|---|
-| a service account por trás de cada requisição, e o runtime que ela descreveu no enrollment (SO, hostname, usuário, container, cloud) | o conteúdo de nenhum registro — nomes, datas de nascimento, endereços, notas, laudos |
+| a service account e a chave por trás de cada requisição (e, com o token legado, o runtime que ela descreveu no enrollment: SO, hostname, usuário, container, cloud) | o conteúdo de nenhum registro — nomes, datas de nascimento, endereços, notas, laudos |
 | ids de documento, o security group, o tipo de recurso, ids de versão, tamanhos, horários e quem criou cada uma | os resumos selados — nomes, tags, ids externos, títulos e modalidades de exame |
 | metadado em claro: o `patient_id` de um exame, os `specialist_ids` de um paciente, `report_status`, as flags de arquivado e apagado | nomes e conteúdo de arquivo |
-| ids de nó de arquivo, o grupo, exame e pasta, tipo MIME, tamanhos, status e horários | chaves de grupo, de documento, de arquivo, e as chaves privadas do seu processo |
+| ids de nó de arquivo, o grupo, exame e pasta, tipo MIME, tamanhos, status e horários | chaves de grupo, de documento, de arquivo, a semente do token, e as chaves privadas do seu processo |
 | chaves embrulhadas que ele não consegue desembrulhar, e quais ids você lê e grava, quando | nada do que o seu processo decifra |
 
 Duas nuances importam. **Documentos de identidade** (`identifiers`, como um CPF) são selados pela rota de dado
@@ -54,20 +54,25 @@ dela os bytes já estão cifrados ponta a ponta.
 
 ## O que o seu processo protege
 
-- **Chaves nunca viram objetos Python.** Chaves de sessão, de grupo e de documento e o par de chaves do enrollment
-  vivem num enclave Rust: travadas na RAM (nunca vão para o swap), cercadas por guard pages, fora de core dumps,
+- **Chaves nunca viram objetos Python.** A semente do token e as chaves derivadas dela, as chaves de sessão e as
+  chaves de grupo e de documento vivem num enclave Rust: travadas na RAM (nunca vão para o swap), cercadas por guard pages, fora de core dumps,
   zeradas num filho de `fork()` e zeradas no instante em que são descartadas. Assinar, selar e abrir acontecem todos
   lá dentro. [O enclave](../../apps/sdk/native/README.pt-BR.md) lista todo mecanismo.
 - **O processo se endurece no unlock**: core dumps desligados e attach de debugger negado, no instante em que começa
   a guardar chaves clínicas.
-- **O enrollment é pós-quântico.** As chaves chegam ao processo seladas com X25519 mais ML-KEM-768, então uma gravação
-  do enrollment continua segura contra um adversário quântico no futuro.
+- **O token é clássico e pós-quântico juntos.** Ele assina com Ed25519 *e* ML-DSA-65, e o cofre só aceita uma
+  requisição quando as duas verificam; as chaves chegam ao processo seladas para X25519 *e* ML-KEM-768, e um selo só
+  abre com os dois segredos. Quebrar um algoritmo — um defeito achado amanhã, ou um computador quântico um dia — não
+  basta, e uma gravação do tráfego de hoje continua segura contra um adversário quântico no futuro.
 - **Toda requisição é assinada** — HMAC-SHA512 sobre o método, o path, a query, um horário, um nonce de uso único e o
   corpo — então uma requisição não pode ser alterada nem repetida.
 - **Todo ciphertext é autenticado.** Uma chave errada e um byte adulterado lançam o mesmo `CryptoError`, de propósito:
   distingui-los daria um oráculo a quem estiver sondando.
-- **Nada sensível é impresso.** Todo `repr` de token, objeto de configuração, chave ou cliente é redigido, e a API
-  REST nunca loga um corpo de requisição ou um nome de arquivo.
+- **Nada sensível é impresso.** Todo `repr` de token, objeto de configuração, chave ou cliente é redigido, um token se
+  recusa a ser serializado com pickle, nenhum erro carrega o texto dele, e a API REST nunca loga um corpo de requisição
+  ou um nome de arquivo.
+- **O token nunca é gravado num arquivo de texto.** O `diagnos login` o guarda num chaveiro do sistema que cifra em
+  repouso, ou no OpenBao, e recusa quando não há nenhum dos dois.
 - **A aleatoriedade não pode ser enfraquecida de fora.** O cofre contribui com uma semente nova a cada resposta,
   misturada à aleatoriedade do sistema operacional — nunca a substituindo — então mesmo uma semente toda de zeros deixa
   a aleatoriedade comum do SO.
@@ -81,8 +86,10 @@ dela os bytes já estão cifrados ponta a ponta.
 - **O que você faz com o texto claro.** Registros e bytes de arquivo decifrados são devolvidos ao seu código; logá-los,
   gravá-los em disco ou mandá-los a outro lugar está fora do alcance do SDK. (Subir um stream que não é path nem
   `bytes` o copia antes para um arquivo temporário — veja [Arquivos](files.pt-BR.md#subir).)
-- **Um admin aprovando o enrollment errado.** A aprovação é o modelo de segurança; um admin que aprova um runtime que
-  não reconhece concede a ele acesso de verdade.
+- **Um token roubado.** Quem tem o token tem o acesso que ele dá, como uma chave privada: ninguém aprova uma sessão.
+  Guarde-o no chaveiro ou no OpenBao, dê a ele os menos grupos que funcionam, e revogue-o no app web no instante em
+  que ele pode ter vazado — a próxima requisição com ele falha. (Com o token legado, o risco equivalente é um admin
+  aprovar um enrollment que não reconhece.)
 - **Metadado e padrões de acesso.** O cofre vê o que a coluna da esquerda acima lista, inclusive quais documentos você
   toca e quando.
 - **As primitivas mais fracas do Windows.** Só memória travada e zerar ao descartar: sem guard pages, sem semântica de
@@ -92,6 +99,7 @@ dela os bytes já estão cifrados ponta a ponta.
 
 | Escolha | O que muda |
 |---|---|
+| o token no `DIAGNOS_TOKEN` | o que consegue ler o ambiente do processo (`/proc/<pid>/environ`, `docker inspect`) consegue ler o token — serve para CI e containers efêmeros; prefira o chaveiro ou o OpenBao |
 | [auto-unseal com OpenBao](sessions.pt-BR.md#a-troca) | as chaves de grupo também moram no OpenBao: quem lê aquele path decifra o que o processo decifra |
 | `DIAGNOS_MEMORY_LOCK=best-effort` (o padrão) | se o SO recusa travar memória, chaves podem ir para o swap; você recebe um `MemoryLockWarning` — `require` se recusa a rodar |
 | `DIAGNOS_HARDEN_PROCESS=0` | core dumps e debuggers conseguem ler chaves do processo |
@@ -100,7 +108,7 @@ dela os bytes já estão cifrados ponta a ponta.
 ## A fronteira da API REST
 
 O `diagnos-api` mantém uma sessão e a serve a todo chamador com um certificado de cliente válido, então **a CA de
-clientes é o controle de acesso**: qualquer sistema com um certificado que ela assinou lê tudo que o enrollment da API
+clientes é o controle de acesso**: qualquer sistema com um certificado que ela assinou lê tudo que o token da API
 lê. Emita um certificado por sistema chamador, restrinja nomes com `DIAGNOS_API_ALLOWED_CLIENT_CN`, mantenha a chave
 privada da CA offline, e trate o processo da API como parte da zona confiável acima. As listas são anônimas a menos
 que quem chama peça `?summary=true`. O [guia da API REST](api.pt-BR.md#por-que-tls-mútuo) explica por que nada além de

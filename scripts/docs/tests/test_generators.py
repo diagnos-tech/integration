@@ -83,15 +83,15 @@ def test_cli_json_carries_what_help_shows(cli_document: dict[str, Any]) -> None:
     root = {param["name"]: param for param in by_path[()]["params"]}
     assert root["quiet"]["flags"] == ["--quiet", "-q"] and root["quiet"]["default"] == "false"
     assert root["token"]["default"] is None
-    login = {param["name"]: param for param in by_path[("login",)]["params"]}
-    assert login["auto-unseal"]["flags"] == ["--auto-unseal", "--no-auto-unseal"]
+    start = {param["name"]: param for param in by_path[("session", "start")]["params"]}
+    assert start["auto-unseal"]["flags"] == ["--auto-unseal", "--no-auto-unseal"]
     upload = {param["name"]: param for param in by_path[("files", "upload")]["params"]}
     assert upload["paths"]["type"] == "list[path]" and upload["paths"]["required"]
     assert by_path[("login",)]["examples"][0] == {
         "command": "diagnos login",
         "description": {
-            "en": "Prints a link and a code, waits for approval",
-            "pt-br": "Imprime link e código, espera a aprovação",
+            "en": "Hidden input, CRC check, whoami, then the system keyring (else OpenBao)",
+            "pt-br": "Entrada oculta, CRC, whoami, depois o chaveiro do sistema (senão o OpenBao)",
         },
     }
 

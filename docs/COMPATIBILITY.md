@@ -11,11 +11,13 @@ SDK speaks the vault's current protocol for it.
 | Area | SDK surface | Status | Verified by |
 |---|---|---|---|
 | Clock | `GET /time`, skew correction | ✅ Compatible | contract |
-| Identity | `DIAGNOS_API_TOKEN` (`apikey-<jwt>`), `Authorization: Bearer` | ✅ Compatible | contract |
+| Identity | the service account token (`dgn_sk1_…`): RFC 9421, Ed25519 + ML-DSA-65 | ✅ Compatible | contract + vectors |
+| Session | `POST /workspaces/{ws}/session`: session and group keys sealed to the token | ✅ Compatible | contract + vectors |
+| Legacy identity | `DIAGNOS_API_TOKEN` (`apikey-<jwt>`), `Authorization: Bearer`, until 2027-04-15 | ✅ Compatible | contract |
 | Request signature | `X-Signature-Timestamp` / `-Nonce` / `-Hmac` | ✅ Compatible | contract + vectors |
-| Enrollment | `session/registry` (register, poll: pending, approved, denied, expired) | ✅ Compatible | contract |
+| Legacy enrollment | `session/registry` (register, poll: pending, approved, denied, expired), `apikey-` only | ✅ Compatible | contract |
 | Session keys | hybrid seal (X25519 + ML-KEM-768), `random_seed` | ✅ Compatible | contract + vectors |
-| Lock | `session/lock` | ✅ Compatible | contract |
+| Lock | `workspaces/{ws}/session/lock` (token), `session/lock` (legacy) | ✅ Compatible | contract |
 | OpenBao auto-unseal | save/restore of the unlocked session | ✅ Client-side only | unit tests |
 | Patients, exams | `vault.patients`, `vault.exams` (versioned documents) | ✅ Compatible | contract + web-app vectors |
 | Files and folders | `vault.drives` (`/nodes`: reserve, `PUT`, confirm, multipart, list, read, folders) | ✅ Compatible | contract + web-app vectors |

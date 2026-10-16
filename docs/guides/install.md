@@ -76,7 +76,7 @@ diagnos version
 
 A tool installer keeps the CLI in its own virtual environment, so it never collides with the packages of a project
 you are working on. `pip install "diagnos[cli]"` works too. The CLI also ships as an image —
-`docker run --rm -e DIAGNOS_API_TOKEN ghcr.io/diagnos-tech/diagnos patients list` — for machines without Python.
+`docker run --rm -e DIAGNOS_TOKEN ghcr.io/diagnos-tech/diagnos patients list` — for machines without Python.
 
 ## The REST API
 

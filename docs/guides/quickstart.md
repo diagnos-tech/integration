@@ -2,7 +2,7 @@
 
 **English** · [Português (Brasil)](quickstart.pt-BR.md)
 
-From a service account credential to your first encrypted patient and file, in about five minutes. Every byte of clinical
+From a service account token to your first encrypted patient and file, in about five minutes. Every byte of clinical
 data below is encrypted inside your own process before it touches the network; the vault only ever stores
 ciphertext.
 
@@ -11,12 +11,12 @@ ciphertext.
 | You need | Where it comes from |
 |---|---|
 | Python 3.11, 3.12 or 3.13 | [python.org](https://www.python.org/downloads/) or your package manager |
-| A service account credential (`svc_…@<workspace>.diagnos.health:…`) | A workspace admin creates it in the diagnos web app (*Settings → Service accounts*) and copies it once |
-| Someone who can approve an enrollment | A workspace admin, with the web app open |
+| A service account token (`dgn_sk1_…`) | A workspace admin creates it in the diagnos web app (*Settings → Service accounts*), choosing its security groups, and copies it once |
 
 > [!NOTE]
-> The credential identifies *which* service account is asking. It does not unlock anything by itself: the first run
-> prints a link and a 6-digit code that an admin approves — see [Authentication](authentication.md) for why.
+> The token is the identity *and* the key: there is no approval step, no link, no code. That is why it is shown once
+> and why it belongs in the system keyring, in OpenBao or in a secret store — never in a file in your repository. See
+> [Authentication](authentication.md).
 
 ## 1. Install
 
@@ -28,23 +28,29 @@ uv tool install "diagnos[cli]"    # optional: the full `diagnos` command
 Until the first PyPI release, install from source — [Install](install.md) has the exact commands, including the
 Rust toolchain the source build needs.
 
-## 2. Hand the credential to the process
+## 2. Hand the token to the process
 
 ```sh
-export DIAGNOS_CREDENTIAL="svc_<32 hex>@<workspace_id>.diagnos.health:<key>"
+diagnos login                     # paste it once: checked, proven, kept in the system keyring
 ```
 
-The SDK reads it from the environment (or from the JSON file the page offers, through `DIAGNOS_CREDENTIALS_FILE`); the
-private key moves into the Rust enclave and signs every request. Nothing ever prints it back: every `repr` in the SDK
-is masked. The old `DIAGNOS_API_TOKEN` still works until 2027-04-15, with a warning — see
-[Authentication](authentication.md#the-legacy-apikey--token).
+Without the CLI — in CI, or a container — put it in the environment, straight from your secret store:
 
-## 3. Enroll and write your first patient
+```sh
+export DIAGNOS_TOKEN="dgn_sk1_…"
+```
+
+The SDK finds it in either place, checks its CRC (a token cut short fails right here, saying so), and moves the seed
+into the Rust enclave, where every key is derived and every request is signed. Nothing ever prints it back: every
+`repr` in the SDK shows only the identity. The old `DIAGNOS_API_TOKEN` still works until 2027-04-15, with a warning —
+see [Authentication](authentication.md#the-legacy-apikey--token).
+
+## 3. Open a session and write your first patient
 
 ```python
 from diagnos import Diagnos
 
-with Diagnos() as vault:  # prints an approval link and a 6-digit code, then waits
+with Diagnos() as vault:  # one signed request opens the session — no prompt
     print("workspace:", vault.workspace_id)
     print("groups:", vault.security_groups)
 
@@ -57,10 +63,7 @@ with Diagnos() as vault:  # prints an approval link and a 6-digit code, then wai
     print("created", patient.id, "version", patient.version_id)
 ```
 
-While `Diagnos()` waits, open the printed link in the web app, check that the machine described there is yours,
-type the code and pick the security groups this process may read. The block continues the moment you approve.
-
-`security_groups` is the list the admin granted; a document belongs to exactly one of them. Everything in the
+`security_groups` is the list the admin chose for the token; a document belongs to exactly one of them. Everything in the
 record — names, birth date — is sealed under a fresh key before it leaves; the vault learns only that a patient
 exists in that group.
 
@@ -76,9 +79,9 @@ with Diagnos() as vault:
 ```
 
 > [!TIP]
-> Each `Diagnos()` above enrolls again, because a session lives only in the memory of the process that earned it.
-> In real code, keep one `vault` for the life of the process — and read [Sessions](sessions.md) before running on a
-> server that restarts without a human.
+> Each `Diagnos()` above opens a new session, because a session lives only in the memory of the process that opened
+> it. In real code, keep one `vault` for the life of the process — and read [Sessions](sessions.md) before running it
+> on a server.
 
 ## 5. Upload and download a file
 
@@ -95,14 +98,14 @@ with Diagnos() as vault:
 ## 6. The same from the terminal
 
 ```sh
-diagnos login                                   # enroll; prints what was granted
+diagnos whoami                                  # proves the token; prints its groups
 diagnos patients create --group sg_oncology --legal-name "Jane Doe" --display-name Jane
 diagnos patients list --group sg_oncology --summary
 diagnos files upload --group sg_oncology scans/IM-0001.dcm
 ```
 
-Each `diagnos` invocation is its own process, so each one enrolls unless OpenBao is configured — the
-[CLI guide](cli.md) explains how to run it in scripts and cron jobs.
+Each `diagnos` invocation opens its own session with the stored token, with no prompt — the [CLI guide](cli.md)
+explains how to run it in scripts and cron jobs.
 
 ## Where to go next
 
@@ -110,7 +113,7 @@ Each `diagnos` invocation is its own process, so each one enrolls unless OpenBao
 |---|---|
 | understand workspaces, groups, versions and nodes | [Concepts](concepts.md) |
 | read, update, archive and delete safely | [Patients](patients.md) · [Exams](exams.md) · [Files](files.md) |
-| run on a server without a human | [Sessions and OpenBao auto-unseal](sessions.md) |
+| run on a server, with the token in OpenBao | [Sessions](sessions.md) · [Deploying the API](../../apps/api/deploy/README.md) |
 | handle every failure | [Errors](errors.md) |
 | call it over HTTP instead | [REST API guide](api.md) |
 | know exactly what the vault can see | [Security model](security.md) |

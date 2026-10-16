@@ -3196,7 +3196,7 @@
           "session"
         ],
         "summary": "🇺🇸 Lock this session 🇧🇷 Trava esta sessão",
-        "description": "🇺🇸 Ends the SDK session (best-effort server-side, always locally) and wipes its key material. Every route after this one fails until the process is restarted and re-enrolls (or restores via OpenBao) — this does not restart the session itself. 🇧🇷 Encerra a sessão do SDK (best-effort do lado do servidor, sempre localmente) e apaga o material de chave dela. Toda rota depois desta falha até o processo reiniciar e refazer o enrollment (ou restaurar via OpenBao) — isto não reinicia a sessão sozinho.",
+        "description": "🇺🇸 Ends the SDK session (best-effort server-side, always locally) and wipes its key material. It does not open a new one: with a service account token the next data route does, with one signed request; with the legacy `apikey-` token the next data route enrolls again and waits for an approval. 🇧🇷 Encerra a sessão do SDK (best-effort do lado do servidor, sempre localmente) e apaga o material de chave dela. Não abre outra: com um token de conta de serviço a próxima rota de dados abre, com uma requisição assinada; com o token legado `apikey-` a próxima rota de dados refaz o enrollment e espera uma aprovação.",
         "operationId": "lock_session",
         "responses": {
           "202": {

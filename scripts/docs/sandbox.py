@@ -1,34 +1,38 @@
 """🇺🇸 The sandbox every runnable doc snippet runs in: the real SDK, an in-memory vault, nothing else faked.
 
 `from diagnos import Diagnos; Diagnos()` inside a snippet is the real class
-doing the real work — token parsing, enrollment with a real hybrid key
-pair, request signing, sealing and opening every record and file in the
-Rust enclave. Only the network is replaced: the two `httpx` clients
+doing the real work — token parsing, the session opened with the token's
+hybrid signature, sealing and opening every record and file in the Rust
+enclave. Only the network is replaced: the two `httpx` clients
 `VaultTransport` would open are swapped for `httpx.MockTransport`s that
 answer from `FakeVault`, the SDK's own test double of the vault and R2
-(`apps/sdk/tests/resources/vault_double/`), plus the two enrollment
-routes, where every registration is approved on the first poll with the
-groups `sg_oncology` and `sg_radiology`.
+(`apps/sdk/tests/resources/vault_double/`), plus the token's session and
+lock routes, where the session and the keys of the groups `sg_oncology`
+and `sg_radiology` are sealed to the token for real.
 
 The working directory is a fresh temporary folder holding the files the
-guides upload (`FIXTURES`), and the environment carries a sandbox
-`DIAGNOS_CREDENTIAL` — so a snippet reads exactly like production code.
+guides upload (`FIXTURES`), the environment carries a sandbox
+`DIAGNOS_TOKEN` (all-zero key id and seed: obviously not a secret), and the
+system keyring is out of reach — so a snippet reads exactly like production
+code and never touches the machine's own token.
 
 🇧🇷 O sandbox em que todo snippet executável da doc roda: o SDK de verdade, um cofre em memória, nada mais falso.
 
 `from diagnos import Diagnos; Diagnos()` dentro de um snippet é a classe de
-verdade fazendo o trabalho de verdade — leitura do token, enrollment com um
-par de chaves híbrido de verdade, assinatura de requisição, selar e abrir
-todo registro e arquivo no enclave Rust. Só a rede é trocada: os dois
-clients `httpx` que o `VaultTransport` abriria viram `httpx.MockTransport`s
-que respondem a partir do `FakeVault`, o duplo de teste do próprio SDK para o
-cofre e o R2 (`apps/sdk/tests/resources/vault_double/`), mais as duas rotas
-de enrollment, onde todo registro é aprovado no primeiro poll com os grupos
-`sg_oncology` e `sg_radiology`.
+verdade fazendo o trabalho de verdade — leitura do token, a sessão aberta com
+a assinatura híbrida do token, selar e abrir todo registro e arquivo no
+enclave Rust. Só a rede é trocada: os dois clients `httpx` que o
+`VaultTransport` abriria viram `httpx.MockTransport`s que respondem a partir
+do `FakeVault`, o duplo de teste do próprio SDK para o cofre e o R2
+(`apps/sdk/tests/resources/vault_double/`), mais as rotas de sessão e de
+lock do token, onde a sessão e as chaves dos grupos `sg_oncology` e
+`sg_radiology` são seladas para o token de verdade.
 
 O diretório de trabalho é uma pasta temporária nova com os arquivos que os
-guias sobem (`FIXTURES`), e o ambiente carrega uma `DIAGNOS_CREDENTIAL` de
-sandbox — então um snippet se lê exatamente como código de produção.
+guias sobem (`FIXTURES`), o ambiente carrega um `DIAGNOS_TOKEN` de sandbox
+(id de chave e semente todos zero: obviamente não é segredo), e o chaveiro do
+sistema fica fora de alcance — então um snippet se lê exatamente como código
+de produção e nunca toca o token da própria máquina.
 """
 
 from __future__ import annotations
@@ -50,7 +54,11 @@ import httpx
 
 import diagnos.client
 from diagnos.crypto.hybrid import seal_hybrid
+from diagnos.crypto.secure import SecretBox
+from diagnos.crypto.token_keys import encode_token
+from diagnos.session.token_session import group_key_aad, lock_path, session_aad, session_path
 from diagnos.transport.http import VaultTransport
+from diagnos.transport.service_token import DiagnosToken
 
 from .output import REPO_ROOT
 
@@ -66,8 +74,6 @@ FIXTURES: dict[str, bytes] = {
     "photo.jpg": b"\xff\xd8\xff\xe0" + bytes(64),
     "report.pdf": b"%PDF-1.7\n" + bytes(64),
 }
-_REGISTRY = f"/api/external/v1/workspaces/{WORKSPACE_ID}/session/registry"
-_LOCK = "/api/external/v1/session/lock"
 _SESSION_SECONDS = 3600
 
 
@@ -81,12 +87,12 @@ def _b64url_decode(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
-def sandbox_credential() -> str:
-    """🇺🇸 A `DIAGNOS_CREDENTIAL` line for the double's workspace: an obviously fake all-zero key, signed for real.
+def sandbox_token() -> str:
+    """🇺🇸 A `DIAGNOS_TOKEN` for the double's workspace: all-zero key id and seed, obviously fake, signed for real.
 
-    🇧🇷 Uma linha `DIAGNOS_CREDENTIAL` para o workspace do duplo: chave falsa (toda zero), assinada de verdade.
+    🇧🇷 Um `DIAGNOS_TOKEN` para o workspace do duplo: id e semente todos zero, obviamente falso, assinado de verdade.
     """
-    return f"svc_{'0' * 32}@{WORKSPACE_ID}.diagnos.health:{_b64url(bytes(32))}"
+    return encode_token(f"svc_{'0' * 32}", SecretBox.from_bytes(bytearray(32)), WORKSPACE_ID)
 
 
 def _envelope(result: object, status: int = 200) -> httpx.Response:
@@ -96,69 +102,55 @@ def _envelope(result: object, status: int = 200) -> httpx.Response:
 
 
 class SandboxVault:
-    """🇺🇸 `FakeVault` plus enrollment: registrations approved at the first poll, sealed to the SDK's own keys.
+    """🇺🇸 `FakeVault` plus the token's session: sealed to the sandbox token's own keys, every time it is asked.
 
-    🇧🇷 `FakeVault` mais enrollment: registros aprovados no primeiro poll, selados para as chaves do próprio SDK.
+    🇧🇷 `FakeVault` mais a sessão do token: selada para as chaves do próprio token do sandbox, a cada pedido.
     """
 
     def __init__(self) -> None:
         """🇺🇸 An empty workspace with two granted groups. 🇧🇷 Um workspace vazio com dois grupos concedidos."""
         self.documents = FakeVault()
-        self.group_deks = {group: secrets.token_bytes(32) for group in GRANTED_GROUPS}
-        self._public_keys: dict[str, tuple[bytes, bytes]] = {}
+        self.group_keys = {group: secrets.token_bytes(32) for group in GRANTED_GROUPS}
+        token = DiagnosToken.parse(sandbox_token(), source="sandbox")
+        keys = token.public_keys
+        self._key_id = token.key_id
+        self._recipient = (_b64url_decode(keys["x25519"]), _b64url_decode(keys["ml_kem_768"]))
+        token.wipe()
 
     def handle_api(self, request: httpx.Request) -> httpx.Response:
-        """🇺🇸 Enrollment and lock here; the rest goes to `FakeVault`. 🇧🇷 Enrollment e lock aqui; o resto, ao duplo."""
+        """🇺🇸 Session and lock here; the rest goes to `FakeVault`. 🇧🇷 Sessão e lock aqui; o resto, ao duplo."""
         path = request.url.path
-        if request.method == "POST" and path == _REGISTRY:
-            return self._register(json.loads(request.content))
-        if request.method == "GET" and path.startswith(f"{_REGISTRY}/"):
-            return self._approve(path.rsplit("/", 1)[1])
-        if request.method == "POST" and path == _LOCK:
-            return _envelope({"locked": True})
+        if request.method == "POST" and path == session_path(WORKSPACE_ID):
+            return self._session()
+        if request.method == "POST" and path == lock_path(WORKSPACE_ID):
+            return _envelope({"revoked": True})
         return self.documents.handle_api(request)
 
-    def _register(self, body: dict[str, Any]) -> httpx.Response:
-        """🇺🇸 `POST session/registry`: remembers the public keys, hands out a link and a code.
+    def _session(self) -> httpx.Response:
+        """🇺🇸 `POST …/session`: a fresh session and the group keys, sealed with the reference's AADs.
 
-        🇧🇷 `POST session/registry`: guarda as chaves públicas, devolve um link e um código.
+        🇧🇷 `POST …/session`: uma sessão nova e as chaves de grupo, seladas com os AADs da referência.
         """
-        enrollment_id = f"enr_{len(self._public_keys) + 1}"
-        keys = body["public_keys"]
-        self._public_keys[enrollment_id] = (_b64url_decode(keys["x25519"]), _b64url_decode(keys["mlkem768"]))
-        registration = {
-            "enrollment_id": enrollment_id,
-            "code": "482915",
-            "approval_url": f"https://app.diagnos.health/approve/{enrollment_id}",
-            "expires_at": int(time.time()) + 600,
-            "poll_interval_seconds": 0,
-        }
-        return _envelope(registration, status=201)
-
-    def _approve(self, enrollment_id: str) -> httpx.Response:
-        """🇺🇸 `GET session/registry/{id}`: approved, session and group keys sealed to that enrollment.
-
-        🇧🇷 `GET session/registry/{id}`: aprovado, sessão e chaves de grupo seladas para aquele enrollment.
-        """
-        x25519, mlkem768 = self._public_keys[enrollment_id]
         expires_at = int(time.time()) + _SESSION_SECONDS
         session = {
-            "session_id": f"ses_{enrollment_id}",
+            "session_id": f"ses_{secrets.token_hex(4)}",
             "sign_key": _b64url(secrets.token_bytes(32)),
             "enc_key": _b64url(secrets.token_bytes(32)),
             "expires_at": expires_at,
         }
-        sealed_session = seal_hybrid(x25519, mlkem768, json.dumps(session).encode(), enrollment_id)
+        x25519, mlkem768 = self._recipient
+        aad = session_aad(WORKSPACE_ID, self._key_id)
         sealed_groups = {
-            group: seal_hybrid(x25519, mlkem768, dek, enrollment_id).to_dict() for group, dek in self.group_deks.items()
+            group: seal_hybrid(x25519, mlkem768, key, group_key_aad(WORKSPACE_ID, self._key_id, group)).to_dict()
+            for group, key in self.group_keys.items()
         }
-        approval = {
+        result = {
             "session_id": session["session_id"],
-            "session_expires_at": expires_at,
-            "sealed_session": sealed_session.to_dict(),
+            "expires_at": expires_at,
+            "sealed_session": seal_hybrid(x25519, mlkem768, json.dumps(session).encode(), aad).to_dict(),
             "sealed_group_keys": sealed_groups,
         }
-        return _envelope({"status": "approved", "approval": approval})
+        return _envelope(result, status=201)
 
 
 def _transport_factory(vault: SandboxVault) -> Any:
@@ -174,6 +166,13 @@ def _transport_factory(vault: SandboxVault) -> Any:
         return VaultTransport(*args, client=api, storage_client=storage, **kwargs)
 
     return build
+
+
+def _no_keyring() -> object:
+    """🇺🇸 `keyring`'s "no keyring": a snippet never reads the machine's own token. 🇧🇷 Nunca o token da máquina."""
+    from keyring.backends import fail
+
+    return fail.Keyring()  # type: ignore[no-untyped-call]
 
 
 @contextlib.contextmanager
@@ -193,11 +192,12 @@ def sandbox() -> Iterator[SandboxVault]:
         tempfile.TemporaryDirectory(prefix="diagnos-docs-") as workdir,
         mock.patch.dict(os.environ),
         mock.patch.object(diagnos.client, "VaultTransport", _transport_factory(vault)),
+        mock.patch("keyring.get_keyring", _no_keyring),
     ):
         for key in [key for key in os.environ if key.startswith(("DIAGNOS_", "OPENBAO_"))]:
             del os.environ[key]
         os.environ.update(
-            {"DIAGNOS_CREDENTIAL": sandbox_credential(), "DIAGNOS_VAULT_URL": VAULT_URL, "DIAGNOS_HARDEN_PROCESS": "0"}
+            {"DIAGNOS_TOKEN": sandbox_token(), "DIAGNOS_VAULT_URL": VAULT_URL, "DIAGNOS_HARDEN_PROCESS": "0"}
         )
         for name, content in FIXTURES.items():
             (Path(workdir) / name).parent.mkdir(parents=True, exist_ok=True)

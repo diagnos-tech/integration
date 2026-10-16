@@ -125,12 +125,12 @@ quando um documento não tem irmão, não tem seletor, ou tem um link relativo m
 ## Exemplos
 
 `examples/NN-nome/` guarda um programa completo por pasta: um `main.py` (tipado, `mypy --strict`, docstrings
-bilíngues, a credencial lida de `DIAGNOS_CREDENTIAL`, nunca um segredo no arquivo), um `README.md` e um
-`README.pt-BR.md`, e opcionalmente um `example.json` para o harness ponta a ponta (`command`, `timeout_seconds`,
-`expect` — o mínimo de documentos novos por `patients`/`exams`/`nodes` — e `stdout_includes`). O `make types` checa
-cada `main.py` sozinho, e o `make test` roda todo exemplo contra o sandbox da doc, então uma mudança no SDK que quebra
-um deles derruba o build. Um exemplo novo deve mostrar algo que nenhum outro mostra, e rodar contra um workspace
-descartável.
+bilíngues, o token achado pelo `Diagnos()` — `DIAGNOS_TOKEN`, o chaveiro ou o OpenBao —, nunca um segredo no arquivo),
+um `README.md` e um `README.pt-BR.md`, e opcionalmente um `example.json` para o harness ponta a ponta (`command`,
+`timeout_seconds`, `expect` — o mínimo de documentos novos por `patients`/`exams`/`nodes` — e `stdout_includes`). O
+`make types` checa cada `main.py` sozinho, e o `make test` roda todo exemplo contra o sandbox da doc, então uma
+mudança no SDK que quebra um deles derruba o build. Um exemplo novo deve mostrar algo que nenhum outro mostra, e rodar
+contra um workspace descartável.
 
 ## Mudando o comportamento HTTP do SDK
 

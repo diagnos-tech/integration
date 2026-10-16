@@ -20,8 +20,8 @@ pacote traz todas as portas de entrada; você instala só as camadas que usa.
 | A linha de comando | `pip install "diagnos[cli]"` | `diagnos login`, `diagnos patients list`, … |
 | A API REST | `pip install "diagnos[api]"` | `diagnos-api` — FastAPI com mTLS obrigatório |
 
-Os extras se combinam (`"diagnos[cli,api]"`). Mais dois ficam por cima: `openbao` (auto-unseal com OpenBao para
-servidores) e `dev-certs` (`diagnos-api dev-certs`, certificados locais). Com o [uv](https://docs.astral.sh/uv/):
+Os extras se combinam (`"diagnos[cli,api]"`). Mais dois ficam por cima: `openbao` (o token e o auto-unseal no
+OpenBao, para servidores) e `dev-certs` (`diagnos-api dev-certs`, certificados locais). Com o [uv](https://docs.astral.sh/uv/):
 `uv add "diagnos[sdk]"` num projeto, `uv tool install "diagnos[cli]"` para a linha de comando. A API REST também sai
 como imagem de container assinada: `ghcr.io/diagnos-tech/diagnos-api`.
 
@@ -61,13 +61,13 @@ precisa.
 ```python
 from diagnos import Diagnos
 
-with Diagnos() as vault:  # faz enrollment na entrada: imprime o link de aprovação + código
+with Diagnos() as vault:  # acha o token, abre a sessão com uma requisição assinada
     print(vault.security_groups)
 ```
 
-Defina o `DIAGNOS_API_TOKEN` antes — um admin do workspace o emite no app web do diagnos. O
-[início rápido](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.pt-BR.md) vai daqui
-até o seu primeiro paciente e arquivo cifrados.
+Antes rode `diagnos login` (ou defina `DIAGNOS_TOKEN` em CI) com o token que um admin do workspace cria no app web
+do diagnos. O [início rápido](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.pt-BR.md)
+vai daqui até o seu primeiro paciente e arquivo cifrados.
 
 ## Verifique o que você instala
 

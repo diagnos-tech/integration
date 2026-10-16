@@ -22,8 +22,8 @@ envelope de chave. Tudo que é clínico é cifrado **dentro do seu processo** an
 ciphertext. Este pacote faz disso o caminho *fácil*.
 
 > [!NOTE]
-> **Situação: prévia 0.2.0.** Toda superfície — enrollment, sessões, assinatura de requisições, pacientes, exames,
-> arquivos e pastas — fala o protocolo atual do cofre e é verificada contra ele pelos
+> **Situação: prévia 0.2.0.** Toda superfície — o token de conta de serviço, sessões, assinatura de requisições,
+> pacientes, exames, arquivos e pastas — fala o protocolo atual do cofre e é verificada contra ele pelos
 > [testes de contrato](contracts/README.pt-BR.md). Limites conhecidos, e as questões ainda em aberto do lado do cofre,
 > estão em [docs/COMPATIBILITY.pt-BR.md](docs/COMPATIBILITY.pt-BR.md).
 
@@ -36,7 +36,7 @@ ciphertext. Este pacote faz disso o caminho *fácil*.
 | `pip install "diagnos[cli]"` | [a CLI](apps/cli/README.pt-BR.md) — `diagnos login`, `diagnos patients list`, … | scripts, operação, uma olhada rápida |
 | `pip install "diagnos[api]"` | [a API REST](apps/api/README.pt-BR.md) — `diagnos-api`, ou a imagem assinada dela | seu sistema fala HTTP, não Python |
 
-Mesma credencial, mesmo fluxo de aprovação, mesmas garantias: a CLI e a API são cascas finas sobre o SDK — nunca
+Mesmo token, mesma sessão, mesmas garantias: a CLI e a API são cascas finas sobre o SDK — nunca
 reimplementam um único byte de criptografia. Um pacote traz os três; um extra só soma as dependências de uma camada.
 Ou deixe a base fazer, passo a passo:
 
@@ -54,38 +54,42 @@ Quem programa em outras linguagens ganha os mesmos quatro comandos da base pelos
 > Até a `0.2.0` estar no PyPI, instale do código-fonte — [Instalação](docs/guides/install.pt-BR.md) tem os comandos,
 > e o [toolchain Rust](https://rustup.rs/) que o build precisa.
 
-## Começando
+## Começando — 60 segundos
 
-**1. Consiga uma credencial.** Um admin do workspace abre *Configurações → Contas de serviço* no app web do
-diagnos, cria uma conta de serviço e copia a credencial dela — mostrada uma vez, porque o cofre guarda só a metade
-pública da chave:
+**1. Consiga um token.** Um admin do workspace abre *Configurações → Contas de serviço* no app web do diagnos, cria
+uma conta de serviço, escolhe os security groups que ela pode ler e copia o token dela — `dgn_sk1_…`, mostrado uma
+vez, porque o cofre guarda só as chaves públicas dele.
+
+**2. Guarde-o com segurança, uma vez.**
 
 ```sh
-export DIAGNOS_CREDENTIAL="svc_<32 hex>@<workspace_id>.diagnos.health:<chave>"
+diagnos login          # cole: conferido, provado contra o cofre, guardado no chaveiro do sistema (ou no OpenBao)
 ```
 
-> [!NOTE]
-> O token `apikey-` em `DIAGNOS_API_TOKEN` está obsoleto: funciona, com aviso, até **2027-04-15**.
-> O [MIGRATING.pt-BR.md](MIGRATING.pt-BR.md#do-token-apikey--para-uma-credencial-de-conta-de-serviço-020) troca em três passos.
+Em CI ou num container, `export DIAGNOS_TOKEN="dgn_sk1_…"` vindo do seu cofre de segredos. Nunca num arquivo.
 
-**2. Faça o enrollment.** A primeira execução imprime um link e um código de 6 dígitos; um admin aprova no app web e
-escolhe quais security groups este processo pode ler.
+**3. Use.** Sem etapa de aprovação, sem código para digitar: o token abre a sessão com uma requisição assinada.
 
 ```python
 from diagnos import Diagnos
 
-with Diagnos() as vault:  # faz enrollment na entrada: imprime o link de aprovação + código
+with Diagnos() as vault:  # acha o token, abre a sessão
     print(vault.workspace_id)
-    print(vault.security_groups)  # os grupos que o admin concedeu
+    print(vault.security_groups)  # os grupos escolhidos para o token
 ```
 
 ```sh
-diagnos login          # o mesmo enrollment, pelo terminal — guardado para os próximos comandos
-diagnos patients list  # reaproveita, sem nova aprovação
-diagnos logout         # revoga e apaga as chaves
+diagnos whoami         # qual token, de onde, e os grupos dele
+diagnos patients list  # todo comando abre a própria sessão, sem prompt
+diagnos logout         # esquece o token guardado
 ```
 
-**3. Use.** Pacientes, exames e arquivos pendem do mesmo objeto — `vault.patients`, `vault.exams`, `vault.drives`. O
+> [!NOTE]
+> O token `apikey-` em `DIAGNOS_API_TOKEN` está obsoleto: funciona, com aviso, até **2027-04-15**.
+> O [MIGRATING.pt-BR.md](MIGRATING.pt-BR.md#do-token-apikey--para-o-token-de-conta-de-serviço-020) o troca por um
+> token.
+
+**4. Vá além.** Pacientes, exames e arquivos pendem do mesmo objeto — `vault.patients`, `vault.exams`, `vault.drives`. O
 [início rápido](docs/guides/quickstart.pt-BR.md) vai daqui até o primeiro paciente e o primeiro arquivo cifrados, e
 [`examples/`](examples/README.pt-BR.md) tem programas completos para copiar: subir um arquivo, pacientes, exames,
 tratamento de erros.
@@ -93,17 +97,27 @@ tratamento de erros.
 Um nome, três grafias: um **security group** é `security_group=` no SDK (`security_group_id` no que ele devolve),
 `--group` / `DIAGNOS_GROUP` na CLI, e `security_group` ou `{sg}` na API.
 
-As chaves privadas nunca saem do processo e nada é gravado em disco, então um processo novo precisa de uma nova
-aprovação — isso é o desenho, não uma limitação. A CLI mantém a sessão num único processo em segundo plano entre o
-`login` e o `logout`. [Autenticação](docs/guides/authentication.pt-BR.md) mostra a credencial e o enrollment inteiro, e
-[Sessões](docs/guides/sessions.pt-BR.md#auto-unseal-com-openbao) como servidores reiniciam sem humano.
+A semente do token e toda chave privada derivada dela ficam dentro do enclave em Rust do SDK, e nada é gravado em
+disco. [Autenticação](docs/guides/authentication.pt-BR.md) mostra o token e onde ele mora, e
+[Sessões](docs/guides/sessions.pt-BR.md) como uma sessão abre, expira e reabre sozinha.
+
+## Por que dois tipos de criptografia
+
+Toda requisição é assinada duas vezes — com **Ed25519**, o algoritmo clássico provado ao longo de muitos anos, e com
+**ML-DSA-65**, um pós-quântico (FIPS 204) — e o cofre só a aceita quando **as duas** assinaturas conferem. As chaves
+que o cofre entrega ao seu processo são seladas do mesmo jeito, para **X25519** e **ML-KEM-768** (FIPS 203) juntos.
+
+Por que os dois? Os algoritmos clássicos são bem conhecidos, mas um computador quântico grande o bastante os quebraria.
+Os pós-quânticos resistem a esse computador, mas são novos. Com os dois, um atacante precisa quebrar **os dois** — um
+defeito achado amanhã em um deles, ou um computador quântico algum dia, não basta. Um dado clínico gravado hoje
+continua protegido amanhã. Você não escolhe nem configura nada disso: o único token carrega as quatro chaves.
 
 ## O que vem de graça
 
 - **🔐 Ponta a ponta por padrão** — registros e arquivos são cifrados no seu processo; o cofre vê ciphertext,
   requisições assinadas e URLs pré-assinadas. [Exatamente o que ele vê](docs/guides/security.pt-BR.md#o-que-o-cofre-vê).
-- **🛡️ Híbrido pós-quântico** — o enrollment usa X25519 + ML-KEM-768, então uma sessão gravada continua segura contra
-  um adversário quântico futuro.
+- **🛡️ Clássico + pós-quântico** — um token assina com Ed25519 *e* ML-DSA-65 e abre chaves seladas para X25519 *e*
+  ML-KEM-768; quebrar um algoritmo não basta. [Por quê](#por-que-dois-tipos-de-criptografia).
 - **🧱 Chaves num enclave Rust** — memória travada com `mlock`, guard pages, fora de core dumps, zerada no `fork()` e
   ao descartar, nunca devolvida ao Python como `bytes`. Modelo de ameaça:
   [`apps/sdk/native/README.pt-BR.md`](apps/sdk/native/README.pt-BR.md).
@@ -112,12 +126,11 @@ aprovação — isso é o desenho, não uma limitação. A CLI mantém a sessão
 - **📐 Formatos de bytes travados** — [`docs/PROTOCOL.pt-BR.md`](docs/PROTOCOL.pt-BR.md) é normativo, e vetores de
   teste gerados da implementação de referência do cofre travam cada byte.
 
-## Servidores sem humano
+## Servidores
 
-Uma aprovação humana a cada reinício serve num notebook; não serve num pod Kubernetes. Aponte o SDK para o
-[OpenBao](https://openbao.org/) e ele salva a sessão desbloqueada logo após o enrollment e a restaura a cada subida —
-uma troca deliberada, [explicada por inteiro](docs/guides/sessions.pt-BR.md#auto-unseal-com-openbao) antes de você
-ligar. Manifestos prontos ficam em [`apps/api/deploy/`](apps/api/deploy/README.pt-BR.md): Docker Compose e Kubernetes,
+Um servidor guarda o token no [OpenBao](https://openbao.org/), não num arquivo de ambiente: o `diagnos login --store
+openbao` o guarda uma vez com um token de escrita, e o processo o lê na subida com um token que só pode lê-lo — e
+então abre a sessão sem humano, a cada reinício. Manifestos prontos ficam em [`apps/api/deploy/`](apps/api/deploy/README.pt-BR.md): Docker Compose e Kubernetes,
 com auto-unseal do OpenBao para AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir e chave estática.
 
 ## Documentação

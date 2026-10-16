@@ -21,30 +21,33 @@ returns — tables for people, JSON for scripts, stable exit codes for both. It 
 
 ```sh
 uv tool install "diagnos[cli]"            # or: pipx install "diagnos[cli]"
-uv tool install "diagnos[cli,openbao]"    # with OpenBao auto-unseal, for cron jobs and servers
-export DIAGNOS_CREDENTIAL="svc_…@<workspace_id>.diagnos.health:<key>"   # from Settings → Service accounts
+uv tool install "diagnos[cli,openbao]"    # with OpenBao, where a server keeps the token
 ```
 
 Already have the base (`pip install diagnos`)? `diagnos setup cli` adds the rest to that same `diagnos`. Without
-Python, the image works too: `docker run --rm -e DIAGNOS_CREDENTIAL ghcr.io/diagnos-tech/diagnos patients list`.
+Python, the image works too: `docker run --rm -e DIAGNOS_TOKEN ghcr.io/diagnos-tech/diagnos patients list`.
 
-`--token` on any command overrides the environment for that one invocation, and is never echoed — not in `--help`,
-not in output, not in `--json`.
+`--token` on any command overrides every other source for that one invocation, and is never echoed — not in
+`--help`, not in output, not in `--json`. Prefer `diagnos login`: a token on the command line ends up in shell
+history.
 
 ## A first run
 
 ```sh
-diagnos login                                      # prints a link and a code; an admin approves
+diagnos login                                      # paste the token (dgn_sk1_…) once — hidden input
+diagnos whoami                                     # which token, from where, and its groups
 diagnos patients list --group sg_oncology --summary
 diagnos files upload --group sg_oncology --exam EXAM_ID scans/*.dcm
 diagnos --json exams get EXAM_ID | jq .record.report_html
-diagnos logout                                     # revokes the session and wipes its keys
+diagnos logout                                     # forgets the stored token
 ```
 
-`login` keeps that session for the commands that follow — no new link, no new code — until `diagnos logout`. It
-lives in one background process, the *session agent*, in the SDK's locked memory: **the CLI never writes a session
-to disk**. Without `login`, each command enrolls on its own and its session dies with it — a script that runs
-unattended configures OpenBao auto-unseal instead, as the CLI guide shows.
+`login` checks the token's CRC before any network call, proves it against the vault, and keeps it in the system
+keyring — only one that encrypts at rest — else in OpenBao (`OPENBAO_ADDR`), else refuses and says why. **The CLI
+never writes the token to a file.** Every command then opens its own session with one signed request: no link, no
+code, no approval. In CI and containers, set `DIAGNOS_TOKEN` instead; it wins over the stored token. The deprecated
+`apikey-` token still enrolls with an admin's approval — `diagnos session start` approves once and keeps that session
+in a background agent.
 
 ## Guides
 
@@ -52,8 +55,8 @@ unattended configures OpenBao auto-unseal instead, as the CLI guide shows.
 |---|---|
 | [CLI guide](https://github.com/diagnos-tech/integration/blob/main/docs/guides/cli.md) | every command with real examples, JSON output, scripting and cron |
 | [CLI reference](https://github.com/diagnos-tech/integration/blob/main/docs/reference/cli.json) | every command and option, generated from the code — also `diagnos <command> --help` |
-| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, the enrollment panel, the approval |
-| [Sessions](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.md#auto-unseal-with-openbao) | OpenBao auto-unseal, and what it trades |
+| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, where `diagnos login` keeps it, why classic + post-quantum |
+| [Sessions](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.md) | how a session opens, expires and reopens; OpenBao auto-unseal |
 | [Errors](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.md#every-exception) | the exit code of every failure |
 | [Configuration](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.md) | every environment variable |
 

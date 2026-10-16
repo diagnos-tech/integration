@@ -3,7 +3,7 @@
 **English** · [Português (Brasil)](errors.pt-BR.md)
 
 Every exception the SDK raises is importable from `diagnos`, and every one of them names a decision you have to make:
-fix the input, wait, re-enroll, ask an admin, or report a bug. Catch by class, never by message — messages are for
+fix the input, wait, store the token again, ask an admin, or report a bug. Catch by class, never by message — messages are for
 people and may change; classes and `code`s are the contract. The CLI and the REST API translate the same classes
 into exit codes and HTTP statuses, so this page is the one table for all three.
 
@@ -12,6 +12,8 @@ into exit codes and HTTP statuses, so this page is the one table for all three.
 ```mermaid
 classDiagram
     DiagnosError <|-- ConfigError
+    ConfigError <|-- TokenError
+    ConfigError <|-- TokenStoreError
     DiagnosError <|-- EnrollmentDeniedError
     DiagnosError <|-- EnrollmentExpiredError
     DiagnosError <|-- SessionExpiredError
@@ -39,25 +41,28 @@ classDiagram
 
 `VaultError` and its subclasses mean *the vault answered with an error*; they carry the vault's `code`, the HTTP
 `status`, and the `trace_id` and `request_id` a support ticket needs. Everything else under `DiagnosError` is
-decided locally, before or after talking to the vault. `CredentialError` and its subclasses are the vault refusing the
-service account credential itself; each one is *also* an `AuthenticationError` (401) or a `DiagnosPermissionError`
+decided locally, before or after talking to the vault. `TokenError` and `TokenStoreError` are decided before any
+network call: a token pasted wrong, or nowhere safe to keep one. `CredentialError` and its subclasses are the vault
+refusing the service account token itself; each one is *also* an `AuthenticationError` (401) or a `DiagnosPermissionError`
 (403), so code that catches the parents keeps working — see [Credential failures](#credential-failures).
 
 ## Every exception
 
 | Class | Raised when | What to do | CLI exit | API status |
 |---|---|---|---|---|
-| `ConfigError` | no credential in `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` or the default file (or `DIAGNOS_API_TOKEN` as the legacy fallback), or one malformed; an invalid env var; OpenBao configured without the `openbao` extra | fix the configuration | `2` | exits `2` at startup |
-| `EnrollmentDeniedError` | an admin denied the enrollment | nothing to retry — ask why | `3` | startup fails |
-| `EnrollmentExpiredError` | nobody approved before `expires_at` | run again for a new link and code | `3` | startup fails |
+| `ConfigError` | no token in `DIAGNOS_TOKEN`, the system keyring or OpenBao (nor the legacy `DIAGNOS_API_TOKEN`); an invalid env var; OpenBao configured without the `openbao` extra, denied or unreachable | fix the configuration; the message says where it looked | `2` | exits `2` at startup |
+| `TokenError` | the text is not a service account token: wrong prefix, cut short or pasted wrong (the CRC does not match), a bad workspace — `reason` says which | copy the token again, whole, from where it was saved | `2` | exits `2` at startup |
+| `TokenStoreError` | `diagnos login` / `save_token` found no safe place: no keyring that encrypts at rest and no OpenBao | use a secure keyring, or configure OpenBao; `DIAGNOS_TOKEN` in CI | `2` | — |
+| `EnrollmentDeniedError` | legacy token only: an admin denied the enrollment | nothing to retry — ask why | `3` | startup fails |
+| `EnrollmentExpiredError` | legacy token only: nobody approved before `expires_at` | run again for a new link and code | `3` | startup fails |
 | `SessionExpiredError` | a signed call with no live session | `unlock()` again (resource calls do it for you) | `3` | `401` `session_expired` |
-| `GroupKeyUnavailable` | the data's security group was not granted to this enrollment | a new enrollment that includes it | `3` | `403` `group_key_unavailable` |
+| `GroupKeyUnavailable` | the data's security group is not in the token's scope | a new token that includes it | `3` | `403` `group_key_unavailable` |
 | `CryptoError` | an envelope did not open: wrong key or tampered bytes, deliberately indistinguishable | do not retry; report it | `1` | `500` `crypto_error` |
 | `ProtocolError` | the vault answered something the protocol does not allow | do not retry; report it with the SDK version, or upgrade | `1` | `502` `protocol_error` |
 | `ValidationError` | the vault refused the request as invalid (400, 413) | fix the input | `1` | `400` |
-| `AuthenticationError` | credential, session or signature rejected (401) | usually re-enroll | `3` | `401` |
+| `AuthenticationError` | token, session or signature rejected (401) | check the token; the legacy token re-enrolls | `3` | `401` |
 | `QuotaError` | the workspace has no credit for this (402); nothing was done | buy credit, or wait for the budget | `5` | `402` |
-| `DiagnosPermissionError` | this service account may not do this here (403), incl. another workspace's credential or a missing permission | ask an admin | `3` | `403` |
+| `DiagnosPermissionError` | this service account may not do this here (403), incl. another workspace's token or a missing permission | ask an admin | `3` | `403` |
 | `NotFoundError` | no such document, version or file (404) | check the id | `4` | `404` |
 | `ConflictError` | a pending or newer version, a replay, or an upload that never reached storage (409) | read again and merge, or upload again | `7` | `409` |
 | `RateLimitError` | still rate limited after the SDK's own backoff (429) | slow down; retry later | `6` | `429` |
@@ -89,6 +94,7 @@ signature each time, and raises only when retrying stopped making sense.
 | `401 SignatureTimestampSkew` | resyncs the clock, retries once | `AuthenticationError` |
 | `401 CredentialClockSkew` | resyncs the clock, retries once | `ClockSkewError` |
 | `401 CredentialReplayed` | nothing: the first copy may have gone through | `CredentialReplayError` |
+| `401 SessionNotFound` | opens a new session with the token and retries once (not with the legacy token) | `AuthenticationError` |
 | `409 ReplayDetected` | retries once with a new nonce | `ConflictError` |
 | `429` | waits `Retry-After` if sent, else 0.5 s, 1 s, 2 s with jitter — three retries | `RateLimitError` |
 | any `5xx` | one retry after 1 s | `VaultError` |
@@ -104,21 +110,21 @@ pause.
 
 ## Credential failures
 
-The service account credential signs every request, and the vault checks the signature before it looks at anything
-else. When it refuses, the SDK raises the class below and appends what to do to the vault's message, so a traceback
+The service account token signs every request — Ed25519 and ML-DSA-65 — and the vault checks both signatures before
+it looks at anything else. When it refuses, the SDK raises the class below and appends what to do to the vault's message, so a traceback
 at 3 a.m. is enough. Catch the specific class you can act on, then `CredentialError` for the rest — order matters,
 because each is also an `AuthenticationError` or a `DiagnosPermissionError`.
 
 | Class | Vault `code` | Also | Meaning | What to do |
 |---|---|---|---|---|
-| `CredentialSignatureError` | `CredentialSignatureInvalid` | `AuthenticationError` | the signature does not verify | copy the credential again, whole; look for a proxy that changes requests |
+| `CredentialSignatureError` | `CredentialSignatureInvalid` | `AuthenticationError` | a signature does not verify | store the token again (`diagnos login`); look for a proxy that changes requests |
 | `CredentialReplayError` | `CredentialReplayed` | `AuthenticationError` | the vault already saw this nonce | something resent the request; the SDK does not retry it |
 | `ClockSkewError` | `CredentialClockSkew` | `AuthenticationError` | this clock is outside ±60 s | enable NTP; `skew_seconds` and `server_time` say by how much |
-| `CredentialRevokedError` | `CredentialKeyRevoked` | `AuthenticationError` | an admin revoked this key | create a new key and swap it in |
-| `CredentialExpiredError` | `CredentialKeyExpired` | `AuthenticationError` | the key passed its expiry | create a new key and swap it in |
-| `CredentialUnknownError` | `CredentialKeyUnknown` | `AuthenticationError` | the vault has no such key | check `DIAGNOS_VAULT_URL` points where the credential was created |
-| `WorkspaceMismatchError` | `CredentialWorkspaceMismatch` | `DiagnosPermissionError` | the credential is another workspace's | use the target workspace's credential |
-| `ScopeMissingError` | `CredentialScopeMissing` | `DiagnosPermissionError` | the account lacks a permission | ask an admin; `resource`, `action` and `security_group_id` name it |
+| `CredentialRevokedError` | `CredentialKeyRevoked` | `AuthenticationError` | an admin revoked this token | create a new token and store it |
+| `CredentialExpiredError` | `CredentialKeyExpired` | `AuthenticationError` | the token passed its expiry | create a new token and store it |
+| `CredentialUnknownError` | `CredentialKeyUnknown` | `AuthenticationError` | the vault has no such key | check `DIAGNOS_VAULT_URL` points where the token was created |
+| `WorkspaceMismatchError` | `CredentialWorkspaceMismatch` | `DiagnosPermissionError` | the token is another workspace's | use the target workspace's token |
+| `ScopeMissingError` | `CredentialScopeMissing` | `DiagnosPermissionError` | the token lacks a permission | ask an admin for a new token with it; `resource`, `action` and `security_group_id` name it |
 
 ```python
 from diagnos import ClockSkewError, CredentialError, Diagnos, ScopeMissingError
@@ -131,7 +137,7 @@ except ClockSkewError as error:  # the most specific classes first
 except ScopeMissingError as error:
     print("missing", error.action, "on", error.resource, "in", error.security_group_id)
 except CredentialError as error:  # revoked, expired, unknown, wrong workspace, bad signature…
-    print("credential refused:", error)
+    print("token refused:", error)
 ```
 
 [`examples/05-error-handling`](../../examples/05-error-handling/README.md) turns every class of this page into a
@@ -139,7 +145,7 @@ message that says what to do.
 
 ## Clock skew
 
-Every signed request carries a timestamp the vault accepts only within ±60 seconds (the credential's signature) or
+Every signed request carries a timestamp the vault accepts only within ±60 seconds (the token's signature) or
 ±120 seconds (the session signature) of its own clock. A laptop with a wrong clock or a container without NTP would
 sign every request into a rejection, so the SDK measures the offset against the vault before its first signed call and
 applies it to every signature, and resyncs once if the vault still complains. When even that fails it raises
@@ -175,7 +181,7 @@ The CLI prints a one-line, bilingual label and the message on `stderr`, and exit
 diagnos --quiet patients get "$PATIENT_ID" > patient.txt
 case $? in
   0) echo "ok" ;;
-  3) echo "re-enroll, or ask an admin for access" ;;
+  3) echo "check the token, or ask an admin for access" ;;
   4) echo "no such patient" ;;
   *) echo "failed" ;;
 esac

@@ -9,7 +9,7 @@ cascas finas sobre ele. Ele é o extra `sdk` do pacote único `diagnos`: o códi
 `from diagnos import Diagnos` o carrega no primeiro uso.
 
 > [!NOTE]
-> **Situação: prévia 0.1.0.** Enrollment, chaves de sessão, assinatura de requisições, o relógio, o lock,
+> **Situação: prévia 0.1.0.** O token de conta de serviço, chaves de sessão, assinatura de requisições, o relógio, o lock,
 > `vault.patients`, `vault.exams` e `vault.drives` falam o protocolo atual do cofre e são verificados contra ele pelos
 > testes de contrato Pact. Limites conhecidos:
 > [COMPATIBILITY.pt-BR.md](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.pt-BR.md).
@@ -29,8 +29,8 @@ with Diagnos() as vault:
 
 ```sh
 uv add "diagnos[sdk]"                   # ou: pip install "diagnos[sdk]" — ou deixe o `diagnos setup sdk` fazer
-uv add "diagnos[sdk,openbao]"           # com auto-unseal via OpenBao, para servidores
-export DIAGNOS_API_TOKEN="apikey-…"     # emitido por um admin do workspace
+uv add "diagnos[sdk,openbao]"           # com o OpenBao, onde um servidor guarda o token
+export DIAGNOS_TOKEN="dgn_sk1_…"        # emitido por um admin do workspace — ou `diagnos login`, que o guarda no chaveiro
 ```
 
 Sem o extra `sdk`, `import diagnos` continua funcionando (é a instalação base), e `from diagnos import Diagnos` lança
@@ -46,17 +46,17 @@ Sem o extra `sdk`, `import diagnos` continua funcionando (é a instalação base
 ```python
 from diagnos import Diagnos
 
-vault = Diagnos()  # lê DIAGNOS_API_TOKEN; ainda sem rede
-vault.unlock()  # imprime um link + um código de 6 dígitos, espera um admin aprovar
+vault = Diagnos()  # acha o token (DIAGNOS_TOKEN, o chaveiro, o OpenBao); ainda sem rede
+vault.unlock()  # uma requisição assinada abre a sessão — sem aprovação, sem código
 
 for row in vault.patients.list():
     print(row.id, row.summary.display_name if row.summary else "—")
 ```
 
-O token diz *qual* service account está pedindo; a aprovação decide o que este processo pode decifrar. Você raramente
-chama `unlock()` à mão — o primeiro uso de `vault.patients`, `vault.exams` ou `vault.drives` desbloqueia de forma
-preguiçosa — e um servidor que precisa reiniciar sem uma pessoa usa o auto-unseal com OpenBao, uma troca deliberada
-que o guia de sessões detalha.
+O token diz *qual* service account está pedindo e carrega a chave do que ela pode decifrar: os grupos escolhidos
+quando um admin o criou. Toda requisição é assinada com Ed25519 e ML-DSA-65 juntos, então quebrar um algoritmo — ou um
+computador quântico um dia — não basta. Você raramente chama `unlock()` à mão: o primeiro uso de `vault.patients`,
+`vault.exams` ou `vault.drives` desbloqueia de forma preguiçosa.
 
 ## O que tem dentro
 
@@ -74,7 +74,7 @@ que o guia de sessões detalha.
 |---|---|
 | [Início rápido](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.pt-BR.md) | do token ao primeiro paciente e arquivo cifrados |
 | [Conceitos](https://github.com/diagnos-tech/integration/blob/main/docs/guides/concepts.pt-BR.md) | workspaces, grupos, chaves, versões, rascunhos, nós |
-| [Autenticação](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.pt-BR.md) | o token, o link e o código de enrollment, a aprovação |
+| [Autenticação](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.pt-BR.md) | o token, onde ele mora, por que clássico + pós-quântico |
 | [Sessões](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.pt-BR.md) | unlock, lock, expiração, auto-unseal com OpenBao |
 | [Pacientes](https://github.com/diagnos-tech/integration/blob/main/docs/guides/patients.pt-BR.md) · [Exames](https://github.com/diagnos-tech/integration/blob/main/docs/guides/exams.pt-BR.md) · [Arquivos](https://github.com/diagnos-tech/integration/blob/main/docs/guides/files.pt-BR.md) | os três recursos |
 | [Erros](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.pt-BR.md) | toda exceção, o que é retentado, diferença de relógio |

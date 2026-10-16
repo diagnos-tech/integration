@@ -21,30 +21,32 @@ pacote único `diagnos`; o código dela mora em `src/diagnos/cli`.
 
 ```sh
 uv tool install "diagnos[cli]"            # ou: pipx install "diagnos[cli]"
-uv tool install "diagnos[cli,openbao]"    # com auto-unseal via OpenBao, para cron e servidores
-export DIAGNOS_CREDENTIAL="svc_…@<workspace_id>.diagnos.health:<chave>"   # de Configurações → Contas de serviço
+uv tool install "diagnos[cli,openbao]"    # com o OpenBao, onde um servidor guarda o token
 ```
 
 Já tem a base (`pip install diagnos`)? O `diagnos setup cli` soma o resto a esse mesmo `diagnos`. Sem Python, a
-imagem também funciona: `docker run --rm -e DIAGNOS_CREDENTIAL ghcr.io/diagnos-tech/diagnos patients list`.
+imagem também funciona: `docker run --rm -e DIAGNOS_TOKEN ghcr.io/diagnos-tech/diagnos patients list`.
 
-`--token` em qualquer comando sobrescreve o ambiente naquela invocação, e nunca é ecoado — nem no `--help`, nem na
-saída, nem no `--json`.
+`--token` em qualquer comando sobrescreve toda outra fonte naquela invocação, e nunca é ecoado — nem no `--help`, nem
+na saída, nem no `--json`. Prefira o `diagnos login`: um token na linha de comando vai parar no histórico do shell.
 
 ## Uma primeira execução
 
 ```sh
-diagnos login                                      # imprime um link e um código; um admin aprova
+diagnos login                                      # cole o token (dgn_sk1_…) uma vez — entrada oculta
+diagnos whoami                                     # qual token, de onde, e os grupos dele
 diagnos patients list --group sg_oncology --summary
 diagnos files upload --group sg_oncology --exam EXAM_ID scans/*.dcm
 diagnos --json exams get EXAM_ID | jq .record.report_html
-diagnos logout                                     # revoga a sessão e apaga as chaves
+diagnos logout                                     # esquece o token guardado
 ```
 
-O `login` mantém essa sessão para os comandos seguintes — sem link novo, sem código novo — até o `diagnos logout`.
-Ela vive num único processo em segundo plano, o *agente de sessão*, na memória travada do SDK: **a CLI nunca grava
-uma sessão em disco**. Sem `login`, cada comando faz enrollment por conta própria e a sessão morre com ele — um script
-que roda sem ninguém olhando configura o auto-unseal com OpenBao, como o guia da CLI mostra.
+O `login` confere o CRC do token antes de qualquer chamada de rede, prova-o contra o cofre e o guarda no chaveiro do
+sistema — só um que cifra em repouso — senão no OpenBao (`OPENBAO_ADDR`), senão recusa e diz por quê. **A CLI nunca
+grava o token num arquivo.** Todo comando então abre a própria sessão com uma requisição assinada: sem link, sem
+código, sem aprovação. Em CI e containers, defina `DIAGNOS_TOKEN` no lugar; ele vence o token guardado. O token
+obsoleto `apikey-` ainda faz enrollment com a aprovação de um admin — o `diagnos session start` aprova uma vez e
+mantém essa sessão num agente em segundo plano.
 
 ## Guias
 
@@ -52,8 +54,8 @@ que roda sem ninguém olhando configura o auto-unseal com OpenBao, como o guia d
 |---|---|
 | [Guia da CLI](https://github.com/diagnos-tech/integration/blob/main/docs/guides/cli.pt-BR.md) | todo comando com exemplos reais, saída JSON, scripts e cron |
 | [Referência da CLI](https://github.com/diagnos-tech/integration/blob/main/docs/reference/cli.json) | todo comando e opção, gerados a partir do código — também `diagnos <comando> --help` |
-| [Autenticação](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.pt-BR.md) | o token, o painel de enrollment, a aprovação |
-| [Sessões](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.pt-BR.md#auto-unseal-com-openbao) | o auto-unseal com OpenBao, e o que ele troca |
+| [Autenticação](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.pt-BR.md) | o token, onde o `diagnos login` o guarda, por que clássico + pós-quântico |
+| [Sessões](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.pt-BR.md) | como uma sessão abre, expira e reabre; o auto-unseal com OpenBao |
 | [Erros](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.pt-BR.md#toda-exceção) | o código de saída de toda falha |
 | [Configuração](https://github.com/diagnos-tech/integration/blob/main/docs/guides/configuration.pt-BR.md) | toda variável de ambiente |
 

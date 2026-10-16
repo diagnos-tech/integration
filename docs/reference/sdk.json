@@ -1,6 +1,6 @@
 {
   "generatedFrom": {
-    "commit": "0b35abb",
+    "commit": "202ec0d",
     "package": "diagnos",
     "version": "0.2.0"
   },
@@ -87,8 +87,8 @@
             "VaultError"
           ],
           "doc": {
-            "en": "The vault refused the service account credential itself (`Credential*` codes); the message says the fix.\n\nCatch this to handle every credential failure at once; each subclass is\nalso an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).",
-            "pt-br": "O cofre recusou a própria credencial da conta de serviço (códigos `Credential*`); a mensagem diz a correção.\n\nCapture esta para tratar toda falha de credencial de uma vez; cada\nsubclasse também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403)."
+            "en": "The vault refused the service account token itself (`Credential*` codes); the message says the fix.\n\nCatch this to handle every token failure at once; each subclass is also\nan `AuthenticationError` (401) or a `DiagnosPermissionError` (403).",
+            "pt-br": "O cofre recusou o próprio token da conta de serviço (códigos `Credential*`); a mensagem diz a correção.\n\nCapture esta para tratar toda falha do token de uma vez; cada subclasse\ntambém é `AuthenticationError` (401) ou `DiagnosPermissionError` (403)."
           },
           "kind": "exception",
           "members": [],
@@ -143,8 +143,8 @@
             "AuthenticationError"
           ],
           "doc": {
-            "en": "`CredentialSignatureInvalid`: wrong credential, or the body changed in transit.",
-            "pt-br": "`CredentialSignatureInvalid`: credencial errada, ou o corpo mudou no caminho."
+            "en": "`CredentialSignatureInvalid`: a half of the hybrid signature failed — wrong token, or the request changed.",
+            "pt-br": "`CredentialSignatureInvalid`: uma metade da assinatura híbrida falhou — token errado, ou a requisição mudou."
           },
           "kind": "exception",
           "members": [],
@@ -182,15 +182,15 @@
             "IdentityView"
           ],
           "doc": {
-            "en": "The SDK's entry point: one service account's live connection to one workspace.\n\n`Diagnos()` (or `Diagnos.from_env()`) finds the credential in\n`DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` or\n`~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` takes one\nexplicitly. The identity properties (`workspace_id`, `key_id`,\n`identity`…) come from `IdentityView`.",
-            "pt-br": "O ponto de entrada do SDK: a conexão viva de uma service account com um workspace.\n\n`Diagnos()` (ou `Diagnos.from_env()`) acha a credencial em\n`DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` ou\n`~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` recebe uma\nexplícita. As propriedades de identidade (`workspace_id`, `key_id`,\n`identity`…) vêm de `IdentityView`."
+            "en": "The SDK's entry point: one service account's live connection to one workspace.\n\n`Diagnos()` finds the token in `DIAGNOS_TOKEN`, then in the system keyring\n(`diagnos login`), then in OpenBao (`OPENBAO_ADDR`) —\n`transport/token_sources.py`; `Diagnos.from_env()` reads the environment\nonly; `Diagnos(token=...)` takes one explicitly. The identity properties\n(`workspace_id`, `key_id`, `identity`…) come from `IdentityView`.",
+            "pt-br": "O ponto de entrada do SDK: a conexão viva de uma service account com um workspace.\n\n`Diagnos()` acha o token em `DIAGNOS_TOKEN`, depois no chaveiro do sistema\n(`diagnos login`), depois no OpenBao (`OPENBAO_ADDR`) —\n`transport/token_sources.py`; `Diagnos.from_env()` lê só o ambiente;\n`Diagnos(token=...)` recebe um explícito. As propriedades de identidade\n(`workspace_id`, `key_id`, `identity`…) vêm de `IdentityView`."
           },
           "kind": "class",
           "members": [
             {
               "doc": {
-                "en": "Everything from the environment (`env`, default `os.environ`); `options` go to the constructor.",
-                "pt-br": "Tudo do ambiente (`env`, padrão `os.environ`); `options` vão para o construtor."
+                "en": "The token from `DIAGNOS_TOKEN` (or OpenBao, with `OPENBAO_ADDR`), never the keyring; `options` go on.\n\n`Diagnos()` also looks in the system keyring; this is the call for CI,\ncontainers and servers, where what the environment says is all there is.",
+                "pt-br": "O token de `DIAGNOS_TOKEN` (ou do OpenBao, com `OPENBAO_ADDR`), nunca o chaveiro; `options` seguem.\n\n`Diagnos()` também procura no chaveiro do sistema; esta é a chamada para\nCI, containers e servidores, onde o que o ambiente diz é tudo que há."
               },
               "kind": "method",
               "name": "from_env",
@@ -234,8 +234,8 @@
             },
             {
               "doc": {
-                "en": "Enrolls (or restores from OpenBao) and returns the live `Keyring`; idempotent.",
-                "pt-br": "Faz enrollment (ou restaura do OpenBao) e devolve o `Keyring` vivo; idempotente."
+                "en": "Opens a session with the token (or restores it from OpenBao) and returns the live `Keyring`.",
+                "pt-br": "Abre uma sessão com o token (ou a restaura do OpenBao) e devolve o `Keyring` vivo."
               },
               "kind": "method",
               "name": "unlock",
@@ -261,7 +261,7 @@
             }
           ],
           "name": "Diagnos",
-          "signature": "(settings: Settings | None = None, *, credential: CredentialLike | None = None, token: str | None = None, on_prompt: PromptCallback | None = None, auto_unseal: bool | None = None, transport: VaultTransport | None = None, session: SessionManager | None = None)"
+          "signature": "(settings: Settings | None = None, *, token: TokenLike | None = None, on_prompt: PromptCallback | None = None, auto_unseal: bool | None = None, transport: VaultTransport | None = None, session: SessionManager | None = None)"
         },
         {
           "bases": [
@@ -274,6 +274,135 @@
           "kind": "exception",
           "members": [],
           "name": "DiagnosError"
+        },
+        {
+          "bases": [],
+          "doc": {
+            "en": "A parsed service account token: key id and workspace in the clear, every key in the enclave.",
+            "pt-br": "Um token de conta de serviço lido: id da chave e workspace em claro, toda chave no enclave."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "Every request carries a `created` timestamp.",
+                "pt-br": "Toda requisição leva um timestamp `created`."
+              },
+              "kind": "attribute",
+              "name": "signs_requests",
+              "signature": ": Final"
+            },
+            {
+              "doc": {
+                "en": "Check the prefix and CRC, then derive the keys — a `TokenError` before any network call otherwise.",
+                "pt-br": "Confere o prefixo e o CRC, depois deriva as chaves — senão um `TokenError` antes de qualquer rede."
+              },
+              "kind": "method",
+              "name": "parse",
+              "signature": "(text: str, *, source: str = 'DIAGNOS_TOKEN') -> DiagnosToken"
+            },
+            {
+              "doc": {
+                "en": "`DIAGNOS_TOKEN` only; `Settings.from_env` also looks in the keyring and OpenBao.",
+                "pt-br": "Só `DIAGNOS_TOKEN`; o `Settings.from_env` também procura no chaveiro e no OpenBao."
+              },
+              "kind": "method",
+              "name": "from_env",
+              "signature": "(env: Mapping[str, str] | None = None) -> DiagnosToken"
+            },
+            {
+              "doc": {
+                "en": "`svc_<32 hex>`: the signed `keyid`, and what an admin rotates or revokes.",
+                "pt-br": "`svc_<32 hex>`: o `keyid` assinado, e o que um admin gira ou revoga."
+              },
+              "kind": "property",
+              "name": "key_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The workspace the token belongs to.",
+                "pt-br": "O workspace a que o token pertence."
+              },
+              "kind": "property",
+              "name": "workspace_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "`svc_<hex>@<workspace_id>.diagnos.health`, as the panel shows it.",
+                "pt-br": "Como o painel mostra."
+              },
+              "kind": "property",
+              "name": "identity",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Where it was read from: `DIAGNOS_TOKEN`, `keyring`, `OpenBao …`, `token=`.",
+                "pt-br": "De onde foi lido."
+              },
+              "kind": "property",
+              "name": "source",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The four public keys, base64url — what the vault registered; compare with the panel.",
+                "pt-br": "As quatro chaves públicas, base64url — o que o cofre registrou; compare com o painel."
+              },
+              "kind": "property",
+              "name": "public_keys",
+              "signature": ": dict[str, str]"
+            },
+            {
+              "doc": {
+                "en": "Whether `wipe()` already ran.",
+                "pt-br": "Se `wipe()` já rodou."
+              },
+              "kind": "property",
+              "name": "is_wiped",
+              "signature": ": bool"
+            },
+            {
+              "doc": {
+                "en": "`ed25519 ‖ ml-dsa-65` over `message` (3373 bytes), made in the enclave.",
+                "pt-br": "Feita no enclave."
+              },
+              "kind": "method",
+              "name": "sign",
+              "signature": "(message: bytes) -> bytes"
+            },
+            {
+              "doc": {
+                "en": "The RFC 9421 headers for one attempt — a fresh nonce every call, so a retry is never a replay.",
+                "pt-br": "Os headers RFC 9421 de uma tentativa — nonce novo a cada chamada, para retentar nunca ser replay."
+              },
+              "kind": "method",
+              "name": "request_headers",
+              "signature": "(method: str, url: httpx.URL, body: bytes, created: int) -> dict[str, str]"
+            },
+            {
+              "doc": {
+                "en": "A locked copy of the X25519 + ML-KEM-768 pair, to open the session; its owner wipes it.",
+                "pt-br": "Uma cópia travada do par X25519 + ML-KEM-768, para abrir a sessão; quem a recebe a apaga."
+              },
+              "kind": "method",
+              "name": "keypair",
+              "signature": "() -> HybridKeyPair"
+            },
+            {
+              "doc": {
+                "en": "Zero every private key now; the token cannot sign afterwards.",
+                "pt-br": "Zera toda chave privada agora."
+              },
+              "kind": "method",
+              "name": "wipe",
+              "signature": "() -> None"
+            }
+          ],
+          "name": "DiagnosToken",
+          "signature": "(key_id: str, workspace_id: str, keys: token_keys.TokenKeys, *, source: str)"
         },
         {
           "bases": [
@@ -1076,8 +1205,8 @@
             "DiagnosError"
           ],
           "doc": {
-            "en": "A person denied this SDK session in the web app.",
-            "pt-br": "Uma pessoa negou esta sessão de SDK no app web."
+            "en": "A person denied this SDK session in the web app (legacy `apikey-` token only).",
+            "pt-br": "Uma pessoa negou esta sessão de SDK no app web (só o token legado `apikey-`)."
           },
           "kind": "exception",
           "members": [],
@@ -1088,8 +1217,8 @@
             "DiagnosError"
           ],
           "doc": {
-            "en": "Nobody approved within the window; start again.",
-            "pt-br": "Ninguém aprovou dentro do prazo; comece de novo."
+            "en": "Nobody approved within the window; start again (legacy `apikey-` token only).",
+            "pt-br": "Ninguém aprovou dentro do prazo; comece de novo (só o token legado `apikey-`)."
           },
           "kind": "exception",
           "members": [],
@@ -2200,141 +2329,12 @@
           "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
-          "bases": [],
-          "doc": {
-            "en": "A parsed service account credential: identity in the clear, seed locked in the enclave.",
-            "pt-br": "Uma credencial de conta de serviço lida: identidade em claro, semente travada no enclave."
-          },
-          "kind": "class",
-          "members": [
-            {
-              "doc": {
-                "en": "Every request carries a `created` timestamp.",
-                "pt-br": "Toda requisição leva um timestamp `created`."
-              },
-              "kind": "attribute",
-              "name": "signs_requests",
-              "signature": ": Final"
-            },
-            {
-              "doc": {
-                "en": "Parse `<identity>:<seed>`, split on the last `:` (the identity never contains one).",
-                "pt-br": "Lê `<identidade>:<semente>`, dividindo no último `:` (a identidade nunca tem um)."
-              },
-              "kind": "method",
-              "name": "parse",
-              "signature": "(text: str, *, source: str = 'DIAGNOS_CREDENTIAL') -> ServiceAccountCredential"
-            },
-            {
-              "doc": {
-                "en": "Load the JSON file downloaded when the credential was created.",
-                "pt-br": "Carrega o JSON baixado na criação."
-              },
-              "kind": "method",
-              "name": "from_file",
-              "signature": "(path: str | os.PathLike[str]) -> ServiceAccountCredential"
-            },
-            {
-              "doc": {
-                "en": "`DIAGNOS_CREDENTIAL`, else `DIAGNOS_CREDENTIALS_FILE`, else `~/.config/diagnos/credentials.json`.",
-                "pt-br": "`DIAGNOS_CREDENTIAL`, senão `DIAGNOS_CREDENTIALS_FILE`, senão `~/.config/diagnos/credentials.json`."
-              },
-              "kind": "method",
-              "name": "from_env",
-              "signature": "(env: Mapping[str, str] | None = None) -> ServiceAccountCredential"
-            },
-            {
-              "doc": {
-                "en": "`svc_<hex>@<workspace_id>.diagnos.health` — the `keyid` of every signature.",
-                "pt-br": "`svc_<hex>@<workspace_id>.diagnos.health` — o `keyid` de toda assinatura."
-              },
-              "kind": "property",
-              "name": "identity",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "`svc_<hex>`: what an admin rotates or revokes.",
-                "pt-br": "`svc_<hex>`: o que um admin gira ou revoga."
-              },
-              "kind": "property",
-              "name": "key_id",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "The workspace the key belongs to.",
-                "pt-br": "O workspace a que a chave pertence."
-              },
-              "kind": "property",
-              "name": "workspace_id",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "The account's name, when the credential file carries it.",
-                "pt-br": "O nome da conta, quando o arquivo o traz."
-              },
-              "kind": "property",
-              "name": "service_account",
-              "signature": ": str | None"
-            },
-            {
-              "doc": {
-                "en": "The public key, base64url (43 chars) — compare it with the panel's.",
-                "pt-br": "A chave pública, base64url."
-              },
-              "kind": "property",
-              "name": "public_key",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "Where it was read from (env var or file path).",
-                "pt-br": "De onde foi lida (variável ou caminho)."
-              },
-              "kind": "property",
-              "name": "source",
-              "signature": ": str"
-            },
-            {
-              "doc": {
-                "en": "Ed25519 signature of `message`, made in the enclave.",
-                "pt-br": "Assinatura Ed25519, feita no enclave."
-              },
-              "kind": "method",
-              "name": "sign",
-              "signature": "(message: bytes) -> bytes"
-            },
-            {
-              "doc": {
-                "en": "The RFC 9421 headers for one attempt — a fresh nonce every call, so a retry is never a replay.",
-                "pt-br": "Os headers RFC 9421 de uma tentativa — nonce novo a cada chamada, para retentar nunca ser replay."
-              },
-              "kind": "method",
-              "name": "request_headers",
-              "signature": "(method: str, url: httpx.URL, body: bytes, created: int) -> dict[str, str]"
-            },
-            {
-              "doc": {
-                "en": "Zero the seed now; it cannot sign afterwards.",
-                "pt-br": "Zera a semente agora; depois não assina."
-              },
-              "kind": "method",
-              "name": "wipe",
-              "signature": "() -> None"
-            }
-          ],
-          "name": "ServiceAccountCredential",
-          "signature": "(identity: str, seed: SecretBox, *, service_account: str | None = None, source: str = '')"
-        },
-        {
           "bases": [
             "DiagnosError"
           ],
           "doc": {
-            "en": "The session keys are past `expires_at`; enroll again.",
-            "pt-br": "As chaves de sessão passaram de `expires_at`; refaça o enrollment."
+            "en": "The session keys are past `expires_at`; `unlock()` opens a new one.",
+            "pt-br": "As chaves de sessão passaram de `expires_at`; `unlock()` abre uma nova."
           },
           "kind": "exception",
           "members": [],
@@ -2453,21 +2453,30 @@
                 "pt-br": ""
               },
               "kind": "attribute",
-              "name": "credential",
-              "signature": ": ServiceAccountCredential | None = None"
+              "name": "token",
+              "signature": ": DiagnosToken | None = None"
             },
             {
               "doc": {
-                "en": "Read the environment variables documented in `docs/PROTOCOL.md §11`.\n\n`env` defaults to `os.environ` but accepts an explicit mapping so\ntests never have to monkeypatch process-global state.",
-                "pt-br": "Lê as variáveis de ambiente documentadas em `docs/PROTOCOL.md §11`.\n\n`env` usa `os.environ` por padrão, mas aceita um mapeamento explícito\npara os testes nunca precisarem de monkeypatch em estado global do\nprocesso."
+                "en": "Read the environment variables documented in `docs/PROTOCOL.md §11`, then find the token.\n\n`env` defaults to `os.environ` but accepts an explicit mapping so\ntests never have to monkeypatch process-global state. An explicit\n`token` (a `DiagnosToken`, or its text, or a legacy `apikey-` text)\nreplaces discovery; otherwise `token_sources.py` decides. `keyring`\nsays whether to look in the system keyring — by default only when\nreading the real environment, so an explicit mapping stays hermetic.",
+                "pt-br": "Lê as variáveis de ambiente documentadas em `docs/PROTOCOL.md §11`, depois acha o token.\n\n`env` usa `os.environ` por padrão, mas aceita um mapeamento explícito\npara os testes nunca precisarem de monkeypatch em estado global do\nprocesso. Um `token` explícito (um `DiagnosToken`, o texto dele, ou um\ntexto legado `apikey-`) substitui a descoberta; senão o\n`token_sources.py` decide. `keyring` diz se procura no chaveiro do\nsistema — por padrão só ao ler o ambiente real, para um mapeamento\nexplícito continuar hermético."
               },
               "kind": "method",
               "name": "from_env",
-              "signature": "(env: Mapping[str, str] | None = None, *, credential: ServiceAccountCredential | None = None) -> Settings"
+              "signature": "(env: Mapping[str, str] | None = None, *, token: DiagnosToken | str | None = None, keyring: bool | None = None) -> Settings"
+            },
+            {
+              "doc": {
+                "en": "Everything but the identity — what storing or finding a token needs (vault URL, OpenBao).\n\n`diagnos login` and `diagnos logout` use it: there may be no token\nconfigured yet, or any more.",
+                "pt-br": "Tudo menos a identidade — o que guardar ou achar um token precisa (URL do cofre, OpenBao).\n\nO `diagnos login` e o `diagnos logout` usam isto: pode não haver token\nconfigurado ainda, ou mais."
+              },
+              "kind": "method",
+              "name": "without_token",
+              "signature": "(env: Mapping[str, str] | None = None) -> Settings"
             }
           ],
           "name": "Settings",
-          "signature": "(api_token: str | None = None, vault_url: str = 'https://vault.diagnos.health', timeout_seconds: float = 30.0, openbao_addr: str | None = None, openbao_token: str | None = None, openbao_mount: str = 'secret', openbao_path_prefix: str = 'diagnos', openbao_namespace: str | None = None, harden_process: bool = True, time_precision: TimePrecision | None = None, storage_hosts: tuple[str, ...] = ('diagnosusercontent.com', 'r2.cloudflarestorage.com'), credential: ServiceAccountCredential | None = None)"
+          "signature": "(api_token: str | None = None, vault_url: str = 'https://vault.diagnos.health', timeout_seconds: float = 30.0, openbao_addr: str | None = None, openbao_token: str | None = None, openbao_mount: str = 'secret', openbao_path_prefix: str = 'diagnos', openbao_namespace: str | None = None, harden_process: bool = True, time_precision: TimePrecision | None = None, storage_hosts: tuple[str, ...] = ('diagnosusercontent.com', 'r2.cloudflarestorage.com'), token: DiagnosToken | None = None)"
         },
         {
           "doc": {
@@ -2477,6 +2486,50 @@
           "kind": "attribute",
           "name": "TimePrecision",
           "signature": " = Literal['month', 'day', 'hour', 'minute', 'second']"
+        },
+        {
+          "bases": [
+            "ConfigError"
+          ],
+          "doc": {
+            "en": "The text given as the service account token is not one; the message says how to fix it.\n\nRaised before any network call, from the token's own CRC and format\n(spec §2): a token cut short or pasted with a character wrong says\nexactly that. Neither the message nor any attribute carries a byte of\nthe text.",
+            "pt-br": "O texto dado como token de conta de serviço não é um; a mensagem diz como corrigir.\n\nLançado antes de qualquer chamada de rede, pelo próprio CRC e formato do\ntoken (spec §2): um token cortado ou colado com um caractere errado diz\nexatamente isso. Nem a mensagem nem atributo algum carrega um byte do\ntexto."
+          },
+          "kind": "exception",
+          "members": [
+            {
+              "doc": {
+                "en": "`prefix`, `encoding`, `length`, `checksum`, `workspace` or `empty` — branch on it, never on the message.",
+                "pt-br": "`prefix`, `encoding`, `length`, `checksum`, `workspace` ou `empty` — decida por ele, nunca pela mensagem."
+              },
+              "kind": "attribute",
+              "name": "reason",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "Where the text came from (`DIAGNOS_TOKEN`, `keyring`, …).",
+                "pt-br": "De onde o texto veio."
+              },
+              "kind": "attribute",
+              "name": "source",
+              "signature": ": str"
+            }
+          ],
+          "name": "TokenError",
+          "signature": "(message: str, *, reason: str, source: str)"
+        },
+        {
+          "bases": [
+            "ConfigError"
+          ],
+          "doc": {
+            "en": "There is nowhere safe to keep the token: no secure system keyring and no OpenBao configured.\n\nThe token is never written to a text file, so the message lists the two\nplaces it can live, and `DIAGNOS_TOKEN` for CI and ephemeral containers.",
+            "pt-br": "Não há lugar seguro para guardar o token: sem chaveiro seguro do sistema e sem OpenBao configurado.\n\nO token nunca é gravado em arquivo de texto, então a mensagem lista os dois\nlugares em que ele pode morar, e o `DIAGNOS_TOKEN` para CI e containers\nefêmeros."
+          },
+          "kind": "exception",
+          "members": [],
+          "name": "TokenStoreError"
         },
         {
           "bases": [],
@@ -2617,13 +2670,88 @@
           "signature": "(code: str, message: str, *, status: int, trace_id: str | None = None, request_id: str | None = None, details: dict[str, Any] | None = None)"
         },
         {
+          "bases": [],
+          "doc": {
+            "en": "The token's identity and what the session opened with it was granted. Nothing in it is secret.",
+            "pt-br": "A identidade do token e o que a sessão aberta com ele recebeu. Nada aqui é segredo."
+          },
+          "kind": "class",
+          "members": [
+            {
+              "doc": {
+                "en": "`svc_<hex>@<workspace_id>.diagnos.health`; `None` with the legacy token.",
+                "pt-br": "`None` com o token legado."
+              },
+              "kind": "attribute",
+              "name": "identity",
+              "signature": ": str | None"
+            },
+            {
+              "doc": {
+                "en": "The key an admin rotates or revokes.",
+                "pt-br": "A chave que um admin gira ou revoga."
+              },
+              "kind": "attribute",
+              "name": "key_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The workspace the token belongs to.",
+                "pt-br": "O workspace a que o token pertence."
+              },
+              "kind": "attribute",
+              "name": "workspace_id",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "`hybrid` (`dgn_sk1_…`) or the deprecated `legacy_apikey`.",
+                "pt-br": "`hybrid` ou o obsoleto `legacy_apikey`."
+              },
+              "kind": "attribute",
+              "name": "token_kind",
+              "signature": ": Literal['hybrid', 'legacy_apikey']"
+            },
+            {
+              "doc": {
+                "en": "Where the token was read from.",
+                "pt-br": "De onde o token foi lido."
+              },
+              "kind": "attribute",
+              "name": "token_source",
+              "signature": ": str"
+            },
+            {
+              "doc": {
+                "en": "The groups in the token's scope (their keys opened).",
+                "pt-br": "Os grupos do escopo do token (chaves abertas)."
+              },
+              "kind": "attribute",
+              "name": "security_groups",
+              "signature": ": list[str] = []"
+            },
+            {
+              "doc": {
+                "en": "When the session just opened expires, Unix seconds.",
+                "pt-br": "Quando a sessão recém-aberta expira, em segundos."
+              },
+              "kind": "attribute",
+              "name": "session_expires_at",
+              "signature": ": int = 0"
+            }
+          ],
+          "name": "Whoami",
+          "signature": "(identity: str | None, key_id: str, workspace_id: str, token_kind: Literal['hybrid', 'legacy_apikey'], token_source: str, security_groups: list[str] = <factory>, session_expires_at: int = 0)"
+        },
+        {
           "bases": [
             "CredentialError",
             "DiagnosPermissionError"
           ],
           "doc": {
-            "en": "`CredentialWorkspaceMismatch`: the credential belongs to another workspace.",
-            "pt-br": "`CredentialWorkspaceMismatch`: a credencial é de outro workspace."
+            "en": "`CredentialWorkspaceMismatch`: the token belongs to another workspace.",
+            "pt-br": "`CredentialWorkspaceMismatch`: o token é de outro workspace."
           },
           "kind": "exception",
           "members": [],
@@ -2656,6 +2784,24 @@
           "kind": "function",
           "name": "truncate_timestamp",
           "signature": "(value: date | datetime | str, precision: TimePrecision) -> str"
+        },
+        {
+          "doc": {
+            "en": "Delete the stored token from the keyring and from OpenBao (when configured); where it was removed from.",
+            "pt-br": "Apaga o token guardado do chaveiro e do OpenBao (quando configurado); de onde foi removido."
+          },
+          "kind": "function",
+          "name": "forget_token",
+          "signature": "(*, settings: Settings, keychain: Keychain | None = None, openbao: OpenBaoTokenStore | None = None) -> list[str]"
+        },
+        {
+          "doc": {
+            "en": "Check the token, store it, and say where (`keyring (…)` or `OpenBao …`); `TokenStoreError` if nowhere.\n\n`settings` gives the vault URL (the keyring entry's name) and the\nOpenBao configuration — `Settings.without_token()` when nothing is\nconfigured yet. `keychain`/`openbao` are for tests.",
+            "pt-br": "Confere o token, guarda e diz onde (`keyring (…)` ou `OpenBao …`); `TokenStoreError` se em lugar nenhum.\n\n`settings` dá a URL do cofre (o nome da entrada no chaveiro) e a\nconfiguração do OpenBao — `Settings.without_token()` quando nada está\nconfigurado ainda. `keychain`/`openbao` são para testes."
+          },
+          "kind": "function",
+          "name": "save_token",
+          "signature": "(text: str, *, settings: Settings, store: StoreChoice = 'auto', keychain: Keychain | None = None, openbao: OpenBaoTokenStore | None = None) -> str"
         }
       ],
       "name": "diagnos"

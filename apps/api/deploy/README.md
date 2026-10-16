@@ -2,10 +2,12 @@
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
-The API is a thin shell over the SDK. It needs three things: the service account token, a certificate pair to serve
-HTTPS, and the CA that signs the **client** certificates — mutual TLS is the only authentication it accepts, so a
-request without a valid client certificate never reaches application code. With OpenBao configured, a pod restart
-resumes the SDK session without a human approving again.
+The API is a thin shell over the SDK. It needs three things: the service account token (`dgn_sk1_…`), a certificate
+pair to serve HTTPS, and the CA that signs the **client** certificates — mutual TLS is the only authentication it
+accepts, so a request without a valid client certificate never reaches application code. In a deployment the token
+lives in OpenBao, never in an environment file or a Kubernetes Secret: `diagnos login --store openbao` stores it once
+with a writer token, and the API reads it at startup with a token that may only read it. The session opens with one
+signed request — no human approval, on the first start or after a restart.
 
 ## The image
 
@@ -26,25 +28,27 @@ and reports health by whether port 8443 accepts connections (`HEALTHCHECK`; mTLS
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `DIAGNOS_API_TOKEN` | yes | Service account token (`apikey-…`). |
+| `OPENBAO_ADDR` + `OPENBAO_TOKEN` or `OPENBAO_TOKEN_FILE` | yes | Where the service account token is (`secret/diagnos/token`, stored with `diagnos login --store openbao`), and an OpenBao token that may read it — the `diagnos-sdk` policy. |
+| `DIAGNOS_TOKEN` | no | The token itself (`dgn_sk1_…`), for CI and ephemeral containers only; when set it wins over OpenBao. |
 | `DIAGNOS_API_MTLS_CA_FILE` | yes | PEM bundle of the CA(s) allowed to sign client certificates. |
 | `DIAGNOS_API_TLS_CERT_FILE` / `DIAGNOS_API_TLS_KEY_FILE` | yes | Server certificate and key (PEM). |
 | `DIAGNOS_API_HOST` / `DIAGNOS_API_PORT` | no | Default `0.0.0.0` / `8443`. |
 | `DIAGNOS_API_ALLOWED_CLIENT_CN` | no | Comma-separated CNs; when set, only these client certificates pass. |
-| `OPENBAO_*`, `DIAGNOS_VAULT_URL`, `DIAGNOS_STORAGE_HOSTS`, `DIAGNOS_MEMORY_LOCK`, … | no | Every SDK variable applies too — see [Configuration](../../../docs/guides/configuration.md). `OPENBAO_TOKEN_FILE` is how Compose (`deploy/compose`) and file-mounted Kubernetes Secrets hand over the OpenBao token without an environment value. |
+| `OPENBAO_MOUNT`, `OPENBAO_PATH_PREFIX`, `DIAGNOS_VAULT_URL`, `DIAGNOS_STORAGE_HOSTS`, `DIAGNOS_MEMORY_LOCK`, … | no | Every SDK variable applies too — see [Configuration](../../../docs/guides/configuration.md). `OPENBAO_TOKEN_FILE` is how Compose (`deploy/compose`) and file-mounted Kubernetes Secrets hand over the OpenBao token without an environment value. |
 
-Without OpenBao, the first start prints the approval link and code to the container log; a workspace admin approves
-once per process lifetime. Generating the certificates and calling the API: the [REST API guide](../../../docs/guides/api.md).
+Without a token, the API refuses to start and says where it looked. Generating the certificates and calling the API:
+the [REST API guide](../../../docs/guides/api.md).
 
 ## Kubernetes
 
 ```sh
-kubectl apply -k deploy/k8s     # edit the Secret first
+kubectl apply -k deploy/k8s     # edit the Secret first (TLS material and the read-only OPENBAO_TOKEN)
 ```
 
 `deploy/k8s` ships a Deployment (1 replica — the SDK session is per process; scale with OpenBao and one service
 account per replica if you need more), a ClusterIP Service on 8443, a Secret template and a ConfigMap. Client
-certificates are the callers' responsibility; the CA bundle is mounted read-only.
+certificates are the callers' responsibility; the CA bundle is mounted read-only. The Secret holds no diagnos token:
+the API reads it from OpenBao (see [OpenBao on Kubernetes](#openbao-on-kubernetes)).
 
 ## Docker Compose
 
@@ -53,14 +57,16 @@ nothing pre-existing:
 
 ```sh
 cd deploy/compose
-cp .env.example .env   # fill in DIAGNOS_API_TOKEN, then `diagnos status` for the two ids
+cp .env.example .env   # fill in the workspace and the token's key id (svc_…) — `diagnos whoami` prints both
 # certs/ needs clients-ca.pem/server.pem/server-key.pem — see this file's own openssl recipe below
+docker compose --profile login run --rm login   # paste the token: it goes into OpenBao, not .env
 docker compose up
 ```
 
 A one-shot `openbao-bootstrap` service initialises OpenBao (or resumes, on later runs), enables the KV v2 mount,
-writes the scoped `diagnos-sdk` policy, and mints the token the API reads — `diagnos-api` only starts once that
-finishes successfully. [`deploy/compose/README.md`](compose/README.md) has the full walkthrough.
+writes the `diagnos-sdk` and `diagnos-token-writer` policies, and mints two tokens: the one the API reads (its saved
+session, and read-only access to the diagnos token) and the writer token only the `login` service mounts —
+`diagnos-api` only starts once that finishes successfully. [`deploy/compose/README.md`](compose/README.md) has the full walkthrough.
 
 > [!WARNING]
 > **Staging only, read before using this.** The default `OPENBAO_SEAL=shamir` keeps OpenBao's unseal keys sitting on
@@ -93,9 +99,10 @@ against openbao.org's own docs, not remembered from HashiCorp Vault (the two hav
 | [`static`](k8s/autounseal/static/README.md) | A 32-byte key you generate and hold — read that overlay's security warning first |
 | [`shamir`](k8s/autounseal/shamir/README.md) | Nothing — the fallback; manual `bao operator unseal` after every restart |
 
-After the first `kubectl apply`, bootstrap OpenBao itself (`kv-v2` mount, the `diagnos-sdk` policy, the token) by
-running the same script the Compose bootstrap uses, inside the already-running pod:
-`deploy/k8s/openbao/bootstrap-configmap.yaml` has the exact command and where the resulting token goes.
+After the first `kubectl apply`, bootstrap OpenBao itself (`kv-v2` mount, the `diagnos-sdk` and
+`diagnos-token-writer` policies, the two tokens) by running the same script the Compose bootstrap uses, inside the
+already-running pod, then store the diagnos token with `diagnos login --store openbao` through a port-forward:
+`deploy/k8s/openbao/bootstrap-configmap.yaml` has the exact commands and where each token goes.
 
 ## Memory locking
 

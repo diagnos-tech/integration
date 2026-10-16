@@ -22,8 +22,8 @@ HMAC or a key envelope yourself. Everything clinical is encrypted **inside your 
 vault only ever sees ciphertext. This package makes that the *easy* path.
 
 > [!NOTE]
-> **Status: 0.2.0 preview.** Every surface — enrollment, sessions, request signing, patients, exams, files and
-> folders — speaks the vault's current protocol and is verified against it by the [contract tests](contracts/README.md).
+> **Status: 0.2.0 preview.** Every surface — the service account token, sessions, request signing, patients, exams,
+> files and folders — speaks the vault's current protocol and is verified against it by the [contract tests](contracts/README.md).
 > Known limits, and the questions still open on the vault side, are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 ## Install what you need
@@ -35,7 +35,7 @@ vault only ever sees ciphertext. This package makes that the *easy* path.
 | `pip install "diagnos[cli]"` | [the CLI](apps/cli/README.md) — `diagnos login`, `diagnos patients list`, … | scripts, operations, a quick look |
 | `pip install "diagnos[api]"` | [the REST API](apps/api/README.md) — `diagnos-api`, or its signed image | your system speaks HTTP, not Python |
 
-Same credential, same approval flow, same guarantees: the CLI and the API are thin shells over the SDK — they never
+Same token, same session, same guarantees: the CLI and the API are thin shells over the SDK — they never
 reimplement a single byte of cryptography. One package carries all three; an extra only adds a layer's
 dependencies. Or let the base do it, step by step:
 
@@ -53,54 +53,68 @@ Developers in other languages get the same four base commands through [wrappers]
 > Until `0.2.0` is on PyPI, install from source — [Install](docs/guides/install.md) has the commands, and the
 > [Rust toolchain](https://rustup.rs/) the build needs.
 
-## Quick start
+## Quick start — 60 seconds
 
-**1. Get a credential.** A workspace admin opens *Settings → Service accounts* in the diagnos web app, creates a
-service account and copies its credential — shown once, because the vault keeps only the public half of the key:
+**1. Get a token.** A workspace admin opens *Settings → Service accounts* in the diagnos web app, creates a service
+account, picks the security groups it may read and copies its token — `dgn_sk1_…`, shown once, because the vault
+keeps only its public keys.
+
+**2. Keep it safe, once.**
 
 ```sh
-export DIAGNOS_CREDENTIAL="svc_<32 hex>@<workspace_id>.diagnos.health:<key>"
+diagnos login          # paste it: checked, proven against the vault, kept in the system keyring (or OpenBao)
 ```
 
-> [!NOTE]
-> The `apikey-` token in `DIAGNOS_API_TOKEN` is deprecated: it works, with a warning, until **2027-04-15**.
-> [MIGRATING.md](MIGRATING.md#from-the-apikey--token-to-a-service-account-credential-020) swaps it in three steps.
+In CI or a container, `export DIAGNOS_TOKEN="dgn_sk1_…"` from your secret store instead. Never in a file.
 
-**2. Enroll.** The first run prints a link and a 6-digit code; an admin approves it in the web app and picks which
-security groups this process may read.
+**3. Use it.** No approval step, no code to type: the token opens its session with one signed request.
 
 ```python
 from diagnos import Diagnos
 
-with Diagnos() as vault:  # enrolls on entry: prints the approval link + code
+with Diagnos() as vault:  # finds the token, opens the session
     print(vault.workspace_id)
-    print(vault.security_groups)  # the groups the admin granted
+    print(vault.security_groups)  # the groups chosen for the token
 ```
 
 ```sh
-diagnos login          # the same enrollment, from the terminal — kept for the next commands
-diagnos patients list  # reuses it, no new approval
-diagnos logout         # revokes it and wipes the keys
+diagnos whoami         # which token, from where, and its groups
+diagnos patients list  # every command opens its own session, no prompt
+diagnos logout         # forgets the stored token
 ```
 
-**3. Use it.** Patients, exams and files hang off the same object — `vault.patients`, `vault.exams`,
+> [!NOTE]
+> The `apikey-` token in `DIAGNOS_API_TOKEN` is deprecated: it works, with a warning, until **2027-04-15**.
+> [MIGRATING.md](MIGRATING.md#from-the-apikey--token-to-the-service-account-token-020) swaps it for a token.
+
+**4. Go further.** Patients, exams and files hang off the same object — `vault.patients`, `vault.exams`,
 `vault.drives`. The [quickstart](docs/guides/quickstart.md) goes from here to your first encrypted patient and file, and
 [`examples/`](examples/README.md) has complete programs to copy: upload a file, patients, exams, error handling.
 
 One name, three spellings: a **security group** is `security_group=` in the SDK (`security_group_id` on what it
 returns), `--group` / `DIAGNOS_GROUP` in the CLI, and `security_group` or `{sg}` in the API.
 
-Private keys never leave the process and nothing is written to disk, so a new process needs a new approval — that is
-the design, not a limitation. The CLI keeps its session in one background process between `login` and `logout`.
-[Authentication](docs/guides/authentication.md) shows the credential and the whole enrollment, and
-[Sessions](docs/guides/sessions.md#auto-unseal-with-openbao) how servers restart without a human.
+The token's seed and every private key derived from it stay inside the SDK's Rust enclave, and nothing is written to
+disk. [Authentication](docs/guides/authentication.md) shows the token and where it lives, and
+[Sessions](docs/guides/sessions.md) how a session opens, expires and reopens on its own.
+
+## Why two kinds of cryptography
+
+Every request is signed twice — with **Ed25519**, the classic algorithm proven over many years, and with
+**ML-DSA-65**, a post-quantum one (FIPS 204) — and the vault accepts it only when **both** signatures check out. The
+keys the vault hands your process are sealed the same way, to **X25519** and **ML-KEM-768** (FIPS 203) together.
+
+Why both? The classic algorithms are well understood, but a large enough quantum computer would break them. The
+post-quantum ones resist that computer, but they are young. With both, an attacker has to break **both** — a flaw
+found tomorrow in one of them, or a quantum computer some day, is not enough. Clinical data recorded today stays
+protected tomorrow. You do not pick or configure any of it: the one token carries all four keys.
 
 ## What you get for free
 
 - **🔐 End-to-end by default** — records and files are encrypted in your process; the vault sees ciphertext, signed
   requests and presigned URLs. [Exactly what it sees](docs/guides/security.md#what-the-vault-sees).
-- **🛡️ Post-quantum hybrid** — enrollment uses X25519 + ML-KEM-768, so a recorded session stays safe against a future
-  quantum adversary.
+- **🛡️ Classic + post-quantum** — one token signs with Ed25519 *and* ML-DSA-65 and opens keys sealed to X25519 *and*
+  ML-KEM-768; breaking one algorithm is not enough. [Why](#why-two-kinds-of-cryptography).
 - **🧱 Keys in a Rust enclave** — `mlock`ed memory, guard pages, excluded from core dumps, zeroed on `fork()` and on
   drop, never handed back to Python as `bytes`. Threat model: [`apps/sdk/native/README.md`](apps/sdk/native/README.md).
 - **🔁 Retries and clock skew handled** — idempotent retries, clock sync with the vault, stable exceptions:
@@ -108,13 +122,13 @@ the design, not a limitation. The CLI keeps its session in one background proces
 - **📐 Pinned byte formats** — [`docs/PROTOCOL.md`](docs/PROTOCOL.md) is normative, and test vectors generated from
   the vault's reference implementation pin every byte.
 
-## Servers without a human
+## Servers
 
-A human approval on every restart is fine for a laptop; it is not fine for a Kubernetes pod. Point the SDK at
-[OpenBao](https://openbao.org/) and it saves its unlocked session right after enrollment and restores it on every
-start — a deliberate trade, [explained in full](docs/guides/sessions.md#auto-unseal-with-openbao) before you turn it
-on. Ready-made manifests live in [`apps/api/deploy/`](apps/api/deploy/README.md): Docker Compose and Kubernetes, with
-OpenBao auto-unseal for AWS KMS, Azure Key Vault, GCP KMS, Transit, Shamir and static keys.
+A server keeps the token in [OpenBao](https://openbao.org/), not in an environment file: `diagnos login --store
+openbao` stores it once with a writer token, and the process reads it at startup with a token that may only read it —
+then opens its session with no human, on every restart. Ready-made manifests live in
+[`apps/api/deploy/`](apps/api/deploy/README.md): Docker Compose and Kubernetes, with OpenBao auto-unseal for AWS KMS,
+Azure Key Vault, GCP KMS, Transit, Shamir and static keys.
 
 ## Documentation
 

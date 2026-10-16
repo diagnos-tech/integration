@@ -123,11 +123,12 @@ exempt — see that script's docstring for the exact rule.
 ## Examples
 
 `examples/NN-name/` holds one complete program per folder: a `main.py` (typed, `mypy --strict`, bilingual docstrings,
-the credential read from `DIAGNOS_CREDENTIAL`, never a secret in the file), a `README.md` and a `README.pt-BR.md`, and
-optionally an `example.json` for the end-to-end harness (`command`, `timeout_seconds`, `expect` — the minimum of new
-documents per `patients`/`exams`/`nodes` — and `stdout_includes`). `make types` checks each `main.py` on its own, and
-`make test` runs every example against the docs sandbox, so an SDK change that breaks one fails the build. A new
-example should show something no other one does, and run against a workspace you can throw away.
+the token found by `Diagnos()` — `DIAGNOS_TOKEN`, the keyring or OpenBao — never a secret in the file), a `README.md`
+and a `README.pt-BR.md`, and optionally an `example.json` for the end-to-end harness (`command`, `timeout_seconds`,
+`expect` — the minimum of new documents per `patients`/`exams`/`nodes` — and `stdout_includes`). `make types` checks
+each `main.py` on its own, and `make test` runs every example against the docs sandbox, so an SDK change that breaks
+one fails the build. A new example should show something no other one does, and run against a workspace you can throw
+away.
 
 ## Changing the HTTP behaviour of the SDK
 

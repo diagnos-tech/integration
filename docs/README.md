@@ -84,11 +84,11 @@ and the reason an example here can be trusted:
   `patient` from an earlier one. Each page starts from a fresh sandbox.
 - ```` ```python no-run ```` opts one block out — a fragment, a signature, or code that needs a real OpenBao or a
   running API. Any other language never runs.
-- **The sandbox is the real SDK against an in-memory vault.** `Diagnos()` parses a sandbox token, enrolls with a real
-  hybrid key pair, signs every request and seals every record and file in the Rust enclave; only the network is
-  replaced, by the SDK's own test double of the vault and object storage
-  (`apps/sdk/tests/resources/vault_double/`). Every enrollment is approved at once with the groups `sg_oncology`
-  and `sg_radiology`, and the working directory holds `scans/IM-0001.dcm`, `scans/IM-0002.dcm`, `photo.jpg` and
+- **The sandbox is the real SDK against an in-memory vault.** `Diagnos()` finds a sandbox `DIAGNOS_TOKEN` (all-zero
+  key id and seed — obviously not a secret), opens its session with a request really signed with Ed25519 and
+  ML-DSA-65, opens the sealed keys and seals every record and file in the Rust enclave; only the network is replaced,
+  by the SDK's own test double of the vault and object storage (`apps/sdk/tests/resources/vault_double/`). Every
+  session opens at once with the groups `sg_oncology` and `sg_radiology`, the system keyring is out of reach, and the working directory holds `scans/IM-0001.dcm`, `scans/IM-0002.dcm`, `photo.jpg` and
   `report.pdf`.
 - Output is captured, and shown only when a block fails, at the Markdown line that raised.
 

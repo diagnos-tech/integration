@@ -10,9 +10,8 @@ também; elas só acrescentam as próprias flags e variáveis por cima.
 
 | Variável | Padrão | O que faz |
 |---|---|---|
-| `DIAGNOS_CREDENTIAL` | — (uma das três fontes de credencial é obrigatória) | a credencial da service account, numa linha: `svc_<hex>@<workspace_id>.diagnos.health:<chave>` — veja [Autenticação](authentication.pt-BR.md) |
-| `DIAGNOS_CREDENTIALS_FILE` | não definida | o caminho do JSON da credencial baixado na criação, lido quando `DIAGNOS_CREDENTIAL` não existe; na falta dele, `~/.config/diagnos/credentials.json` |
-| `DIAGNOS_API_TOKEN` | não definida | **obsoleto, deixa de funcionar em 2027-04-15**: o token legado `apikey-<jwt>`, usado só quando nenhuma credencial é achada, com um `LegacyTokenWarning` — veja o [MIGRATING.pt-BR.md](../../MIGRATING.pt-BR.md#do-token-apikey--para-uma-credencial-de-conta-de-serviço-020) |
+| `DIAGNOS_TOKEN` | não definida — então o chaveiro do sistema, então o OpenBao | o token da conta de serviço, `dgn_sk1_…`: para CI e containers efêmeros; numa estação de trabalho o `diagnos login` o guarda no chaveiro, num servidor no OpenBao — veja [Autenticação](authentication.pt-BR.md#onde-o-token-mora) |
+| `DIAGNOS_API_TOKEN` | não definida | **obsoleto, deixa de funcionar em 2027-04-15**: o token legado `apikey-<jwt>`, com um `LegacyTokenWarning` — veja o [MIGRATING.pt-BR.md](../../MIGRATING.pt-BR.md#do-token-apikey--para-o-token-de-conta-de-serviço-020) |
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | onde o cofre mora; mude só para um cofre de staging ou self-hosted |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | o timeout de cada requisição HTTP, em segundos |
 | `DIAGNOS_TIME_PRECISION` | não definida | a precisão de anonimização do workspace — `month`, `day`, `hour`, `minute` ou `second`; as datas são truncadas nela antes de selar ([por quê](patients.pt-BR.md#datas-e-precisão-de-tempo)) |
@@ -20,21 +19,24 @@ também; elas só acrescentam as próprias flags e variáveis por cima.
 | `DIAGNOS_MEMORY_LOCK` | `best-effort` | `require` se recusa a guardar uma chave que o SO não trava na RAM — veja [abaixo](#memória-e-hardening-do-processo) |
 | `DIAGNOS_HARDEN_PROCESS` | `1` | `0` pula desligar core dumps e o attach de debugger no unlock — só enquanto depura |
 
-Nenhuma credencial em nenhuma das fontes, uma malformada ou um valor inválido lança `ConfigError` nomeando a
-variável, quando o `Diagnos` é construído — antes de qualquer chamada de rede, nunca depois, no meio de uma requisição.
+Nenhum token em nenhuma das fontes lança `ConfigError` dizendo onde procurou; um token cortado ou colado errado lança
+`TokenError` (o CRC não confere); um valor inválido lança `ConfigError` nomeando a variável — tudo quando o `Diagnos` é
+construído, antes de qualquer chamada ao cofre, nunca depois, no meio de uma requisição.
 
 ## OpenBao
 
-O auto-unseal está ligado exatamente quando `OPENBAO_ADDR` está definida, e precisa do extra `openbao`
-(`pip install "diagnos[openbao]"`). [Sessões](sessions.pt-BR.md#auto-unseal-com-openbao) explica o que ele troca.
+O OpenBao faz dois trabalhos, os dois ligados exatamente quando `OPENBAO_ADDR` está definida, com o extra `openbao`
+(`pip install "diagnos[openbao]"`): é onde um servidor guarda o **token** (`<prefixo>/token`, guardado com
+`diagnos login --store openbao`, lido quando não há `DIAGNOS_TOKEN` e o chaveiro não tem nenhum), e onde a sessão é
+salva para o **auto-unseal** — [Sessões](sessions.pt-BR.md#auto-unseal-com-openbao) explica o que isso troca.
 
 | Variável | Padrão | O que faz |
 |---|---|---|
-| `OPENBAO_ADDR` | não definida | o servidor OpenBao; defini-la liga o auto-unseal |
-| `OPENBAO_TOKEN` | não definida | um token restrito ao path desta service account, e nada mais amplo |
+| `OPENBAO_ADDR` | não definida | o servidor OpenBao; defini-la liga os dois |
+| `OPENBAO_TOKEN` | não definida | um token restrito aos paths deste deployment, e nada mais amplo: *leitura* do token, leitura e escrita da sessão salva (`apps/api/deploy/compose/openbao/policy.hcl`) |
 | `OPENBAO_TOKEN_FILE` | não definida | um arquivo com esse token, lido quando `OPENBAO_TOKEN` não está definida — como Kubernetes e Compose montam segredos |
 | `OPENBAO_MOUNT` | `secret` | o mount KV v2 |
-| `OPENBAO_PATH_PREFIX` | `diagnos` | a sessão salva mora em `<prefixo>/<workspace_id>/<account_id>` |
+| `OPENBAO_PATH_PREFIX` | `diagnos` | o token mora em `<prefixo>/token`, a sessão salva em `<prefixo>/<workspace_id>/<key_id>` |
 | `OPENBAO_NAMESPACE` | não definida | um namespace do OpenBao, se você os usa |
 
 ## Memória e hardening do processo
@@ -63,34 +65,35 @@ logo depois.
 ## Sem o ambiente: `Settings`
 
 Para testes, para um processo que fala como várias service accounts, ou quando a configuração vem de outro lugar,
-monte um `Settings` você mesmo. Ele é imutável e o `repr` dele mascara a credencial e redige o token legado:
+monte um `Settings` você mesmo. Ele é imutável e o `repr` dele mostra a identidade do token e redige tudo que é
+segredo:
 
 ```python
 import os
 
-from diagnos import Diagnos, ServiceAccountCredential, Settings
+from diagnos import Diagnos, DiagnosToken, Settings
 
 settings = Settings(
-    credential=ServiceAccountCredential.parse(os.environ["DIAGNOS_CREDENTIAL"]),
+    token=DiagnosToken.parse(os.environ["DIAGNOS_TOKEN"]),
     timeout_seconds=10,
     time_precision="day",
 )
 vault = Diagnos(settings=settings)
-print(settings)  # credential='svc_0000…0000@ws_1.diagnos.health' — nunca a chave
+print(settings)  # token=DiagnosToken(identity='svc_…@ws_….diagnos.health', seed='<redacted>')
 ```
 
-`Settings(...)` ignora o ambiente por inteiro, OpenBao inclusive: todo campo não informado fica com o padrão.
-`Settings.from_env(mapping)` lê as mesmas variáveis de acima de qualquer mapeamento, e `Diagnos(credential=…)` troca só
-a identidade enquanto todo o resto continua vindo do ambiente (o obsoleto `Diagnos(token=…)` faz o mesmo com o
-token legado).
+`Settings(...)` ignora o ambiente por inteiro, OpenBao e chaveiro inclusive: todo campo não informado fica com o
+padrão. `Settings.from_env(mapping)` lê as mesmas variáveis de acima de qualquer mapeamento (e nunca o chaveiro), e
+`Diagnos(token=…)` troca só a identidade enquanto todo o resto continua vindo do ambiente.
 
 ## A CLI e a API REST
 
-- A **CLI** aceita `--token` e `--vault-url` em qualquer lugar da linha, sobrescrevendo `DIAGNOS_VAULT_URL` (e, para
-  o token legado, `DIAGNOS_API_TOKEN`) para uma invocação; as outras flags globais estão no [guia da CLI](cli.pt-BR.md#opções-globais).
-  Ela também lê `DIAGNOS_GROUP`, o security group sob o qual uma gravação sela quando `--group` não é dado;
-  `DIAGNOS_AGENT`, em que `off` mantém cada comando no próprio processo; e `DIAGNOS_AGENT_IDLE_MINUTES`, quanto tempo
-  o agente de sessão espera sem comando antes de encerrar a sessão (padrão `480`) — veja
-  [Sem aprovar todo comando](cli.pt-BR.md#sem-aprovar-todo-comando).
-- A **API REST** acrescenta as próprias variáveis `DIAGNOS_API_*` — certificados, host, porta, nomes de cliente
-  permitidos — listadas em [Implantação](../../apps/api/deploy/README.pt-BR.md#ambiente).
+- A **CLI** aceita `--token` e `--vault-url` em qualquer lugar da linha, sobrescrevendo toda fonte de token e o
+  `DIAGNOS_VAULT_URL` para uma invocação; as outras flags globais estão no [guia da CLI](cli.pt-BR.md#opções-globais).
+  Ela também lê `DIAGNOS_GROUP`, o security group sob o qual uma gravação sela quando `--group` não é dado; e, para o
+  agente de sessão do token legado, `DIAGNOS_AGENT` (`off` mantém cada comando no próprio processo) e
+  `DIAGNOS_AGENT_IDLE_MINUTES`, quanto tempo o agente espera sem comando antes de encerrar a sessão (padrão `480`) —
+  veja [O token legado no terminal](cli.pt-BR.md#o-token-legado-no-terminal).
+- A **API REST** lê o token como o SDK — do OpenBao num deployment — e acrescenta as próprias variáveis
+  `DIAGNOS_API_*` — certificados, host, porta, nomes de cliente permitidos — listadas em
+  [Implantação](../../apps/api/deploy/README.pt-BR.md#ambiente).
