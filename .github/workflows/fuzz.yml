@@ -1,5 +1,6 @@
 # Fuzz: libFuzzer against everything in the Rust enclave that parses bytes an attacker can choose (an AEAD
-# ciphertext, a secretstream chunk, a hybrid seal), with the targets in apps/sdk/native/fuzz. Each target runs for
+# ciphertext, a secretstream chunk, a hybrid seal, a pasted service account token), with the targets in
+# apps/sdk/native/fuzz. Each target runs for
 # five minutes a week on a pinned nightly, which cargo-fuzz requires; pull requests are left alone, since a fixed
 # time budget would only slow review. A crash fails the job and keeps the input that caused it as an artifact;
 # reproduce it with `make fuzz FUZZ_TARGET=<target>` and the file under fuzz/artifacts/.
@@ -32,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [aead_open, secretstream_pull, hybrid_open]
+        target: [aead_open, secretstream_pull, hybrid_open, token_decode]
     steps:
       - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:

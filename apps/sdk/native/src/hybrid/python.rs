@@ -49,6 +49,11 @@ impl HybridKeyPair {
         Ok(f(&guard)?)
     }
 
+    /// 🇺🇸 Wraps an identity built elsewhere in the crate (a token's seal pair). 🇧🇷 Embrulha uma identidade construída em outro lugar do crate (o par de selo de um token).
+    pub(crate) fn from_identity(identity: Identity) -> Self {
+        Self { inner: Mutex::new(identity) }
+    }
+
     fn refused() -> PyErr {
         PyTypeError::new_err(
             "HybridKeyPair cannot be pickled or copied · HybridKeyPair não pode ser serializado nem copiado",
@@ -146,9 +151,7 @@ impl HybridKeyPair {
 
     /// 🇺🇸 Zeroes both secrets now. 🇧🇷 Zera as duas secretas agora.
     fn wipe(&self) -> PyResult<()> {
-        let mut guard = self.inner.lock().map_err(Error::from)?;
-        guard.x25519_secret.wipe();
-        guard.mlkem768_secret.wipe();
+        self.inner.lock().map_err(Error::from)?.wipe();
         Ok(())
     }
 

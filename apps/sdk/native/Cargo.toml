@@ -35,11 +35,20 @@ chacha20 = { version = "0.10", features = ["xchacha"] }
 poly1305 = "0.9"
 base64 = "0.23"
 x25519-dalek = { version = "3.0", features = ["static_secrets", "zeroize"] }
-# 🇺🇸 The service account credential (`src/ed25519.rs`); same dalek family as `x25519-dalek`, so it shares its
-#    `curve25519-dalek`. `zeroize` (a default feature) wipes the expanded signing key on drop.
-# 🇧🇷 A credencial de conta de serviço (`src/ed25519.rs`); mesma família dalek do `x25519-dalek`, então divide o
-#    `curve25519-dalek` dele. `zeroize` (feature padrão) apaga a chave de assinatura expandida no drop.
+# 🇺🇸 The classic half of the service account token's signature (`src/token/keys.rs`); same dalek family as
+#    `x25519-dalek`, so it shares its `curve25519-dalek`. `zeroize` (a default feature) wipes the expanded signing
+#    key on drop.
+# 🇧🇷 A metade clássica da assinatura do token de conta de serviço (`src/token/keys.rs`); mesma família dalek do
+#    `x25519-dalek`, então divide o `curve25519-dalek` dele. `zeroize` (feature padrão) apaga a chave de assinatura
+#    expandida no drop.
 ed25519-dalek = "3.0"
+# 🇺🇸 The post-quantum half (FIPS 204). No default features: the hedged signature's 32 random bytes come from the
+#    enclave's own OS RNG (`src/rng.rs`, through `rand_core`), and no PKCS#8 — keys never leave the enclave in any
+#    encoding.
+# 🇧🇷 A metade pós-quântica (FIPS 204). Sem features padrão: os 32 bytes aleatórios da assinatura hedged vêm do
+#    próprio RNG do SO do enclave (`src/rng.rs`, via `rand_core`), e sem PKCS#8 — as chaves nunca saem do enclave em
+#    codificação nenhuma.
+ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc", "rand_core", "zeroize"] }
 ml-kem = { version = "0.3", features = ["zeroize"] }
 rand_core = "0.10"
 getrandom = "0.4"

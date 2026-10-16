@@ -5,7 +5,7 @@
 Um crate Rust pequeno, embarcado no wheel `diagnos` pelo maturin, que guarda
 todo segredo que o SDK algum dia tem — chaves de sessão, DEKs de grupo,
 chaves de documento, a própria identidade X25519 + ML-KEM-768 do SDK, a semente
-Ed25519 da credencial de conta de serviço, o pool de entropia — e executa toda operação que precisa de um. O Python só segura
+do token de conta de serviço e as quatro chaves derivadas dela, o pool de entropia — e executa toda operação que precisa de um. O Python só segura
 um handle, `SecretBox`. As mesmas garantias chegam à linha de comando e à
 API REST (`diagnos[cli]`, `diagnos[api]`) de graça: elas nunca tocam uma
 chave, chamam o SDK.
@@ -55,9 +55,13 @@ decodificados de base64 em Rust, direto em caixas travadas.
   serializar as chaves em JSON para salvá-las: `SecretBox.reveal()` existe
   só para isso, os `bytearray`s são zerados imediatamente, e o texto base64
   imutável vive até o coletor liberá-lo. Milissegundos, opt-in, documentado.
-- **Conteúdo em claro e `DIAGNOS_API_TOKEN`.** Registros e bytes de
-  arquivo decifrados são o produto e voltam a quem chama; o token é uma
-  credencial bearer já presente no ambiente.
+- **Conteúdo em claro, e o texto do token antes de ser lido.** Registros e
+  bytes de arquivo decifrados são o produto e voltam a quem chama. O texto
+  do token vem de onde quem chama o guarda — o ambiente (`DIAGNOS_TOKEN`),
+  o chaveiro do sistema, o OpenBao — e é uma `str` do Python até o
+  `decode_token` mover a semente para dentro; o SDK não guarda cópia dele
+  depois. O `DIAGNOS_API_TOKEN` legado é uma credencial bearer que fica no
+  ambiente.
 - **Windows.** Só `VirtualLock` + zero-ao-descartar: sem guard pages,
   sem semântica de fork, sem aviso de dump. `memory_status()` reporta com
   honestidade.
@@ -101,15 +105,17 @@ native/
 │   ├── buffer.rs       buffers do Python entram, memória Rust zerada sai; origens graváveis são zeradas
 │   ├── kdf.rs           HMAC-SHA512, HKDF-SHA256
 │   ├── aead.rs          AES-256-GCM
-│   ├── ed25519.rs       assinatura / chave pública Ed25519 sobre uma semente num SecretBox (a credencial de conta de serviço)
-│   ├── hybrid.rs        selo/abertura X25519 + ML-KEM-768, HybridKeyPair, leitura da sessão selada
+│   ├── token/           o token de conta de serviço: codec.rs (texto dgn_sk1_, CRC-32), keys.rs (HKDF → Ed25519,
+│   │                    ML-DSA-65, X25519, ML-KEM-768; a assinatura híbrida da requisição), python.rs (TokenKeys, decode_token)
+│   ├── hybrid/          selo/abertura X25519 + ML-KEM-768, HybridKeyPair, leitura da sessão selada
 │   ├── secretstream.rs  crypto_secretstream_xchacha20poly1305 do libsodium, bit a bit igual, sobre um estado travado de 44 bytes
 │   ├── stream.rs        SecretStreamPush / SecretStreamPull (GIL liberado a cada pedaço)
 │   ├── entropy.rs       EntropyPool: SHA-256(os_random ‖ estado ‖ contador), estado = SHA-256(semente), tudo numa página travada
 │   ├── process.rs       harden_process(), memory_status() (syscalls de rlimit/prctl)
 │   ├── rng.rs           o CSPRNG do SO como traits do rand_core; a única aleatoriedade do crate
 │   └── error.rs         um enum Error só → SecureError (subclasse de diagnos.errors.CryptoError)
-└── tests/vectors.rs      os vetores normativos em ../tests/vectors, rodados direto contra o core Rust
+└── tests/               vectors.rs e token_vectors.rs: os vetores normativos em ../tests/vectors, rodados direto
+                         contra o core Rust (os do token byte a byte, da referência do cofre)
 ```
 
 Toda primitiva é a implementação do RustCrypto ou do dalek; este crate
@@ -135,7 +141,7 @@ pelo `uv sync` depois de editar Rust — rode `uv sync --reinstall-package diagn
 
 O `fuzz/` guarda os alvos do [cargo-fuzz](https://rust-fuzz.github.io/book/)
 para tudo aqui que interpreta bytes que um atacante pode escolher —
-`aead_open`, `secretstream_pull`, `hybrid_open` — cada um afirmando que uma
+`aead_open`, `secretstream_pull`, `hybrid_open`, `token_decode` — cada um afirmando que uma
 entrada hostil falha limpa e que uma entrada real volta inteira. Eles rodam por
 cinco minutos toda semana (`.github/workflows/fuzz.yml`); o
 `make fuzz FUZZ_TARGET=<alvo>` roda um por um minuto localmente, com

@@ -4,8 +4,8 @@
 
 A small Rust crate, built into the `diagnos` wheel by maturin, that holds
 every secret the SDK ever has — session keys, group DEKs, document keys, the
-SDK's own X25519 + ML-KEM-768 identity, the service account credential's
-Ed25519 seed, the entropy pool — and performs every
+SDK's own X25519 + ML-KEM-768 identity, the service account token's seed
+and the four keys derived from it, the entropy pool — and performs every
 operation that needs one. Python only ever holds a handle, `SecretBox`. The
 same guarantees reach the command line and the REST API (`diagnos[cli]`,
 `diagnos[api]`) for free: they never touch a key, they call the SDK.
@@ -53,9 +53,13 @@ base64-decoded in Rust, straight into locked boxes.
   keys to JSON to save them: `SecretBox.reveal()` exists only for that, the
   `bytearray`s are zeroed immediately, and the immutable base64 text lives
   until the collector frees it. Milliseconds, opt-in, documented.
-- **Plaintext content and `DIAGNOS_API_TOKEN`.** Decrypted records and
-  file bytes are the product and go back to the caller; the token is a
-  bearer credential already present in the environment.
+- **Plaintext content, and the token's text before it is parsed.**
+  Decrypted records and file bytes are the product and go back to the
+  caller. The token's text comes from wherever the caller keeps it — the
+  environment (`DIAGNOS_TOKEN`), the system keyring, OpenBao — and is a
+  Python `str` until `decode_token` moves its seed in; the SDK keeps no copy
+  of it afterwards. The legacy `DIAGNOS_API_TOKEN` is a bearer credential
+  that stays in the environment.
 - **Windows.** `VirtualLock` + zero-on-drop only: no guard pages, no
   fork semantics, no dump advisory. `memory_status()` reports it honestly.
 
@@ -98,15 +102,17 @@ native/
 │   ├── buffer.rs       Python buffers in, zeroizing Rust memory out; writable sources are zeroed
 │   ├── kdf.rs           HMAC-SHA512, HKDF-SHA256
 │   ├── aead.rs          AES-256-GCM
-│   ├── ed25519.rs       Ed25519 sign / public key over a seed in a SecretBox (the service account credential)
-│   ├── hybrid.rs        X25519 + ML-KEM-768 seal/open, HybridKeyPair, sealed-session parsing
+│   ├── token/           the service account token: codec.rs (dgn_sk1_ text, CRC-32), keys.rs (HKDF → Ed25519,
+│   │                    ML-DSA-65, X25519, ML-KEM-768; the hybrid request signature), python.rs (TokenKeys, decode_token)
+│   ├── hybrid/          X25519 + ML-KEM-768 seal/open, HybridKeyPair, sealed-session parsing
 │   ├── secretstream.rs  libsodium crypto_secretstream_xchacha20poly1305, bit-exact, over a locked 44-byte state
 │   ├── stream.rs        SecretStreamPush / SecretStreamPull (GIL released per chunk)
 │   ├── entropy.rs       EntropyPool: SHA-256(os_random ‖ state ‖ counter), state = SHA-256(seed), all in a locked page
 │   ├── process.rs       harden_process(), memory_status() (rlimit/prctl syscalls)
 │   ├── rng.rs           the OS CSPRNG as rand_core traits; the crate's only randomness
 │   └── error.rs         one Error enum → SecureError (a subclass of diagnos.errors.CryptoError)
-└── tests/vectors.rs      the normative vectors in ../tests/vectors, run against the Rust core directly
+└── tests/               vectors.rs and token_vectors.rs: the normative vectors in ../tests/vectors, run against the
+                         Rust core directly (the token's byte for byte, from the vault's reference)
 ```
 
 Every primitive is the RustCrypto or dalek implementation; this crate
@@ -132,7 +138,7 @@ sync` after a Rust edit — run `uv sync --reinstall-package diagnos`.
 
 `fuzz/` holds the [cargo-fuzz](https://rust-fuzz.github.io/book/) targets for
 everything here that parses bytes an attacker can choose — `aead_open`,
-`secretstream_pull`, `hybrid_open` — each asserting that hostile input fails
+`secretstream_pull`, `hybrid_open`, `token_decode` — each asserting that hostile input fails
 cleanly and that real input round-trips. They run for five minutes a week
 (`.github/workflows/fuzz.yml`); `make fuzz FUZZ_TARGET=<target>` runs one for a
 minute locally, with `cargo install cargo-fuzz` and the nightly the Makefile

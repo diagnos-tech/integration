@@ -1,10 +1,11 @@
 # 🇺🇸 cargo-fuzz targets for everything in the enclave that parses bytes an attacker can choose: an AEAD
-#    ciphertext, a secretstream chunk, a hybrid seal. Run weekly by `.github/workflows/fuzz.yml`, or locally with
-#    `make fuzz`; never part of the wheel. Its own workspace, so the enclave crate never builds it.
+#    ciphertext, a secretstream chunk, a hybrid seal, a pasted service account token. Run weekly by
+#    `.github/workflows/fuzz.yml`, or locally with `make fuzz`; never part of the wheel. Its own workspace, so the
+#    enclave crate never builds it.
 # 🇧🇷 Alvos do cargo-fuzz para tudo no enclave que interpreta bytes que um atacante pode escolher: um ciphertext
-#    AEAD, um chunk de secretstream, um selo híbrido. Rodados toda semana pelo `.github/workflows/fuzz.yml`, ou
-#    localmente com `make fuzz`; nunca fazem parte do wheel. Workspace próprio, para o crate do enclave nunca
-#    construí-lo.
+#    AEAD, um chunk de secretstream, um selo híbrido, um token de conta de serviço colado. Rodados toda semana pelo
+#    `.github/workflows/fuzz.yml`, ou localmente com `make fuzz`; nunca fazem parte do wheel. Workspace próprio, para
+#    o crate do enclave nunca construí-lo.
 [package]
 name = "diagnos-secure-fuzz"
 version = "0.0.0"
@@ -35,6 +36,13 @@ bench = false
 [[bin]]
 name = "hybrid_open"
 path = "fuzz_targets/hybrid_open.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "token_decode"
+path = "fuzz_targets/token_decode.rs"
 test = false
 doc = false
 bench = false
