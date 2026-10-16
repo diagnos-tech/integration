@@ -2,167 +2,176 @@
 
 [English](authentication.md) · **Português (Brasil)**
 
-Um processo diagnos precisa de duas coisas antes de ler um único registro: uma **credencial** que diz qual service
-account ele é, e um **enrollment** que uma pessoa aprovou, que diz o que este processo em particular pode decifrar.
-Nenhum dos dois basta sozinho — uma credencial vazada não decifra nada sem uma pessoa aprovar o processo que a segura.
+Um processo do diagnos precisa de uma coisa antes de ler um único registro: um **token de conta de serviço**. O token
+é ao mesmo tempo a identidade — qual conta de serviço, qual workspace — e a chave que abre as chaves do cofre para os
+grupos que o token recebeu. Não há etapa de pareamento nem código de aprovação: um processo que tem o token assina uma
+requisição, e a sessão está aberta.
 
-## A credencial da service account
+## O token de conta de serviço
 
-Um admin do workspace cria uma service account no app web do diagnos (*Configurações → Contas de serviço*). O par de
-chaves nasce no navegador do admin: o cofre guarda só a chave pública, então ninguém — o cofre inclusive — age como a
-service account sem o que o admin guardou. A metade privada aparece **uma vez**, numa linha só:
+Um admin do workspace cria uma conta de serviço no app web do diagnos (*Configurações → Contas de serviço*), escolhendo
+as permissões e os grupos de segurança que ela pode ler. O token nasce no navegador do admin, que já está destravado:
+ele sorteia 32 bytes aleatórios (a *semente*), deriva deles as chaves públicas do token e sela as chaves dos grupos
+escolhidos para essas chaves públicas. O cofre recebe só as chaves públicas e as chaves de grupo seladas — nunca a
+semente. O token aparece **uma vez**, como uma linha de cerca de 100 caracteres:
 
 ```text
-svc_<32 hex>@<workspace_id>.diagnos.health:<chave de 43 caracteres>
+dgn_sk1_<key id, semente, workspace e um checksum, em base64url>
 ```
 
-Antes do último `:` está a *identidade*, que se lê como um e-mail e nomeia uma chave de uma service account de um
-workspace. Depois dele está a chave privada, uma semente Ed25519 de 32 bytes. O SDK move a semente para o enclave Rust
-no instante em que lê a linha e assina toda requisição com ela ([HTTP Message Signatures, RFC 9421](https://www.rfc-editor.org/rfc/rfc9421)):
-não há segredo bearer para roubar do fio, e cada requisição leva assinatura e nonce novos, então uma cópia é recusada.
+O prefixo `dgn_sk1_` o torna reconhecível por scanners de segredo (gitleaks, secret scanning do GitHub) e pela CLI. Os
+últimos quatro bytes são um CRC-32: um token cortado ou colado errado é pego **antes de qualquer chamada de rede**, com
+uma mensagem que diz exatamente isso. O SDK move a semente para o enclave em Rust no momento em que lê a linha; tudo o
+que o token faz é derivado da semente ali, e nem a semente nem nenhuma chave privada sai de lá.
 
-| Exposta como | Significado |
+| Exposto como | Significado |
 |---|---|
 | `vault.workspace_id` | o workspace para o qual toda URL é montada |
 | `vault.identity` | `svc_<hex>@<workspace_id>.diagnos.health` |
 | `vault.key_id` | `svc_<hex>` — a chave que um admin gira ou revoga |
-| `vault.name`, `vault.email` | o nome curto e o endereço da conta; `None` quando só a forma de uma linha é conhecida (o arquivo baixado traz o nome) |
-| `vault.account_id` | `None`: a identidade é a própria chave |
-| `vault.credential_kind` | `"ed25519"` |
+| `vault.token_kind` | `"hybrid"` (`"legacy_apikey"` para o token obsoleto) |
+| `vault.token_source` | de onde o token foi lido — `DIAGNOS_TOKEN`, `keyring`, `OpenBao …` |
+| `vault.account_id`, `vault.name`, `vault.email` | `None`: a identidade é a própria chave |
 
 ```python
 from diagnos import Diagnos
 
-vault = Diagnos()  # lê DIAGNOS_CREDENTIAL; nada toca a rede ainda
-print(vault.workspace_id, vault.key_id, vault.credential_kind)
-print(repr(vault))  # a identidade é mascarada, a chave nunca aparece
+vault = Diagnos()  # acha o token e confere o CRC; nada toca a rede ainda
+print(vault.workspace_id, vault.key_id, vault.token_kind, vault.token_source)
+print(repr(vault))  # só a identidade — o token nunca aparece
 ```
 
-O SDK procura a credencial nesta ordem, e vale a primeira que achar:
+> [!WARNING]
+> Quem tem o token tem o acesso que ele dá, como uma chave privada: ele abre os grupos que recebeu, sem ninguém para
+> aprovar. Por isso ele aparece uma vez, a CLI o guarda no chaveiro do sistema ou no OpenBao e nunca num arquivo de
+> texto, uma revogação vale na próxima requisição, e o escopo dele deve ser o menor que funciona. O SDK nunca o
+> registra em log: `repr` e `str` mostram só a identidade, um token se recusa a ser serializado com pickle, e um erro
+> nunca carrega o texto dele.
+
+## Por que duas assinaturas — clássica e pós-quântica
+
+Toda requisição é assinada duas vezes, e o cofre só a aceita quando **as duas** assinaturas são válidas: uma com
+Ed25519, o algoritmo clássico em uso há anos, e outra com ML-DSA-65 (FIPS 204), um algoritmo pós-quântico. As chaves do
+cofre são seladas do mesmo jeito, para X25519 e ML-KEM-768 (FIPS 203) juntos, e um selo só abre com os dois segredos.
+
+O motivo é simples: os algoritmos clássicos são bem testados, mas um computador quântico grande o bastante os
+quebraria; os pós-quânticos resistem a esse computador, mas são novos. Usar os dois significa que um atacante precisa
+quebrar **os dois** — um defeito achado em um deles, ou um computador quântico no futuro, não basta. Um dado gravado
+hoje continua protegido amanhã. O custo é uma assinatura maior (3.373 bytes por requisição), que você nunca manipula.
+
+A assinatura segue o [HTTP Message Signatures, RFC 9421](https://www.rfc-editor.org/rfc/rfc9421): não existe segredo
+bearer para roubar do tráfego, e cada requisição leva um horário e um nonce novos, então uma requisição copiada é
+recusada.
+
+## Onde o token mora
+
+O SDK procura nesta ordem, e o primeiro encontrado vence:
 
 | Onde | Quando |
 |---|---|
-| `Diagnos(credential=…)` | um processo que fala como duas service accounts: a linha, o caminho do JSON ou uma `ServiceAccountCredential` |
-| `DIAGNOS_CREDENTIAL` no ambiente | o caso comum: um cofre de segredos direto para a variável |
-| `DIAGNOS_CREDENTIALS_FILE` | o caminho do JSON baixado na criação — um secret do Kubernetes ou do Compose montado `0400` |
-| `~/.config/diagnos/credentials.json` | esse mesmo arquivo numa estação de trabalho, `chmod 600`; sem variável |
+| `Diagnos(token=…)` / `--token` | um processo que fala como duas contas de serviço |
+| `DIAGNOS_TOKEN` no ambiente | CI e containers efêmeros, onde um segredo chega como variável |
+| o chaveiro do sistema | uma estação de trabalho: o `diagnos login` o guarda ali — Keychain do macOS, Credential Locker do Windows, Secret Service ou KWallet |
+| OpenBao, `secret/diagnos/token` | um servidor: o `diagnos login --store openbao` o guarda ali, e o `diagnos-api` o lê na subida |
 
-`Diagnos(settings=Settings(credential=…))` a recebe sem ambiente nenhum — veja [Configuração](configuration.pt-BR.md).
-Uma chave pode ter validade, e um admin a gira criando uma segunda chave ao lado da primeira, trocando o processo e
-revogando a antiga — a revogação é do lado do servidor, e a chamada assinada seguinte falha com
-`CredentialRevokedError` (veja [Erros](errors.pt-BR.md#falhas-de-credencial)).
+**Recomendado:** o chaveiro numa estação de trabalho e o OpenBao num servidor. O `diagnos login` escolhe o primeiro
+lugar seguro: o chaveiro do sistema quando há um que cifra em repouso (um backend de chaveiro em texto puro ou "null"
+não conta), senão o OpenBao quando o `OPENBAO_ADDR` está configurado, senão recusa e explica as duas opções. Ele
+**nunca** grava o token num arquivo de texto. O `DIAGNOS_TOKEN` fica para CI e containers de vida curta; quando a CLI
+percebe que o token veio do ambiente num terminal interativo, ela avisa uma vez.
 
-> [!WARNING]
-> A chave é um segredo: quem a tem consegue *pedir* um enrollment como esta service account. Guarde-a num cofre de
-> segredos ou num arquivo montado, nunca num repositório ou numa linha de log. O SDK nunca a imprime — `repr` e `str`
-> mostram só uma identidade mascarada, e uma credencial se recusa a ser serializada com pickle.
+O mesmo está disponível em Python, para um instalador ou um script de provisionamento:
 
-### O token legado `apikey-`
+```python no-run
+from diagnos import Settings, forget_token, save_token
 
-> [!IMPORTANT]
-> `DIAGNOS_API_TOKEN` (um `apikey-` seguido de um JWT) está **obsoleto e deixa de funcionar em 2027-04-15**. Até lá
-> o SDK ainda o aceita quando nenhuma credencial está configurada, emite um `LegacyTokenWarning` apontando para a sua
-> própria linha e registra um aviso por processo. O [MIGRATING.pt-BR.md](../../MIGRATING.pt-BR.md#do-token-apikey--para-uma-credencial-de-conta-de-serviço-020)
-> troca por uma credencial em três passos.
+where = save_token(token_text, settings=Settings.without_token())  # "keyring (…)" ou "OpenBao …"
+removed = forget_token(settings=Settings.without_token())  # de onde foi removido
+```
 
-O token não tem chave própria para assinar: o SDK lê quatro claims dele sem conferir a assinatura, e o envia como
-bearer em toda requisição. Com ele, `vault.account_id`, `vault.name` e `vault.key_id` vêm dessas claims,
-`vault.identity` é `None` e `vault.credential_kind` é `"legacy_apikey"`. Ele pode ser entregue como
-`DIAGNOS_API_TOKEN`, `Diagnos(token="apikey-…")` ou `Settings(api_token=…)`, e a CLI aceita `--token` para uma única
-invocação. Um `token=` explícito esconde as variáveis de credencial, então o argumento que você digitou sempre vence.
+`Diagnos(settings=Settings(token=…))` o recebe sem ambiente nenhum — veja [Configuração](configuration.pt-BR.md).
 
-## Enrollment
+## Abrindo uma sessão
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant P as Seu processo (SDK)
     participant V as vault.diagnos.health
-    actor A as Admin do workspace
-    participant W as app web do diagnos
 
-    P->>P: gera par de chaves X25519 + ML-KEM-768, na RAM
-    P->>V: registra chaves públicas + descrição do runtime
-    V-->>P: link de aprovação + código de 6 dígitos
-    P-->>A: imprime link + código
-    A->>W: abre o link, confere o runtime, digita o código, escolhe grupos
-    W->>V: chaves de grupo seladas para as chaves públicas do SDK
-    P->>V: poll
-    V-->>P: chaves de grupo seladas + chaves de sessão seladas
-    Note over P: abre as duas com chaves privadas<br/>que nunca saíram do processo → desbloqueado
+    P->>P: deriva as chaves da semente, dentro do enclave
+    P->>V: POST /workspaces/{ws}/session, assinado com Ed25519 + ML-DSA-65
+    V->>V: as duas assinaturas valem? chave não revogada?
+    V-->>P: chave de sessão + chaves de grupo, seladas para X25519 + ML-KEM-768
+    Note over P: abre os dois selos dentro do enclave → destravado
 ```
 
-1. O processo gera um par de chaves híbrido — X25519 mais ML-KEM-768, para um enrollment gravado continuar seguro
-   contra um adversário quântico no futuro — e registra a metade pública no cofre.
-2. Ele mostra um link e um código de 6 dígitos. Um admin abre o link no app web, confere a descrição da máquina que
-   está pedindo, digita o código e escolhe os security groups que este processo pode ler.
-3. O app web sela as chaves desses grupos **para as chaves públicas do processo**; o cofre sela as chaves de sessão do
-   mesmo jeito. O processo abre as duas com chaves privadas que nunca saíram da memória dele.
+1. O SDK deriva os quatro pares de chaves do token a partir da semente (HKDF-SHA-256): Ed25519 e ML-DSA-65 para
+   assinar, X25519 e ML-KEM-768 para abrir selos.
+2. Ele manda um `POST …/session` assinado, sem corpo. O cofre confere as duas assinaturas e se a chave ainda vale.
+3. A resposta traz a chave de sessão e as chaves dos grupos do token, cada uma selada para as chaves públicas do
+   token. O enclave as abre; nada é gravado em disco.
 
-Nada é gravado em disco. A aprovação é o modelo de segurança, não atrito a contornar: não existe API para aprovar um
-enrollment por programa.
+Você raramente faz isso à mão: o primeiro toque em `vault.patients`, `vault.exams` ou `vault.drives` abre a sessão, e
+`with Diagnos() as vault:` a abre na entrada. Se o cofre perde a sessão (um reinício, uma expiração), o SDK abre outra
+e repete a chamada uma vez — sem pessoa, sem prompt. O `whoami()` abre uma sessão e informa o que ela recebeu:
 
-### O que quem aprova vê
+```python
+with Diagnos() as vault:
+    me = vault.whoami()
+    print(me.identity, me.security_groups, me.session_expires_at)
+```
 
-Ao lado do código, a página de aprovação mostra o `runtime` com que o processo se descreveu, para uma pessoa perceber
-"não reconheço esta máquina" antes de aprovar:
+## Quais grupos um processo recebe
 
-| Campo | Exemplo |
-|---|---|
-| `sdk_name`, `sdk_version` | `diagnos-python`, `0.1.0` |
-| `language`, `os`, `arch` | `python 3.12`, `linux`, `x86_64` |
-| `hostname`, `user` | `billing-worker-7f9c`, `app` (quando dá para ler) |
-| `container`, `cloud` | `true`, `aws` (detectados, best-effort) |
+O admin decide ao criar o token: só os grupos escolhidos ali são selados para ele, e `vault.security_groups` os lista
+depois que a sessão abre. Tocar dados de qualquer outro grupo lança `GroupKeyUnavailable` — uma lacuna de permissão,
+não uma falha de criptografia — e linhas de listagem desses grupos voltam com `summary=None` em vez de derrubar a
+página:
+
+```python
+from diagnos import Diagnos, GroupKeyUnavailable
+
+with Diagnos() as vault:
+    print("concedidos:", vault.security_groups)
+    try:
+        vault.patients.create({"legal_name": "Maria Silva", "display_name": "Maria"}, security_group="sg_cardiology")
+    except GroupKeyUnavailable as error:
+        print("não concedido:", error)
+```
+
+A correção é um token novo que inclua o grupo: ampliar o escopo é criar um token.
+
+## Girando e revogando
+
+- **Gire** criando uma chave nova na mesma conta de serviço, com selos novos: as duas valem até a antiga ser revogada,
+  então não há janela sem acesso. Guarde o token novo (`diagnos login` de novo, ou atualize o segredo), reinicie, e
+  então revogue a chave antiga.
+- **Revogue** no app web. A próxima requisição assinada com essa chave falha com `CredentialRevokedError`, e uma
+  sessão que ela abriu cai no próximo uso (veja [Erros](errors.pt-BR.md#falhas-de-credencial)). Os selos de uma chave
+  revogada são apagados.
+
+## O token legado `apikey-`
 
 > [!IMPORTANT]
-> Aprove só um enrollment que você iniciou e cujo runtime você reconhece. Uma aprovação é o que transforma uma credencial
-> na capacidade de decifrar os dados de um grupo.
+> O `DIAGNOS_API_TOKEN` (um `apikey-` seguido de um JWT) está **obsoleto e para de funcionar em 2027-04-15**. Até lá o
+> SDK ainda o aceita, emite um `LegacyTokenWarning` apontando para a sua própria linha e registra um aviso por
+> processo. O [MIGRATING.pt-BR.md](../../MIGRATING.pt-BR.md#do-token-apikey--para-o-token-de-conta-de-serviço-020) o
+> troca por um token.
 
-### Esperando a aprovação
+O token legado não tem chave própria: o SDK lê quatro claims dele sem verificar a assinatura e o manda como bearer em
+toda requisição. Com ele `vault.account_id`, `vault.name` e `vault.key_id` vêm dessas claims, `vault.identity` é
+`None` e `vault.token_kind` é `"legacy_apikey"`. Ele pode ser entregue como `DIAGNOS_API_TOKEN`,
+`Diagnos(token="apikey-…")` ou `Settings(api_token=…)`. Tudo que está no ambiente vence qualquer cofre, então o que um
+shell exporta é sempre o que roda.
 
-`unlock()` bloqueia até o admin responder, fazendo poll no intervalo que o cofre define. Há três finais possíveis:
+Ele também mantém o jeito antigo de obter chaves, o **enrollment**: o processo gera um par X25519 + ML-KEM-768 na RAM,
+registra a metade pública e mostra um link e um código de 6 dígitos; um admin do workspace abre o link, confere a
+máquina que pede, digita o código e escolhe os grupos. O `unlock()` espera a resposta e lança `EnrollmentDeniedError`
+ou `EnrollmentExpiredError` quando ela não vem. O link e o código vão para a `stderr`, ou para o seu callback
+`on_prompt`:
 
-| Desfecho | O que acontece |
-|---|---|
-| aprovado | `unlock()` retorna; o processo está desbloqueado |
-| negado | `EnrollmentDeniedError` |
-| ninguém respondeu antes de `expires_at` | `EnrollmentExpiredError` — rode de novo para um link e um código novos |
-
-```python
-from diagnos import Diagnos, EnrollmentDeniedError, EnrollmentExpiredError
-
-try:
-    vault = Diagnos()
-    vault.unlock()
-except EnrollmentDeniedError:
-    raise SystemExit("um admin negou este processo") from None
-except EnrollmentExpiredError:
-    raise SystemExit("ninguém aprovou a tempo; rode de novo para um código novo") from None
-```
-
-Você raramente chama `unlock()` à mão: o primeiro toque em `vault.patients`, `vault.exams` ou `vault.drives`
-desbloqueia de forma preguiçosa, e `with Diagnos() as vault:` desbloqueia na entrada. É idempotente de todo jeito.
-
-### Mostrando o prompt você mesmo
-
-Por padrão o link e o código vão para `stderr`, como texto puro que se lê igual num terminal e num log de CI:
-
-```text
-diagnos SDK — enrollment approval needed · aprovação de enrollment necessária
-
-Open this link to approve · Abra este link para aprovar:
-  https://…
-
-Code to type · Código para digitar:
-  4 8 2 9 1 5
-
-Expires at (unix seconds) · Expira em (segundos unix): 1790000000
-```
-
-Para mandá-los a outro lugar — um canal de chat, um pager, a sua própria interface — passe `on_prompt`. Ele é chamado
-uma vez, antes de a espera começar, com um `EnrollmentPrompt`:
-
-```python
+```python no-run
 from diagnos import Diagnos, EnrollmentPrompt
 
 
@@ -171,47 +180,18 @@ def notify(prompt: EnrollmentPrompt) -> None:
     print(f"Aprove {prompt.approval_url} com o código {prompt.code} antes de {prompt.expires_at}")
 
 
-vault = Diagnos(on_prompt=notify)
+vault = Diagnos(on_prompt=notify)  # com DIAGNOS_API_TOKEN definida
 vault.unlock()
 ```
 
-### Onde o prompt aparece
-
-| Pacote | Para onde vão o link e o código |
-|---|---|
-| SDK | `stderr`, ou o seu `on_prompt` |
-| CLI | um painel em `stderr`, depois um spinner até a aprovação — veja o [guia da CLI](cli.pt-BR.md#enrollment-no-terminal) |
-| API REST | o `stderr` do processo, isto é, o log do container; a subida espera a aprovação — veja o [guia da API](api.pt-BR.md#a-subida-e-o-prompt-de-enrollment) |
-
-## Quais grupos um processo recebe
-
-O admin decide na hora de aprovar; `vault.security_groups` lista o que foi concedido. Tocar dados de qualquer outro
-grupo lança `GroupKeyUnavailable` — uma lacuna de permissão, não uma falha de cripto — e as linhas de lista desses
-grupos voltam com `summary=None` em vez de derrubar a página:
-
-```python
-from diagnos import Diagnos, GroupKeyUnavailable
-
-with Diagnos() as vault:
-    print("concedidos:", vault.security_groups)
-    try:
-        vault.patients.create({"legal_name": "Maria da Silva", "display_name": "Maria"}, security_group="sg_cardiology")
-    except GroupKeyUnavailable as error:
-        print("não concedido:", error)
-```
-
-A correção é um enrollment novo que inclua o grupo: reinicie o processo (ou limpe a sessão salva dele, se ele usa
-[OpenBao](sessions.pt-BR.md#auto-unseal-com-openbao)) e peça ao admin para escolhê-lo.
+Na CLI, o `diagnos session start` roda esse enrollment uma vez e mantém a sessão num agente em segundo plano, para os
+próximos comandos não pedirem de novo — veja o [guia da CLI](cli.pt-BR.md#o-token-legado-no-terminal).
 
 ## Boas práticas
 
-- **Uma service account por integração**, e uma por réplica se ela roda como vários processos: um admin consegue
+- **Uma conta de serviço por integração**, e uma por réplica se ela roda como vários processos: um admin consegue
   então revogar exatamente uma delas.
-- **O mínimo de grupos que funciona.** Um enrollment decifra tudo nos grupos que ele tem.
-- **A credencial vem de um cofre de segredos** — um Secret do Kubernetes, as variáveis secretas da sua CI — direto
-  para `DIAGNOS_CREDENTIAL` (ou um `DIAGNOS_CREDENTIALS_FILE` montado), nunca de um arquivo no repositório. O
-  `diagnos` em si nunca a loga.
-- **Gire com sobreposição.** Crie a chave nova, faça o deploy dela e só então revogue a antiga; uma service account
-  guarda até cinco chaves ao mesmo tempo, então não há janela sem acesso.
-- **Servidores reiniciam sem uma pessoa** só pelo auto-unseal com OpenBao — uma troca deliberada, descrita em
-  [Sessões](sessions.pt-BR.md).
+- **Os menos grupos que funcionam.** Um token decifra tudo nos grupos que tem.
+- **O chaveiro numa estação de trabalho, o OpenBao num servidor**, o `DIAGNOS_TOKEN` só para CI e containers
+  efêmeros, direto de um cofre de segredos. Nunca num repositório, num arquivo `.env` ou numa linha de log.
+- **Gire com sobreposição.** Crie a chave nova, faça o deploy, e então revogue a antiga.

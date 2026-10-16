@@ -28,6 +28,48 @@ the SDK sends — are tracked in [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## 1. Identity
 
+### The service account token
+
+`DIAGNOS_TOKEN` (or the system keyring, or OpenBao `<prefix>/token`) holds
+one line, about 100 characters:
+
+```
+dgn_sk1_<b64url( key_id(16) ‖ seed(32) ‖ workspace_id(UTF-8) ‖ crc32(4) )>
+```
+
+- `key_id`: 16 random bytes, shown as `svc_<32 hex>`; the identity is
+  `svc_<32 hex>@<workspace_id>.diagnos.health`.
+- `seed`: 32 bytes from the admin's browser CSPRNG — the only secret; the
+  vault never sees it.
+- `workspace_id`: the workspace's id in UTF-8 (a nanoid, ASCII), so the vault
+  reads the public keys with one direct lookup. The reference SDK accepts
+  `[A-Za-z0-9_-]{1,64}` and refuses anything else before any network call.
+- `crc32`: CRC-32 (IEEE), big-endian, over UTF-8(`"dgn_sk1_"`) ‖ `key_id` ‖
+  `seed` ‖ `workspace_id`. It catches a token cut short or pasted wrong
+  before any network call; it is not cryptographic integrity — the signature
+  is. The payload must be canonical base64url (no padding, no stray bits);
+  surrounding whitespace is trimmed.
+
+Every key derives from the seed:
+`HKDF-SHA-256(ikm = seed, salt = UTF-8("diagnos-sa-token-v1"), info = UTF-8(label), L)`.
+
+| `label` | `L` | Key | Public key |
+|---|---|---|---|
+| `ed25519` | 32 | Ed25519 seed (RFC 8032) | 32 B |
+| `ml-dsa-65` | 32 | ξ of ML-DSA-65 `KeyGen_internal` (FIPS 204) | 1952 B |
+| `x25519` | 32 | X25519 scalar (RFC 7748, clamped) | 32 B |
+| `ml-kem-768` | 64 | `d ‖ z` of ML-KEM-768 `KeyGen_internal` (FIPS 203) | 1184 B (encapsulation key) |
+
+The reference SDK parses the token and derives all four keys inside its
+memory enclave; the seed and the private keys never leave it. The token
+signs every request (§3) and opens the session it asks for (§5).
+
+Vector: `service-account-token-v1.json` (seed → the four public keys, a
+request → signature base and signatures, the sealed session and group keys,
+and broken tokens with the reason each one fails).
+
+### The legacy `apikey-` token (until 2027-04-15)
+
 `DIAGNOS_API_TOKEN` is `apikey-<JWT EdDSA>`, issued by a workspace admin.
 Claims the SDK reads: `sub` (key id, rotatable), `account_id`,
 `workspace_id`, `name` (`slug@<workspace_id>.diagnos.health`). The token also
@@ -38,20 +80,52 @@ payload only to build URLs; there is no `exp` claim, and revocation is
 server-side, surfacing as `403 ServiceAccountRevoked` on the next signed
 call.
 
-Header on every request: `Authorization: Bearer apikey-<jwt>`.
+Header on every request: `Authorization: Bearer apikey-<jwt>`. The service
+account token never sends an `Authorization` header.
 
 ## 2. Clock
 
-Signatures carry a timestamp the vault checks within ±120 s of its own
+Signatures carry a timestamp the vault checks within ±120 s (the session
+HMAC) or ±60 s (the token's signature, `401 CredentialClockSkew`) of its own
 clock. Before the first signed request: `GET /time`, no auth, no envelope →
 `{"result": <server_ms>}`. Offset = `server_ms − local_ms`; take the median
 of three round trips. On `401 SignatureTimestampSkew`, resync and retry
 once.
 
-## 3. Request signature
+## 3. Request signatures
 
-Every request except `GET /time` and `session/registry` (both the `POST`
-and the `GET` poll) carries three headers:
+### The token's signature (RFC 9421)
+
+With the service account token, every request carries an
+[RFC 9421](https://www.rfc-editor.org/rfc/rfc9421) signature under one
+label, `diagnos`:
+
+```
+Signature-Input: diagnos=("@method" "@path" ["@query"] ["content-digest"]);created=<unix s>;keyid="svc_<32 hex>";nonce="<16 B b64url>";alg="ed25519+ml-dsa-65"
+Signature:       diagnos=:<base64( ed25519_sig(64) ‖ ml_dsa_65_sig(3309) )>:
+Content-Digest:  sha-256=:<base64(SHA-256(body))>:        (only with a body)
+```
+
+- Components, in this order: `@method`, `@path`, `@query` only when there
+  is a query, `content-digest` only when there is a body. Parameters, in
+  this order: `created`, `keyid`, `nonce`, `alg`. The signature base is RFC
+  9421 §2.5's.
+- `keyid` is the key id alone; the workspace comes from the route, so the
+  token authenticates only on routes under `/workspaces/{workspace_id}/`.
+- The signature is the concatenation of Ed25519 (pure) and ML-DSA-65 (pure
+  mode, FIPS 204 context `ctx = UTF-8("diagnos-sa-request-v1")`), both over
+  the same signature base: 3373 bytes, standard base64. The vault verifies
+  both, and both must pass; any other length, any other `alg`, or one
+  failing half is `401 CredentialSignatureInvalid`. The reference SDK signs
+  ML-DSA-65 hedged (fresh randomness); the vector pins the deterministic
+  variant.
+- `created` within ±60 s; `nonce` is single-use (`401 CredentialReplayed`).
+
+### The session HMAC
+
+Every request made with a live session, except `GET /time` and the legacy
+`session/registry` (both the `POST` and the `GET` poll), also carries three
+headers:
 
 ```
 X-Signature-Timestamp: <unix seconds, decimal, server clock>
@@ -79,6 +153,10 @@ A `(timestamp, nonce)` pair is single-use: the vault answers
 `409 ReplayDetected` to a byte-identical resend. Retries generate a new pair.
 
 Vector: `request_signature.json`.
+
+`POST /workspaces/{workspace_id}/session` (§5) is the one request with the
+token's signature and no HMAC: it is the request that obtains the session
+keys.
 
 ## 4. Session keys and the response seed
 
@@ -117,7 +195,40 @@ SDK does not send one yet — it only consumes the vault's.
 Vector: `aes_gcm_envelope.json` covers the AEAD; `hybrid_seal.json` covers
 the sealing that delivers `sign_key`/`enc_key` in the first place (§6).
 
-## 5. Enrollment
+## 5. Opening a session
+
+### With the service account token
+
+```
+POST /api/external/v1/workspaces/{workspace_id}/session          (the token's signature, no body, no HMAC)
+→ 201 { "session_id", "expires_at",
+        "sealed_session": <HybridSeal>, "sealed_group_keys": { "<security_group_id>": <HybridSeal>, … } }
+```
+
+- Both seals are made to the token's own X25519 + ML-KEM-768 public keys
+  (§1) with the construction of §6.
+- `sealed_session` opens (AAD = UTF-8(`diagnos-sa-session-v1:<workspace_id>:<key_id>`))
+  to the JSON `{"session_id","sign_key":"<32 B b64url>","enc_key":"<32 B b64url>","expires_at"}`.
+- Each `sealed_group_keys[sg]` opens (AAD =
+  UTF-8(`diagnos-sa-group-kek-v1:<workspace_id>:<key_id>:<sg>`)) to the
+  **raw 32-byte key** of that security group. The browser made these seals
+  when it created the token, for exactly the groups of its scope; the vault
+  returns those still in the account's scope. A seal moved to another place
+  does not open.
+- The vault may hand back the account's live session instead of a new one.
+- `POST /api/external/v1/workspaces/{workspace_id}/session/lock` (the
+  token's signature + HMAC, no body) ends it.
+- A data request answered `401 SessionNotFound` means the vault lost the
+  session: the reference SDK opens a new one and retries the request once.
+- `401 CredentialKeyRevoked`: the key was revoked; its seals are gone.
+
+No person takes part: there is no code and no approval.
+
+### Legacy enrollment (`apikey-` only)
+
+The legacy token has no key pair of its own to seal to, so it still gets its
+session through an enrollment that a person approves. A service account
+token on these routes is refused (`409 SdkEnrollmentLegacyOnly`).
 
 ```
 POST /api/external/v1/workspaces/{workspace_id}/session/registry      (Bearer only, unsigned)
@@ -221,17 +332,23 @@ app's own code).
 
 ## Frozen labels
 
-Every HKDF/AAD label below keeps its historical `imgexam-` prefix on
-purpose. The name predates `diagnos`, but these strings are wire constants
+Every `imgexam-` label below keeps its historical prefix on purpose. The name predates `diagnos`, but these strings are wire constants
 baked into every ciphertext already stored — renaming one would make
 existing data unreadable. Never repurpose a label for a new meaning; a
 changed derivation gets a new, separately versioned string (`-v2`) instead.
 Code that uses one of these points back here by name — see
-`src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` and `hkdf.py`.
+`src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` and `hkdf.py`. The
+service account token's labels (`diagnos-sa-*`) are newer and carry the
+current name; they live in `apps/sdk/native/src/token/` and
+`src/diagnos/session/token_session.py`.
 
 | Label | Purpose | Section |
 |---|---|---|
 | `imgexam-sdk-hybrid-seal-v1` | HKDF `info` for the hybrid seal (session and group-key sealing) | §6 |
+| `diagnos-sa-token-v1` | HKDF `salt` deriving the token's four keys from its seed (`info` = `ed25519`, `ml-dsa-65`, `x25519`, `ml-kem-768`) | §1 |
+| `diagnos-sa-request-v1` | FIPS 204 context of the token's ML-DSA-65 request signature | §3 |
+| `diagnos-sa-session-v1` | AAD prefix of the token's sealed session (`:<workspace_id>:<key_id>`) | §5 |
+| `diagnos-sa-group-kek-v1` | AAD prefix of the token's sealed group keys (`:<workspace_id>:<key_id>:<security_group_id>`) | §5 |
 | `imgexam-patient-dek-v1` | wraps **every** document's DEK (patients, exams, templates) under its security group's key — the web app uses this one label for all three | §7, §8 |
 | `imgexam-patient-index-v1` | seals a patient's `encrypted_index` under its DEK | §8 |
 | `imgexam-exam-index-v1` | seals an exam's `encrypted_index` | §8 |
@@ -448,17 +565,28 @@ only go where the deployment chose.
 ## 11. OpenBao auto-unseal
 
 Optional. When `OPENBAO_ADDR` and `OPENBAO_TOKEN` are set, the SDK saves
-its unlocked state after a successful enrollment and restores it on start,
-so a restart needs no human. This deliberately moves the group DEKs from RAM
-to OpenBao's encrypted storage: whoever can read that path can read the
-workspace. Scope the token to the path.
+its unlocked state after it opens a session and restores it on start. This
+deliberately moves the group DEKs from RAM to OpenBao's encrypted storage:
+whoever can read that path can read the workspace. Scope the token to the
+path.
 
-KV v2 · `mount = OPENBAO_MOUNT (default "secret")`, path `OPENBAO_PATH_PREFIX (default "diagnos")/{workspace_id}/{account_id}`:
+KV v2 · `mount = OPENBAO_MOUNT (default "secret")`, path `OPENBAO_PATH_PREFIX (default "diagnos")/{workspace_id}/{key_id}`
+(`{account_id}` with the legacy token); `enrollment_id` holds the
+`session_id` for a service account token:
 ```json
 { "v": 1, "enrollment_id", "x25519_secret", "mlkem768_secret", "session_id", "sign_key", "enc_key",
   "session_expires_at", "group_keys": { "<sg>": "<32 B b64url>" }, "saved_at" }
 ```
-Restore only while `session_expires_at − now > 60 s`; otherwise enroll again.
+Restore only while `session_expires_at − now > 60 s`; otherwise open a new
+session (the legacy token: enroll again).
+
+The same mount also holds the service account token itself, for a server
+(`diagnos login --store openbao`), at `{OPENBAO_PATH_PREFIX}/token`:
+```json
+{ "v": 1, "token": "dgn_sk1_…", "saved_at" }
+```
+The API's OpenBao token gets `read` on it and nothing else; storing it
+takes a separate writer token (`apps/api/deploy/compose/openbao/`).
 
 `OPENBAO_TOKEN_FILE` may name a file holding the token instead of `OPENBAO_TOKEN`
 (the form container orchestrators prefer). Writing this document is the one
@@ -470,12 +598,14 @@ buffers that are zeroed right after the request is built.
 | `code` | HTTP | SDK exception |
 |---|---|---|
 | `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound`, `DriveBatchTooLarge`, `DriveDuplicateClientRef`, `DriveFileTooLarge`, `DriveInvalidParent`, `DriveObjectNotFound` | 400 | `ValidationError` |
-| `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (session gone → re-enroll) |
+| `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (`SessionNotFound` with the token: a new session, the request retried once; the legacy token re-enrolls) |
+| `CredentialSignatureInvalid`, `CredentialReplayed`, `CredentialClockSkew`, `CredentialKeyRevoked`, `CredentialKeyExpired`, `CredentialKeyUnknown` | 401 | `CredentialSignatureError`, `CredentialReplayError`, `ClockSkewError` (after one clock resync), `CredentialRevokedError`, `CredentialExpiredError`, `CredentialUnknownError` — each also an `AuthenticationError` |
+| `CredentialWorkspaceMismatch`, `CredentialScopeMissing` | 403 | `WorkspaceMismatchError`, `ScopeMissingError` — each also a `DiagnosPermissionError` |
 | `SignatureTimestampSkew` | 401 | resync clock, retry once, then `AuthenticationError` |
 | `QuotaExceeded`, `BudgetNotProvisioned` | 402 | `QuotaError` |
 | `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember`, `DriveUploadNotOwned` | 403 | `DiagnosPermissionError` |
 | `DocumentNotFound`, `DocumentVersionNotFound`, `DriveNodeNotFound`, `SdkEnrollmentNotFound`, `NotFound` | 404 | `NotFoundError` |
-| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending`, `UploadIncomplete` | 409 | `ConflictError` (`ReplayDetected` is retried once with a new nonce; `DocumentVersionPending` on a reservation is retried after 1.5 s and 3 s) |
+| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending`, `UploadIncomplete`, `SdkEnrollmentLegacyOnly` | 409 | `ConflictError` (`ReplayDetected` is retried once with a new nonce; `DocumentVersionPending` on a reservation is retried after 1.5 s and 3 s) |
 | `RateLimitExceeded` | 429 | `RateLimitError` (honour `Retry-After` if present; else a jittered backoff, up to 3 retries) |
 | `RequestBodyTooLarge` | 413 | `ValidationError` |
 | 5xx / `InternalServerError`, `MultipartUploadFailed` | 5xx | `VaultError` (carries `trace_id`; one retry after a fixed backoff) |

@@ -30,7 +30,8 @@ exatamente como o SDK faria no processo de quem chama. Isso torna o processo da 
 
 ```sh
 uv run diagnos-api dev-certs   # ./certs: uma CA local, um par do servidor localhost, um de cliente
-export DIAGNOS_API_TOKEN="apikey-…"                  # mais os quatro exports que o dev-certs mostra
+uv run diagnos login           # o token, uma vez, no chaveiro do sistema
+# os quatro exports que o dev-certs mostra, depois:
 uv run diagnos-api
 curl --cacert certs/ca.pem --cert certs/client.pem --key certs/client-key.pem https://localhost:8443/healthz
 ```
@@ -44,8 +45,8 @@ qualquer coisa compartilhada, use a CA da sua organização, ou os passos com `o
 ## Por que TLS mútuo
 
 Não existe header `Authorization`, API key nem cookie de sessão. A única identidade que a API aceita é um certificado
-de cliente assinado por uma CA em que este deployment escolheu confiar, configurada uma vez na subida. Uma credencial
-bearer pode ser colada num chat, commitada por acidente ou reproduzida de um log roubado; um certificado de cliente não
+de cliente assinado por uma CA em que este deployment escolheu confiar, configurada uma vez na subida. Um segredo
+bearer pode ser colado num chat, commitada por acidente ou reproduzida de um log roubado; um certificado de cliente não
 pode ser reproduzido a partir de um segredo vazado, porque quem chama precisa ter a chave privada que a CA assinou, e
 essa chave nunca viaja.
 
@@ -85,14 +86,15 @@ quem chama, nunca da chave dela.
 
 ## Rodando
 
-Quatro variáveis são obrigatórias — o token e três arquivos PEM; todo o resto tem padrão. A lista completa está em
-[Implantação](../../apps/api/deploy/README.pt-BR.md#ambiente).
+Três arquivos PEM são obrigatórios, e o token — num deployment, lido do OpenBao; todo o resto tem padrão. A lista
+completa está em [Implantação](../../apps/api/deploy/README.pt-BR.md#ambiente). Para um container rápido e descartável,
+passe o token em `DIAGNOS_TOKEN`:
 
 ```sh
 docker build --target api -t diagnos-api .   # da raiz do repositório — ou: diagnos setup api
 docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   --ulimit memlock=-1:-1 -p 127.0.0.1:8443:8443 --user "$(id -u):$(id -g)" \
-  -e DIAGNOS_API_TOKEN \
+  -e DIAGNOS_TOKEN \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
   -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
   -v "$PWD/certs:/certs:ro" diagnos-api
@@ -100,11 +102,11 @@ docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-pr
 
 A API é um processo Python comum: `diagnos-api` ou `python -m diagnos.api` a roda em qualquer lugar onde Python roda.
 O contêiner roda exatamente o mesmo código e é a forma recomendada para produção — build fixado, usuário não-root,
-um `RLIMIT_MEMLOCK` maior para travar memória, uma imagem assinada fixada por digest, manifests de Kubernetes em `deploy/` — e Python puro serve igualmente bem na sua
-máquina ou numa VM. De um checkout, sem Docker:
+um `RLIMIT_MEMLOCK` maior para travar memória, uma imagem assinada fixada por digest, manifests de Kubernetes em
+`deploy/` com o token no OpenBao — e Python puro serve igualmente bem na sua máquina ou numa VM. De um checkout, sem
+Docker, com o token que o `diagnos login` guardou:
 
 ```sh
-export DIAGNOS_API_TOKEN="apikey-…"
 export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
 export DIAGNOS_API_TLS_CERT_FILE=./tls.pem DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
 uv run diagnos-api   # ou: python -m diagnos.api — fora de um checkout: pip install "diagnos[api]"
@@ -112,23 +114,24 @@ uv run diagnos-api   # ou: python -m diagnos.api — fora de um checkout: pip in
 
 `--ulimit memlock=-1:-1` deixa o SDK travar as chaves na RAM além do limite padrão de 64 KiB; sem ele a API ainda
 roda, em modo best-effort. O `--user` casa com o dono das chaves `0600` que o `dev-certs` grava. Docker Compose, Kubernetes e OpenBao estão em [Implantação](../../apps/api/deploy/README.pt-BR.md).
-Uma variável ausente ou um arquivo de certificado ilegível param o processo na hora com código de saída `2` e uma
-mensagem que o nomeia.
+Uma variável ausente, um arquivo de certificado ilegível ou nenhum token em lugar nenhum param o processo na hora com
+código de saída `2` e uma mensagem que o nomeia.
 
-## A subida e o prompt de enrollment
+## A subida e a sessão
 
-A API desbloqueia a sessão **antes** de aceitar a primeira conexão. Sem OpenBao, isso significa um enrollment a cada
-subida: o link de aprovação e o código vão para o `stderr` do processo — o log do container — e a subida espera até
-um admin do workspace aprovar. Com o [auto-unseal com OpenBao](sessions.pt-BR.md#auto-unseal-com-openbao), um reinício
-restaura a sessão salva e começa a servir na hora.
+A API abre a sessão **antes** de aceitar a primeira conexão: uma requisição assinada com o token de conta de serviço,
+sem pessoa nenhuma, a cada subida. Se o cofre perder a sessão depois, a próxima chamada abre outra.
+
+Com o token legado `apikey-` a sessão precisa de um enrollment no lugar: o link de aprovação e o código vão para o
+`stderr` do processo — o log do container — e a subida espera até um admin do workspace aprovar, a menos que o
+[auto-unseal com OpenBao](sessions.pt-BR.md#auto-unseal-com-openbao) restaure uma sessão salva.
 
 ```sh
-docker logs -f diagnos-api   # o link e o código, numa subida limpa sem OpenBao
+docker logs -f diagnos-api   # só token legado: o link e o código, numa subida limpa
 ```
 
-Desligar fecha as conexões da sessão mas não a encerra, então um pod que reinicia restaura a mesma sessão.
-`POST /v1/session/lock` a encerra: toda rota de dados falha a partir daí até o processo reiniciar e fazer enrollment
-de novo.
+Desligar fecha as conexões da sessão mas não a encerra. O `POST /v1/session/lock` a encerra e apaga as chaves dela; a
+próxima rota de dados abre uma sessão nova (o token legado: faz enrollment de novo).
 
 ## Chamando
 

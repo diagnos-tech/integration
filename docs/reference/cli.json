@@ -5,8 +5,8 @@
         {
           "command": "diagnos login",
           "description": {
-            "en": "Enroll this process and show the granted groups",
-            "pt-br": "Faz enrollment e mostra os grupos concedidos"
+            "en": "Paste the service account token once; it goes to the system keyring",
+            "pt-br": "Cole o token uma vez; ele vai para o chaveiro do sistema"
           }
         },
         {
@@ -78,8 +78,8 @@
             "--token"
           ],
           "help": {
-            "en": "Legacy apikey- token (until 2027-04-15); the credential comes from DIAGNOS_CREDENTIAL or DIAGNOS_CREDENTIALS_FILE",
-            "pt-br": "Token apikey- legado (até 2027-04-15); a credencial vem de DIAGNOS_CREDENTIAL ou DIAGNOS_CREDENTIALS_FILE"
+            "en": "Service account token for this run (or a legacy apikey- one); prefer `diagnos login`",
+            "pt-br": "Token da conta de serviço nesta execução (ou um apikey- legado); prefira `diagnos login`"
           },
           "kind": "option",
           "name": "token",
@@ -122,48 +122,73 @@
         {
           "command": "diagnos login",
           "description": {
-            "en": "Prints a link and a code, waits for approval",
-            "pt-br": "Imprime link e código, espera a aprovação"
+            "en": "Hidden input, CRC check, whoami, then the system keyring (else OpenBao)",
+            "pt-br": "Entrada oculta, CRC, whoami, depois o chaveiro do sistema (senão o OpenBao)"
           }
         },
         {
-          "command": "diagnos login --no-auto-unseal",
+          "command": "diagnos login --store openbao",
           "description": {
-            "en": "Do not save the session to OpenBao",
-            "pt-br": "Não salva a sessão no OpenBao"
+            "en": "Keep it in OpenBao (OPENBAO_ADDR)",
+            "pt-br": "Guarda no OpenBao (OPENBAO_ADDR)"
           }
         },
         {
           "command": "diagnos --json login",
           "description": {
-            "en": "What was granted, as JSON",
-            "pt-br": "O que foi concedido, em JSON"
+            "en": "Identity, groups and where it was stored",
+            "pt-br": "Identidade, grupos e onde foi guardado"
           }
         }
       ],
       "help": {
-        "en": "Enroll and show what was granted",
-        "pt-br": "Faz enrollment e mostra o que foi concedido"
+        "en": "Store the service account token safely",
+        "pt-br": "Guarda o token da conta de serviço com segurança"
       },
       "params": [
         {
-          "default": null,
+          "default": "auto",
           "flags": [
-            "--auto-unseal",
-            "--no-auto-unseal"
+            "--store"
           ],
           "help": {
-            "en": "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set)",
-            "pt-br": "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
+            "en": "Where to keep the token: the system keyring, else OpenBao (auto)",
+            "pt-br": "Onde guardar o token: o chaveiro do sistema, senão o OpenBao (auto)"
           },
           "kind": "option",
-          "name": "auto-unseal",
+          "name": "store",
           "required": false,
-          "type": "bool"
+          "type": "choice"
         }
       ],
       "path": [
         "login"
+      ]
+    },
+    {
+      "examples": [
+        {
+          "command": "diagnos whoami",
+          "description": {
+            "en": "Identity, token source, groups",
+            "pt-br": "Identidade, origem do token, grupos"
+          }
+        },
+        {
+          "command": "diagnos --json whoami",
+          "description": {
+            "en": "The same, as JSON",
+            "pt-br": "O mesmo, em JSON"
+          }
+        }
+      ],
+      "help": {
+        "en": "Which token this is, proven against the vault",
+        "pt-br": "Qual token é este, provado contra o cofre"
+      },
+      "params": [],
+      "path": [
+        "whoami"
       ]
     },
     {
@@ -212,21 +237,21 @@
         {
           "command": "diagnos logout",
           "description": {
-            "en": "Revoke the kept session and stop the agent",
-            "pt-br": "Revoga a sessão guardada e para o agente"
+            "en": "Delete it from the keyring and OpenBao",
+            "pt-br": "Apaga do chaveiro e do OpenBao"
           }
         },
         {
           "command": "diagnos --json logout",
           "description": {
-            "en": "Whether a session was ended, as JSON",
-            "pt-br": "Se uma sessão foi encerrada, em JSON"
+            "en": "Where it was removed from, as JSON",
+            "pt-br": "De onde foi removido, em JSON"
           }
         }
       ],
       "help": {
-        "en": "Lock the session and stop the agent",
-        "pt-br": "Trava a sessão e para o agente"
+        "en": "Forget the stored token",
+        "pt-br": "Esquece o token guardado"
       },
       "params": [],
       "path": [
@@ -1908,6 +1933,49 @@
     {
       "examples": [
         {
+          "command": "diagnos session start",
+          "description": {
+            "en": "Legacy token: a link and a code, then the agent keeps the session",
+            "pt-br": "Token legado: link e código, depois o agente mantém a sessão"
+          }
+        },
+        {
+          "command": "diagnos session start --no-auto-unseal",
+          "description": {
+            "en": "Do not save the session to OpenBao",
+            "pt-br": "Não salva no OpenBao"
+          }
+        }
+      ],
+      "help": {
+        "en": "Open a session and keep it for the next commands",
+        "pt-br": "Abre uma sessão e a mantém para os próximos comandos"
+      },
+      "params": [
+        {
+          "default": null,
+          "flags": [
+            "--auto-unseal",
+            "--no-auto-unseal"
+          ],
+          "help": {
+            "en": "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set)",
+            "pt-br": "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
+          },
+          "kind": "option",
+          "name": "auto-unseal",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "path": [
+        "session",
+        "start"
+      ]
+    },
+    {
+      "examples": [
+        {
           "command": "diagnos session lock",
           "description": {
             "en": "End the session, wipe local keys and the OpenBao copy",
@@ -1927,7 +1995,7 @@
     }
   ],
   "generatedFrom": {
-    "commit": "c586928",
+    "commit": "202ec0d",
     "package": "diagnos",
     "version": "0.2.0"
   },

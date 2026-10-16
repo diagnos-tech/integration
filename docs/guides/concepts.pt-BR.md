@@ -22,34 +22,34 @@ flowchart LR
     P -- "requisições assinadas" --> V
     P -- "PUT / GET pré-assinados" --> R2
     A --> W
-    W -- "aprova enrollments" --> V
+    W -- "cria tokens de service account" --> V
 ```
 
 O seu processo cifra e decifra. O cofre guarda um **índice** (quem é dono do quê, quais versões existem, chaves
 embrulhadas sob outras chaves) e entrega URLs assinadas de vida curta; os bytes em si vão direto entre o seu processo
-e o armazenamento de objetos, já selados. O app web é onde as pessoas trabalham — e onde um admin aprova o seu
+e o armazenamento de objetos, já selados. O app web é onde as pessoas trabalham — e onde um admin cria o token do seu
 processo.
 
 ## Workspace e service account
 
 Um **workspace** é o espaço de uma organização no diagnos: as pessoas, os pacientes, os arquivos. Uma **service
-account** é um membro não humano de um workspace, criado por um admin para uma integração. O token dela,
-`DIAGNOS_API_TOKEN`, é como o seu processo diz *qual* service account ele é. [Autenticação](authentication.pt-BR.md)
-cobre o token por inteiro.
+account** é um membro não humano de um workspace, criado por um admin para uma integração. O **token** dela
+(`dgn_sk1_…`) é ao mesmo tempo como o seu processo diz *qual* service account ele é e a chave que abre para ele as
+chaves do cofre. [Autenticação](authentication.pt-BR.md) cobre o token por inteiro.
 
-## Enrollment e sessão
+## Token e sessão
 
-Ter o token não basta para ler nada. Cada processo faz **enrollment**: gera um par de chaves na memória, um admin do
-workspace o aprova no app web, e o processo recebe uma **sessão** — as chaves que assinam as requisições dele — mais
-as chaves dos security groups que o admin concedeu. Uma sessão pertence ao processo que a conquistou, vive só na
-memória dele e expira; [Sessões](sessions.pt-BR.md) cobre o ciclo de vida dela e como servidores reiniciam sem uma
-pessoa.
+Quando o admin cria o token, o navegador sela as chaves dos security groups escolhidos para as chaves públicas do
+token. Cada processo então abre uma **sessão** com uma requisição assinada pelo token — Ed25519 e ML-DSA-65 juntos — e
+recebe as chaves que assinam as requisições dele mais aquelas chaves de grupo seladas, que só o token abre. Ninguém
+aprova nada nesse momento: a decisão do admin foi tomada quando o token foi criado. Uma sessão pertence ao processo
+que a abriu, vive só na memória dele e expira; [Sessões](sessions.pt-BR.md) cobre o ciclo de vida dela.
 
 ## Security groups e chaves
 
 Um **security group** é a unidade de acesso dentro de um workspace — em geral uma equipe ou um departamento
-(`sg_oncology`). Cada grupo tem uma chave de 32 bytes, a **DEK do grupo**. Uma aprovação de enrollment entrega ao seu
-processo as DEKs dos grupos que o admin escolheu, e nada mais: os dados de qualquer outro grupo continuam ilegíveis
+(`sg_oncology`). Cada grupo tem uma chave de 32 bytes, a **DEK do grupo**. Uma sessão entrega ao seu processo as DEKs
+dos grupos que o admin escolheu para o token, e nada mais: os dados de qualquer outro grupo continuam ilegíveis
 para ele, mesmo que o cofre liste o metadado deles sem problema.
 
 As chaves se aninham, para nenhuma chave de vida longa cifrar conteúdo diretamente:
@@ -65,7 +65,7 @@ flowchart TD
 ```
 
 As chaves embrulhadas ficam no cofre ao lado dos dados que protegem (`encrypted_keys`), então quem tem a DEK do grupo
-— o app web, ou o seu processo aprovado — consegue abri-las, e mais ninguém. As derivações exatas estão no
+— o app web, ou o seu processo com o token dele — consegue abri-las, e mais ninguém. As derivações exatas estão no
 [PROTOCOL.pt-BR.md](../PROTOCOL.pt-BR.md#7-envelope-de-chave-e-de-conteúdo).
 
 > [!IMPORTANT]

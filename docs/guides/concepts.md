@@ -22,32 +22,34 @@ flowchart LR
     P -- "signed requests" --> V
     P -- "presigned PUT / GET" --> R2
     A --> W
-    W -- "approves enrollments" --> V
+    W -- "creates service account tokens" --> V
 ```
 
 Your process encrypts and decrypts. The vault keeps an **index** (who owns what, which versions exist, keys wrapped
 under other keys) and hands out short-lived signed URLs; the bytes themselves go straight between your process and
-object storage, already sealed. The web app is where people work — and where an admin approves your process.
+object storage, already sealed. The web app is where people work — and where an admin creates your process's token.
 
 ## Workspace and service account
 
 A **workspace** is one organization's space in diagnos: its people, its patients, its files. A **service account** is
-a non-human member of a workspace, created by an admin for one integration. Its token, `DIAGNOS_API_TOKEN`, is how
-your process says *which* service account it is. [Authentication](authentication.md) covers the token in full.
+a non-human member of a workspace, created by an admin for one integration. Its **token** (`dgn_sk1_…`) is both how
+your process says *which* service account it is and the key that opens the vault's keys for it.
+[Authentication](authentication.md) covers the token in full.
 
-## Enrollment and session
+## Token and session
 
-Holding the token is not enough to read anything. Each process **enrolls**: it generates a key pair in memory, a
-workspace admin approves it in the web app, and the process receives a **session** — the keys that sign its
-requests — plus the keys of the security groups the admin granted. A session belongs to the process that earned it,
-lives only in its memory and expires; [Sessions](sessions.md) covers its lifecycle and how servers restart without a
-human.
+When the admin creates the token, the browser seals the keys of the security groups chosen for it to the token's
+public keys. Each process then opens a **session** with one request signed by the token — Ed25519 and ML-DSA-65
+together — and receives the keys that sign its requests plus those sealed group keys, which only the token can open.
+No person approves anything at that moment: the admin's decision was made when the token was created. A session
+belongs to the process that opened it, lives only in its memory and expires; [Sessions](sessions.md) covers its
+lifecycle.
 
 ## Security groups and keys
 
 A **security group** is the unit of access inside a workspace — typically a team or a department (`sg_oncology`).
-Each group has a 32-byte key, the **group DEK**. An enrollment approval hands your process the DEKs of the groups
-the admin picked, and nothing else: data of any other group stays unreadable to it, even though the vault would
+Each group has a 32-byte key, the **group DEK**. A session hands your process the DEKs of the groups the admin picked
+for its token, and nothing else: data of any other group stays unreadable to it, even though the vault would
 happily list its metadata.
 
 Keys nest, so that no long-lived key ever encrypts content directly:
@@ -63,7 +65,7 @@ flowchart TD
 ```
 
 The wrapped keys are stored in the vault next to the data they protect (`encrypted_keys`), so anyone holding the
-group DEK — the web app, or your approved process — can open them, and nobody else can. The exact derivations are in
+group DEK — the web app, or your process with its token — can open them, and nobody else can. The exact derivations are in
 [PROTOCOL.md](../PROTOCOL.md#7-key-and-content-envelope).
 
 > [!IMPORTANT]

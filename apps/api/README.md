@@ -22,7 +22,7 @@ details, and `docker build --target api -t diagnos-api .` builds the same image 
 
 ```sh
 docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
-  --ulimit memlock=-1:-1 -p 8443:8443 -e DIAGNOS_API_TOKEN \
+  --ulimit memlock=-1:-1 -p 8443:8443 -e DIAGNOS_TOKEN \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
   -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
   -v "$PWD/certs:/certs:ro" ghcr.io/diagnos-tech/diagnos-api@sha256:…
@@ -30,6 +30,10 @@ docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-pr
 curl --cert client.pem --key client-key.pem --cacert clients-ca.pem \
   https://diagnos-api.internal:8443/v1/patients
 ```
+
+`DIAGNOS_TOKEN` is for a quick, throwaway run: a deployment keeps the service account token in OpenBao and the API
+reads it at startup — [Deploying](deploy/README.md) ships it ready, for Docker Compose and Kubernetes. Either way the
+API opens its session with one signed request, no human involved.
 
 It is an ordinary Python process too — `diagnos-api` or `python -m diagnos.api` — and on your own machine
 `diagnos-api dev-certs` writes a throwaway CA, a `localhost` server pair and a client pair in one step; the

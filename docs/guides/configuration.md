@@ -10,9 +10,8 @@ them too; they only add their own flags and variables on top.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `DIAGNOS_CREDENTIAL` | — (one of the three credential sources is required) | the service account credential, one line: `svc_<hex>@<workspace_id>.diagnos.health:<key>` — see [Authentication](authentication.md) |
-| `DIAGNOS_CREDENTIALS_FILE` | unset | the path of the credential JSON downloaded at creation, read when `DIAGNOS_CREDENTIAL` is unset; failing that, `~/.config/diagnos/credentials.json` |
-| `DIAGNOS_API_TOKEN` | unset | **deprecated, stops working on 2027-04-15**: the legacy `apikey-<jwt>` token, used only when no credential is found, with a `LegacyTokenWarning` — see [MIGRATING.md](../../MIGRATING.md#from-the-apikey--token-to-a-service-account-credential-020) |
+| `DIAGNOS_TOKEN` | unset — then the system keyring, then OpenBao | the service account token, `dgn_sk1_…`: for CI and ephemeral containers; on a workstation `diagnos login` keeps it in the keyring, on a server in OpenBao — see [Authentication](authentication.md#where-the-token-lives) |
+| `DIAGNOS_API_TOKEN` | unset | **deprecated, stops working on 2027-04-15**: the legacy `apikey-<jwt>` token, with a `LegacyTokenWarning` — see [MIGRATING.md](../../MIGRATING.md#from-the-apikey--token-to-the-service-account-token-020) |
 | `DIAGNOS_VAULT_URL` | `https://vault.diagnos.health` | where the vault lives; change it only for a staging or self-hosted vault |
 | `DIAGNOS_TIMEOUT_SECONDS` | `30` | the timeout of each HTTP request, in seconds |
 | `DIAGNOS_TIME_PRECISION` | unset | the workspace's anonymization precision — `month`, `day`, `hour`, `minute` or `second`; dates are truncated to it before sealing ([why](patients.md#dates-and-time-precision)) |
@@ -20,21 +19,24 @@ them too; they only add their own flags and variables on top.
 | `DIAGNOS_MEMORY_LOCK` | `best-effort` | `require` refuses to hold a key the OS will not lock in RAM — see [below](#memory-and-process-hardening) |
 | `DIAGNOS_HARDEN_PROCESS` | `1` | `0` skips disabling core dumps and debugger attach at unlock — only while debugging |
 
-No credential in any of the sources, a malformed one, or an invalid value raises `ConfigError` naming the variable,
-when the `Diagnos` is built — before any network call, never later, halfway through a request.
+No token in any of the sources raises `ConfigError` saying where it looked; a token cut short or pasted wrong raises
+`TokenError` (its CRC does not match); an invalid value raises `ConfigError` naming the variable — all when the
+`Diagnos` is built, before any call to the vault, never later, halfway through a request.
 
 ## OpenBao
 
-Auto-unseal is on exactly when `OPENBAO_ADDR` is set, and needs the `openbao` extra (`pip install "diagnos[openbao]"`).
-[Sessions](sessions.md#auto-unseal-with-openbao) explains what it trades.
+OpenBao does two jobs, both on exactly when `OPENBAO_ADDR` is set, with the `openbao` extra
+(`pip install "diagnos[openbao]"`): it is where a server keeps the **token** (`<prefix>/token`, stored with
+`diagnos login --store openbao`, read when no `DIAGNOS_TOKEN` is set and the keyring has none), and where the session
+is saved for **auto-unseal** — [Sessions](sessions.md#auto-unseal-with-openbao) explains what that trades.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `OPENBAO_ADDR` | unset | the OpenBao server; setting it turns auto-unseal on |
-| `OPENBAO_TOKEN` | unset | a token scoped to this service account's path, and nothing wider |
+| `OPENBAO_ADDR` | unset | the OpenBao server; setting it turns both on |
+| `OPENBAO_TOKEN` | unset | a token scoped to this deployment's paths, and nothing wider: *read* on the token, read and write on the saved session (`apps/api/deploy/compose/openbao/policy.hcl`) |
 | `OPENBAO_TOKEN_FILE` | unset | a file holding that token, read when `OPENBAO_TOKEN` is unset — how Kubernetes and Compose mount secrets |
 | `OPENBAO_MOUNT` | `secret` | the KV v2 mount |
-| `OPENBAO_PATH_PREFIX` | `diagnos` | the saved session lives at `<prefix>/<workspace_id>/<account_id>` |
+| `OPENBAO_PATH_PREFIX` | `diagnos` | the token lives at `<prefix>/token`, the saved session at `<prefix>/<workspace_id>/<key_id>` |
 | `OPENBAO_NAMESPACE` | unset | an OpenBao namespace, if you use them |
 
 ## Memory and process hardening
@@ -62,34 +64,34 @@ unlocks — the moment it starts holding clinical keys. Set `0` only to attach a
 ## Without the environment: `Settings`
 
 For tests, for a process that talks as several service accounts, or when configuration comes from somewhere else,
-build a `Settings` yourself. It is immutable and its `repr` masks the credential and redacts the legacy token:
+build a `Settings` yourself. It is immutable and its `repr` shows the token's identity and redacts everything secret:
 
 ```python
 import os
 
-from diagnos import Diagnos, ServiceAccountCredential, Settings
+from diagnos import Diagnos, DiagnosToken, Settings
 
 settings = Settings(
-    credential=ServiceAccountCredential.parse(os.environ["DIAGNOS_CREDENTIAL"]),
+    token=DiagnosToken.parse(os.environ["DIAGNOS_TOKEN"]),
     timeout_seconds=10,
     time_precision="day",
 )
 vault = Diagnos(settings=settings)
-print(settings)  # credential='svc_0000…0000@ws_1.diagnos.health' — never the key
+print(settings)  # token=DiagnosToken(identity='svc_…@ws_….diagnos.health', seed='<redacted>')
 ```
 
-`Settings(...)` ignores the environment entirely, OpenBao included: every field not given takes its default.
-`Settings.from_env(mapping)` reads the same variables as above from any mapping, and `Diagnos(credential=…)` replaces
-only the identity while everything else still comes from the environment (the deprecated `Diagnos(token=…)` does the
-same for the legacy token).
+`Settings(...)` ignores the environment entirely, OpenBao and the keyring included: every field not given takes its
+default. `Settings.from_env(mapping)` reads the same variables as above from any mapping (and never the keyring), and
+`Diagnos(token=…)` replaces only the identity while everything else still comes from the environment.
 
 ## The CLI and the REST API
 
-- The **CLI** takes `--token` and `--vault-url` anywhere on the line, overriding `DIAGNOS_VAULT_URL` (and, for
-  the legacy token, `DIAGNOS_API_TOKEN`) for one invocation; its other global flags are in the [CLI guide](cli.md#global-options). It
-  also reads `DIAGNOS_GROUP`, the security group a write seals under when `--group` is not given; `DIAGNOS_AGENT`,
-  where `off` keeps every command in its own process; and `DIAGNOS_AGENT_IDLE_MINUTES`, how long the session agent
-  waits without a command before it ends the session (default `480`) — see
-  [Not approving every command](cli.md#not-approving-every-command).
-- The **REST API** adds its own `DIAGNOS_API_*` variables — certificates, host, port, allowed client names — listed
-  in [Deploying](../../apps/api/deploy/README.md#environment).
+- The **CLI** takes `--token` and `--vault-url` anywhere on the line, overriding every token source and
+  `DIAGNOS_VAULT_URL` for one invocation; its other global flags are in the [CLI guide](cli.md#global-options). It
+  also reads `DIAGNOS_GROUP`, the security group a write seals under when `--group` is not given; and, for the legacy
+  token's session agent, `DIAGNOS_AGENT` (`off` keeps every command in its own process) and
+  `DIAGNOS_AGENT_IDLE_MINUTES`, how long the agent waits without a command before it ends the session (default
+  `480`) — see [The legacy token in the terminal](cli.md#the-legacy-token-in-the-terminal).
+- The **REST API** reads the token like the SDK — from OpenBao in a deployment — and adds its own `DIAGNOS_API_*`
+  variables — certificates, host, port, allowed client names — listed in
+  [Deploying](../../apps/api/deploy/README.md#environment).

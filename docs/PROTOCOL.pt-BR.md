@@ -28,6 +28,48 @@ byte do que o SDK manda — ficam em [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-B
 
 ## 1. Identidade
 
+### O token de conta de serviço
+
+O `DIAGNOS_TOKEN` (ou o chaveiro do sistema, ou o OpenBao `<prefixo>/token`)
+guarda uma linha, de cerca de 100 caracteres:
+
+```
+dgn_sk1_<b64url( key_id(16) ‖ seed(32) ‖ workspace_id(UTF-8) ‖ crc32(4) )>
+```
+
+- `key_id`: 16 bytes aleatórios, mostrados como `svc_<32 hex>`; a
+  identidade é `svc_<32 hex>@<workspace_id>.diagnos.health`.
+- `seed`: 32 bytes do CSPRNG do navegador do admin — o único segredo; o
+  cofre nunca o vê.
+- `workspace_id`: o id do workspace em UTF-8 (um nanoid, ASCII), para o
+  cofre ler as chaves públicas com uma leitura direta. O SDK de referência
+  aceita `[A-Za-z0-9_-]{1,64}` e recusa o resto antes de qualquer rede.
+- `crc32`: CRC-32 (IEEE), big-endian, sobre UTF-8(`"dgn_sk1_"`) ‖ `key_id`
+  ‖ `seed` ‖ `workspace_id`. Pega um token cortado ou colado errado antes de
+  qualquer chamada de rede; não é integridade criptográfica — a assinatura
+  é. O payload precisa ser base64url canônico (sem padding, sem bits
+  sobrando); espaço em volta é removido.
+
+Toda chave deriva da semente:
+`HKDF-SHA-256(ikm = seed, salt = UTF-8("diagnos-sa-token-v1"), info = UTF-8(rótulo), L)`.
+
+| `rótulo` | `L` | Chave | Chave pública |
+|---|---|---|---|
+| `ed25519` | 32 | semente Ed25519 (RFC 8032) | 32 B |
+| `ml-dsa-65` | 32 | ξ do `KeyGen_internal` do ML-DSA-65 (FIPS 204) | 1952 B |
+| `x25519` | 32 | escalar X25519 (RFC 7748, com clamp) | 32 B |
+| `ml-kem-768` | 64 | `d ‖ z` do `KeyGen_internal` do ML-KEM-768 (FIPS 203) | 1184 B (encapsulation key) |
+
+O SDK de referência lê o token e deriva as quatro chaves dentro do enclave
+de memória; a semente e as chaves privadas nunca saem de lá. O token assina
+toda requisição (§3) e abre a sessão que pede (§5).
+
+Vetor: `service-account-token-v1.json` (semente → as quatro chaves
+públicas, uma requisição → signature base e assinaturas, a sessão e as
+chaves de grupo seladas, e tokens quebrados com o motivo de cada falha).
+
+### O token legado `apikey-` (até 2027-04-15)
+
 `DIAGNOS_API_TOKEN` é `apikey-<JWT EdDSA>`, emitido por um admin do
 workspace. Claims que o SDK lê: `sub` (id da chave, rotacionável),
 `account_id`, `workspace_id`, `name` (`slug@<workspace_id>.diagnos.health`).
@@ -37,20 +79,52 @@ isso, e só o cofre a tem. `workspace_id` é lido do payload só para montar
 URLs; não há claim `exp`, e a revogação é do lado do servidor, aparecendo
 como `403 ServiceAccountRevoked` na próxima chamada assinada.
 
-Header em toda requisição: `Authorization: Bearer apikey-<jwt>`.
+Header em toda requisição: `Authorization: Bearer apikey-<jwt>`. O token de
+conta de serviço nunca manda header `Authorization`.
 
 ## 2. Relógio
 
-Assinaturas levam um timestamp que o cofre confere dentro de ±120 s do
-relógio dele. Antes da primeira requisição assinada: `GET /time`, sem auth,
+Assinaturas levam um timestamp que o cofre confere dentro de ±120 s (o
+HMAC da sessão) ou ±60 s (a assinatura do token, `401 CredentialClockSkew`)
+do relógio dele. Antes da primeira requisição assinada: `GET /time`, sem auth,
 sem envelope → `{"result": <ms_do_servidor>}`. Offset = `ms_servidor −
 ms_local`; use a mediana de três idas e voltas. Em `401
 SignatureTimestampSkew`, ressincronize e tente uma vez.
 
-## 3. Assinatura da requisição
+## 3. Assinaturas da requisição
 
-Toda requisição exceto `GET /time` e `session/registry` (tanto o `POST`
-quanto o `GET` do poll) leva três headers:
+### A assinatura do token (RFC 9421)
+
+Com o token de conta de serviço, toda requisição leva uma assinatura
+[RFC 9421](https://www.rfc-editor.org/rfc/rfc9421) sob um rótulo só,
+`diagnos`:
+
+```
+Signature-Input: diagnos=("@method" "@path" ["@query"] ["content-digest"]);created=<s unix>;keyid="svc_<32 hex>";nonce="<16 B b64url>";alg="ed25519+ml-dsa-65"
+Signature:       diagnos=:<base64( ed25519_sig(64) ‖ ml_dsa_65_sig(3309) )>:
+Content-Digest:  sha-256=:<base64(SHA-256(corpo))>:        (só com corpo)
+```
+
+- Componentes, nesta ordem: `@method`, `@path`, `@query` só quando há
+  query, `content-digest` só quando há corpo. Parâmetros, nesta ordem:
+  `created`, `keyid`, `nonce`, `alg`. A signature base é a do RFC 9421
+  §2.5.
+- `keyid` é só o key id; o workspace vem da rota, então o token só
+  autentica em rotas sob `/workspaces/{workspace_id}/`.
+- A assinatura é a concatenação de Ed25519 (puro) e ML-DSA-65 (modo puro,
+  contexto FIPS 204 `ctx = UTF-8("diagnos-sa-request-v1")`), as duas sobre
+  a mesma signature base: 3373 bytes, base64 padrão. O cofre verifica as
+  duas, e as duas precisam passar; qualquer outro tamanho, outro `alg`, ou
+  uma metade falhando é `401 CredentialSignatureInvalid`. O SDK de
+  referência assina o ML-DSA-65 em modo hedged (aleatoriedade nova); o
+  vetor fixa a variante determinística.
+- `created` dentro de ±60 s; `nonce` é de uso único (`401 CredentialReplayed`).
+
+### O HMAC da sessão
+
+Toda requisição feita com uma sessão viva, exceto `GET /time` e o
+`session/registry` legado (tanto o `POST` quanto o `GET` do poll), também
+leva três headers:
 
 ```
 X-Signature-Timestamp: <segundos unix, decimal, relógio do servidor>
@@ -78,6 +152,10 @@ Um par `(timestamp, nonce)` é de uso único: o cofre responde
 `409 ReplayDetected` a um reenvio idêntico. Retentativas geram um par novo.
 
 Vetor: `request_signature.json`.
+
+`POST /workspaces/{workspace_id}/session` (§5) é a única requisição com a
+assinatura do token e sem HMAC: é a requisição que obtém as chaves da
+sessão.
 
 ## 4. Chaves de sessão e a semente da resposta
 
@@ -116,7 +194,41 @@ entropia. Este SDK ainda não manda um — só consome o do cofre.
 Vetor: `aes_gcm_envelope.json` cobre o AEAD; `hybrid_seal.json` cobre o selo
 que entrega `sign_key`/`enc_key` em primeiro lugar (§6).
 
-## 5. Enrollment
+## 5. Abrindo uma sessão
+
+### Com o token de conta de serviço
+
+```
+POST /api/external/v1/workspaces/{workspace_id}/session          (a assinatura do token, sem corpo, sem HMAC)
+→ 201 { "session_id", "expires_at",
+        "sealed_session": <HybridSeal>, "sealed_group_keys": { "<security_group_id>": <HybridSeal>, … } }
+```
+
+- Os dois selos são feitos para as próprias chaves públicas X25519 +
+  ML-KEM-768 do token (§1), com a construção da §6.
+- `sealed_session` abre (AAD = UTF-8(`diagnos-sa-session-v1:<workspace_id>:<key_id>`))
+  para o JSON `{"session_id","sign_key":"<32 B b64url>","enc_key":"<32 B b64url>","expires_at"}`.
+- Cada `sealed_group_keys[sg]` abre (AAD =
+  UTF-8(`diagnos-sa-group-kek-v1:<workspace_id>:<key_id>:<sg>`)) para a
+  **chave crua de 32 bytes** daquele security group. O navegador fez esses
+  selos ao criar o token, para exatamente os grupos do escopo dele; o cofre
+  devolve os que continuam no escopo da conta. Um selo levado para outro
+  lugar não abre.
+- O cofre pode devolver a sessão viva da conta em vez de uma nova.
+- `POST /api/external/v1/workspaces/{workspace_id}/session/lock` (a
+  assinatura do token + HMAC, sem corpo) a encerra.
+- Uma requisição de dados respondida `401 SessionNotFound` significa que o
+  cofre perdeu a sessão: o SDK de referência abre outra e repete a
+  requisição uma vez.
+- `401 CredentialKeyRevoked`: a chave foi revogada; os selos dela sumiram.
+
+Nenhuma pessoa participa: não há código nem aprovação.
+
+### Enrollment legado (só `apikey-`)
+
+O token legado não tem par de chaves próprio para receber selos, então
+ainda obtém a sessão por um enrollment que uma pessoa aprova. Um token de
+conta de serviço nestas rotas é recusado (`409 SdkEnrollmentLegacyOnly`).
 
 ```
 POST /api/external/v1/workspaces/{workspace_id}/session/registry      (só Bearer, sem assinatura)
@@ -223,17 +335,23 @@ selados pelo próprio código do app web).
 
 ## Rótulos congelados
 
-Todo rótulo de HKDF/AAD abaixo mantém o prefixo histórico `imgexam-` de
-propósito. O nome é anterior ao `diagnos`, mas essas strings são constantes
+Todo rótulo `imgexam-` abaixo mantém o prefixo histórico de propósito. O nome é anterior ao `diagnos`, mas essas strings são constantes
 de fio embutidas em todo ciphertext já gravado — renomear uma tornaria dado
 existente ilegível. Nunca reaproveite um rótulo para um significado novo;
 uma derivação alterada ganha uma string nova, versionada à parte (`-v2`).
 Código que usa um destes aponta de volta para cá pelo nome — ver
-`src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` e `hkdf.py`.
+`src/diagnos/crypto/keys.py`, `content.py`, `hybrid.py` e `hkdf.py`. Os
+rótulos do token de conta de serviço (`diagnos-sa-*`) são mais novos e
+levam o nome atual; eles moram em `apps/sdk/native/src/token/` e
+`src/diagnos/session/token_session.py`.
 
 | Rótulo | Propósito | Seção |
 |---|---|---|
 | `imgexam-sdk-hybrid-seal-v1` | `info` do HKDF do selo híbrido (selagem de sessão e de chave de grupo) | §6 |
+| `diagnos-sa-token-v1` | `salt` do HKDF que deriva as quatro chaves do token da semente (`info` = `ed25519`, `ml-dsa-65`, `x25519`, `ml-kem-768`) | §1 |
+| `diagnos-sa-request-v1` | contexto FIPS 204 da assinatura ML-DSA-65 do token nas requisições | §3 |
+| `diagnos-sa-session-v1` | prefixo do AAD da sessão selada do token (`:<workspace_id>:<key_id>`) | §5 |
+| `diagnos-sa-group-kek-v1` | prefixo do AAD das chaves de grupo seladas do token (`:<workspace_id>:<key_id>:<security_group_id>`) | §5 |
 | `imgexam-patient-dek-v1` | embrulha a DEK de **todo** documento (pacientes, exames, modelos) sob a chave do security group — o app web usa este único rótulo para os três | §7, §8 |
 | `imgexam-patient-index-v1` | sela o `encrypted_index` de um paciente sob a DEK | §8 |
 | `imgexam-exam-index-v1` | sela o `encrypted_index` de um exame | §8 |
@@ -450,18 +568,28 @@ chaves de SSE-C só vão para onde o deploy escolheu.
 ## 11. Auto-unseal com OpenBao
 
 Opcional. Com `OPENBAO_ADDR` e `OPENBAO_TOKEN` definidas, o SDK salva o
-estado desbloqueado depois de um enrollment bem-sucedido e o restaura ao
-subir, sem humano. Isso move deliberadamente as DEKs de grupo da RAM para o
+estado desbloqueado depois de abrir uma sessão e o restaura ao subir. Isso
+move deliberadamente as DEKs de grupo da RAM para o
 armazenamento cifrado do OpenBao: quem conseguir ler aquele path lê o
 workspace. Restrinja o token ao path.
 
-KV v2 · `mount = OPENBAO_MOUNT (padrão "secret")`, path `OPENBAO_PATH_PREFIX (padrão "diagnos")/{workspace_id}/{account_id}`:
+KV v2 · `mount = OPENBAO_MOUNT (padrão "secret")`, path `OPENBAO_PATH_PREFIX (padrão "diagnos")/{workspace_id}/{key_id}`
+(`{account_id}` com o token legado); `enrollment_id` guarda o `session_id`
+para um token de conta de serviço:
 ```json
 { "v": 1, "enrollment_id", "x25519_secret", "mlkem768_secret", "session_id", "sign_key", "enc_key",
   "session_expires_at", "group_keys": { "<sg>": "<32 B b64url>" }, "saved_at" }
 ```
-Restaure só enquanto `session_expires_at − agora > 60 s`; senão, faça um
-novo enrollment.
+Restaure só enquanto `session_expires_at − agora > 60 s`; senão, abra uma
+sessão nova (o token legado: faça um novo enrollment).
+
+O mesmo mount também guarda o próprio token de conta de serviço, para um
+servidor (`diagnos login --store openbao`), em `{OPENBAO_PATH_PREFIX}/token`:
+```json
+{ "v": 1, "token": "dgn_sk1_…", "saved_at" }
+```
+O token do OpenBao da API recebe `read` nele e nada mais; guardá-lo exige
+um token de escrita separado (`apps/api/deploy/compose/openbao/`).
 
 `OPENBAO_TOKEN_FILE` pode nomear um arquivo com o token em vez de
 `OPENBAO_TOKEN` (a forma que orquestradores de container preferem). Escrever
@@ -474,12 +602,14 @@ requisição ser montada.
 | `code` | HTTP | Exceção do SDK |
 |---|---|---|
 | `ValidationError`, `DocumentTooLarge`, `DocumentObjectNotFound`, `DriveBatchTooLarge`, `DriveDuplicateClientRef`, `DriveFileTooLarge`, `DriveInvalidParent`, `DriveObjectNotFound` | 400 | `ValidationError` |
-| `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (sessão sumiu → refaça o enrollment) |
+| `Unauthorized`, `SessionNotFound`, `SignatureInvalid`, `SignatureMissing` | 401 | `AuthenticationError` (`SessionNotFound` com o token: uma sessão nova, a requisição repetida uma vez; o token legado refaz o enrollment) |
+| `CredentialSignatureInvalid`, `CredentialReplayed`, `CredentialClockSkew`, `CredentialKeyRevoked`, `CredentialKeyExpired`, `CredentialKeyUnknown` | 401 | `CredentialSignatureError`, `CredentialReplayError`, `ClockSkewError` (depois de uma ressincronização do relógio), `CredentialRevokedError`, `CredentialExpiredError`, `CredentialUnknownError` — cada uma também um `AuthenticationError` |
+| `CredentialWorkspaceMismatch`, `CredentialScopeMissing` | 403 | `WorkspaceMismatchError`, `ScopeMissingError` — cada uma também um `DiagnosPermissionError` |
 | `SignatureTimestampSkew` | 401 | ressincroniza o relógio, tenta uma vez, depois `AuthenticationError` |
 | `QuotaExceeded`, `BudgetNotProvisioned` | 402 | `QuotaError` |
 | `ServiceAccountRevoked`, `DocumentAccessDenied`, `InsufficientPermission`, `NotAWorkspaceMember`, `DriveUploadNotOwned` | 403 | `DiagnosPermissionError` |
 | `DocumentNotFound`, `DocumentVersionNotFound`, `DriveNodeNotFound`, `SdkEnrollmentNotFound`, `NotFound` | 404 | `NotFoundError` |
-| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending`, `UploadIncomplete` | 409 | `ConflictError` (`ReplayDetected` é retentado uma vez, com nonce novo; `DocumentVersionPending` numa reserva é retentado depois de 1,5 s e 3 s) |
+| `DocumentVersionPending`, `DocumentVersionNotPending`, `DocumentVersionMismatch`, `DocumentDraftMismatch`, `ReplayDetected`, `DriveNodeNotPending`, `UploadIncomplete`, `SdkEnrollmentLegacyOnly` | 409 | `ConflictError` (`ReplayDetected` é retentado uma vez, com nonce novo; `DocumentVersionPending` numa reserva é retentado depois de 1,5 s e 3 s) |
 | `RateLimitExceeded` | 429 | `RateLimitError` (respeita `Retry-After` se vier; senão backoff com jitter, até 3 tentativas) |
 | `RequestBodyTooLarge` | 413 | `ValidationError` |
 | 5xx / `InternalServerError`, `MultipartUploadFailed` | 5xx | `VaultError` (carrega `trace_id`; uma retentativa depois de um backoff fixo) |

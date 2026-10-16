@@ -9,7 +9,7 @@ are thin shells over it. It is the `sdk` extra of the one `diagnos` package: its
 `from diagnos import Diagnos` loads it on first use.
 
 > [!NOTE]
-> **Status: 0.1.0 preview.** Enrollment, session keys, request signing, the clock, the lock, `vault.patients`,
+> **Status: 0.1.0 preview.** The service account token, session keys, request signing, the clock, the lock, `vault.patients`,
 > `vault.exams` and `vault.drives` speak the vault's current protocol and are verified against it by the Pact
 > contract tests. Known limits:
 > [COMPATIBILITY.md](https://github.com/diagnos-tech/integration/blob/main/docs/COMPATIBILITY.md).
@@ -29,8 +29,8 @@ with Diagnos() as vault:
 
 ```sh
 uv add "diagnos[sdk]"                   # or: pip install "diagnos[sdk]" — or let `diagnos setup sdk` do it
-uv add "diagnos[sdk,openbao]"           # with OpenBao auto-unseal, for servers
-export DIAGNOS_API_TOKEN="apikey-…"     # issued by a workspace admin
+uv add "diagnos[sdk,openbao]"           # with OpenBao, where a server keeps the token
+export DIAGNOS_TOKEN="dgn_sk1_…"        # issued by a workspace admin — or `diagnos login`, which keeps it in the keyring
 ```
 
 Without the `sdk` extra, `import diagnos` still works (it is the base install), and `from diagnos import Diagnos`
@@ -45,16 +45,17 @@ raises `MissingExtraError` with the command that adds it.
 ```python
 from diagnos import Diagnos
 
-vault = Diagnos()  # reads DIAGNOS_API_TOKEN; no network yet
-vault.unlock()  # prints a link + a 6-digit code, waits for an admin to approve
+vault = Diagnos()  # finds the token (DIAGNOS_TOKEN, the keyring, OpenBao); no network yet
+vault.unlock()  # one signed request opens the session — no approval, no code
 
 for row in vault.patients.list():
     print(row.id, row.summary.display_name if row.summary else "—")
 ```
 
-The token says *which* service account is asking; the approval decides what this process may decrypt. You rarely call
-`unlock()` yourself — the first use of `vault.patients`, `vault.exams` or `vault.drives` unlocks lazily — and a
-server that must restart without a person uses OpenBao auto-unseal, a deliberate trade the sessions guide spells out.
+The token says *which* service account is asking and carries the key to what it may decrypt: the groups chosen when
+an admin created it. Every request is signed with Ed25519 and ML-DSA-65 together, so breaking one algorithm — or a
+quantum computer one day — is not enough. You rarely call `unlock()` yourself: the first use of `vault.patients`,
+`vault.exams` or `vault.drives` unlocks lazily.
 
 ## What is inside
 
@@ -73,7 +74,7 @@ server that must restart without a person uses OpenBao auto-unseal, a deliberate
 |---|---|
 | [Quickstart](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.md) | token to first encrypted patient and file |
 | [Concepts](https://github.com/diagnos-tech/integration/blob/main/docs/guides/concepts.md) | workspaces, groups, keys, versions, drafts, nodes |
-| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, the enrollment link and code, the approval |
+| [Authentication](https://github.com/diagnos-tech/integration/blob/main/docs/guides/authentication.md) | the token, where it lives, why classic + post-quantum |
 | [Sessions](https://github.com/diagnos-tech/integration/blob/main/docs/guides/sessions.md) | unlock, lock, expiry, OpenBao auto-unseal |
 | [Patients](https://github.com/diagnos-tech/integration/blob/main/docs/guides/patients.md) · [Exams](https://github.com/diagnos-tech/integration/blob/main/docs/guides/exams.md) · [Files](https://github.com/diagnos-tech/integration/blob/main/docs/guides/files.md) | the three resources |
 | [Errors](https://github.com/diagnos-tech/integration/blob/main/docs/guides/errors.md) | every exception, what is retried, clock skew |

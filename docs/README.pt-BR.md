@@ -77,11 +77,12 @@ motivo de um exemplo daqui ser confiável:
   usar `vault` ou `patient` de um anterior. Cada página começa de um sandbox novo.
 - ```` ```python no-run ```` tira um bloco — um fragmento, uma assinatura, ou código que precisa de um OpenBao de
   verdade ou de uma API rodando. Qualquer outra linguagem nunca roda.
-- **O sandbox é o SDK de verdade contra um cofre em memória.** `Diagnos()` lê um token de sandbox, faz enrollment com
-  um par de chaves híbrido de verdade, assina toda requisição e sela todo registro e arquivo no enclave Rust; só a rede
-  é trocada, pelo duplo de teste do próprio SDK para o cofre e o armazenamento de objetos
-  (`apps/sdk/tests/resources/vault_double/`). Todo enrollment é aprovado na hora com os grupos `sg_oncology` e
-  `sg_radiology`, e o diretório de trabalho tem `scans/IM-0001.dcm`, `scans/IM-0002.dcm`, `photo.jpg` e `report.pdf`.
+- **O sandbox é o SDK de verdade contra um cofre em memória.** `Diagnos()` acha um `DIAGNOS_TOKEN` de sandbox (key id
+  e semente todos zero — obviamente não é segredo), abre a sessão com uma requisição assinada de verdade com Ed25519 e
+  ML-DSA-65, abre as chaves seladas e sela todo registro e arquivo no enclave Rust; só a rede é trocada, pelo duplo de
+  teste do próprio SDK para o cofre e o armazenamento de objetos (`apps/sdk/tests/resources/vault_double/`). Toda
+  sessão abre na hora com os grupos `sg_oncology` e `sg_radiology`, o chaveiro do sistema fica fora de alcance, e o
+  diretório de trabalho tem `scans/IM-0001.dcm`, `scans/IM-0002.dcm`, `photo.jpg` e `report.pdf`.
 - A saída é capturada, e só aparece quando um bloco falha, na linha do Markdown que lançou.
 
 Blocos de shell não rodam, mas toda linha `diagnos …` neles é interpretada contra a CLI: um comando ou uma flag

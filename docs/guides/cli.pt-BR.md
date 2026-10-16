@@ -2,7 +2,7 @@
 
 [English](cli.md) · **Português (Brasil)**
 
-`diagnos` é o SDK no seu terminal: o mesmo enrollment, a mesma cifragem, os mesmos erros, com tabelas legíveis por
+`diagnos` é o SDK no seu terminal: o mesmo token, a mesma cifragem, os mesmos erros, com tabelas legíveis por
 padrão e JSON para scripts. Todo comando está listado com todas as opções na [referência da CLI](../reference/cli.json);
 este guia é sobre usá-los em conjunto.
 
@@ -20,7 +20,7 @@ Só o que vem depois de `--` fica intocado.
 |---|---|
 | `--json` | saída para máquina: JSON puro em `stdout`, sem tabelas, painéis ou spinners |
 | `--quiet`, `-q` | sem spinners nem barras de progresso |
-| `--token TOKEN` | o token `apikey-` obsoleto (até 2027-04-15), sobrescrevendo `DIAGNOS_API_TOKEN` nesta invocação; nunca é ecoado em lugar nenhum. A credencial de conta de serviço não tem flag de propósito — uma chave na linha de comando vai parar no `ps` e no histórico do shell: defina `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` ou `~/.config/diagnos/credentials.json` |
+| `--token TOKEN` | o token desta única invocação (um token `dgn_sk1_`, ou o `apikey-` obsoleto), sobrescrevendo toda outra fonte; nunca é ecoado em lugar nenhum. Prefira o `diagnos login`: um token na linha de comando vai parar no `ps` e no histórico do shell |
 | `--vault-url URL` | sobrescreve `DIAGNOS_VAULT_URL` nesta invocação |
 | `--no-color` | sem nenhum escape ANSI — cores, negrito e esmaecido (a variável de ambiente `NO_COLOR` também) |
 | `--version` | imprime a versão da CLI e sai |
@@ -28,10 +28,63 @@ Só o que vem depois de `--` fica intocado.
 Todo o resto — timeouts, precisão de datas, OpenBao — vem do ambiente, exatamente como no SDK
 ([Configuração](configuration.pt-BR.md)).
 
-## Enrollment no terminal
+## Entrando
 
-Um comando `diagnos` precisa de uma sessão aprovada antes de decifrar qualquer coisa. O primeiro comando que precisa
-de uma mostra um painel em `stderr` e espera:
+Cole o token da conta de serviço uma vez:
+
+```sh
+diagnos login
+```
+
+```text
+Token (dgn_sk1_…):
+Logged in · Sessão iniciada
+  identity · identidade: svc_3f2a…@ws_….diagnos.health
+  groups · grupos:       sg_oncology, sg_radiology
+  stored in · guardado:  keyring (keyring.backends.macOS.Keyring)
+```
+
+O `login` lê o token com entrada oculta (colar funciona, e um pipe também), confere o CRC **antes de qualquer chamada
+de rede** — um token cortado diz "truncado ou colado errado", não um 401 confuso — e então o prova: abre uma sessão, o
+que só acontece quando o cofre verifica as assinaturas Ed25519 e ML-DSA-65. Só então ele é guardado:
+
+1. no **chaveiro do sistema** quando há um que cifra em repouso — Keychain do macOS, Credential Locker do Windows,
+   Secret Service ou KWallet no Linux. Um backend de chaveiro em texto puro ou "null" (como os backends de arquivo do
+   `keyrings.alt`) conta como sem chaveiro;
+2. senão no **OpenBao**, em `secret/diagnos/token`, quando `OPENBAO_ADDR` e um token do OpenBao estão definidos — o
+   lugar de um servidor;
+3. senão em lugar nenhum: o comando recusa e explica as duas opções.
+
+Ele nunca grava o token num arquivo de texto. `--store keyring` ou `--store openbao` estreita a escolha a um lugar só.
+Depois disso, todo comando acha o token sozinho:
+
+```sh
+diagnos whoami                   # qual token, de onde, e os grupos que o cofre deu a ele
+diagnos patients list            # abre a própria sessão com uma requisição assinada
+diagnos logout                   # remove o token do chaveiro (e do OpenBao, quando configurado)
+```
+
+O `whoami` prova o token contra o cofre e imprime a identidade, o workspace, de onde o token veio e os grupos da
+sessão. O `status` informa a mesma identidade, o OpenBao, o enclave de memória e o agente de sessão sem tocar a rede;
+o `status --check` também abre uma sessão e lista os grupos, e o `groups` os lista um por linha.
+
+### `DIAGNOS_TOKEN` em CI e containers
+
+Em CI e containers de vida curta não há chaveiro nem quem digite: ponha o token em `DIAGNOS_TOKEN`, direto do cofre de
+segredos. Ele vence o que o `login` guardou. Quando o token veio do ambiente num terminal interativo, a CLI avisa uma
+vez e recomenda o `diagnos login`.
+
+```sh
+DIAGNOS_TOKEN="$(cat /run/secrets/diagnos-token)" diagnos --quiet patients list --all
+```
+
+Nenhum comando pede nada a uma pessoa: toda invocação abre a própria sessão com uma requisição assinada, e abre outra
+se o cofre a perder.
+
+## O token legado no terminal
+
+O token `apikey-` obsoleto (`DIAGNOS_API_TOKEN`, até 2027-04-15) ainda precisa de um enrollment aprovado antes de
+decifrar qualquer coisa. O primeiro comando que precisa de um mostra um painel na `stderr` e espera:
 
 ```text
 ╭────────────────────── diagnos · enrollment ───────────────────────╮
@@ -45,74 +98,35 @@ de uma mostra um painel em `stderr` e espera:
 ⠋ waiting for approval… · aguardando aprovação…
 ```
 
-Um admin abre o link, confere a máquina descrita ali, digita o código e escolhe os grupos. O `login` faz isso,
-mostra o que foi concedido, e guarda a sessão para os comandos seguintes:
+Um admin abre o link, confere a máquina descrita ali, digita o código e escolhe os grupos. Para aprovar uma vez e
+manter essa sessão para os comandos seguintes, rode `diagnos session start`:
 
 ```sh
-diagnos login
-diagnos --json login | jq -r '.security_groups[]'
-```
-
-```text
-Enrolled · Sessão estabelecida
-  workspace_id: ws_...
-  account_id:   acct_...
-  groups · grupos: sg_oncology, sg_radiology
-```
-
-`status` lê o token localmente e informa o OpenBao, o enclave de memória e o agente de sessão sem tocar a rede;
-`status --check` também desbloqueia e lista os grupos concedidos, e `groups` os lista um por linha.
-
-```sh
-diagnos status
-diagnos status --check
-diagnos groups
-```
-
-### Sem aprovar todo comando
-
-Depois do `login`, os comandos seguintes reaproveitam aquela sessão — sem link novo, sem código novo — até você sair:
-
-```sh
-diagnos login                    # aprova uma vez
+diagnos session start            # aprova uma vez
 diagnos patients list            # reaproveita a sessão
-diagnos files upload scan.dcm    # …e assim por diante
-diagnos logout                   # revoga no cofre e apaga as chaves
+diagnos logout                   # encerra no cofre e apaga as chaves
 ```
 
-**Como funciona.** O `login` sobe um pequeno processo em segundo plano para o seu token, o *agente de sessão*, e a
-sessão é desbloqueada dentro dele, no enclave Rust do SDK: RAM travada, fora de core dumps, apagada na saída. Os
-comandos seguintes nunca recebem as chaves. Eles entregam os argumentos ao agente por um socket Unix privado; o
-agente roda o comando ele mesmo e devolve a saída, os prompts e o código de saída. Então `--json`, pipes, caminhos
-relativos como `-o out.dcm`, prompts de confirmação e códigos de saída se comportam exatamente como se o comando
-rodasse no seu shell. **Nada é gravado em disco, e nenhum keychain do sistema operacional entra.**
+**Como funciona.** O `session start` sobe um pequeno processo em segundo plano para o seu token, o *agente de
+sessão*, e a sessão é destravada dentro dele, no enclave em Rust do SDK: RAM travada, fora de core dumps, apagada na
+saída. Os comandos seguintes nunca recebem as chaves. Eles entregam os argumentos ao agente por um socket Unix
+privado; o agente roda o comando ele mesmo e devolve a saída, os prompts e o código de saída. Então `--json`, pipes,
+caminhos relativos como `-o out.dcm`, prompts de confirmação e códigos de saída se comportam exatamente como se o
+comando rodasse no seu shell. Nada é gravado em disco.
 
-- **Termina** no `diagnos logout`, depois de `DIAGNOS_AGENT_IDLE_MINUTES` sem comando (padrão `480`, 8 horas), ou num
-  `SIGTERM` (um desligamento, por exemplo). Em todos os casos a sessão é revogada no cofre e as chaves apagadas.
+- **Ele termina** no `diagnos logout`, depois de `DIAGNOS_AGENT_IDLE_MINUTES` sem comando (padrão `480`, 8 horas), ou
+  num `SIGTERM` (um desligamento, digamos). Em todo caso, a sessão é revogada no cofre e as chaves apagadas. O
   `diagnos session lock` revoga a sessão mas mantém o agente: o próximo comando faz enrollment de novo.
-- **Só você o usa.** O socket fica em `$XDG_RUNTIME_DIR/diagnos-<uid>/` (senão no diretório temporário), que precisa
+- **Só você o usa.** O socket mora em `$XDG_RUNTIME_DIR/diagnos-<uid>/` (senão no diretório temporário), que precisa
   ser seu com modo `0700` — qualquer outra coisa é recusada, nunca consertada — e no Linux o agente também confere o
-  uid do processo que conecta. Há um agente por token e URL de cofre: `--token` com outro token nunca chega a esta
-  sessão.
-- **`diagnos status`** diz se há um agente rodando e se ele guarda uma sessão.
-- **Sem `login`** (um script, um job de CI), ou com `DIAGNOS_AGENT=off`, cada comando roda no próprio processo e faz
-  enrollment sozinho na primeira vez que precisa do cofre; a sessão morre com aquele processo. O Windows ainda não
-  tem agente e sempre funciona assim.
+  uid do processo que conecta. Há um agente por token e URL do cofre.
+- **Sem o `session start`**, ou com `DIAGNOS_AGENT=off`, cada comando roda no próprio processo e faz enrollment
+  sozinho na primeira vez que precisa do cofre. O Windows ainda não tem agente e sempre funciona assim.
 
-Para qualquer coisa que rode sem ninguém olhando, configure o
-[auto-unseal com OpenBao](sessions.pt-BR.md#auto-unseal-com-openbao): a primeira invocação faz enrollment uma vez e
-salva a sessão, e toda posterior a restaura em silêncio até ela expirar.
-
-```sh
-export OPENBAO_ADDR="https://openbao.internal:8200"
-export OPENBAO_TOKEN_FILE=/run/secrets/openbao-token
-diagnos login                    # uma pessoa aprova uma vez; a sessão é salva no OpenBao
-diagnos --quiet patients list    # restaurada — sem prompt
-diagnos login --no-auto-unseal   # enrollment sem salvar, mesmo com OPENBAO_ADDR definida
-```
-
-`diagnos session lock` encerra a sessão: apaga a cópia salva no OpenBao, então a invocação seguinte faz enrollment de
-novo.
+Para algo que roda sem ninguém olhando com o token legado, o
+[auto-unseal com OpenBao](sessions.pt-BR.md#auto-unseal-com-openbao) salva a sessão depois da primeira aprovação
+(`--no-auto-unseal` desliga isso num `session start`). Melhor: troque para o token de conta de serviço, que não precisa
+de aprovação nenhuma ([MIGRATING.pt-BR.md](../../MIGRATING.pt-BR.md)).
 
 ## Pacientes
 
@@ -229,10 +243,11 @@ então um campo longo não quebra linha. As formas batem com as da API REST:
 | `files get` | `{"node": …, "name": …}` |
 | `files mkdir` | `{"node_id": …}` |
 | `files download` | `{"node_id": …, "saved_to": …}` |
-| `login` | `{"workspace_id": …, "account_id": …, "security_groups": […]}` |
-| `logout` | `{"logged_out": true}`, ou `false` quando não havia sessão guardada para encerrar |
+| `login` | os campos do `whoami`, mais `stored_in` e `shadowed_by` (as variáveis que venceriam o token guardado) |
+| `whoami` | `identity`, `key_id`, `workspace_id`, `token_kind`, `token_source`, `security_groups`, `session_expires_at` |
+| `logout` | `{"removed_from": […], "agent_stopped": …, "diagnos_token_still_set": …}` |
 | `groups` | `{"security_groups": […]}` |
-| `status` | `workspace_id`, `account_id`, `openbao_configured`, `sdk_version`, `memory`, `agent` — e `security_groups` com `--check` |
+| `status` | `workspace_id`, `key_id`, `identity`, `token_source`, `openbao_configured`, `sdk_version`, `memory`, `agent` — e `security_groups` com `--check` |
 
 ```sh
 diagnos --json patients list --all | jq -r '.items[].index.document_id'
@@ -244,7 +259,8 @@ Erros nunca vão para o `stdout`: vão para o `stderr` numa linha, e o código d
 
 ### Códigos de saída
 
-`0` é sucesso; `2` um problema de configuração; `3` autenticação, permissão, sessão ou enrollment; `4` não encontrado;
+`0` é sucesso; `2` um problema de configuração (nenhum token achado, um token colado errado, nenhum lugar seguro para
+guardá-lo); `3` autenticação, permissão, sessão ou enrollment; `4` não encontrado;
 `5` cota; `6` limite de taxa; `7` conflito; `1` qualquer outra coisa, um problema de arquivo local inclusive. O
 mapeamento completo de cada exceção do SDK está em [Erros](errors.pt-BR.md#toda-exceção).
 
@@ -252,10 +268,10 @@ mapeamento completo de cada exceção do SDK está em [Erros](errors.pt-BR.md#to
 
 ```sh
 #!/bin/sh
-# nightly-upload.sh — rodado pelo cron, com OPENBAO_ADDR e OPENBAO_TOKEN_FILE no ambiente
+# nightly-upload.sh — rodado pelo cron; o token está no OpenBao (OPENBAO_ADDR, OPENBAO_TOKEN_FILE) ou no DIAGNOS_TOKEN
 set -eu
 diagnos --quiet --no-color files upload --group sg_radiology --exam "$EXAM_ID" /data/outbox/*.dcm
 ```
 
-Use `--quiet` para nenhum spinner escrever no log, OpenBao para nenhuma execução esperar uma pessoa, e o código de
-saída — não o texto — para decidir o que aconteceu.
+Use `--quiet` para nenhum spinner escrever no log, e o código de saída — não o texto — para decidir o que aconteceu.
+Com o token de conta de serviço nenhuma execução espera uma pessoa.

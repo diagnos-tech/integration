@@ -11,11 +11,13 @@ contrato quando o SDK já fala, para ela, o protocolo atual do cofre.
 | Área | Superfície do SDK | Situação | Verificado por |
 |---|---|---|---|
 | Relógio | `GET /time`, correção de skew | ✅ Compatível | contrato |
-| Identidade | `DIAGNOS_API_TOKEN` (`apikey-<jwt>`), `Authorization: Bearer` | ✅ Compatível | contrato |
+| Identidade | o token de conta de serviço (`dgn_sk1_…`): RFC 9421, Ed25519 + ML-DSA-65 | ✅ Compatível | contrato + vetores |
+| Sessão | `POST /workspaces/{ws}/session`: sessão e chaves de grupo seladas para o token | ✅ Compatível | contrato + vetores |
+| Identidade legada | `DIAGNOS_API_TOKEN` (`apikey-<jwt>`), `Authorization: Bearer`, até 2027-04-15 | ✅ Compatível | contrato |
 | Assinatura da requisição | `X-Signature-Timestamp` / `-Nonce` / `-Hmac` | ✅ Compatível | contrato + vetores |
-| Enrollment | `session/registry` (registro, poll: pendente, aprovado, negado, expirado) | ✅ Compatível | contrato |
+| Enrollment legado | `session/registry` (registro, poll: pendente, aprovado, negado, expirado), só `apikey-` | ✅ Compatível | contrato |
 | Chaves de sessão | selo híbrido (X25519 + ML-KEM-768), `random_seed` | ✅ Compatível | contrato + vetores |
-| Lock | `session/lock` | ✅ Compatível | contrato |
+| Lock | `workspaces/{ws}/session/lock` (token), `session/lock` (legado) | ✅ Compatível | contrato |
 | Auto-unseal com OpenBao | salvar/restaurar a sessão desbloqueada | ✅ Só do lado do cliente | testes unitários |
 | Pacientes, exames | `vault.patients`, `vault.exams` (documentos versionados) | ✅ Compatível | contrato + vetores do app web |
 | Arquivos e pastas | `vault.drives` (`/nodes`: reservar, `PUT`, confirmar, multipart, listar, ler, pastas) | ✅ Compatível | contrato + vetores do app web |

@@ -20,7 +20,7 @@ ciphertext. One package carries every way in; you install only the layers you us
 | The command line | `pip install "diagnos[cli]"` | `diagnos login`, `diagnos patients list`, … |
 | The REST API | `pip install "diagnos[api]"` | `diagnos-api` — FastAPI with mandatory mTLS |
 
-Extras combine (`"diagnos[cli,api]"`). Two more sit on top: `openbao` (OpenBao auto-unseal for servers) and
+Extras combine (`"diagnos[cli,api]"`). Two more sit on top: `openbao` (the token and auto-unseal in OpenBao, for servers) and
 `dev-certs` (`diagnos-api dev-certs`, local certificates). With [uv](https://docs.astral.sh/uv/):
 `uv add "diagnos[sdk]"` in a project, `uv tool install "diagnos[cli]"` for the command line. The REST API also
 ships as a signed container image: `ghcr.io/diagnos-tech/diagnos-api`.
@@ -60,13 +60,13 @@ success, `1` a step failed or was declined, `2` usage error, `69` something this
 ```python
 from diagnos import Diagnos
 
-with Diagnos() as vault:  # enrolls on entry: prints the approval link + code
+with Diagnos() as vault:  # finds the token, opens the session with one signed request
     print(vault.security_groups)
 ```
 
-Set `DIAGNOS_API_TOKEN` first — a workspace admin issues it in the diagnos web app. The
-[quickstart](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.md) goes from here to
-your first encrypted patient and file.
+First run `diagnos login` (or set `DIAGNOS_TOKEN` in CI) with the token a workspace admin creates in the diagnos web
+app. The [quickstart](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.md) goes from here
+to your first encrypted patient and file.
 
 ## Verify what you install
 
