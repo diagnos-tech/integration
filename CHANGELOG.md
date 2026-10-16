@@ -10,68 +10,93 @@ This file is English-only and exempt from the repository's bilingual-documentati
 
 ## [0.2.0] - 2026-10-15
 
-`0.2.0` replaces the service account's `apikey-` token with a **service account credential**: an Ed25519 key whose
-identity reads like an e-mail address, `svc_<hex>@<workspace_id>.diagnos.health`, and which signs every request
-instead of sending a reusable bearer. The `apikey-` token keeps working, with a deprecation warning, until the vault
-stops accepting it on **2027-04-15** — [`MIGRATING.md`](MIGRATING.md#from-the-apikey--token-to-a-service-account-credential-020)
-has the three-step migration.
+`0.2.0` replaces the service account's `apikey-` token with a **service account token**, `dgn_sk1_…`: one line whose
+32-byte seed derives four keys — Ed25519 and ML-DSA-65 (FIPS 204) sign every request, and the vault requires both;
+X25519 and ML-KEM-768 (FIPS 203) open the keys the vault hands back — classic and post-quantum together, so breaking
+one algorithm is not enough. The token is the identity *and* the key: the enrollment with a link, a six-digit code and
+an admin approving each process is gone. The `apikey-` token keeps working, with a deprecation warning and its
+enrollment, until the vault stops accepting it on **2027-04-15** —
+[`MIGRATING.md`](MIGRATING.md#from-the-apikey--token-to-the-service-account-token-020) has the three-step migration.
 
 ### Added
 
-- **Service account credential.** `DIAGNOS_CREDENTIAL="svc_<hex>@<workspace_id>.diagnos.health:<key>"` (one line,
-  copied once from the service account page), or `DIAGNOS_CREDENTIALS_FILE` pointing at the JSON downloaded at
-  creation, or that file saved as `~/.config/diagnos/credentials.json` — read in this order. The private key (a
-  32-byte Ed25519 seed) moves into the Rust enclave the moment it is parsed and never reaches the Python heap again;
-  `repr`/`str` mask the identity and never show the key, and the credential refuses to be pickled. A credential
-  file readable by other users still loads, with a warning to `chmod 600` it.
-- **Signed requests (RFC 9421).** Every request to `/api/external/v1` carries `Signature-Input`, `Signature` (Ed25519
-  over `@method`, `@path`, `@query` when there is one, `content-digest` when there is a body, `created`, a 16-byte
-  `nonce`, the full identity as `keyid`, `alg="ed25519"`) and, with a body, `Content-Digest` (RFC 9530). No
-  `Authorization` header is sent. Every attempt — retries included — gets a fresh nonce. The session HMAC
-  (`X-Signature-*`) is unchanged and still rides on every session route.
-- `ServiceAccountCredential` (`parse`, `from_file`, `from_env`, `identity`, `key_id`, `workspace_id`,
-  `service_account`, `public_key`), `Diagnos(credential=…)` (the credential, its one-line form or the path of its
-  file) and `Diagnos.from_env(env=None, **options)`; `Settings.credential` and `Settings.from_env(credential=…)`.
-- `Diagnos.identity`, `Diagnos.email` (`<name>@<workspace_id>.diagnos.health`) and `Diagnos.credential_kind`
-  (`"ed25519"` or `"legacy_apikey"`).
+- **Service account token.** `dgn_sk1_<base64url(key_id(16) ‖ seed(32) ‖ workspace_id ‖ crc32)>`, about 100
+  characters, shown once by the web app. Its CRC-32 is checked before any network call, so a token cut short or
+  pasted wrong fails with "truncated or pasted wrong" (`TokenError`, with a machine-readable `reason`) instead of a
+  confusing 401. The seed moves into the Rust enclave the moment the text is parsed, where HKDF-SHA-256 derives the
+  four keys; the seed and the private keys never reach the Python heap. `repr`/`str` show only the identity
+  (`svc_<hex>@<workspace_id>.diagnos.health`), a token refuses to be pickled, and no error or traceback carries its
+  text. `DiagnosToken` (`parse`, `from_env`, `identity`, `key_id`, `workspace_id`).
+- **Hybrid request signature (RFC 9421).** Every request to `/api/external/v1` carries `Signature-Input`, `Signature`
+  — Ed25519 and ML-DSA-65 (pure mode, context `diagnos-sa-request-v1`) over the same signature base of `@method`,
+  `@path`, `@query` when there is one, `content-digest` when there is a body, `created`, `keyid="svc_<hex>"`, a 16-byte
+  `nonce` and `alg="ed25519+ml-dsa-65"`; 3373 bytes — and, with a body, `Content-Digest` (RFC 9530). No
+  `Authorization` header is sent. Every attempt, retries included, gets a fresh nonce. The session HMAC
+  (`X-Signature-*`) is unchanged.
+- **Sessions without pairing.** `POST /workspaces/{ws}/session`, signed by the token, returns the session keys and the
+  keys of the token's security groups sealed to its X25519 + ML-KEM-768 pair; the enclave opens them. No prompt, no
+  approval. When the vault answers `SessionNotFound`, the SDK opens a new session and retries the call once.
+  `lock()` uses `POST /workspaces/{ws}/session/lock`.
+- **Where the token lives.** `token=` / `--token`, then `DIAGNOS_TOKEN` (CI and ephemeral containers), then the system
+  keyring, then OpenBao at `<OPENBAO_PATH_PREFIX>/token` (a server). `save_token()` / `forget_token()` and
+  `Settings.without_token()`; `Diagnos(token=…)`, `Diagnos.from_env(env=None, **options)` (never the keyring),
+  `Settings.token` and `Settings.from_env(env, *, token=…, keyring=…)`.
+- **`diagnos login`** reads the token with hidden input, checks its CRC, proves it with a session, and stores it: in
+  the system keyring when there is one that encrypts at rest (plain-text and "null" backends such as `keyrings.alt`'s
+  count as none), else in OpenBao, else it refuses with `TokenStoreError` explaining both options. Never in a text
+  file. `--store keyring|openbao` narrows the choice. **`diagnos logout`** forgets it; **`diagnos whoami`** proves the
+  token and prints its identity, where it came from and its groups (`Diagnos.whoami()` → `Whoami`). The CLI says once
+  when the token came from the environment in an interactive terminal.
+- `Diagnos.identity`, `Diagnos.email`, `Diagnos.token_kind` (`"hybrid"` or `"legacy_apikey"`) and
+  `Diagnos.token_source`.
 - Typed errors for every credential failure, each one saying exactly what to do: `CredentialError` (catch-all),
   `CredentialSignatureError`, `CredentialReplayError`, `ClockSkewError` (with `skew_seconds` and `server_time`,
   read from the error's `server_time` or the response's `Date`, and printed as "N s ahead/behind the vault"),
   `CredentialRevokedError`, `CredentialExpiredError`, `CredentialUnknownError` (all `AuthenticationError`),
   `WorkspaceMismatchError` and `ScopeMissingError` (with `resource`, `action` and `security_group_id`; both
-  `DiagnosPermissionError`), one per vault code (`CredentialSignatureInvalid`, `CredentialReplayed`,
-  `CredentialClockSkew`, `CredentialKeyRevoked`, `CredentialKeyExpired`, `CredentialKeyUnknown`,
-  `CredentialWorkspaceMismatch`, `CredentialScopeMissing`). `VaultError.details` carries the error's recovery data.
-- The enclave signs Ed25519 (`ed25519-dalek`, the same dalek family as its X25519), checked against the RFC 8032
-  vectors and RFC 9421 Appendix B.2.6.
-- cargo-fuzz targets for the enclave's AEAD, secretstream and hybrid-seal parsers, run weekly (`make fuzz` locally).
+  `DiagnosPermissionError`), one per vault code. `VaultError.details` carries the error's recovery data.
+  `TokenError` and `TokenStoreError` are `ConfigError`s.
+- The enclave derives and signs with Ed25519 (`ed25519-dalek`) and ML-DSA-65 (`ml-dsa`), checked byte for byte
+  against the vault's `service-account-token-v1.json` vectors (Rust and Python), and fuzzes the token decoder.
+- Deployment: the token goes into OpenBao, never into `.env` or a Kubernetes Secret. The Compose stack gains a
+  `login` service (`docker compose --profile login run --rm login`) and a `diagnos-token-writer` policy whose token
+  only the `login` service mounts; the API's `diagnos-sdk` policy may only *read* `secret/diagnos/token`.
+- cargo-fuzz targets for the enclave's AEAD, secretstream, hybrid-seal and token parsers, run weekly (`make fuzz`
+  locally).
 - CodeQL analysis of the Python package, the Rust enclave and the workflows on every pull request.
 - Every release carries its SLSA provenance (`diagnos-<version>.intoto.jsonl`) and a signed CycloneDX SBOM of its
   Python dependencies (`diagnos-<version>.cdx.json`).
 
 ### Changed
 
-- `Diagnos.name` is the service account's short name (the slug), no longer the full address — that is
-  `Diagnos.email`; both are `None` when only the one-line credential is known (the file carries the name).
-- `Diagnos.account_id` is `None` with a service account credential (its identity is the key itself); the REST API's
-  `GET /v1/session` returns `account_id: null` in that case. With OpenBao auto-unseal, a credential's session is
-  kept at `<prefix>/<workspace_id>/<key_id>`.
+- `diagnos login` stores the token instead of enrolling; keeping one approved session for the commands that follow
+  — the legacy token's flow — is now `diagnos session start`.
+- `Diagnos.name` is the service account's short name (the slug) with the legacy token, no longer the full address —
+  that is `Diagnos.email`. With the token, `name`, `email` and `account_id` are `None` (its identity is the key
+  itself); the REST API's `GET /v1/session` returns `account_id: null` in that case. With OpenBao auto-unseal, a
+  token's session is kept at `<prefix>/<workspace_id>/<key_id>`.
+- `diagnos-api` reads the token like the SDK — from OpenBao in a deployment — and its `dev-certs` hint suggests
+  `diagnos login`.
 - A `CredentialClockSkew` answer re-syncs the clock against `GET /time` and retries once, like
   `SignatureTimestampSkew`; `CredentialReplayed` is never retried, because the first copy may have gone through.
-- The contract (`contracts/diagnos-sdk-diagnos-vault.json`) now describes the credential's headers on every
-  interaction, keeps three interactions on the legacy token, and adds a revoked-key registration.
+- The contract (`contracts/diagnos-sdk-diagnos-vault.json`) describes the token's hybrid signature on every
+  interaction, opens a session with real seals to the token's keys, covers a revoked token and the token's lock, and
+  keeps the legacy token's enrollment and lock.
 - The PyPI summary is now "SDK, CLI & API to integrate with diagnos.health".
 - Releases: `main` is fast-forwarded to the `develop` commit being released, never merged into, so both branches keep
   one linear history; Package runs on that push.
 
 ### Deprecated
 
-- `DIAGNOS_API_TOKEN` / `Diagnos(token=…)` / `--token` (`apikey-<jwt>`): still accepted, with a
-  `LegacyTokenWarning` (a `DeprecationWarning`, attributed to the caller's line) and one log line per process. The
-  vault stops accepting the token on 2027-04-15.
+- `DIAGNOS_API_TOKEN` / `Diagnos(token="apikey-…")` / `--token apikey-…`: still accepted, with a
+  `LegacyTokenWarning` (a `DeprecationWarning`, attributed to the caller's line) and one log line per process, and
+  still enrolled with an admin's approval. The vault stops accepting the token on 2027-04-15.
 
 ### Fixed
 
+- The Compose OpenBao bootstrap's `_json_bool` used a basic regular expression, so `(true|false)` never matched:
+  `is_initialized` was always false, and a second `docker compose up` re-ran `bao operator init` and failed. It now
+  uses an extended one (the Kubernetes copy too).
 - The Rust enclave's secretstream panicked (a `PanicException` in Python) on associated data longer than 16 bytes,
   instead of authenticating it: the padding arithmetic underflowed. Found by the new fuzz targets. The SDK's own file
   encryption passes no associated data and was not affected.

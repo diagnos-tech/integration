@@ -2,38 +2,42 @@
 
 [English](MIGRATING.md) · **Português (Brasil)**
 
-Duas migrações, a mais nova primeiro: do token `apikey-` para uma credencial de conta de serviço (`0.2.0`), e dos
-antigos pacotes `imgexam` para o `diagnos` (`0.1.0`).
+Duas migrações, a mais nova primeiro: do token `apikey-` para o token de conta de serviço (`0.2.0`), e dos antigos
+pacotes `imgexam` para o `diagnos` (`0.1.0`).
 
-## Do token `apikey-` para uma credencial de conta de serviço (0.2.0)
+## Do token `apikey-` para o token de conta de serviço (0.2.0)
 
-A `0.2.0` se autentica com uma **credencial de conta de serviço**: um par de chaves Ed25519 que nasce no navegador de
-quem a cria, cuja identidade tem cara de e-mail — `svc_<32 hex>@<workspace_id>.diagnos.health` — e cuja chave privada
-assina toda requisição (HTTP Message Signatures, RFC 9421). O cofre guarda só a chave pública, então ninguém, nem o
-cofre, consegue agir como a sua conta de serviço sem o arquivo ou a linha que você guardou. Nada reutilizável
-trafega: cada requisição leva assinatura e nonce novos, e uma requisição copiada é recusada.
+O `0.2.0` autentica com um **token de conta de serviço**: uma linha, `dgn_sk1_…`, com uma semente de 32 bytes nascida
+no navegador de quem o cria. Quatro chaves derivam dessa semente — Ed25519 e ML-DSA-65 assinam toda requisição (HTTP
+Message Signatures, RFC 9421; o cofre exige as duas assinaturas), X25519 e ML-KEM-768 abrem as chaves que o cofre
+devolve. O cofre guarda só as chaves públicas. Nada reutilizável trafega: cada requisição leva assinatura e nonce
+novos, e uma requisição copiada é recusada.
+
+A maior mudança é o que some: **o enrollment**. Sem link, sem código de seis dígitos, sem admin aprovando cada
+processo. Quando o admin cria o token, o navegador sela as chaves dos security groups escolhidos para o token, e
+qualquer processo que o tenha abre a sessão com uma requisição assinada. Em troca, o token é uma chave privada: ele
+aparece uma vez, o `diagnos login` o guarda no chaveiro do sistema ou no OpenBao — nunca num arquivo de texto — e
+revogá-lo o corta na próxima requisição.
 
 O token `apikey-` continua funcionando até **2027-04-15**. Até lá o `diagnos` o aceita e emite um
-`LegacyTokenWarning` (um `DeprecationWarning`) apontando para a sua própria linha, mais uma linha de log por
-processo; o cofre responde com os headers `Deprecation`, `Sunset` e `Link`. Depois dessa data o cofre o recusa.
+`LegacyTokenWarning` (um `DeprecationWarning`) apontando para a sua própria linha, mais uma linha de log por processo;
+o cofre o responde com os headers `Deprecation`, `Sunset` e `Link`. Depois dessa data o cofre o recusa.
 
 ### Três passos
 
-1. **Crie a credencial.** No app web, abra *Configurações → Contas de serviço*, escolha a conta de serviço (ou crie
-   uma) e crie uma chave. A página mostra a credencial **uma vez**: copie a linha `DIAGNOS_CREDENTIAL`, ou baixe o
-   arquivo de credencial. Uma conta existente pode ganhar uma chave nova ao lado do token — os dois funcionam
-   enquanto você migra.
-2. **Troque a variável de ambiente.** Substitua `DIAGNOS_API_TOKEN` por uma destas (o SDK as lê nesta ordem):
+1. **Crie o token.** No app web, abra *Configurações → Contas de serviço*, escolha a conta de serviço (ou crie uma),
+   crie um token e escolha os security groups que ele pode ler. A página o mostra **uma vez**.
+2. **Guarde-o, e largue a variável antiga.**
 
-   | Onde | Como |
+   | Onde roda | Como |
    |---|---|
-   | `DIAGNOS_CREDENTIAL` | `export DIAGNOS_CREDENTIAL="svc_…@<workspace_id>.diagnos.health:<chave>"` — a linha que a página mostrou |
-   | `DIAGNOS_CREDENTIALS_FILE` | o caminho do JSON baixado (um secret do Kubernetes ou do Compose montado `0400`) |
-   | `~/.config/diagnos/credentials.json` | o arquivo baixado salvo ali, `chmod 600` — nenhuma variável necessária |
+   | uma estação de trabalho | `diagnos login` — cole; ele é conferido, provado contra o cofre e guardado no chaveiro do sistema |
+   | um servidor | OpenBao: `diagnos login --store openbao` com um token de escrita — a stack do Compose tem um serviço `login` para isso ([Implantação](apps/api/deploy/README.pt-BR.md)) |
+   | CI, um container efêmero | `DIAGNOS_TOKEN`, direto do cofre de segredos |
 
-   `DIAGNOS_API_TOKEN` ainda conta se nenhuma das duas primeiras estiver definida, então remova-a quando a credencial
-   nova funcionar.
-3. **Revogue o token.** De volta em *Configurações → Contas de serviço*, revogue a chave `apikey-` antiga.
+   Depois **remova o `DIAGNOS_API_TOKEN`**: tudo que está no ambiente vence um token guardado, então enquanto ele
+   estiver definido o token legado continua sendo o usado (o `diagnos login` avisa quando o vê).
+3. **Revogue a chave antiga.** De volta em *Configurações → Contas de serviço*, revogue a chave `apikey-`.
 
 Código que monta `Diagnos()` sem argumentos não muda. Código que passa o token explicitamente:
 
@@ -42,35 +46,39 @@ Código que monta `Diagnos()` sem argumentos não muda. Código que passa o toke
 vault = Diagnos(token=os.environ["DIAGNOS_API_TOKEN"])
 
 # depois
-vault = Diagnos()  # DIAGNOS_CREDENTIAL, a variável de arquivo ou o arquivo padrão
-vault = Diagnos(credential=os.environ["MINHA_CREDENCIAL"])  # a forma de uma linha, de onde for
-vault = Diagnos(credential=Path("/run/secrets/diagnos.json"))
-vault = Diagnos.from_env()  # o mesmo que Diagnos(), por extenso
+vault = Diagnos()  # DIAGNOS_TOKEN, depois o chaveiro do sistema, depois o OpenBao
+vault = Diagnos(token=os.environ["MEU_TOKEN"])  # um token dgn_sk1_ vindo de qualquer lugar
+vault = Diagnos.from_env()  # só o ambiente (e o OpenBao), nunca o chaveiro — para servidores
 ```
 
 ### O que mais mudou
 
-| Antes (`apikey-`) | Depois (credencial) |
+| Antes (`apikey-`) | Depois (token) |
 |---|---|
-| `Authorization: Bearer apikey-<jwt>` em toda requisição | `Signature-Input` + `Signature` (+ `Content-Digest` com corpo); sem `Authorization` |
-| `vault.account_id` — o id da conta vindo do token | `None`: a identidade é a chave (`vault.identity`, `vault.key_id`) |
-| path no OpenBao `<prefixo>/<workspace_id>/<account_id>` | `<prefixo>/<workspace_id>/<key_id>` — o primeiro unlock depois da troca faz enrollment uma vez |
-| token revogado ou errado: `AuthenticationError` | `CredentialRevokedError`, `CredentialUnknownError`, `ClockSkewError`… — todas `CredentialError`, cada uma dizendo o que fazer |
-| `--token apikey-…` (CLI) | as mesmas três fontes; `--token` ainda aceita um token legado |
+| `Authorization: Bearer apikey-<jwt>` em toda requisição | `Signature-Input` + `Signature` (`alg="ed25519+ml-dsa-65"`, + `Content-Digest` com corpo); sem `Authorization` |
+| um enrollment: link, código de seis dígitos, um admin aprovando cada processo | nenhum: `POST /workspaces/{ws}/session`, assinado, devolve as chaves seladas para o token |
+| os grupos que um admin escolhia a cada aprovação | os grupos escolhidos quando o token foi criado; um grupo novo é um token novo |
+| `vault.account_id` — o id da conta vindo do token | `None`: a identidade é a chave (`vault.identity`, `vault.key_id`); `vault.token_kind` diz qual token está em uso |
+| o `diagnos login` fazia enrollment e mantinha a sessão num agente em segundo plano | o `diagnos login` guarda o token; todo comando abre a própria sessão. O `diagnos session start` mantém o fluxo antigo de aprovar uma vez para o token legado |
+| path no OpenBao `<prefixo>/<workspace_id>/<account_id>` | `<prefixo>/<workspace_id>/<key_id>`; o próprio token, num servidor, em `<prefixo>/token` |
+| `DIAGNOS_API_TOKEN` no `.env` do deployment ou no Secret do Kubernetes | o token no OpenBao; o token do OpenBao da API só pode lê-lo. Rode o bootstrap uma vez com `BAO_ROOT_TOKEN_OVERRIDE` para gravar as políticas novas e o token de escrita ([Compose](apps/api/deploy/compose/README.pt-BR.md)) |
+| um token revogado ou errado: `AuthenticationError` | `CredentialRevokedError`, `CredentialUnknownError`, `ClockSkewError`… — todos `CredentialError`, cada um dizendo o que fazer |
 
-O HMAC de sessão (`X-Signature-*`), o enrollment (código de seis dígitos, aprovação humana) e tudo que é cifrado
-ponta a ponta não mudaram: a credencial troca só a prova de identidade.
+O HMAC da sessão (`X-Signature-*`) e tudo que é cifrado de ponta a ponta não mudam.
 
 ### Erros que você pode encontrar ao migrar
 
 | Exceção | O que significa | O que fazer |
 |---|---|---|
-| `ConfigError` "Nenhuma credencial diagnos encontrada" | nenhuma das três fontes está definida | defina `DIAGNOS_CREDENTIAL` (ou o arquivo) |
-| `ConfigError` "contém um token legado 'apikey-'" | o token foi parar em `DIAGNOS_CREDENTIAL` | devolva-o a `DIAGNOS_API_TOKEN`, ou use a credencial nova |
-| `CredentialSignatureError` | a chave não bate com a identidade | copie a credencial de novo, inteira |
-| `ClockSkewError` | o relógio desta máquina está fora por mais de 60 s; a mensagem mostra quanto | ative a hora automática (NTP) |
-| `CredentialRevokedError` / `CredentialExpiredError` | a chave foi revogada ou expirou | crie uma chave nova e troque |
-| `ScopeMissingError` | falta uma permissão à conta de serviço (nomeada na mensagem) | peça a um admin do workspace para concedê-la |
+| `ConfigError` "Nenhum token do diagnos encontrado" | nem no `DIAGNOS_TOKEN`, nem no chaveiro, nem no OpenBao | `diagnos login`, ou defina `DIAGNOS_TOKEN` |
+| `TokenError` "truncado ou foi colado errado" | o CRC não confere: falta parte do token | copie-o de novo, inteiro |
+| `TokenError` citando `DIAGNOS_API_TOKEN` | um token `apikey-` foi para onde vai um `dgn_sk1_` | devolva-o ao `DIAGNOS_API_TOKEN`, ou use o token novo |
+| `ConfigError` "contém um token de conta de serviço" | um token `dgn_sk1_` foi para o `DIAGNOS_API_TOKEN` | mova-o para o `DIAGNOS_TOKEN` |
+| `TokenStoreError` | o `diagnos login` não achou chaveiro que cifra em repouso nem OpenBao | use um chaveiro seguro ou configure o OpenBao; em CI, `DIAGNOS_TOKEN` |
+| `CredentialSignatureError` | uma assinatura não confere para esta chave | guarde o token de novo, inteiro |
+| `ClockSkewError` | o relógio desta máquina está mais de 60 s fora; a mensagem mostra por quanto | ligue a hora automática (NTP) |
+| `CredentialRevokedError` / `CredentialExpiredError` | o token foi revogado ou expirou | crie um token novo e guarde-o |
+| `ScopeMissingError` | falta uma permissão ao token (nomeada na mensagem) | peça a um admin do workspace um token novo com ela |
 
 ## Do imgexam (0.1.0)
 

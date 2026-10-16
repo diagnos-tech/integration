@@ -2,16 +2,22 @@
 
 **English** · [Português (Brasil)](MIGRATING.pt-BR.md)
 
-Two migrations, newest first: from the `apikey-` token to a service account credential (`0.2.0`), and from the former
+Two migrations, newest first: from the `apikey-` token to the service account token (`0.2.0`), and from the former
 `imgexam` packages to `diagnos` (`0.1.0`).
 
-## From the `apikey-` token to a service account credential (0.2.0)
+## From the `apikey-` token to the service account token (0.2.0)
 
-`0.2.0` authenticates with a **service account credential**: an Ed25519 key pair born in the browser of whoever
-creates it, whose identity reads like an e-mail address — `svc_<32 hex>@<workspace_id>.diagnos.health` — and whose
-private key signs every request (HTTP Message Signatures, RFC 9421). The vault keeps only the public key, so nobody,
-the vault included, can act as your service account without the file or line you saved. Nothing reusable travels:
-each request carries a fresh signature and nonce, and a copied request is refused.
+`0.2.0` authenticates with a **service account token**: one line, `dgn_sk1_…`, holding a 32-byte seed born in the
+browser of whoever creates it. Four keys derive from that seed — Ed25519 and ML-DSA-65 sign every request (HTTP
+Message Signatures, RFC 9421; the vault requires both signatures), X25519 and ML-KEM-768 open the keys the vault hands
+back. The vault keeps only the public keys. Nothing reusable travels: each request carries a fresh signature and
+nonce, and a copied request is refused.
+
+The biggest change is what disappears: **the enrollment**. No link, no six-digit code, no admin approving each
+process. When the admin creates the token, the browser seals the keys of the chosen security groups to the token, and
+any process holding it opens its session with one signed request. In exchange, the token is a private key: it is shown
+once, `diagnos login` keeps it in the system keyring or in OpenBao — never in a text file — and revoking it cuts it
+off at the next request.
 
 The `apikey-` token keeps working until **2027-04-15**. Until then `diagnos` accepts it and emits a
 `LegacyTokenWarning` (a `DeprecationWarning`) pointing at your own line, plus one log line per process; the vault
@@ -19,20 +25,19 @@ answers it with `Deprecation`, `Sunset` and `Link` headers. After that date the 
 
 ### Three steps
 
-1. **Create the credential.** In the web app, open *Settings → Service accounts*, pick the service account (or create
-   one) and create a key. The page shows the credential **once**: copy the `DIAGNOS_CREDENTIAL` line, or download the
-   credential file. An existing account can get a new key next to its token — both work while you migrate.
-2. **Swap the environment variable.** Replace `DIAGNOS_API_TOKEN` with one of these (the SDK reads them in this
-   order):
+1. **Create the token.** In the web app, open *Settings → Service accounts*, pick the service account (or create one),
+   create a token and choose the security groups it may read. The page shows it **once**.
+2. **Store it, and drop the old variable.**
 
-   | Where | How |
+   | Where it runs | How |
    |---|---|
-   | `DIAGNOS_CREDENTIAL` | `export DIAGNOS_CREDENTIAL="svc_…@<workspace_id>.diagnos.health:<key>"` — the one line the page showed |
-   | `DIAGNOS_CREDENTIALS_FILE` | the path of the downloaded JSON file (a Kubernetes or Compose secret mounted `0400`) |
-   | `~/.config/diagnos/credentials.json` | the downloaded file saved there, `chmod 600` — no variable needed |
+   | a workstation | `diagnos login` — paste it; it is checked, proven against the vault and kept in the system keyring |
+   | a server | OpenBao: `diagnos login --store openbao` with a writer token — the Compose stack has a `login` service for it ([Deploying](apps/api/deploy/README.md)) |
+   | CI, an ephemeral container | `DIAGNOS_TOKEN`, straight from the secret store |
 
-   `DIAGNOS_API_TOKEN` still counts if none of the first two is set, so remove it once the new credential works.
-3. **Revoke the token.** Back in *Settings → Service accounts*, revoke the old `apikey-` key.
+   Then **unset `DIAGNOS_API_TOKEN`**: anything set in the environment wins over a stored token, so while it is set
+   the legacy token is still the one in use (`diagnos login` says so when it sees it).
+3. **Revoke the old key.** Back in *Settings → Service accounts*, revoke the `apikey-` key.
 
 Code that builds `Diagnos()` with no arguments needs no change. Code that passes the token explicitly:
 
@@ -41,35 +46,39 @@ Code that builds `Diagnos()` with no arguments needs no change. Code that passes
 vault = Diagnos(token=os.environ["DIAGNOS_API_TOKEN"])
 
 # after
-vault = Diagnos()  # DIAGNOS_CREDENTIAL, the file variable, or the default file
-vault = Diagnos(credential=os.environ["MY_CREDENTIAL"])  # the one-line form from anywhere
-vault = Diagnos(credential=Path("/run/secrets/diagnos.json"))
-vault = Diagnos.from_env()  # the same as Diagnos(), spelled out
+vault = Diagnos()  # DIAGNOS_TOKEN, then the system keyring, then OpenBao
+vault = Diagnos(token=os.environ["MY_TOKEN"])  # a dgn_sk1_ token from anywhere
+vault = Diagnos.from_env()  # the environment (and OpenBao) only, never the keyring — for servers
 ```
 
 ### What else changed
 
-| Before (`apikey-`) | After (credential) |
+| Before (`apikey-`) | After (token) |
 |---|---|
-| `Authorization: Bearer apikey-<jwt>` on every request | `Signature-Input` + `Signature` (+ `Content-Digest` with a body); no `Authorization` |
-| `vault.account_id` — the account id from the token | `None`: the identity is the key (`vault.identity`, `vault.key_id`) |
-| OpenBao path `<prefix>/<workspace_id>/<account_id>` | `<prefix>/<workspace_id>/<key_id>` — the first unlock after switching enrolls once |
+| `Authorization: Bearer apikey-<jwt>` on every request | `Signature-Input` + `Signature` (`alg="ed25519+ml-dsa-65"`, + `Content-Digest` with a body); no `Authorization` |
+| an enrollment: link, six-digit code, an admin approving each process | none: `POST /workspaces/{ws}/session`, signed, returns the keys sealed to the token |
+| the groups an admin picked at each approval | the groups chosen when the token was created; a new group is a new token |
+| `vault.account_id` — the account id from the token | `None`: the identity is the key (`vault.identity`, `vault.key_id`); `vault.token_kind` says which token is in use |
+| `diagnos login` enrolled and kept the session in a background agent | `diagnos login` stores the token; every command opens its own session. `diagnos session start` keeps the old enroll-once flow for the legacy token |
+| OpenBao path `<prefix>/<workspace_id>/<account_id>` | `<prefix>/<workspace_id>/<key_id>`; the token itself, on a server, at `<prefix>/token` |
+| `DIAGNOS_API_TOKEN` in the deployment's `.env` or Kubernetes Secret | the token in OpenBao; the API's OpenBao token may only read it. Run the bootstrap once with `BAO_ROOT_TOKEN_OVERRIDE` to write the new policies and the writer token ([Compose](apps/api/deploy/compose/README.md)) |
 | a revoked or wrong token: `AuthenticationError` | `CredentialRevokedError`, `CredentialUnknownError`, `ClockSkewError`… — all `CredentialError`, each saying what to do |
-| `--token apikey-…` (CLI) | the same three sources; `--token` still takes a legacy token |
 
-The session HMAC (`X-Signature-*`), the enrollment (six-digit code, human approval) and everything end-to-end
-encrypted are unchanged: the credential replaces only the proof of identity.
+The session HMAC (`X-Signature-*`) and everything end-to-end encrypted are unchanged.
 
 ### Errors you may meet while migrating
 
 | Exception | What it means | What to do |
 |---|---|---|
-| `ConfigError` "No diagnos credential found" | none of the three sources is set | set `DIAGNOS_CREDENTIAL` (or the file) |
-| `ConfigError` "holds a legacy 'apikey-' token" | the token went into `DIAGNOS_CREDENTIAL` | put it back in `DIAGNOS_API_TOKEN`, or use the new credential |
-| `CredentialSignatureError` | the key does not match the identity | copy the credential again, whole |
+| `ConfigError` "No diagnos token found" | not in `DIAGNOS_TOKEN`, the keyring or OpenBao | `diagnos login`, or set `DIAGNOS_TOKEN` |
+| `TokenError` "truncated or was pasted wrong" | the CRC does not match: part of the token is missing | copy it again, whole |
+| `TokenError` naming `DIAGNOS_API_TOKEN` | an `apikey-` token went where a `dgn_sk1_` one belongs | put it back in `DIAGNOS_API_TOKEN`, or use the new token |
+| `ConfigError` "holds a service account token" | a `dgn_sk1_` token went into `DIAGNOS_API_TOKEN` | move it to `DIAGNOS_TOKEN` |
+| `TokenStoreError` | `diagnos login` found no keyring that encrypts at rest and no OpenBao | use a secure keyring or configure OpenBao; in CI, `DIAGNOS_TOKEN` |
+| `CredentialSignatureError` | a signature does not verify for this key | store the token again, whole |
 | `ClockSkewError` | this machine's clock is more than 60 s off; the message shows by how much | turn on automatic time (NTP) |
-| `CredentialRevokedError` / `CredentialExpiredError` | the key was revoked or expired | create a new key and swap it in |
-| `ScopeMissingError` | the service account lacks a permission (named in the message) | ask a workspace admin to grant it |
+| `CredentialRevokedError` / `CredentialExpiredError` | the token was revoked or expired | create a new token and store it |
+| `ScopeMissingError` | the token lacks a permission (named in the message) | ask a workspace admin for a new token with it |
 
 ## From imgexam (0.1.0)
 
