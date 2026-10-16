@@ -76,16 +76,18 @@ class _SendMixin:
         """🇺🇸 Build one request (identity on every one, session HMAC if `signed`) and send it — no retry logic here.
 
         The identity headers go on *every* external request, `signed` or not:
-        the credential is what proves which service account is calling, even
-        before any session exists (enrollment). `signed` only adds the session
-        HMAC (`X-Signature-*`) on top, which ties a request to the E2EE session.
+        the token's signature is what proves which service account is calling,
+        even before any session exists (opening one). `signed` only adds the
+        session HMAC (`X-Signature-*`) on top, which ties a request to the E2EE
+        session.
 
         🇧🇷 Monta uma requisição (identidade em toda uma, HMAC de sessão se `signed`) e envia — sem retentativa aqui.
 
         Os headers de identidade vão em *toda* requisição externa, `signed` ou
-        não: a credencial é o que prova qual conta de serviço chama, mesmo antes
-        de existir sessão (enrollment). `signed` só soma o HMAC de sessão
-        (`X-Signature-*`) por cima, que amarra a requisição à sessão E2EE.
+        não: a assinatura do token é o que prova qual conta de serviço chama,
+        mesmo antes de existir sessão (ao abrir uma). `signed` só soma o HMAC
+        de sessão (`X-Signature-*`) por cima, que amarra a requisição à sessão
+        E2EE.
         """
         request = self._client.build_request(method, path, params=query, content=body, headers=dict(headers))
         target = wire_target(request.url.raw_path.decode("ascii"))
@@ -97,9 +99,9 @@ class _SendMixin:
             keys = self._session_keys()
             if keys is None:
                 raise SessionExpiredError(
-                    "🇺🇸 no session keys available; enroll (or restore from OpenBao) before "
+                    "🇺🇸 no session keys available; call unlock() (or restore from OpenBao) before "
                     "making signed calls. "
-                    "🇧🇷 nenhuma chave de sessão disponível; faça enrollment (ou restaure do "
+                    "🇧🇷 nenhuma chave de sessão disponível; chame unlock() (ou restaure do "
                     "OpenBao) antes de chamadas assinadas."
                 )
             if not self._clock.is_synced:

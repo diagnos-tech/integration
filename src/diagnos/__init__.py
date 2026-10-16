@@ -51,6 +51,7 @@ from ._version import __version__
 
 if TYPE_CHECKING:
     from ._client_identity import LegacyTokenWarning
+    from ._whoami import Whoami
     from .client import Diagnos
     from .crypto.secure import MemoryLockWarning, memory_status
     from .dates import TimePrecision, to_iso_instant, truncate_timestamp
@@ -76,6 +77,8 @@ if TYPE_CHECKING:
         RateLimitError,
         ScopeMissingError,
         SessionExpiredError,
+        TokenError,
+        TokenStoreError,
         ValidationError,
         VaultError,
         WorkspaceMismatchError,
@@ -104,8 +107,9 @@ if TYPE_CHECKING:
     from .resources.patients import Patients
     from .session.enrollment import EnrollmentPrompt
     from .session.keyring import GroupKeyUnavailable
+    from .token_store import forget_token, save_token
     from .transport.config import Settings
-    from .transport.credential import ServiceAccountCredential
+    from .transport.service_token import DiagnosToken
 
 _ORIGIN: Final = {name: module for module, names in _SDK.items() for name in names}
 
@@ -150,6 +154,7 @@ __all__ = [
     "CryptoError",
     "Diagnos",
     "DiagnosError",
+    "DiagnosToken",
     "DiagnosPermissionError",
     "DocumentDraft",
     "DocumentIndex",
@@ -184,16 +189,20 @@ __all__ = [
     "QuotaError",
     "RateLimitError",
     "ScopeMissingError",
-    "ServiceAccountCredential",
     "SessionExpiredError",
     "Settings",
     "TimePrecision",
+    "TokenError",
+    "TokenStoreError",
     "UploadSource",
     "ValidationError",
     "VaultError",
+    "Whoami",
     "WorkspaceMismatchError",
     "memory_status",
     "to_iso_instant",
     "truncate_timestamp",
+    "forget_token",
+    "save_token",
     "__version__",
 ]

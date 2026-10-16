@@ -16,19 +16,21 @@ isso o tempo todo).
 
 from __future__ import annotations
 
+import dataclasses
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
 from diagnos.dates import TIME_PRECISIONS, TimePrecision
 from diagnos.errors import ConfigError
+from diagnos.token_store import Keychain, OpenBaoTokenStore, location
 
-from .credential import NOT_CONFIGURED, ServiceAccountCredential
-from .credential_file import FoundIdentity, find_identity
+from .service_token import DiagnosToken
 from .storage_hosts import DEFAULT_STORAGE_HOSTS, parse_storage_hosts
 from .token import redact_api_token
+from .token_sources import NOT_CONFIGURED, FoundIdentity, explicit, find_identity
 
 DEFAULT_VAULT_URL = "https://vault.diagnos.health"
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -116,8 +118,8 @@ class Settings:
     🇧🇷 Configuração imutável do SDK, normalmente construída por `from_env`.
     """
 
-    # 🇺🇸 The deprecated `apikey-<jwt>` token (accepted until 2027-04-15); `credential` wins when both are set.
-    # 🇧🇷 O token `apikey-<jwt>` obsoleto (aceito até 2027-04-15); `credential` vence quando os dois existem.
+    # 🇺🇸 The deprecated `apikey-<jwt>` token (accepted until 2027-04-15); `token` wins when both are set.
+    # 🇧🇷 O token `apikey-<jwt>` obsoleto (aceito até 2027-04-15); `token` vence quando os dois existem.
     api_token: str | None = None
     vault_url: str = DEFAULT_VAULT_URL
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
@@ -144,31 +146,81 @@ class Settings:
     # 🇧🇷 Hosts para onde uma URL de armazenamento pré-assinada pode apontar (e subdomínios), só HTTPS — ver
     #    `storage_hosts.py`.
     storage_hosts: tuple[str, ...] = DEFAULT_STORAGE_HOSTS
-    # 🇺🇸 The service account credential (`DIAGNOS_CREDENTIAL` and friends, see `credential_file.py`).
-    # 🇧🇷 A credencial da conta de serviço (`DIAGNOS_CREDENTIAL` e companhia, ver `credential_file.py`).
-    credential: ServiceAccountCredential | None = None
+    # 🇺🇸 The service account token (`DIAGNOS_TOKEN`, the keyring or OpenBao — `token_sources.py`).
+    # 🇧🇷 O token da conta de serviço (`DIAGNOS_TOKEN`, o chaveiro ou o OpenBao — `token_sources.py`).
+    token: DiagnosToken | None = None
 
     @staticmethod
     def from_env(
-        env: Mapping[str, str] | None = None, *, credential: ServiceAccountCredential | None = None
+        env: Mapping[str, str] | None = None,
+        *,
+        token: DiagnosToken | str | None = None,
+        keyring: bool | None = None,
     ) -> Settings:
-        """🇺🇸 Read the environment variables documented in `docs/PROTOCOL.md §11`.
+        """🇺🇸 Read the environment variables documented in `docs/PROTOCOL.md §11`, then find the token.
 
         `env` defaults to `os.environ` but accepts an explicit mapping so
-        tests never have to monkeypatch process-global state.
+        tests never have to monkeypatch process-global state. An explicit
+        `token` (a `DiagnosToken`, or its text, or a legacy `apikey-` text)
+        replaces discovery; otherwise `token_sources.py` decides. `keyring`
+        says whether to look in the system keyring — by default only when
+        reading the real environment, so an explicit mapping stays hermetic.
 
-        🇧🇷 Lê as variáveis de ambiente documentadas em `docs/PROTOCOL.md §11`.
+        🇧🇷 Lê as variáveis de ambiente documentadas em `docs/PROTOCOL.md §11`, depois acha o token.
 
         `env` usa `os.environ` por padrão, mas aceita um mapeamento explícito
         para os testes nunca precisarem de monkeypatch em estado global do
-        processo.
+        processo. Um `token` explícito (um `DiagnosToken`, o texto dele, ou um
+        texto legado `apikey-`) substitui a descoberta; senão o
+        `token_sources.py` decide. `keyring` diz se procura no chaveiro do
+        sistema — por padrão só ao ler o ambiente real, para um mapeamento
+        explícito continuar hermético.
         """
         source = env if env is not None else os.environ
-        # 🇺🇸 An explicit `credential` replaces discovery (`credential_file.py`); everything else still comes from `env`.
-        # 🇧🇷 Uma `credential` explícita substitui a descoberta (`credential_file.py`); o resto ainda vem de `env`.
-        found = FoundIdentity(credential=credential) if credential is not None else find_identity(source)
-        if found.credential is None and found.api_token is None:
+        base = Settings._without_identity(source)
+        use_keyring = keyring if keyring is not None else env is None
+        if isinstance(token, DiagnosToken):
+            found = FoundIdentity(token=token)
+        elif token is not None:
+            try:
+                found = explicit(token, "token= · --token")
+            finally:
+                del token
+        else:
+            found = find_identity(
+                source,
+                vault_url=base.vault_url,
+                keychain=Keychain() if use_keyring else None,
+                openbao=base._openbao_loader(),
+                openbao_location=location(base),
+            )
+        if found.token is None and found.api_token is None:
             raise ConfigError(NOT_CONFIGURED)
+        return dataclasses.replace(base, token=found.token, api_token=found.api_token)
+
+    def _openbao_loader(self) -> Callable[[], str | None] | None:
+        """🇺🇸 Reads the token from OpenBao when `OPENBAO_ADDR` is set. 🇧🇷 Lê o token do OpenBao com `OPENBAO_ADDR`."""
+        if not self.openbao_addr:
+            return None
+        return lambda: OpenBaoTokenStore(self).load()
+
+    @staticmethod
+    def without_token(env: Mapping[str, str] | None = None) -> Settings:
+        """🇺🇸 Everything but the identity — what storing or finding a token needs (vault URL, OpenBao).
+
+        `diagnos login` and `diagnos logout` use it: there may be no token
+        configured yet, or any more.
+
+        🇧🇷 Tudo menos a identidade — o que guardar ou achar um token precisa (URL do cofre, OpenBao).
+
+        O `diagnos login` e o `diagnos logout` usam isto: pode não haver token
+        configurado ainda, ou mais.
+        """
+        return Settings._without_identity(env if env is not None else os.environ)
+
+    @staticmethod
+    def _without_identity(source: Mapping[str, str]) -> Settings:
+        """🇺🇸 `without_token` over a mapping already chosen. 🇧🇷 `without_token` sobre um mapeamento já escolhido."""
         timeout_raw = source.get("DIAGNOS_TIMEOUT_SECONDS")
         try:
             timeout_seconds = float(timeout_raw) if timeout_raw else DEFAULT_TIMEOUT_SECONDS
@@ -178,8 +230,6 @@ class Settings:
                 f"🇧🇷 DIAGNOS_TIMEOUT_SECONDS={timeout_raw!r} não é um número."
             ) from exc
         return Settings(
-            api_token=found.api_token,
-            credential=found.credential,
             vault_url=source.get("DIAGNOS_VAULT_URL") or DEFAULT_VAULT_URL,
             timeout_seconds=timeout_seconds,
             openbao_addr=source.get("OPENBAO_ADDR") or None,
@@ -200,7 +250,7 @@ class Settings:
         openbao_token = _redact_opaque(self.openbao_token) if self.openbao_token else None
         api_token = redact_api_token(self.api_token) if self.api_token else None
         return (
-            f"Settings(credential={self.credential!r}, api_token={api_token!r}, vault_url={self.vault_url!r}, "
+            f"Settings(token={self.token!r}, api_token={api_token!r}, vault_url={self.vault_url!r}, "
             f"timeout_seconds={self.timeout_seconds!r}, "
             f"openbao_addr={self.openbao_addr!r}, openbao_token={openbao_token!r}, "
             f"openbao_mount={self.openbao_mount!r}, openbao_path_prefix={self.openbao_path_prefix!r}, "

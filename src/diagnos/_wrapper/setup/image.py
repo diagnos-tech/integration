@@ -133,7 +133,7 @@ def run_lines(reference: str, *, root: bool = False) -> tuple[str, ...]:
     return (
         f"{user}docker run --rm --read-only --tmpfs /tmp --cap-drop ALL{flags} \\",
         "  --security-opt no-new-privileges:true --ulimit memlock=-1:-1 -p 127.0.0.1:8443:8443 \\",
-        "  -e DIAGNOS_API_TOKEN -e DIAGNOS_API_MTLS_CA_FILE=/certs/ca.pem \\",
+        "  -e DIAGNOS_TOKEN -e DIAGNOS_API_MTLS_CA_FILE=/certs/ca.pem \\",
         "  -e DIAGNOS_API_TLS_CERT_FILE=/certs/server.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/server-key.pem \\",
         f'  -v "$PWD/certs:/certs:ro" {reference}',
     )

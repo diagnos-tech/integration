@@ -1,25 +1,28 @@
 """🇺🇸 `SessionManager`: the one object that turns "I have a token" into "I have a live, usable session".
 
-Everything else in `session/` is a building block — `enroll()` does one
-round trip of the enrollment dance, `OpenBaoStore` does one KV path. This
+Everything else in `session/` is a building block — `open_token_session()`
+asks the vault for a session with the token's signature, `enroll()` does the
+legacy `apikey-` approval dance, `OpenBaoStore` does one KV path. This
 module is where they compose into the lifecycle a caller actually wants:
-try to resume silently, fall back to a human approval, remember the result
-if asked to, and tear it all down cleanly on `lock()`.
+try to resume silently, open a session (with the token; only the legacy
+token still needs a human approval), remember the result if asked to, and
+tear it all down cleanly on `lock()`.
 
 🇧🇷 `SessionManager`: o objeto que transforma "eu tenho um token" em "eu
 tenho uma sessão viva e utilizável".
 
-Tudo mais em `session/` é um bloco de construção — `enroll()` faz uma ida e
-volta da dança de enrollment, `OpenBaoStore` faz um path de KV. Este módulo
-é onde eles se compõem no ciclo de vida que quem chama de fato quer: tentar
-retomar em silêncio, cair para uma aprovação humana, lembrar o resultado se
-pedido, e desmontar tudo direito no `lock()`.
+Tudo mais em `session/` é um bloco de construção — `open_token_session()`
+pede uma sessão ao cofre com a assinatura do token, `enroll()` faz a dança
+de aprovação do legado `apikey-`, `OpenBaoStore` faz um path de KV. Este
+módulo é onde eles se compõem no ciclo de vida que quem chama de fato quer:
+tentar retomar em silêncio, abrir uma sessão (com o token; só o token legado
+ainda precisa de aprovação humana), lembrar o resultado se pedido, e
+desmontar tudo direito no `lock()`.
 """
 
 from __future__ import annotations
 
 import logging
-import sys
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -27,8 +30,10 @@ from typing import TYPE_CHECKING
 from diagnos.crypto.hybrid import HybridKeyPair
 from diagnos.crypto.secure import harden_process, warn_if_unlocked
 from diagnos.errors import SessionExpiredError
-from diagnos.session.enrollment import EnrollmentPrompt, PromptCallback, enroll
+from diagnos.session.enrollment import PromptCallback, enroll
 from diagnos.session.keyring import Keyring, SessionKeys
+from diagnos.session.prompt import default_prompt as default_prompt
+from diagnos.session.token_session import lock_path, open_token_session
 from diagnos.session.unseal import OpenBaoStore, UnsealedState
 
 # 🇺🇸 Same reasoning as `enrollment.py`/`unseal.py`: `diagnos.transport`
@@ -47,52 +52,21 @@ if TYPE_CHECKING:
     from diagnos.transport.config import Settings
     from diagnos.transport.http import VaultTransport
     from diagnos.transport.identity import RequestIdentity
+    from diagnos.transport.service_token import DiagnosToken
 
 logger = logging.getLogger("diagnos")
 
 # 🇺🇸 `docs/PROTOCOL.md §5`: ends a session; signed because a session must
-# already exist to lock, unlike the two enrollment routes.
+# already exist to lock, unlike the routes that open one.
 # 🇧🇷 `docs/PROTOCOL.md §5`: encerra uma sessão; assinado porque uma sessão
-# já precisa existir para travar, diferente das duas rotas de enrollment.
+# já precisa existir para travar, diferente das rotas que abrem uma.
 _LOCK_PATH = "/api/external/v1/session/lock"
 
 
-def default_prompt(prompt: EnrollmentPrompt) -> None:
-    """🇺🇸 Prints the approval link and code to `stderr`, in English then Portuguese.
-
-    No color, no animation: this has to render correctly in a plain CI log
-    or a piped process just as well as an interactive terminal, and the
-    person approving needs to be able to read the code back accurately —
-    spacing the digits out is the only concession to legibility.
-
-    🇧🇷 Imprime o link de aprovação e o código em `stderr`, em inglês e depois português.
-
-    Sem cor, sem animação: isto precisa renderizar certo tanto num log de CI
-    puro ou processo com saída redirecionada quanto num terminal
-    interativo, e quem aprova precisa conseguir ler o código de volta com
-    precisão — espaçar os dígitos é a única concessão à legibilidade.
-    """
-    spaced_code = " ".join(prompt.code)
-    lines = [
-        "",
-        "diagnos SDK — enrollment approval needed · aprovação de enrollment necessária",
-        "",
-        "Open this link to approve · Abra este link para aprovar:",
-        f"  {prompt.approval_url}",
-        "",
-        "Code to type · Código para digitar:",
-        f"  {spaced_code}",
-        "",
-        f"Expires at (unix seconds) · Expira em (segundos unix): {prompt.expires_at}",
-        "",
-    ]
-    print("\n".join(lines), file=sys.stderr)
-
-
 class SessionManager:
-    """🇺🇸 Orchestrates unlock (restore-or-enroll), the live `Keyring`, and `lock()`.
+    """🇺🇸 Orchestrates unlock (restore, or open a session), the live `Keyring`, and `lock()`.
 
-    🇧🇷 Orquestra o unlock (restaurar-ou-enroll), o `Keyring` vivo, e o `lock()`.
+    🇧🇷 Orquestra o unlock (restaurar, ou abrir uma sessão), o `Keyring` vivo, e o `lock()`.
     """
 
     def __init__(
@@ -106,9 +80,9 @@ class SessionManager:
         sleep: Callable[[float], None] = time.sleep,
         now: Callable[[], float] = time.time,
     ) -> None:
-        """🇺🇸 `store` is optional (`docs/PROTOCOL.md §11`): without one, every `unlock()` enrolls fresh.
+        """🇺🇸 `store` is optional (`docs/PROTOCOL.md §11`): without one, every `unlock()` opens a fresh session.
 
-        🇧🇷 `store` é opcional (`docs/PROTOCOL.md §11`): sem ele, todo `unlock()` faz um enrollment novo.
+        🇧🇷 `store` é opcional (`docs/PROTOCOL.md §11`): sem ele, todo `unlock()` abre uma sessão nova.
         """
         self._settings = settings
         self._token = token
@@ -117,12 +91,8 @@ class SessionManager:
         self._store = store
         self._sleep = sleep
         self._now = now
-        # 🇺🇸 Public because nothing about *which* identity is in use is
-        # secret; the bytes inside it are (`HybridKeyPair.zeroize()` covers
-        # those). `keyring` is a validated property instead — see below.
-        # 🇧🇷 Público porque *qual* identidade está em uso não é segredo; os
-        # bytes dentro dela são (`HybridKeyPair.zeroize()` cobre isso).
-        # `keyring` é uma property validada em vez disso — veja abaixo.
+        # 🇺🇸 Public: *which* pair is in use is no secret, its bytes are (`zeroize()`). `keyring` is validated below.
+        # 🇧🇷 Público: *qual* par está em uso não é segredo, os bytes são (`zeroize()`). `keyring` é validado abaixo.
         self.keypair: HybridKeyPair | None = None
         self._keyring: Keyring | None = None
         self._hardened = False
@@ -148,9 +118,9 @@ class SessionManager:
         """
         if self._keyring is None or not self._keyring.session.is_valid(now=int(self._now())):
             raise SessionExpiredError(
-                "🇺🇸 no live session; call unlock() (which enrolls, or restores from OpenBao) "
+                "🇺🇸 no live session; call unlock() (which opens one, or restores it from OpenBao) "
                 "first. "
-                "🇧🇷 nenhuma sessão viva; chame unlock() (que faz enrollment, ou restaura do "
+                "🇧🇷 nenhuma sessão viva; chame unlock() (que abre uma, ou a restaura do "
                 "OpenBao) primeiro."
             )
         return self._keyring
@@ -202,9 +172,9 @@ class SessionManager:
         logger.debug("process hardening: %s", harden_process())
 
     def unlock(self) -> Keyring:
-        """🇺🇸 Restore from `store` if it holds a still-valid session; otherwise enroll and (maybe) save.
+        """🇺🇸 Restore from `store` if it holds a still-valid session; otherwise open one and (maybe) save it.
 
-        🇧🇷 Restaura de `store` se ele guardar uma sessão ainda válida; senão, faz enrollment e (talvez) salva.
+        🇧🇷 Restaura de `store` se ele guardar uma sessão ainda válida; senão, abre uma e (talvez) a salva.
         """
         self._harden_once()
         if self._store is not None:
@@ -215,21 +185,40 @@ class SessionManager:
                 warn_if_unlocked()
                 return self.keyring
 
-        keypair = HybridKeyPair.generate()
-        keyring = enroll(
-            self._transport,
-            self._token,
-            keypair,
-            on_prompt=self._on_prompt,
-            sleep=self._sleep,
-            now=self._now,
-        )
+        keypair, keyring = self._open()
         self.keypair = keypair
         self._keyring = keyring
         if self._store is not None:
             self._store.save(UnsealedState(keypair=keypair, keyring=keyring))
         warn_if_unlocked()
         return self.keyring
+
+    def _hybrid_token(self) -> DiagnosToken | None:
+        """🇺🇸 The service account token, or `None` for the legacy `apikey-` one. 🇧🇷 O token, ou `None` no legado."""
+        # 🇺🇸 Deferred: `diagnos.transport` imports this package while it initializes (see above).
+        # 🇧🇷 Adiado: o `diagnos.transport` importa este pacote enquanto inicializa (ver acima).
+        from diagnos.transport.service_token import DiagnosToken
+
+        return self._token if isinstance(self._token, DiagnosToken) else None
+
+    def _open(self) -> tuple[HybridKeyPair, Keyring]:
+        """🇺🇸 A token opens its own session; the legacy `apikey-` token enrolls with a fresh pair and a human.
+
+        🇧🇷 Um token abre a própria sessão; o token legado `apikey-` faz enrollment com par novo e uma pessoa.
+        """
+        token = self._hybrid_token()
+        if token is not None:
+            keypair = token.keypair()
+            try:
+                return keypair, open_token_session(self._transport, token, keypair)
+            except BaseException:
+                keypair.zeroize()
+                raise
+        keypair = HybridKeyPair.generate()
+        keyring = enroll(
+            self._transport, self._token, keypair, on_prompt=self._on_prompt, sleep=self._sleep, now=self._now
+        )
+        return keypair, keyring
 
     def lock(self) -> None:
         """🇺🇸 Best-effort server-side end, then unconditional local teardown.
@@ -248,11 +237,34 @@ class SessionManager:
         localmente. A zeroização acontece independente da chamada ao
         servidor ter dado certo.
         """
+        token = self._hybrid_token()
         try:
-            self._transport.post(_LOCK_PATH, signed=True)
+            self._transport.post(lock_path(token.workspace_id) if token else _LOCK_PATH, signed=True)
         except Exception:
             logger.debug("session/lock failed; ending the session locally anyway", exc_info=True)
+        self._discard()
 
+    def reopen(self) -> bool:
+        """🇺🇸 After the vault lost the session (`SessionNotFound`): a token opens a new one; the legacy one cannot.
+
+        One signed request, no human — so `VaultTransport` may retry the call
+        once. The legacy token would need an approval, so it says `False` and
+        the error reaches the caller.
+
+        🇧🇷 Depois que o cofre perdeu a sessão (`SessionNotFound`): um token abre outra; o legado não consegue.
+
+        Uma requisição assinada, sem pessoa — então o `VaultTransport` pode
+        repetir a chamada uma vez. O token legado precisaria de aprovação,
+        então diz `False` e o erro chega a quem chamou.
+        """
+        if self._hybrid_token() is None:
+            return False
+        self._discard()
+        self.unlock()
+        return True
+
+    def _discard(self) -> None:
+        """🇺🇸 Wipe the local session, the key pair and the OpenBao copy. 🇧🇷 Apaga a sessão local, o par e a cópia."""
         if self._store is not None:
             self._store.clear()
         if self._keyring is not None:

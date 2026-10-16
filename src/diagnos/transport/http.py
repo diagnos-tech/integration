@@ -90,6 +90,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
         *,
         session_keys: Callable[[], SessionKeys | None],
         on_seed: Callable[[SecretBox], None] | None = None,
+        on_session_lost: Callable[[], bool] | None = None,
         client: httpx.Client | None = None,
         storage_client: httpx.Client | None = None,
         clock: ClockSync | None = None,
@@ -109,6 +110,9 @@ class VaultTransport(_StorageMixin, _SendMixin):
         self._identity = identity
         self._session_keys = session_keys
         self._on_seed = on_seed
+        # 🇺🇸 `SessionManager.reopen`: `True` when a new session replaced the one the vault lost (`SessionNotFound`).
+        # 🇧🇷 `SessionManager.reopen`: `True` quando uma sessão nova substituiu a que o cofre perdeu (`SessionNotFound`).
+        self._on_session_lost = on_session_lost
         self._client = (
             client
             if client is not None
@@ -192,13 +196,17 @@ class VaultTransport(_StorageMixin, _SendMixin):
         and nonce — because every retry rule here (`ReplayDetected`,
         `SignatureTimestampSkew`) exists precisely because *reusing* a
         `(timestamp, nonce)` pair is what got rejected in the first place.
+        A `SessionNotFound` is retried once when the session owner could
+        open a new session (a token can; the legacy one needs a human).
 
         🇧🇷 Envia uma chamada de API, retentando os casos que `docs/PROTOCOL.md §12` diz serem seguros.
 
         Cada volta do laço monta uma requisição nova — timestamp e nonce
         novos — porque toda regra de retentativa aqui (`ReplayDetected`,
         `SignatureTimestampSkew`) existe justamente porque *reusar* um par
-        `(timestamp, nonce)` foi o que foi rejeitado da primeira vez.
+        `(timestamp, nonce)` foi o que foi rejeitado da primeira vez. Um
+        `SessionNotFound` é retentado uma vez quando o dono da sessão
+        conseguiu abrir outra (um token consegue; o legado precisa de pessoa).
         """
         body = _encode_json_body(json)
         headers: dict[str, str] = {}
@@ -207,6 +215,7 @@ class VaultTransport(_StorageMixin, _SendMixin):
 
         replay_retried = False
         skew_retried = False
+        session_retried = False
         server_error_retried = False
         rate_limit_attempts = 0
 
@@ -240,4 +249,14 @@ class VaultTransport(_StorageMixin, _SendMixin):
                     skew_retried = True
                     self._clock.sync(self._client)
                     continue
+                if signed and exc.code == "SessionNotFound" and not session_retried and self._reopen_session():
+                    session_retried = True
+                    continue
                 raise
+
+    def _reopen_session(self) -> bool:
+        """🇺🇸 Ask the session owner for a new session; `False` when there is none to ask or it cannot.
+
+        🇧🇷 Pede uma sessão nova ao dono da sessão; `False` quando não há a quem pedir ou ele não consegue.
+        """
+        return self._on_session_lost is not None and self._on_session_lost()

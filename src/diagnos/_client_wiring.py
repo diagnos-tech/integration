@@ -1,4 +1,4 @@
-"""🇺🇸 Free functions `Diagnos` leans on: settings resolution, the default enrollment prompt, and building a resource.
+"""🇺🇸 Free functions `Diagnos` leans on: settings resolution, the legacy enrollment prompt, and building a resource.
 
 None of these need `self` beyond what is passed in — `_resolve_settings`
 only reads its own arguments and the process environment,
@@ -7,7 +7,7 @@ only reads its own arguments and the process environment,
 the resource-specific face — so they live apart from `client.py`'s own
 constructor and lazy properties, which are otherwise all instance wiring.
 
-🇧🇷 Funções livres em que `Diagnos` se apoia: resolução de settings, o prompt de enrollment padrão, e montar um recurso.
+🇧🇷 Funções livres em que `Diagnos` se apoia: resolução de settings, o prompt de enrollment legado, e montar um recurso.
 
 Nenhuma precisa de mais `self` do que o que recebe — `_resolve_settings` só
 lê os próprios argumentos e o ambiente do processo,
@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from diagnos._client_identity import CredentialLike, resolve_settings
+from diagnos._client_identity import TokenLike, resolve_settings
 from diagnos.crypto import EntropyMixer
 from diagnos.dates import TimePrecision
 from diagnos.models import ExamRecord, ExamSummary, PatientRecord, PatientSummary
@@ -38,26 +38,24 @@ if TYPE_CHECKING:
     from diagnos.transport.http import VaultTransport
 
 
-def _resolve_settings(
-    settings: Settings | None, token: str | None, credential: CredentialLike | None = None
-) -> Settings:
-    """🇺🇸 `settings` wins outright; an explicit `credential` or `token` overrides only the identity of the environment.
+def _resolve_settings(settings: Settings | None, token: TokenLike | None) -> Settings:
+    """🇺🇸 An explicit `token` overrides only the identity; everything else comes from `settings` or the environment.
 
-    Routing an explicit identity through `Settings.from_env` (instead of
+    Routing an explicit token through `Settings.from_env` (instead of
     hand-building a `Settings`) means `vault_url`/`time_precision`/OpenBao config
     still come from the environment exactly as they would without it — a
-    caller passing a credential is choosing *which identity* to use, not
-    opting out of every other env var. The rules live in `_client_identity.py`.
+    caller passing a token is choosing *which identity* to use, not opting
+    out of every other env var. The rules live in `_client_identity.py`.
 
-    🇧🇷 `settings` vence direto; uma `credential` ou `token` explícito sobrescreve só a identidade do ambiente.
+    🇧🇷 Um `token` explícito sobrescreve só a identidade; o resto vem de `settings` ou do ambiente.
 
-    Rotear uma identidade explícita por `Settings.from_env` (em vez de montar
-    um `Settings` à mão) faz `vault_url`/`time_precision`/config do OpenBao
-    continuarem vindo do ambiente exatamente como viriam sem ela — quem chama
-    passando uma credencial está escolhendo *qual identidade* usar, não saindo
-    de toda outra variável de ambiente. As regras vivem em `_client_identity.py`.
+    Rotear um token explícito por `Settings.from_env` (em vez de montar um
+    `Settings` à mão) faz `vault_url`/`time_precision`/config do OpenBao
+    continuarem vindo do ambiente exatamente como viriam sem ele — quem chama
+    passando um token está escolhendo *qual identidade* usar, não saindo de
+    toda outra variável de ambiente. As regras vivem em `_client_identity.py`.
     """
-    return resolve_settings(settings, token, credential)
+    return resolve_settings(settings, token)
 
 
 def _print_enrollment_prompt_fallback() -> PromptCallback:

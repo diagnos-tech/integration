@@ -26,6 +26,7 @@ ALLOWED = {
     "hvac",
     "typer",
     "rich",
+    "keyring",
     "fastapi",
     "uvicorn",
     "python-multipart",

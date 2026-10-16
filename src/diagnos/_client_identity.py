@@ -1,37 +1,42 @@
-"""🇺🇸 Which credential `Diagnos` runs as: resolving it, warning about the legacy token, and the identity properties.
+"""🇺🇸 Which token `Diagnos` runs as: resolving it, warning about the legacy one, and the identity properties.
 
 Kept apart from `client.py` so the client stays the wiring of layers; this
-module is the one place that knows there are two kinds of credential — the
-Ed25519 service account credential and the deprecated `apikey-` token.
+module is the one place that knows there are two kinds of token — the
+service account token (`dgn_sk1_…`, classic + post-quantum) and the
+deprecated `apikey-` one.
 
-🇧🇷 Com qual credencial a `Diagnos` roda: resolvê-la, avisar sobre o token legado, e as propriedades de identidade.
+🇧🇷 Com qual token a `Diagnos` roda: resolvê-lo, avisar sobre o legado, e as propriedades de identidade.
 
 Separado de `client.py` para o client continuar sendo a ligação das camadas;
-este módulo é o único lugar que sabe que existem dois tipos de credencial — a
-credencial Ed25519 de conta de serviço e o token `apikey-` obsoleto.
+este módulo é o único lugar que sabe que existem dois tipos de token — o
+token de conta de serviço (`dgn_sk1_…`, clássico + pós-quântico) e o
+`apikey-` obsoleto.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import logging
-import os
 import sys
 import warnings
-from typing import Final, Literal
+from typing import TYPE_CHECKING, Literal
 
+from diagnos._whoami import Whoami
 from diagnos.errors import ConfigError
 from diagnos.transport.config import Settings
-from diagnos.transport.credential import NOT_CONFIGURED, ServiceAccountCredential
-from diagnos.transport.credential_text import mask_identity
+from diagnos.transport.service_token import DiagnosToken
 from diagnos.transport.token import ServiceAccountToken, redact_api_token
+from diagnos.transport.token_sources import LEGACY_VAR, NOT_CONFIGURED, FoundIdentity, explicit
+from diagnos.transport.token_text import LEGACY_SUNSET
+
+if TYPE_CHECKING:
+    from diagnos.session.keyring import Keyring
 
 logger = logging.getLogger("diagnos")
 
-CredentialLike = ServiceAccountCredential | str | os.PathLike[str]
-"""🇺🇸 A credential, its one-line form, or its JSON file. 🇧🇷 Uma credencial, sua linha, ou seu arquivo JSON."""
-Identity = ServiceAccountCredential | ServiceAccountToken
-LEGACY_SUNSET: Final = "2027-04-15"
+TokenLike = DiagnosToken | str
+"""🇺🇸 A parsed token, or its text (`dgn_sk1_…`, or the legacy `apikey-…`). 🇧🇷 Um token lido, ou o texto dele."""
+Identity = DiagnosToken | ServiceAccountToken
 _legacy_logged = False
 
 
@@ -42,36 +47,27 @@ class LegacyTokenWarning(DeprecationWarning):
     """
 
 
-def as_credential(value: CredentialLike) -> ServiceAccountCredential:
-    """🇺🇸 A `str` is the one-line form; a path is the JSON file. 🇧🇷 Uma `str` é a linha; um caminho é o arquivo JSON."""
-    if isinstance(value, ServiceAccountCredential):
-        return value
-    if isinstance(value, str):
-        return ServiceAccountCredential.parse(value, source="credential= · credencial=")
-    return ServiceAccountCredential.from_file(value)
+def resolve_settings(settings: Settings | None, token: TokenLike | None) -> Settings:
+    """🇺🇸 An explicit service account token replaces the identity of `settings` or the environment.
 
+    A legacy `apikey-` text next to explicit `settings` is ignored, exactly
+    as before the token existed: there, `settings` always won.
 
-def resolve_settings(settings: Settings | None, token: str | None, credential: CredentialLike | None) -> Settings:
-    """🇺🇸 Explicit arguments over the environment: `credential`, then `token`, then discovery.
+    🇧🇷 Um token de conta de serviço explícito substitui a identidade de `settings` ou do ambiente.
 
-    An explicit `token` hides `DIAGNOS_CREDENTIAL`/`DIAGNOS_CREDENTIALS_FILE`
-    from discovery, so the argument a caller typed always wins.
-
-    🇧🇷 Argumentos explícitos acima do ambiente: `credential`, depois `token`, depois a descoberta.
-
-    Um `token` explícito esconde `DIAGNOS_CREDENTIAL`/`DIAGNOS_CREDENTIALS_FILE`
-    da descoberta, para o argumento que quem chama digitou sempre vencer.
+    Um texto legado `apikey-` ao lado de `settings` explícitos é ignorado,
+    exatamente como antes do token existir: ali, `settings` sempre venceu.
     """
-    explicit = as_credential(credential) if credential is not None else None
-    if settings is not None:
-        return dataclasses.replace(settings, credential=explicit) if explicit is not None else settings
-    if explicit is not None:
-        return Settings.from_env(credential=explicit)
-    if token is not None:
-        hidden = {"DIAGNOS_CREDENTIAL", "DIAGNOS_CREDENTIALS_FILE"}
-        env = {key: value for key, value in os.environ.items() if key not in hidden}
-        return Settings.from_env({**env, "DIAGNOS_API_TOKEN": token})
-    return Settings.from_env()
+    if settings is None:
+        return Settings.from_env(token=token)
+    if token is None or (isinstance(token, str) and token.lstrip().startswith("apikey-")):
+        return settings
+    try:
+        found = FoundIdentity(token=token) if isinstance(token, DiagnosToken) else explicit(token, "token=")
+    finally:
+        # 🇺🇸 No frame of the SDK keeps the text past this point. 🇧🇷 Nenhum quadro do SDK guarda o texto daqui em diante.
+        del token
+    return dataclasses.replace(settings, token=found.token, api_token=found.api_token)
 
 
 def _outside_diagnos() -> int:
@@ -94,20 +90,20 @@ def _outside_diagnos() -> int:
 
 
 def resolve_identity(settings: Settings) -> Identity:
-    """🇺🇸 The credential if there is one; else the legacy token, with a `LegacyTokenWarning`.
+    """🇺🇸 The token if there is one; else the legacy `apikey-` token, with a `LegacyTokenWarning`.
 
-    🇧🇷 A credencial se houver; senão o token legado, com um `LegacyTokenWarning`.
+    🇧🇷 O token se houver; senão o token legado `apikey-`, com um `LegacyTokenWarning`.
     """
-    if settings.credential is not None:
-        return settings.credential
+    if settings.token is not None:
+        return settings.token
     if not settings.api_token:
         raise ConfigError(NOT_CONFIGURED)
     token = ServiceAccountToken.parse(settings.api_token)
     message = (
-        f"🇺🇸 DIAGNOS_API_TOKEN ('apikey-…') is deprecated and stops working on {LEGACY_SUNSET}. Create a "
-        "service account credential and set DIAGNOS_CREDENTIAL instead: https://dev.diagnos.health/migrating "
-        f"🇧🇷 DIAGNOS_API_TOKEN ('apikey-…') está obsoleto e deixa de funcionar em {LEGACY_SUNSET}. Crie uma "
-        "credencial de conta de serviço e use DIAGNOS_CREDENTIAL: https://dev.diagnos.health/migrating"
+        f"🇺🇸 {LEGACY_VAR} ('apikey-…') is deprecated and stops working on {LEGACY_SUNSET}. Create a service "
+        "account token and run `diagnos login` (or set DIAGNOS_TOKEN): https://dev.diagnos.health/migrating "
+        f"🇧🇷 {LEGACY_VAR} ('apikey-…') está obsoleto e deixa de funcionar em {LEGACY_SUNSET}. Crie um token "
+        "de conta de serviço e rode `diagnos login` (ou defina DIAGNOS_TOKEN): https://dev.diagnos.health/migrating"
     )
     warnings.warn(message, LegacyTokenWarning, stacklevel=_outside_diagnos())
     global _legacy_logged  # noqa: PLW0603 — one log line per process, the warning filter handles the rest
@@ -118,49 +114,76 @@ def resolve_identity(settings: Settings) -> Identity:
 
 
 class IdentityView:
-    """🇺🇸 The identity properties of `Diagnos`, read from whichever credential it runs as.
+    """🇺🇸 The identity properties of `Diagnos`, read from whichever token it runs as.
 
-    🇧🇷 As propriedades de identidade da `Diagnos`, lidas da credencial com que ela roda.
+    🇧🇷 As propriedades de identidade da `Diagnos`, lidas do token com que ela roda.
     """
 
     _identity: Identity
 
+    def _keyring_provider(self) -> Keyring:
+        """🇺🇸 The live keyring, unlocking on first use — `Diagnos` implements it. 🇧🇷 A `Diagnos` o implementa."""
+        raise NotImplementedError
+
+    def whoami(self) -> Whoami:
+        """🇺🇸 Proves the token against the vault — a session opens only if both signatures verify — and says who it is.
+
+        `diagnos login` calls this before storing a token: a revoked key, a
+        wrong workspace or a skewed clock fails here, with the fix in the
+        message, instead of on the first real command.
+
+        🇧🇷 Prova o token contra o cofre — uma sessão só abre se as duas assinaturas conferirem — e diz quem ele é.
+
+        O `diagnos login` chama isto antes de guardar um token: uma chave
+        revogada, um workspace errado ou um relógio fora falham aqui, com a
+        correção na mensagem, em vez de no primeiro comando de verdade.
+        """
+        keyring = self._keyring_provider()
+        return Whoami(
+            identity=self.identity,
+            key_id=self.key_id,
+            workspace_id=self.workspace_id,
+            token_kind=self.token_kind,
+            token_source=self.token_source,
+            security_groups=keyring.security_group_ids,
+            session_expires_at=keyring.session.expires_at,
+        )
+
     @property
     def workspace_id(self) -> str:
-        """🇺🇸 The workspace this credential belongs to. 🇧🇷 O workspace a que esta credencial pertence."""
+        """🇺🇸 The workspace this token belongs to. 🇧🇷 O workspace a que este token pertence."""
         return self._identity.workspace_id
 
     @property
     def account_id(self) -> str | None:
-        """🇺🇸 The legacy token's account id; `None` with a credential, whose identity is the key itself.
+        """🇺🇸 The legacy token's account id; `None` with a token, whose identity is the key itself.
 
-        🇧🇷 O id de conta do token legado; `None` com uma credencial, cuja identidade é a própria chave.
+        🇧🇷 O id de conta do token legado; `None` com um token, cuja identidade é a própria chave.
         """
         return self._identity.account_id if isinstance(self._identity, ServiceAccountToken) else None
 
     @property
     def name(self) -> str | None:
-        """🇺🇸 The service account's short name (the slug); `None` when only the one-line credential is known.
+        """🇺🇸 The legacy token's account name (the slug); `None` with a token, which does not carry it.
 
-        🇧🇷 O nome curto da conta de serviço (o slug); `None` quando só a credencial de uma linha é conhecida.
+        🇧🇷 O nome da conta do token legado (o slug); `None` com um token, que não o carrega.
         """
         if isinstance(self._identity, ServiceAccountToken):
             return self._identity.name.partition("@")[0]
-        account = self._identity.service_account
-        return account.partition("@")[0] if account else None
+        return None
 
     @property
     def email(self) -> str | None:
-        """🇺🇸 The account's full address, `<name>@<workspace_id>.diagnos.health`; `None` without a name.
+        """🇺🇸 `<name>@<workspace_id>.diagnos.health` of the legacy token; `None` without a name.
 
-        🇧🇷 O endereço completo da conta, `<name>@<workspace_id>.diagnos.health`; `None` sem nome.
+        🇧🇷 `<name>@<workspace_id>.diagnos.health` do token legado; `None` sem nome.
         """
         name = self.name
         return f"{name}@{self.workspace_id}.diagnos.health" if name else None
 
     @property
     def key_id(self) -> str:
-        """🇺🇸 The key an admin rotates or revokes. 🇧🇷 A chave que um admin gira ou revoga."""
+        """🇺🇸 The key an admin rotates or revokes (`svc_<hex>` for a token). 🇧🇷 A chave que um admin gira ou revoga."""
         return self._identity.key_id
 
     @property
@@ -169,15 +192,26 @@ class IdentityView:
 
         🇧🇷 `svc_<hex>@<workspace_id>.diagnos.health`; `None` com o token legado.
         """
-        return self._identity.identity if isinstance(self._identity, ServiceAccountCredential) else None
+        return self._identity.identity if isinstance(self._identity, DiagnosToken) else None
 
     @property
-    def credential_kind(self) -> Literal["ed25519", "legacy_apikey"]:
-        """🇺🇸 Which kind of credential this client runs as. 🇧🇷 Com que tipo de credencial este client roda."""
-        return "ed25519" if isinstance(self._identity, ServiceAccountCredential) else "legacy_apikey"
+    def token_kind(self) -> Literal["hybrid", "legacy_apikey"]:
+        """🇺🇸 `hybrid` (`dgn_sk1_…`) or the deprecated `legacy_apikey`. 🇧🇷 `hybrid` (`dgn_sk1_…`) ou o obsoleto."""
+        return "hybrid" if isinstance(self._identity, DiagnosToken) else "legacy_apikey"
+
+    @property
+    def token_source(self) -> str:
+        """🇺🇸 Where the token was read from: `DIAGNOS_TOKEN`, `keyring`, `OpenBao …`, `token=`.
+
+        🇧🇷 De onde o token foi lido: `DIAGNOS_TOKEN`, `keyring`, `OpenBao …`, `token=`.
+        """
+        return self._identity.source if isinstance(self._identity, DiagnosToken) else LEGACY_VAR
 
     def _identity_repr(self) -> str:
-        """🇺🇸 Masked, for `repr`: never a seed or a token. 🇧🇷 Mascarado, para `repr`: nunca semente nem token."""
-        if isinstance(self._identity, ServiceAccountCredential):
-            return f"credential={mask_identity(self._identity.identity)!r}"
+        """🇺🇸 For `repr`: the identity, never a seed or a token.
+
+        🇧🇷 Para `repr`: a identidade, nunca semente nem token.
+        """
+        if isinstance(self._identity, DiagnosToken):
+            return f"identity={self._identity.identity!r}"
         return f"account_id={self._identity.account_id!r}, api_token={redact_api_token(self._identity.raw)!r}"
