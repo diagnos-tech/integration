@@ -47,14 +47,14 @@ from diagnos import (
     Diagnos,
     DiagnosError,
     DiagnosPermissionError,
-    EnrollmentDeniedError,
-    EnrollmentExpiredError,
     GroupKeyUnavailable,
     NotFoundError,
     QuotaError,
     RateLimitError,
     ScopeMissingError,
     SessionExpiredError,
+    TokenError,
+    TokenStoreError,
     ValidationError,
     VaultError,
     WorkspaceMismatchError,
@@ -67,19 +67,19 @@ T = TypeVar("T")
 RULES: tuple[tuple[type[Exception] | tuple[type[Exception], ...], str], ...] = (
     (
         (CredentialRevokedError, CredentialExpiredError),
-        "create a new key for the service account and set DIAGNOS_CREDENTIAL"
-        " · crie uma chave nova para a conta de serviço e use DIAGNOS_CREDENTIAL",
+        "create a new token for the service account and run `diagnos login`"
+        " · crie um token novo para a conta de serviço e rode `diagnos login`",
     ),
     (
         CredentialUnknownError,
-        "the vault does not know this key: check DIAGNOS_VAULT_URL"
-        " · o cofre não conhece esta chave: confira DIAGNOS_VAULT_URL",
+        "the vault does not know this token: check DIAGNOS_VAULT_URL"
+        " · o cofre não conhece este token: confira DIAGNOS_VAULT_URL",
     ),
-    (WorkspaceMismatchError, "the credential is from another workspace · a credencial é de outro workspace"),
+    (WorkspaceMismatchError, "the token is from another workspace · o token é de outro workspace"),
     (
         CredentialSignatureError,
-        "the signature did not verify: copy the credential again, look for proxies"
-        " · a assinatura não conferiu: copie a credencial de novo, procure proxies",
+        "a signature did not verify: store the token again, look for proxies"
+        " · uma assinatura não conferiu: guarde o token de novo, procure proxies",
     ),
     (
         CredentialReplayError,
@@ -87,15 +87,15 @@ RULES: tuple[tuple[type[Exception] | tuple[type[Exception], ...], str], ...] = (
     ),
     (
         CredentialError,
-        "the vault refused the credential: read the message · o cofre recusou a credencial: leia a mensagem",
+        "the vault refused the token: read the message · o cofre recusou o token: leia a mensagem",
     ),
-    (ConfigError, "fix DIAGNOS_CREDENTIAL / DIAGNOS_VAULT_URL · corrija DIAGNOS_CREDENTIAL / DIAGNOS_VAULT_URL"),
-    (EnrollmentDeniedError, "an admin denied this process: ask why · um admin negou este processo: pergunte por quê"),
-    (EnrollmentExpiredError, "nobody approved in time: run again · ninguém aprovou a tempo: rode de novo"),
+    (TokenError, "the token was cut or pasted wrong: copy it again · token cortado ou colado errado: copie de novo"),
+    (TokenStoreError, "no keyring or OpenBao to keep it: read the message · sem chaveiro nem OpenBao: leia a mensagem"),
+    (ConfigError, "run `diagnos login` or set DIAGNOS_TOKEN · rode `diagnos login` ou defina DIAGNOS_TOKEN"),
     (SessionExpiredError, "the session ended: call unlock() again · a sessão acabou: chame unlock() de novo"),
     (
         GroupKeyUnavailable,
-        "the group was not granted: enroll again including it · grupo não concedido: refaça o enrollment",
+        "the group is not in this token's scope: ask for a token with it · grupo fora do escopo: peça um token com ele",
     ),
     (
         RateLimitError,
@@ -107,7 +107,7 @@ RULES: tuple[tuple[type[Exception] | tuple[type[Exception], ...], str], ...] = (
     (ValidationError, "the vault refused the input: fix it · o cofre recusou a entrada: corrija"),
     (
         (AuthenticationError, DiagnosPermissionError),
-        "access refused: re-enroll or ask an admin · acesso recusado: refaça o enrollment ou fale com um admin",
+        "access refused: check the token's scope with an admin · acesso recusado: confira o escopo com um admin",
     ),
     (VaultError, "vault error: retry later and report the trace_id · erro do cofre: tente depois e informe o trace_id"),
 )
@@ -132,7 +132,7 @@ def advice(error: Exception) -> str:
         what_pt = f"{error.action} em {error.resource}" if named else "uma permissão"
         where = f" in group {error.security_group_id}" if error.security_group_id else ""
         where_pt = f" no grupo {error.security_group_id}" if error.security_group_id else ""
-        return f"ask an admin to grant {what}{where} · peça a um admin para conceder {what_pt}{where_pt}"
+        return f"ask an admin for a token with {what}{where} · peça a um admin um token com {what_pt}{where_pt}"
     for classes, message in RULES:
         if isinstance(error, classes):
             return message
@@ -169,7 +169,7 @@ def catalog() -> None:
         CredentialRevokedError("CredentialKeyRevoked", "revoked", status=401),
         NotFoundError("DocumentNotFound", "gone", status=404),
         RateLimitError("RateLimited", "slow down", status=429),
-        EnrollmentExpiredError("expired"),
+        TokenError("truncated", reason="checksum", source="DIAGNOS_TOKEN"),
     ]
     for sample in samples:
         print(f"{sample.__class__.__name__}: {advice(sample)}")

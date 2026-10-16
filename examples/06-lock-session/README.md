@@ -6,7 +6,7 @@ Unlocks, does some work and ends the session on purpose in a `finally`: `lock()`
 
 ## Prerequisites
 
-Python 3.11+, `pip install "diagnos[sdk]"`, a service account credential in `DIAGNOS_CREDENTIAL` and someone to approve the enrollment — see [the examples index](../README.md#before-you-run-any-of-them).
+Python 3.11+, `pip install "diagnos[sdk]"`, and a service account token in `DIAGNOS_TOKEN` (or stored by `diagnos login`) — see [the examples index](../README.md#before-you-run-any-of-them).
 
 ## Run
 

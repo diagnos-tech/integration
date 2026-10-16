@@ -1,18 +1,18 @@
 """🇺🇸 End the session on purpose with `lock()`.
 
 Leaving a `with` block only closes the HTTP clients: the session survives
-(an auto-unsealing worker that restarts should resume it, not enroll again).
-`lock()` is the opposite, deliberate act: it ends the session on the vault
-and wipes every key from this process. Use it when the work is really done —
+(the vault shares it with every process using the same token, so a worker
+that restarts picks it up again). `lock()` is the opposite, deliberate act:
+it ends the session on the vault and wipes every key from this process. Use it when the work is really done —
 a job that finishes, a shutdown hook, a suspected leak — in a `finally` so it
 runs on failure too.
 
 🇧🇷 Encerra a sessão de propósito com `lock()`.
 
-Sair de um bloco `with` só fecha os clients HTTP: a sessão sobrevive (um
-worker com auto-unseal que reinicia deve retomá-la, não fazer enrollment de
-novo). `lock()` é o ato oposto, deliberado: encerra a sessão no cofre e
-apaga toda chave deste processo. Use quando o trabalho de fato acabou — um
+Sair de um bloco `with` só fecha os clients HTTP: a sessão sobrevive (o
+cofre a divide com todo processo que usa o mesmo token, então um worker que
+reinicia a pega de novo). `lock()` é o ato oposto, deliberado: encerra a
+sessão no cofre e apaga toda chave deste processo. Use quando o trabalho de fato acabou — um
 job que termina, um gancho de desligamento, uma suspeita de vazamento — num
 `finally`, para rodar também na falha.
 """

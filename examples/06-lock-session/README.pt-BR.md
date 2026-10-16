@@ -6,7 +6,7 @@ Desbloqueia, faz algum trabalho e encerra a sessão de propósito num `finally`:
 
 ## Pré-requisitos
 
-Python 3.11+, `pip install "diagnos[sdk]"`, uma credencial de conta de serviço em `DIAGNOS_CREDENTIAL` e alguém para aprovar o enrollment — veja [o índice dos exemplos](../README.pt-BR.md#antes-de-rodar-qualquer-um).
+Python 3.11+, `pip install "diagnos[sdk]"`, e um token de conta de serviço em `DIAGNOS_TOKEN` (ou guardado pelo `diagnos login`) — veja [o índice dos exemplos](../README.pt-BR.md#antes-de-rodar-qualquer-um).
 
 ## Rodar
 
