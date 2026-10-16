@@ -54,7 +54,8 @@ def _dev_certs(directory: Path, *, client_cn: str, force: bool) -> None:
     print(
         f"Wrote a local CA and certificates to {directory}/ (valid {dev_certs.VALID_DAYS} days, local use only)\n"
         f"CA e certificados locais gravados em {directory}/ (válidos por {dev_certs.VALID_DAYS} dias, só uso local)\n\n"
-        f"Run · Rode:\n  export DIAGNOS_API_TOKEN=apikey-…\n{exports}\n  diagnos-api\n\n"
+        "Run · Rode:\n  diagnos login    # the token, in the system keyring (or OpenBao) · o token, no chaveiro "
+        f"(ou no OpenBao)\n{exports}\n  diagnos-api\n\n"
         f"Call · Chame:\n  curl --cacert {written.ca} --cert {written.client} --key {written.client_key} "
         "https://localhost:8443/healthz"
     )
@@ -64,8 +65,9 @@ def serve() -> None:
     """🇺🇸 Loads settings, builds the app, serves HTTPS with mandatory mTLS — or exits(2) with a clear reason.
 
     Both `ApiSettings.from_env()` (missing/malformed CA or TLS files) and
-    `create_app` (missing `DIAGNOS_API_TOKEN`, via `diagnos.Settings.from_env`
-    inside `Diagnos()`) can fail before a single request is ever served;
+    `create_app` (no token in OpenBao, `DIAGNOS_TOKEN` or the keyring, via
+    `diagnos.Settings.from_env` inside `Diagnos()`) can fail before a single
+    request is ever served;
     both cases print the bilingual message the exception already carries and
     exit with the same code, because either way this process has nothing
     safe to do but stop.
@@ -74,8 +76,9 @@ def serve() -> None:
     obrigatório — ou sai com código 2 e um motivo claro.
 
     Tanto `ApiSettings.from_env()` (CA ou arquivos de TLS ausentes ou
-    malformados) quanto `create_app` (`DIAGNOS_API_TOKEN` ausente, via
-    `diagnos.Settings.from_env` dentro de `Diagnos()`) podem falhar antes de
+    malformados) quanto `create_app` (nenhum token no OpenBao, em
+    `DIAGNOS_TOKEN` ou no chaveiro, via `diagnos.Settings.from_env` dentro de
+    `Diagnos()`) podem falhar antes de
     qualquer requisição ser servida; os dois casos imprimem a mensagem
     bilíngue que a exceção já carrega e saem com o mesmo código, porque de
     um jeito ou de outro este processo não tem nada seguro a fazer além de

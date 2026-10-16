@@ -30,8 +30,8 @@ spec:
           envFrom:
             - configMapRef: { name: diagnos-api }
           env:
-            - name: DIAGNOS_API_TOKEN
-              valueFrom: { secretKeyRef: { name: diagnos-api, key: DIAGNOS_API_TOKEN } }
+            # 🇺🇸 The diagnos token itself comes from OpenBao (`secret/diagnos/token`); this token may only read it.
+            # 🇧🇷 O token do diagnos em si vem do OpenBao (`secret/diagnos/token`); este token só pode lê-lo.
             - name: OPENBAO_TOKEN
               valueFrom: { secretKeyRef: { name: diagnos-api, key: OPENBAO_TOKEN } }
             - { name: DIAGNOS_API_TLS_CERT_FILE, value: /certs/tls.crt }

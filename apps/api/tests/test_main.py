@@ -3,9 +3,9 @@
 No test here starts a real server: `uvicorn.run` blocks forever serving
 requests, so every test replaces it with a stand-in that just records its
 `kwargs`. `create_app` is replaced too in the "happy path" test, because
-building a real one means constructing a real `Diagnos()` off
-`DIAGNOS_API_TOKEN` — a concern `apps/api/tests` leaves entirely to `conftest.py`'s
-fake, never to a real SDK token.
+building a real one means constructing a real `Diagnos()` off the
+service account token — covered on its own by `test_token_source.py`, with
+an in-memory OpenBao.
 
 🇧🇷 `main.run()`: a fiação do console-script — carregar configuração,
 `create_app`, e a própria chamada a `uvicorn.run`.
@@ -14,9 +14,8 @@ Nenhum teste aqui sobe um servidor de verdade: `uvicorn.run` bloqueia para
 sempre servindo requisições, então todo teste o substitui por um objeto que
 só grava os `kwargs`. `create_app` também é substituído no teste de
 "caminho feliz", porque construir um de verdade significa construir uma
-`Diagnos()` de verdade a partir de `DIAGNOS_API_TOKEN` — uma preocupação que
-`apps/api/tests` deixa inteira para o fake de `conftest.py`, nunca para um token
-de SDK de verdade.
+`Diagnos()` de verdade a partir do token de conta de serviço — coberto à
+parte por `test_token_source.py`, com um OpenBao em memória.
 """
 
 from __future__ import annotations
@@ -90,9 +89,9 @@ def test_run_exits_2_when_api_settings_are_missing(
 def test_run_exits_2_when_create_app_raises_config_error(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """🇺🇸 Valid `ApiSettings` but no `DIAGNOS_API_TOKEN`: `create_app`'s own `Diagnos()` raises `ConfigError`.
+    """🇺🇸 Valid `ApiSettings` but no token anywhere: `create_app`'s own `Diagnos()` raises `ConfigError`.
 
-    🇧🇷 `ApiSettings` válida mas sem `DIAGNOS_API_TOKEN`: a própria `Diagnos()` de `create_app` lança `ConfigError`.
+    🇧🇷 `ApiSettings` válida mas sem token em lugar nenhum: a própria `Diagnos()` de `create_app` lança `ConfigError`.
     """
     for name, value in _TLS_ENV.items():
         monkeypatch.setenv(name, value)

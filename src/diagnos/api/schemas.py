@@ -162,8 +162,8 @@ class SessionInfo(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     workspace_id: str
-    # 🇺🇸 `None` with a service account credential (its identity is the key); set with the legacy `apikey-` token.
-    # 🇧🇷 `None` com uma credencial de conta de serviço (a identidade é a chave); presente com o token `apikey-` legado.
+    # 🇺🇸 `None` with a service account token (its identity is the key); set with the legacy `apikey-` token.
+    # 🇧🇷 `None` com um token de conta de serviço (a identidade é a chave); presente com o token `apikey-` legado.
     account_id: str | None
     security_groups: list[str]
     client: ClientIdentityView
