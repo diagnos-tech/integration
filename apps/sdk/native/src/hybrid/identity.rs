@@ -79,6 +79,23 @@ impl Identity {
         &self.mlkem768_public
     }
 
+    /// 🇺🇸 Locked copies of both secrets, for a second owner that wipes on its own schedule.
+    /// 🇧🇷 Cópias travadas das duas secretas, para um segundo dono que apaga no próprio tempo.
+    pub fn duplicate(&self) -> Result<Self, Error> {
+        Ok(Self {
+            x25519_secret: self.x25519_secret.duplicate()?,
+            mlkem768_secret: self.mlkem768_secret.duplicate()?,
+            x25519_public: self.x25519_public,
+            mlkem768_public: self.mlkem768_public.clone(),
+        })
+    }
+
+    /// 🇺🇸 Zeroes both secrets now; every later `open` fails. 🇧🇷 Zera as duas secretas agora; todo `open` depois falha.
+    pub fn wipe(&mut self) {
+        self.x25519_secret.wipe();
+        self.mlkem768_secret.wipe();
+    }
+
     /// 🇺🇸 Opens a seal addressed to this identity. 🇧🇷 Abre um selo endereçado a esta identidade.
     pub fn open(
         &self,
