@@ -27,7 +27,7 @@ e informa a saúde pela porta 8443 aceitar conexões (`HEALTHCHECK`; o mTLS recu
 
 | Variável | Obrigatória | Significado |
 |---|---|---|
-| `DIAGNOS_API_TOKEN` | sim | Token da service account (`apikey-…`). |
+| `DIAGNOS_CREDENTIAL` | sim | Credencial da service account (`svc_…@<workspace>.diagnos.health:<chave>`). O legado `DIAGNOS_API_TOKEN` funciona até 2027-04-15. |
 | `DIAGNOS_API_MTLS_CA_FILE` | sim | Bundle PEM da(s) CA(s) autorizada(s) a assinar certificados de cliente. |
 | `DIAGNOS_API_TLS_CERT_FILE` / `DIAGNOS_API_TLS_KEY_FILE` | sim | Certificado e chave do servidor (PEM). |
 | `DIAGNOS_API_HOST` / `DIAGNOS_API_PORT` | não | Padrão `0.0.0.0` / `8443`. |
@@ -54,7 +54,7 @@ pré-existente:
 
 ```sh
 cd deploy/compose
-cp .env.example .env   # preencha DIAGNOS_API_TOKEN, depois `diagnos status` para os dois ids
+cp .env.example .env   # preencha DIAGNOS_CREDENTIAL, depois `diagnos status` para os dois ids
 # certs/ precisa de clients-ca.pem/server.pem/server-key.pem — veja a receita de openssl deste mesmo arquivo, abaixo
 docker compose up
 ```

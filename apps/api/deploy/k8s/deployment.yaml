@@ -30,8 +30,8 @@ spec:
           envFrom:
             - configMapRef: { name: diagnos-api }
           env:
-            - name: DIAGNOS_API_TOKEN
-              valueFrom: { secretKeyRef: { name: diagnos-api, key: DIAGNOS_API_TOKEN } }
+            - name: DIAGNOS_CREDENTIAL
+              valueFrom: { secretKeyRef: { name: diagnos-api, key: DIAGNOS_CREDENTIAL } }
             - name: OPENBAO_TOKEN
               valueFrom: { secretKeyRef: { name: diagnos-api, key: OPENBAO_TOKEN } }
             - { name: DIAGNOS_API_TLS_CERT_FILE, value: /certs/tls.crt }

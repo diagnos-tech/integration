@@ -78,7 +78,7 @@ diagnos version
 
 Um instalador de ferramentas mantém a CLI no próprio ambiente virtual, para ela nunca colidir com os pacotes de um
 projeto em que você esteja trabalhando. `pip install "diagnos[cli]"` também funciona. A CLI também sai como imagem —
-`docker run --rm -e DIAGNOS_API_TOKEN ghcr.io/diagnos-tech/diagnos patients list` — para máquinas sem Python.
+`docker run --rm -e DIAGNOS_CREDENTIAL ghcr.io/diagnos-tech/diagnos patients list` — para máquinas sem Python.
 
 ## A API REST
 

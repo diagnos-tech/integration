@@ -22,7 +22,7 @@ details, and `docker build --target api -t diagnos-api .` builds the same image 
 
 ```sh
 docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
-  --ulimit memlock=-1:-1 -p 8443:8443 -e DIAGNOS_API_TOKEN \
+  --ulimit memlock=-1:-1 -p 8443:8443 -e DIAGNOS_CREDENTIAL \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
   -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
   -v "$PWD/certs:/certs:ro" ghcr.io/diagnos-tech/diagnos-api@sha256:…

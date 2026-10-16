@@ -32,8 +32,8 @@ object storage, already sealed. The web app is where people work — and where a
 ## Workspace and service account
 
 A **workspace** is one organization's space in diagnos: its people, its patients, its files. A **service account** is
-a non-human member of a workspace, created by an admin for one integration. Its token, `DIAGNOS_API_TOKEN`, is how
-your process says *which* service account it is. [Authentication](authentication.md) covers the token in full.
+a non-human member of a workspace, created by an admin for one integration. Its credential, `DIAGNOS_CREDENTIAL` (an e-mail-shaped identity plus an Ed25519 key), is how
+your process says *which* service account it is. [Authentication](authentication.md) covers the credential in full.
 
 ## Enrollment and session
 

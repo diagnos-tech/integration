@@ -11,7 +11,7 @@ troca algumas preocupações de produção (um seal de verdade apoiado em KMS po
 
 ```sh
 cp .env.example .env
-# edite .env: DIAGNOS_API_TOKEN, depois `diagnos status` para os dois ids
+# edite .env: DIAGNOS_CREDENTIAL, depois `diagnos status` para os dois ids
 ```
 
 Gere o material de mTLS em `certs/` com a receita de `openssl` do

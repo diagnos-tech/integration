@@ -64,7 +64,7 @@ with Diagnos() as vault:  # enrolls on entry: prints the approval link + code
     print(vault.security_groups)
 ```
 
-Set `DIAGNOS_API_TOKEN` first — a workspace admin issues it in the diagnos web app. The
+Set `DIAGNOS_CREDENTIAL` first — a workspace admin creates it in the diagnos web app (Settings → Service accounts). The
 [quickstart](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.md) goes from here to
 your first encrypted patient and file.
 

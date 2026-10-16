@@ -30,7 +30,7 @@ exatamente como o SDK faria no processo de quem chama. Isso torna o processo da 
 
 ```sh
 uv run diagnos-api dev-certs   # ./certs: uma CA local, um par do servidor localhost, um de cliente
-export DIAGNOS_API_TOKEN="apikey-…"                  # mais os quatro exports que o dev-certs mostra
+export DIAGNOS_CREDENTIAL="svc_…@<workspace>.diagnos.health:…"  # mais os quatro exports que o dev-certs mostra
 uv run diagnos-api
 curl --cacert certs/ca.pem --cert certs/client.pem --key certs/client-key.pem https://localhost:8443/healthz
 ```
@@ -92,7 +92,7 @@ Quatro variáveis são obrigatórias — o token e três arquivos PEM; todo o re
 docker build --target api -t diagnos-api .   # da raiz do repositório — ou: diagnos setup api
 docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   --ulimit memlock=-1:-1 -p 127.0.0.1:8443:8443 --user "$(id -u):$(id -g)" \
-  -e DIAGNOS_API_TOKEN \
+  -e DIAGNOS_CREDENTIAL \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
   -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
   -v "$PWD/certs:/certs:ro" diagnos-api
@@ -104,7 +104,7 @@ um `RLIMIT_MEMLOCK` maior para travar memória, uma imagem assinada fixada por d
 máquina ou numa VM. De um checkout, sem Docker:
 
 ```sh
-export DIAGNOS_API_TOKEN="apikey-…"
+export DIAGNOS_CREDENTIAL="svc_…@<workspace>.diagnos.health:…"
 export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
 export DIAGNOS_API_TLS_CERT_FILE=./tls.pem DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
 uv run diagnos-api   # ou: python -m diagnos.api — fora de um checkout: pip install "diagnos[api]"

@@ -65,7 +65,7 @@ with Diagnos() as vault:  # faz enrollment na entrada: imprime o link de aprova�
     print(vault.security_groups)
 ```
 
-Defina o `DIAGNOS_API_TOKEN` antes — um admin do workspace o emite no app web do diagnos. O
+Defina o `DIAGNOS_CREDENTIAL` antes — um admin do workspace a cria no app web do diagnos (Configurações → Contas de serviço). O
 [início rápido](https://github.com/diagnos-tech/integration/blob/main/docs/guides/quickstart.pt-BR.md) vai daqui
 até o seu primeiro paciente e arquivo cifrados.
 

@@ -54,7 +54,7 @@ def _dev_certs(directory: Path, *, client_cn: str, force: bool) -> None:
     print(
         f"Wrote a local CA and certificates to {directory}/ (valid {dev_certs.VALID_DAYS} days, local use only)\n"
         f"CA e certificados locais gravados em {directory}/ (válidos por {dev_certs.VALID_DAYS} dias, só uso local)\n\n"
-        f"Run · Rode:\n  export DIAGNOS_API_TOKEN=apikey-…\n{exports}\n  diagnos-api\n\n"
+        f"Run · Rode:\n  export DIAGNOS_CREDENTIAL=svc_…@<workspace>.diagnos.health:…\n{exports}\n  diagnos-api\n\n"
         f"Call · Chame:\n  curl --cacert {written.ca} --cert {written.client} --key {written.client_key} "
         "https://localhost:8443/healthz"
     )

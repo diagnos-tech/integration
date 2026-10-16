@@ -11,7 +11,7 @@ nothing else to run."
 
 ```sh
 cp .env.example .env
-# edit .env: DIAGNOS_API_TOKEN, then `diagnos status` for the two ids
+# edit .env: DIAGNOS_CREDENTIAL, then `diagnos status` for the two ids
 ```
 
 Generate the mTLS material into `certs/` with the `openssl` recipe in the

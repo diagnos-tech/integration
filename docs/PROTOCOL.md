@@ -28,17 +28,25 @@ the SDK sends — are tracked in [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## 1. Identity
 
-`DIAGNOS_API_TOKEN` is `apikey-<JWT EdDSA>`, issued by a workspace admin.
-Claims the SDK reads: `sub` (key id, rotatable), `account_id`,
-`workspace_id`, `name` (`slug@<workspace_id>.diagnos.health`). The token also
-carries `iss`, the vault's issuer — not checked by the SDK, since the SDK
-never verifies the JWT signature at all: it has no key to verify it with,
-and the vault is the only party that does. `workspace_id` is read from the
-payload only to build URLs; there is no `exp` claim, and revocation is
-server-side, surfacing as `403 ServiceAccountRevoked` on the next signed
-call.
+`DIAGNOS_CREDENTIAL` is `svc_<32 hex>@<workspace_id>.diagnos.health:<seed>`: the
+identity of a service account (its key id, then the workspace) and the 32-byte
+Ed25519 seed in base64url. The key pair is generated in the browser of whoever
+creates the account; the vault stores only the public key, so the seed never
+passes through it and rotating a key means adding a new one and revoking the
+old one. The same line can come from a downloaded JSON file
+(`DIAGNOS_CREDENTIALS_FILE`).
 
-Header on every request: `Authorization: Bearer apikey-<jwt>`.
+Every request is signed with HTTP Message Signatures (RFC 9421) over
+`@method`, `@path`, `@query` and `content-digest`, with `created`, `keyid`,
+`nonce` and `alg="ed25519"`. The vault verifies it against the registered
+public key, within a short clock tolerance, and refuses a repeated nonce.
+There is no reusable bearer.
+
+Legacy: `DIAGNOS_API_TOKEN` (`apikey-<JWT EdDSA>`, sent as
+`Authorization: Bearer apikey-<jwt>`) keeps working until **2027-04-15**, with
+`Deprecation` and `Sunset` headers on the responses. The SDK never verifies the
+JWT; revocation is server-side, surfacing as `403 ServiceAccountRevoked`. See
+[MIGRATING.md](../MIGRATING.md).
 
 ## 2. Clock
 

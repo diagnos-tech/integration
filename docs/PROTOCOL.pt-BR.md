@@ -28,16 +28,24 @@ byte do que o SDK manda — ficam em [COMPATIBILITY.pt-BR.md](COMPATIBILITY.pt-B
 
 ## 1. Identidade
 
-`DIAGNOS_API_TOKEN` é `apikey-<JWT EdDSA>`, emitido por um admin do
-workspace. Claims que o SDK lê: `sub` (id da chave, rotacionável),
-`account_id`, `workspace_id`, `name` (`slug@<workspace_id>.diagnos.health`).
-O token também carrega `iss`, o emissor do cofre — não conferido pelo SDK,
-já que o SDK nunca verifica a assinatura do JWT: ele não tem a chave para
-isso, e só o cofre a tem. `workspace_id` é lido do payload só para montar
-URLs; não há claim `exp`, e a revogação é do lado do servidor, aparecendo
-como `403 ServiceAccountRevoked` na próxima chamada assinada.
+`DIAGNOS_CREDENTIAL` é `svc_<32 hex>@<workspace_id>.diagnos.health:<semente>`: a
+identidade da conta de serviço (o id da chave e depois o workspace) e a semente
+Ed25519 de 32 bytes em base64url. O par de chaves nasce no navegador de quem
+cria a conta; o cofre guarda só a chave pública, então a semente nunca passa
+por ele e girar uma chave é adicionar uma nova e revogar a antiga. A mesma
+linha pode vir de um arquivo JSON baixado (`DIAGNOS_CREDENTIALS_FILE`).
 
-Header em toda requisição: `Authorization: Bearer apikey-<jwt>`.
+Toda requisição é assinada com HTTP Message Signatures (RFC 9421) sobre
+`@method`, `@path`, `@query` e `content-digest`, com `created`, `keyid`,
+`nonce` e `alg="ed25519"`. O cofre confere com a chave pública registrada,
+dentro de uma tolerância curta de relógio, e recusa um nonce repetido. Não há
+bearer reutilizável.
+
+Legado: `DIAGNOS_API_TOKEN` (`apikey-<JWT EdDSA>`, enviado como
+`Authorization: Bearer apikey-<jwt>`) segue funcionando até **2027-04-15**, com
+os cabeçalhos `Deprecation` e `Sunset` nas respostas. O SDK nunca verifica o
+JWT; a revogação é do lado do servidor, como `403 ServiceAccountRevoked`. Veja o
+[MIGRATING.pt-BR.md](../MIGRATING.pt-BR.md).
 
 ## 2. Relógio
 

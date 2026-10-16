@@ -30,7 +30,7 @@ exactly as the SDK would in the caller's own process. That makes the API process
 
 ```sh
 uv run diagnos-api dev-certs         # ./certs: a local CA, a localhost server pair, a client pair
-export DIAGNOS_API_TOKEN="apikey-…"  # plus the four exports dev-certs prints
+export DIAGNOS_CREDENTIAL="svc_…@<workspace>.diagnos.health:…"  # plus the four exports dev-certs prints
 uv run diagnos-api
 curl --cacert certs/ca.pem --cert certs/client.pem --key certs/client-key.pem https://localhost:8443/healthz
 ```
@@ -82,14 +82,14 @@ callers, never its key.
 
 ## Running it
 
-Four variables are required — the token and three PEM files; everything else has a default. The full list is in
+Four variables are required — the credential and three PEM files; everything else has a default. The full list is in
 [Deploying](../../apps/api/deploy/README.md#environment).
 
 ```sh
 docker build --target api -t diagnos-api .   # from the repository root — or: diagnos setup api
 docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   --ulimit memlock=-1:-1 -p 127.0.0.1:8443:8443 --user "$(id -u):$(id -g)" \
-  -e DIAGNOS_API_TOKEN \
+  -e DIAGNOS_CREDENTIAL \
   -e DIAGNOS_API_MTLS_CA_FILE=/certs/clients-ca.pem \
   -e DIAGNOS_API_TLS_CERT_FILE=/certs/tls.pem -e DIAGNOS_API_TLS_KEY_FILE=/certs/tls-key.pem \
   -v "$PWD/certs:/certs:ro" diagnos-api
@@ -101,7 +101,7 @@ a raised `RLIMIT_MEMLOCK` for memory locking, a signed image pinned by digest, K
 or a VM. From a checkout, without Docker:
 
 ```sh
-export DIAGNOS_API_TOKEN="apikey-…"
+export DIAGNOS_CREDENTIAL="svc_…@<workspace>.diagnos.health:…"
 export DIAGNOS_API_MTLS_CA_FILE=./clients-ca.pem
 export DIAGNOS_API_TLS_CERT_FILE=./tls.pem DIAGNOS_API_TLS_KEY_FILE=./tls-key.pem
 uv run diagnos-api   # or: python -m diagnos.api — outside a checkout: pip install "diagnos[api]"

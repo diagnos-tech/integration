@@ -34,7 +34,7 @@ processo.
 
 Um **workspace** é o espaço de uma organização no diagnos: as pessoas, os pacientes, os arquivos. Uma **service
 account** é um membro não humano de um workspace, criado por um admin para uma integração. O token dela,
-`DIAGNOS_API_TOKEN`, é como o seu processo diz *qual* service account ele é. [Autenticação](authentication.pt-BR.md)
+`DIAGNOS_CREDENTIAL` (uma identidade com cara de e-mail mais uma chave Ed25519), é como o seu processo diz *qual* service account ele é. [Autenticação](authentication.pt-BR.md)
 cobre o token por inteiro.
 
 ## Enrollment e sessão
