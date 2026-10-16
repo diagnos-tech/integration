@@ -26,6 +26,7 @@ import json
 
 import httpx
 import pytest
+from _tokens import mint
 
 from diagnos.client import Diagnos
 from diagnos.crypto.encoding import b64url_encode
@@ -34,6 +35,7 @@ from diagnos.session.keyring import Keyring, SessionKeys
 from diagnos.session.manager import SessionManager, default_prompt
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport
+from diagnos.transport.service_token import DiagnosToken
 
 _VALID_PAYLOAD = {
     "sub": "key_123",
@@ -168,20 +170,18 @@ def test_on_prompt_uses_the_callback_given() -> None:
 
 
 def test_auto_unseal_defaults_from_openbao_addr_and_can_be_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 A store is built exactly when `auto_unseal` (or `openbao_addr`, by default) says so — never otherwise.
+    """🇺🇸 Legacy token: a store is built exactly when `auto_unseal` (or `openbao_addr`, by default) says so.
 
     `OpenBaoStore` is replaced with a recording double so this exercises only
-    `Diagnos`'s own branch (`auto_unseal if auto_unseal is not None else
-    settings.openbao_addr is not None`), not `hvac`'s tolerance for a
-    partial configuration.
+    `Diagnos`'s own branch (`_client_wiring._auto_unseal`), not `hvac`'s
+    tolerance for a partial configuration.
 
-    🇧🇷 Um store é construído exatamente quando `auto_unseal` (ou, por padrão,
+    🇧🇷 Token legado: um store é construído exatamente quando `auto_unseal` (ou, por padrão,
     `openbao_addr`) diz que sim — nunca do contrário.
 
     `OpenBaoStore` é substituído por um duplo que grava, para isto exercitar
-    só o próprio ramo do `Diagnos` (`auto_unseal if auto_unseal is not None
-    else settings.openbao_addr is not None`), não a tolerância do `hvac` a
-    uma configuração parcial.
+    só o próprio ramo do `Diagnos` (`_client_wiring._auto_unseal`), não a
+    tolerância do `hvac` a uma configuração parcial.
     """
     created: list[dict[str, str]] = []
 
@@ -217,3 +217,31 @@ def test_auto_unseal_defaults_from_openbao_addr_and_can_be_overridden(monkeypatc
     # 🇺🇸/🇧🇷 no `openbao_addr`, but `auto_unseal=True` forces a store anyway.
     forced = Diagnos(settings=_settings(), transport=_FakeTransport(), auto_unseal=True)  # type: ignore[arg-type]
     assert isinstance(forced._session._store, _DummyStore)  # noqa: SLF001
+
+
+def test_with_the_token_auto_unseal_is_off_unless_asked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 Token + `OPENBAO_ADDR`: no store by default (group keys would outlive a revocation); `True` builds one.
+
+    The store asked for explicitly lives under the token's key id.
+
+    🇧🇷 Token + `OPENBAO_ADDR`: nenhum store por padrão (as chaves de grupo sobreviveriam à revogação); `True` cria um.
+
+    O store pedido explicitamente fica sob o key id do token.
+    """
+    created: list[str] = []
+
+    class _DummyStore:
+        def __init__(self, settings: Settings, *, workspace_id: str, account_id: str) -> None:
+            created.append(f"{workspace_id}/{account_id}")
+
+    monkeypatch.setattr("diagnos.client.OpenBaoStore", _DummyStore)
+    token = DiagnosToken.parse(mint("wsBao"), source="test")
+    settings = Settings(token=token, openbao_addr="https://bao.example.test")
+
+    by_default = Diagnos(settings=settings, transport=_FakeTransport())  # type: ignore[arg-type]
+    assert by_default._session._store is None  # noqa: SLF001
+    assert created == []
+
+    asked = Diagnos(settings=settings, transport=_FakeTransport(), auto_unseal=True)  # type: ignore[arg-type]
+    assert isinstance(asked._session._store, _DummyStore)  # noqa: SLF001
+    assert created == [f"wsBao/{token.key_id}"]

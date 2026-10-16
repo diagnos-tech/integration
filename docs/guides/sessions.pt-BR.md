@@ -20,7 +20,7 @@ stateDiagram-v2
 ```
 
 - **`Diagnos()`** só acha e lê o token. Não faz requisição ao cofre.
-- **`unlock()`** restaura uma sessão salva do OpenBao quando há um configurado e ela ainda vale, e senão abre uma com
+- **`unlock()`** restaura uma sessão salva do OpenBao quando o auto-unseal está ligado e ela ainda vale, e senão abre uma com
   um único `POST …/session` assinado (o token legado `apikey-` faz enrollment no lugar, e espera uma pessoa). É
   idempotente, e você raramente o chama: `with Diagnos() as vault:` desbloqueia na entrada, e o primeiro toque em
   `vault.patients`, `vault.exams` ou `vault.drives` desbloqueia de forma preguiçosa.
@@ -87,10 +87,12 @@ Uma sessão nunca é gravada em disco (a menos que você opte pelo OpenBao) e nu
 
 ## Auto-unseal com OpenBao
 
-Com o [OpenBao](https://openbao.org/) configurado, o SDK salva o estado desbloqueado logo depois de abrir uma sessão e
-o restaura na subida seguinte, até a própria sessão salva expirar. Com o token de conta de serviço isso poupa uma
-requisição assinada por reinício — um reinício nunca precisou de uma pessoa. Com o token legado `apikey-` é o que
-poupa uma pessoa de aprovar todo reinício de um pod ou de um cron.
+Com o auto-unseal ligado, o SDK salva o estado desbloqueado no [OpenBao](https://openbao.org/) logo depois de abrir
+uma sessão e o restaura na subida seguinte, até a própria sessão salva expirar. Com o token legado `apikey-` é isso
+que poupa uma pessoa de aprovar todo reinício de um pod ou de um cron, então ele vem **ligado por padrão** sempre que
+o OpenBao está configurado. Com o token de conta de serviço ele pouparia só uma requisição assinada por reinício — um
+reinício nunca precisa de pessoa — ao preço de chaves de grupo que sobrevivem à revogação do token, então ele vem
+**desligado por padrão**.
 
 ```mermaid
 sequenceDiagram
@@ -115,15 +117,16 @@ export OPENBAO_ADDR="https://openbao.internal:8200"
 export OPENBAO_TOKEN="…"            # ou OPENBAO_TOKEN_FILE=/run/secrets/openbao-token
 ```
 
-O auto-unseal está ligado exatamente quando `OPENBAO_ADDR` está definida — a mesma variável que deixa o SDK ler o
-token do OpenBao. `auto_unseal=` sobrescreve isso para um cliente, e o `session start --auto-unseal/--no-auto-unseal`
-da CLI faz o mesmo para uma invocação:
+Por padrão o auto-unseal está ligado para o token legado quando `OPENBAO_ADDR` está definida, e desligado para um
+token de conta de serviço — mesmo que essa mesma `OPENBAO_ADDR` seja como um servidor lê o próprio token do OpenBao.
+`auto_unseal=` sobrescreve o padrão para um cliente (`Diagnos(auto_unseal=True)` o liga com o token, sabendo o que
+troca), e o `session start --auto-unseal/--no-auto-unseal` da CLI faz o mesmo para uma invocação:
 
 ```python
 from diagnos import Diagnos
 
-vault = Diagnos()  # o auto-unseal está ligado exatamente quando OPENBAO_ADDR está definida
-local_only = Diagnos(auto_unseal=False)  # nunca salva nem restaura, mesmo quando está
+vault = Diagnos()  # o token: a sessão nunca é salva; o token legado: salva quando OPENBAO_ADDR está definida
+local_only = Diagnos(auto_unseal=False)  # nunca salva nem restaura, qualquer que seja o token
 ```
 
 `OPENBAO_MOUNT`, `OPENBAO_PATH_PREFIX` e `OPENBAO_NAMESPACE` estão em [Configuração](configuration.pt-BR.md#openbao).
@@ -133,14 +136,16 @@ local_only = Diagnos(auto_unseal=False)  # nunca salva nem restaura, mesmo quand
 > [!WARNING]
 > O auto-unseal leva as suas chaves de grupo de "só na memória travada deste processo" para "também no armazenamento
 > do OpenBao, em `<OPENBAO_PATH_PREFIX>/<workspace_id>/<key_id>`". **Quem consegue ler esse único path decifra
-> exatamente o que este processo decifra**, e fica com as chaves de grupo mesmo depois de o token ser revogado. Com o
-> token de conta de serviço o ganho é uma requisição por reinício; quando não vale a pena, passe `auto_unseal=False` e
-> mantenha o OpenBao só para o token.
+> exatamente o que este processo decifra**, e fica com as chaves de grupo mesmo depois de o token ser revogado — uma
+> revogação impede sessões novas, não chaves já copiadas. Com o token de conta de serviço o ganho é uma requisição por
+> reinício, e por isso ele vem desligado; ligue com `auto_unseal=True` só quando essa requisição importar mais que uma
+> revogação imediata.
 
 | | Sem OpenBao | Com OpenBao |
 |---|---|---|
 | onde as chaves de grupo moram | a RAM travada deste processo | isso, mais o KV cifrado do OpenBao |
 | um reinício precisa de | uma requisição assinada (o token legado: uma pessoa para aprovar) | nada, até a sessão salva expirar |
+| revogar o token | corta o processo na próxima requisição | as chaves de grupo salvas continuam legíveis no OpenBao |
 | um token do OpenBao roubado com leitura no path | — | decifra o que este processo decifra |
 | chaves como objetos Python | nunca | por milissegundos, ao salvar e restaurar |
 
@@ -165,7 +170,8 @@ path "secret/data/diagnos/token" {
 }
 ```
 
-O `metadata/` está lá porque `lock()` apaga toda versão salva, não só a última. A última regra deixa o processo *ler*
+As duas primeiras regras só importam com o auto-unseal ligado (o token legado, ou `auto_unseal=True`); o `metadata/`
+está lá porque `lock()` apaga toda versão salva, não só a última. A última regra deixa o processo *ler*
 o token e nada mais: guardar ou girar exige o token de escrita separado de `token-writer-policy.hcl`, que o
 `diagnos login --store openbao` usa. O `diagnos whoami` imprime os dois ids.
 

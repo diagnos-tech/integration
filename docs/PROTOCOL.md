@@ -564,11 +564,17 @@ only go where the deployment chose.
 
 ## 11. OpenBao auto-unseal
 
-Optional. When `OPENBAO_ADDR` and `OPENBAO_TOKEN` are set, the SDK saves
-its unlocked state after it opens a session and restores it on start. This
-deliberately moves the group DEKs from RAM to OpenBao's encrypted storage:
-whoever can read that path can read the workspace. Scope the token to the
+Optional. With auto-unseal on, the SDK saves its unlocked state after it
+opens a session and restores it on start. This deliberately moves the group
+DEKs from RAM to OpenBao's encrypted storage: whoever can read that path can
+read the workspace, even after the token is revoked. Scope the token to the
 path.
+
+The reference SDK turns it on by default only for the legacy `apikey-`
+token, when `OPENBAO_ADDR` and `OPENBAO_TOKEN` are set — its restart would
+otherwise wait for an approval. With a service account token it is off by
+default, because a restart costs one signed request (§5) and saved group
+keys would outlive a revocation; `auto_unseal=True` turns it on explicitly.
 
 KV v2 · `mount = OPENBAO_MOUNT (default "secret")`, path `OPENBAO_PATH_PREFIX (default "diagnos")/{workspace_id}/{key_id}`
 (`{account_id}` with the legacy token); `enrollment_id` holds the

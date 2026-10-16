@@ -12,7 +12,7 @@ byte dele, então o que quer que você instale, a criptografia por baixo é a me
 | `pip install "diagnos[cli]"` | a linha de comando `diagnos` completa |
 | `pip install "diagnos[api]"` | o `diagnos-api`, a fachada REST — ou a imagem assinada dela, `ghcr.io/diagnos-tech/diagnos-api` |
 
-Os extras se combinam (`"diagnos[cli,api]"`), e mais dois ficam por cima: `openbao` (auto-unseal com OpenBao para
+Os extras se combinam (`"diagnos[cli,api]"`), e mais dois ficam por cima: `openbao` (o token no OpenBao, para
 servidores) e `dev-certs` (`diagnos-api dev-certs`, certificados para rodar local). O código de toda camada vem no
 único wheel; um extra só soma as dependências dela.
 
@@ -44,7 +44,7 @@ Um `uv` ou Docker ausente nunca é instalado por você: o `setup` imprime a pág
 
 ```sh
 uv add "diagnos[sdk]"            # num projeto uv — ou: pip install "diagnos[sdk]"
-uv add "diagnos[sdk,openbao]"    # soma o hvac, para o auto-unseal com OpenBao em servidores
+uv add "diagnos[sdk,openbao]"    # soma o hvac, para o token no OpenBao em servidores
 ```
 
 > [!NOTE]
@@ -72,7 +72,7 @@ configurações envolvidas.
 
 ```sh
 uv tool install "diagnos[cli]"            # ou: pipx install "diagnos[cli]"
-uv tool install "diagnos[cli,openbao]"    # com auto-unseal via OpenBao
+uv tool install "diagnos[cli,openbao]"    # com o OpenBao, para o token em servidores
 diagnos version
 ```
 

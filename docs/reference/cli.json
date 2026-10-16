@@ -1959,8 +1959,8 @@
             "--no-auto-unseal"
           ],
           "help": {
-            "en": "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set)",
-            "pt-br": "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
+            "en": "Save/restore the session via OpenBao (default: on for the legacy token when OPENBAO_ADDR is set, off for a service account token)",
+            "pt-br": "Salva/restaura a sessão via OpenBao (padrão: ligado para o token legado quando OPENBAO_ADDR está definida, desligado para um token de conta de serviço)"
           },
           "kind": "option",
           "name": "auto-unseal",
@@ -1995,7 +1995,7 @@
     }
   ],
   "generatedFrom": {
-    "commit": "202ec0d",
+    "commit": "813fe89",
     "package": "diagnos",
     "version": "0.2.0"
   },

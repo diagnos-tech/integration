@@ -25,15 +25,16 @@ No token in any of the sources raises `ConfigError` saying where it looked; a to
 
 ## OpenBao
 
-OpenBao does two jobs, both on exactly when `OPENBAO_ADDR` is set, with the `openbao` extra
-(`pip install "diagnos[openbao]"`): it is where a server keeps the **token** (`<prefix>/token`, stored with
-`diagnos login --store openbao`, read when no `DIAGNOS_TOKEN` is set and the keyring has none), and where the session
-is saved for **auto-unseal** — [Sessions](sessions.md#auto-unseal-with-openbao) explains what that trades.
+OpenBao does two jobs, with the `openbao` extra (`pip install "diagnos[openbao]"`). It is where a server keeps the
+**token** (`<prefix>/token`, stored with `diagnos login --store openbao`, read when `OPENBAO_ADDR` is set, no
+`DIAGNOS_TOKEN` is set and the keyring has none). And it is where the session is saved for **auto-unseal**: on by
+default only for the legacy `apikey-` token with `OPENBAO_ADDR` set, off for a service account token unless
+`Diagnos(auto_unseal=True)` asks — [Sessions](sessions.md#auto-unseal-with-openbao) explains what that trades.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `OPENBAO_ADDR` | unset | the OpenBao server; setting it turns both on |
-| `OPENBAO_TOKEN` | unset | a token scoped to this deployment's paths, and nothing wider: *read* on the token, read and write on the saved session (`apps/api/deploy/compose/openbao/policy.hcl`) |
+| `OPENBAO_ADDR` | unset | the OpenBao server; setting it lets the SDK read the token there, and turns auto-unseal on for the legacy token |
+| `OPENBAO_TOKEN` | unset | a token scoped to this deployment's paths, and nothing wider: *read* on the token, read and write on the saved session when auto-unseal is on (`apps/api/deploy/compose/openbao/policy.hcl`) |
 | `OPENBAO_TOKEN_FILE` | unset | a file holding that token, read when `OPENBAO_TOKEN` is unset — how Kubernetes and Compose mount secrets |
 | `OPENBAO_MOUNT` | `secret` | the KV v2 mount |
 | `OPENBAO_PATH_PREFIX` | `diagnos` | the token lives at `<prefix>/token`, the saved session at `<prefix>/<workspace_id>/<key_id>` |

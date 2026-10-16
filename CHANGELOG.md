@@ -73,8 +73,12 @@ enrollment, until the vault stops accepting it on **2027-04-15** —
   — the legacy token's flow — is now `diagnos session start`.
 - `Diagnos.name` is the service account's short name (the slug) with the legacy token, no longer the full address —
   that is `Diagnos.email`. With the token, `name`, `email` and `account_id` are `None` (its identity is the key
-  itself); the REST API's `GET /v1/session` returns `account_id: null` in that case. With OpenBao auto-unseal, a
-  token's session is kept at `<prefix>/<workspace_id>/<key_id>`.
+  itself); the REST API's `GET /v1/session` returns `account_id: null` in that case.
+- OpenBao auto-unseal is **off by default with the service account token**: a restart costs one signed request, and a
+  saved session would keep the group keys in OpenBao, where they outlive a revocation of the token.
+  `Diagnos(auto_unseal=True)` (or `diagnos session start --auto-unseal`) still turns it on, keeping the session at
+  `<prefix>/<workspace_id>/<key_id>`. The legacy `apikey-` token keeps it on by default whenever `OPENBAO_ADDR` is
+  set, since its restart would otherwise wait for an approval.
 - `diagnos-api` reads the token like the SDK — from OpenBao in a deployment — and its `dev-certs` hint suggests
   `diagnos login`.
 - A `CredentialClockSkew` answer re-syncs the clock against `GET /time` and retries once, like

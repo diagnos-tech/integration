@@ -12,7 +12,7 @@ reimplement a byte of it, so whatever you install, the cryptography underneath i
 | `pip install "diagnos[cli]"` | the full `diagnos` command line |
 | `pip install "diagnos[api]"` | `diagnos-api`, the REST facade — or its signed image, `ghcr.io/diagnos-tech/diagnos-api` |
 
-Extras combine (`"diagnos[cli,api]"`), and two more sit on top: `openbao` (OpenBao auto-unseal for servers) and
+Extras combine (`"diagnos[cli,api]"`), and two more sit on top: `openbao` (the token in OpenBao, for servers) and
 `dev-certs` (`diagnos-api dev-certs`, certificates for a local run). Every layer's code ships in the one wheel; an
 extra only adds its dependencies.
 
@@ -43,7 +43,7 @@ A missing `uv` or Docker is never installed for you: `setup` prints its official
 
 ```sh
 uv add "diagnos[sdk]"            # in a uv project — or: pip install "diagnos[sdk]"
-uv add "diagnos[sdk,openbao]"    # adds hvac, for OpenBao auto-unseal on servers
+uv add "diagnos[sdk,openbao]"    # adds hvac, for the token in OpenBao on servers
 ```
 
 > [!NOTE]
@@ -70,7 +70,7 @@ print(diagnos.memory_status())  # what the memory enclave guarantees on this mac
 
 ```sh
 uv tool install "diagnos[cli]"            # or: pipx install "diagnos[cli]"
-uv tool install "diagnos[cli,openbao]"    # with OpenBao auto-unseal
+uv tool install "diagnos[cli,openbao]"    # with OpenBao, for the token on servers
 diagnos version
 ```
 

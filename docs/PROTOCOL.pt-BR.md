@@ -567,11 +567,18 @@ chaves de SSE-C só vão para onde o deploy escolheu.
 
 ## 11. Auto-unseal com OpenBao
 
-Opcional. Com `OPENBAO_ADDR` e `OPENBAO_TOKEN` definidas, o SDK salva o
-estado desbloqueado depois de abrir uma sessão e o restaura ao subir. Isso
-move deliberadamente as DEKs de grupo da RAM para o
-armazenamento cifrado do OpenBao: quem conseguir ler aquele path lê o
-workspace. Restrinja o token ao path.
+Opcional. Com o auto-unseal ligado, o SDK salva o estado desbloqueado
+depois de abrir uma sessão e o restaura ao subir. Isso move deliberadamente
+as DEKs de grupo da RAM para o armazenamento cifrado do OpenBao: quem
+conseguir ler aquele path lê o workspace, mesmo depois de o token ser
+revogado. Restrinja o token ao path.
+
+O SDK de referência o liga por padrão só para o token legado `apikey-`,
+quando `OPENBAO_ADDR` e `OPENBAO_TOKEN` estão definidas — senão o reinício
+dele esperaria uma aprovação. Com um token de conta de serviço ele vem
+desligado, porque um reinício custa uma requisição assinada (§5) e chaves de
+grupo salvas sobreviveriam a uma revogação; `auto_unseal=True` o liga
+explicitamente.
 
 KV v2 · `mount = OPENBAO_MOUNT (padrão "secret")`, path `OPENBAO_PATH_PREFIX (padrão "diagnos")/{workspace_id}/{key_id}`
 (`{account_id}` com o token legado); `enrollment_id` guarda o `session_id`

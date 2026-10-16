@@ -100,7 +100,7 @@ dela os bytes já estão cifrados ponta a ponta.
 | Escolha | O que muda |
 |---|---|
 | o token no `DIAGNOS_TOKEN` | o que consegue ler o ambiente do processo (`/proc/<pid>/environ`, `docker inspect`) consegue ler o token — serve para CI e containers efêmeros; prefira o chaveiro ou o OpenBao |
-| [auto-unseal com OpenBao](sessions.pt-BR.md#a-troca) | as chaves de grupo também moram no OpenBao: quem lê aquele path decifra o que o processo decifra |
+| [auto-unseal com OpenBao](sessions.pt-BR.md#a-troca) (ligado por padrão só para o token legado; `auto_unseal=True` com o token de conta de serviço) | as chaves de grupo também moram no OpenBao: quem lê aquele path decifra o que o processo decifra, mesmo depois de o token ser revogado |
 | `DIAGNOS_MEMORY_LOCK=best-effort` (o padrão) | se o SO recusa travar memória, chaves podem ir para o swap; você recebe um `MemoryLockWarning` — `require` se recusa a rodar |
 | `DIAGNOS_HARDEN_PROCESS=0` | core dumps e debuggers conseguem ler chaves do processo |
 | rodar a API REST | texto claro atravessa a sua rede entre quem chama e a API, dentro do TLS mútuo — veja abaixo |

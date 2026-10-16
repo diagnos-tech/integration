@@ -25,15 +25,17 @@ construído, antes de qualquer chamada ao cofre, nunca depois, no meio de uma re
 
 ## OpenBao
 
-O OpenBao faz dois trabalhos, os dois ligados exatamente quando `OPENBAO_ADDR` está definida, com o extra `openbao`
-(`pip install "diagnos[openbao]"`): é onde um servidor guarda o **token** (`<prefixo>/token`, guardado com
-`diagnos login --store openbao`, lido quando não há `DIAGNOS_TOKEN` e o chaveiro não tem nenhum), e onde a sessão é
-salva para o **auto-unseal** — [Sessões](sessions.pt-BR.md#auto-unseal-com-openbao) explica o que isso troca.
+O OpenBao faz dois trabalhos, com o extra `openbao` (`pip install "diagnos[openbao]"`). É onde um servidor guarda o
+**token** (`<prefixo>/token`, guardado com `diagnos login --store openbao`, lido quando `OPENBAO_ADDR` está definida,
+não há `DIAGNOS_TOKEN` e o chaveiro não tem nenhum). E é onde a sessão é salva para o **auto-unseal**: ligado por
+padrão só para o token legado `apikey-` com `OPENBAO_ADDR` definida, desligado para um token de conta de serviço a
+menos que `Diagnos(auto_unseal=True)` peça — [Sessões](sessions.pt-BR.md#auto-unseal-com-openbao) explica o que isso
+troca.
 
 | Variável | Padrão | O que faz |
 |---|---|---|
-| `OPENBAO_ADDR` | não definida | o servidor OpenBao; defini-la liga os dois |
-| `OPENBAO_TOKEN` | não definida | um token restrito aos paths deste deployment, e nada mais amplo: *leitura* do token, leitura e escrita da sessão salva (`apps/api/deploy/compose/openbao/policy.hcl`) |
+| `OPENBAO_ADDR` | não definida | o servidor OpenBao; defini-la deixa o SDK ler o token ali, e liga o auto-unseal para o token legado |
+| `OPENBAO_TOKEN` | não definida | um token restrito aos paths deste deployment, e nada mais amplo: *leitura* do token, leitura e escrita da sessão salva quando o auto-unseal está ligado (`apps/api/deploy/compose/openbao/policy.hcl`) |
 | `OPENBAO_TOKEN_FILE` | não definida | um arquivo com esse token, lido quando `OPENBAO_TOKEN` não está definida — como Kubernetes e Compose montam segredos |
 | `OPENBAO_MOUNT` | `secret` | o mount KV v2 |
 | `OPENBAO_PATH_PREFIX` | `diagnos` | o token mora em `<prefixo>/token`, a sessão salva em `<prefixo>/<workspace_id>/<key_id>` |

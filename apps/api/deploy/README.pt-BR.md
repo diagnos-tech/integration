@@ -65,8 +65,8 @@ docker compose up
 ```
 
 Um serviço `openbao-bootstrap` de execução única inicializa o OpenBao (ou retoma, em execuções seguintes), habilita
-o mount KV v2, escreve as políticas `diagnos-sdk` e `diagnos-token-writer`, e emite dois tokens: o que a API lê (a
-sessão salva dela, e leitura do token do diagnos) e o token de escrita que só o serviço `login` monta —
+o mount KV v2, escreve as políticas `diagnos-sdk` e `diagnos-token-writer`, e emite dois tokens: o que a API lê (leitura do token do diagnos, e
+a sessão salva dela quando o auto-unseal está ligado — nunca por padrão com o token de conta de serviço) e o token de escrita que só o serviço `login` monta —
 `diagnos-api` só sobe depois que isso termina com sucesso. [`deploy/compose/README.pt-BR.md`](compose/README.pt-BR.md) tem o passo a passo
 completo.
 
