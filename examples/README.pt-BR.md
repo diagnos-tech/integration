@@ -3,11 +3,11 @@
 [English](README.md) · **Português (Brasil)**
 
 Programas pequenos e completos para o SDK Python, um por pasta: um `main.py` que se lê em um minuto e roda como está.
-Usam o mesmo fluxo de credencial do código de produção — nada é falsificado, nada é pulado.
+Acham o token exatamente como o código de produção — nada é falsificado, nada é pulado.
 
 | Pasta | Mostra |
 |---|---|
-| [`01-quickstart`](01-quickstart/README.pt-BR.md) | credencial → enrollment → primeira chamada |
+| [`01-quickstart`](01-quickstart/README.pt-BR.md) | token → sessão → primeira chamada |
 | [`02-upload-file`](02-upload-file/README.pt-BR.md) | um arquivo no drive, listado e baixado de volta |
 | [`03-patients`](03-patients/README.pt-BR.md) | criar, listar e ler pacientes |
 | [`04-exams`](04-exams/README.pt-BR.md) | um exame com laudo e um arquivo anexado a ele |
@@ -21,16 +21,16 @@ links são feitos no app web) nem do visualizador público (uma rota de quem rec
 
 ```sh
 pip install "diagnos[sdk]"
-export DIAGNOS_CREDENTIAL='svc_<32 hex>@<workspace_id>.diagnos.health:<chave de 43 caracteres>'
+export DIAGNOS_TOKEN='dgn_sk1_…'   # ou, com a CLI: diagnos login
 ```
 
-- **A credencial** é a linha que um admin do workspace copia ao criar uma conta de serviço (Configurações → Contas
-  de serviço). `DIAGNOS_CREDENTIALS_FILE` (o JSON baixado) e `~/.config/diagnos/credentials.json` também servem. O
-  antigo `DIAGNOS_API_TOKEN` (`apikey-…`) ainda funciona até **2027-04-15**, com aviso de depreciação — veja
+- **O token** é a linha que um admin do workspace copia ao criar uma conta de serviço (Configurações → Contas de
+  serviço), com os security groups que ela pode ler. Todo exemplo o acha no `DIAGNOS_TOKEN` — ou no chaveiro do
+  sistema ou no OpenBao, onde o `diagnos login` o guarda — e em nenhum outro lugar; nenhum lê arquivo. O antigo
+  `DIAGNOS_API_TOKEN` (`apikey-…`) ainda funciona até **2027-04-15**, com aviso de depreciação — veja
   [Autenticação](../docs/guides/authentication.pt-BR.md).
-- **Quem aprova.** A primeira chamada imprime um link e um código de 6 dígitos no `stderr`; um admin abre o link no
-  app web, digita o código e escolhe os security groups que o processo pode ler. O programa continua sozinho.
-- **Um grupo.** Os exemplos usam o primeiro grupo concedido; defina `DIAGNOS_GROUP` para escolher outro.
+- **Ninguém para aprovar.** A sessão abre com uma requisição assinada; ninguém digita código.
+- **Um grupo.** Os exemplos usam o primeiro grupo do token; defina `DIAGNOS_GROUP` para escolher outro.
 
 Depois, na pasta de um exemplo:
 

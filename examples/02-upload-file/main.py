@@ -30,7 +30,7 @@ def main() -> int:
     try:
         with Diagnos() as vault:
             if not vault.security_groups:
-                print("no security group was granted to this enrollment", file=sys.stderr)
+                print("this token's scope has no security group", file=sys.stderr)
                 return 3
             group = os.environ.get("DIAGNOS_GROUP") or vault.security_groups[0]
             drive = vault.drives.drive(group)
