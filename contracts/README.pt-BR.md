@@ -20,7 +20,7 @@ arquivo é subproduto de testes que falham se o comportamento real do SDK discor
 
 - **Esta suíte prova**: que o SDK manda exatamente as requisições que `diagnos-sdk-diagnos-vault.json` descreve, e lê
   com sucesso exatamente as respostas que ele descreve. Todo teste em `contracts/tests` exercita código real do SDK
-  (`VaultTransport`, `enroll()`, `SessionManager.lock()`) contra o mock server do Pact, que reprova o teste se o SDK
+  (`VaultTransport`, `open_token_session()`, `enroll()`, `SessionManager.lock()`) contra o mock server do Pact, que reprova o teste se o SDK
   mandar uma requisição que nenhuma interação descreve, ou se uma interação nunca for exercitada.
 - **Esta suíte não prova**: que o cofre de fato se comporta assim. Essa metade — a "verificação do provider" — roda
   no próprio repositório (privado) do cofre, que vendoriza este arquivo de contrato e o reproduz contra um cofre de
@@ -76,22 +76,28 @@ Direto da docstring de módulo de `_wire.py`, porque são o ponto inteiro de um 
    quebrado. Ids, timestamps e ciphertext são matchers (regex/tipo) — um id diferente vindo do cofre de verdade não
    é um SDK quebrado.
 
-## Identidade: a credencial de conta de serviço, e o token legado
+## Identidade: o token de conta de serviço, e o token legado
 
-Toda interação se autentica do jeito que o SDK `0.2.0` faz: uma credencial Ed25519 de conta de serviço assinando
+Toda interação se autentica do jeito que o SDK `0.2.0` faz: um token de conta de serviço (`dgn_sk1_…`) assinando
 cada requisição com HTTP Message Signatures (RFC 9421) — `Signature-Input`, `Signature` e, com corpo,
-`Content-Digest` (RFC 9530) — e **sem header `Authorization`**. A credencial é derivada de rótulos fixos em
-`contracts/tests/_identity.py` (identidade `svc_<hex>@ws-contract.diagnos.health`; `_identity.public_key()` imprime
-a chave pública), nunca guardada. Os headers são travados pela forma: os componentes cobertos exatos daquela
-requisição (`"@method" "@path"`, mais `"@query"` com query string e `"content-digest"` com corpo), a ordem dos
-parâmetros `created`, `keyid`, `nonce`, `alg="ed25519"`, e o enquadramento base64. Como `created` e `nonce` são novos
-a cada requisição, a verificação do provider no cofre precisa **reassinar cada requisição repetida** com uma chave
-que ela semeou para o provider state (trocando `Signature-Input` e `Signature`, mantendo a lista de componentes),
-exatamente como já reassina o HMAC de sessão (`X-Signature-*`), que continua em toda rota de sessão.
+`Content-Digest` (RFC 9530) — e **sem header `Authorization`**. O token é montado de rótulos fixos em
+`contracts/tests/_identity.py` (key id `svc_<hex>`, workspace `ws-contract`), nunca guardado. Os headers são travados
+pela forma: os componentes cobertos exatos daquela requisição (`"@method" "@path"`, mais `"@query"` com query string
+e `"content-digest"` com corpo), a ordem dos parâmetros `created`, `keyid="svc_<32 hex>"`, `nonce`,
+`alg="ed25519+ml-dsa-65"`, e uma assinatura de 3373 bytes (Ed25519 ‖ ML-DSA-65) em base64 padrão. Como `created` e
+`nonce` são novos a cada requisição, a verificação do provider no cofre precisa **reassinar cada requisição repetida**
+com um token que ela criou para o provider state (trocando `Signature-Input` e `Signature`, mantendo a lista de
+componentes), exatamente como já reassina o HMAC de sessão (`X-Signature-*`), que continua em toda rota de sessão.
 
-Três interações mantêm travado o `Authorization: Bearer apikey-<jwt>` obsoleto até o cofre deixar de aceitá-lo
-(2027-04-15) — a descrição delas diz "on a legacy apikey- token". Uma interação trava uma falha de credencial:
-`401 CredentialKeyRevoked` no registro.
+A sessão em si é ciphertext de verdade: o `POST …/session` responde com a sessão e uma chave de grupo seladas para as
+próprias chaves X25519 + ML-KEM-768 do token do contrato, com os AADs da referência (`diagnos-sa-session-v1:…`,
+`diagnos-sa-group-kek-v1:…`), pelos oráculos independentes de `_crypto.py` — o SDK as abre no teste. Do lado do
+provider o state cria um token de verdade, então o cofre sela para ele; só as formas são travadas.
+
+Seis interações mantêm travado o `Authorization: Bearer apikey-<jwt>` obsoleto até o cofre deixar de aceitá-lo
+(2027-04-15): o enrollment legado (registro, os quatro resultados do poll) e o `session/lock` legado — a descrição
+delas diz "on a legacy apikey- token". Uma interação trava uma falha de credencial: `401 CredentialKeyRevoked` no
+`POST …/session`.
 
 ## Provider states e geradores de path
 
@@ -126,16 +132,16 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
 
 | Provider state | Parâmetros | O cofre precisa semear |
 |---|---|---|
-| `a service account can enroll an SDK session` | `workspace_id` | Um workspace e uma service account cuja chave Ed25519 ativa consegue registrar chaves públicas híbridas em `session/registry`. |
-| `the service account's key was revoked` | `workspace_id` | Uma service account cuja chave foi revogada — o registro responde `401 CredentialKeyRevoked`. |
+| `a service account token can open a session` | `workspace_id` | Um workspace e uma service account com um token `dgn_sk1_` ativo cujo escopo tem ao menos um security group, a chave do grupo selada para o token — o `POST …/session` responde `201` com a sessão e as chaves de grupo seladas. |
+| `the service account's key was revoked` | `workspace_id` | Um token de service account cuja chave foi revogada — o `POST …/session` responde `401 CredentialKeyRevoked`. |
 | `a legacy apikey- token can enroll an SDK session` | `workspace_id` | Uma service account com um token `apikey-` legado capaz de registrar em `session/registry`. |
 | `an enrollment opened with a legacy apikey- token is waiting for an admin` | `workspace_id`, `enrollment_id` | Um enrollment pendente desse token legado — `GET` nele devolve `"status": "pending"`. |
 | `an SDK session opened with a legacy apikey- token is active` | `workspace_id` | Uma sessão ativa desse token legado, para a qual o cofre aceita um `session/lock`. |
-| `an admin approved the enrollment for one security group` | `workspace_id`, `enrollment_id` | Um enrollment pendente que um admin aprovou, com a DEK de ao menos um security group selada para as chaves públicas que o SDK registrou. |
+| `an admin approved the enrollment for one security group` | `workspace_id`, `enrollment_id` | Um enrollment pendente do token legado que um admin aprovou, com a DEK de ao menos um security group selada para as chaves públicas que o SDK registrou. |
 | `an enrollment is waiting for an admin` | `workspace_id`, `enrollment_id` | Um enrollment que existe mas ainda não foi aprovado nem negado — `GET` nele devolve `"status": "pending"`. |
 | `an admin denied the enrollment` | `workspace_id`, `enrollment_id` | Um enrollment que um admin negou explicitamente — `GET` nele devolve `"status": "denied"`. |
 | `the vault no longer knows the enrollment` | `workspace_id`, `enrollment_id` | Nenhum enrollment naquele id (expirado e varrido, ou nunca existiu) — `GET` nele devolve `404`. |
-| `an SDK session is active` | `workspace_id` | Uma sessão ativa e assinada, para a qual o cofre aceitará uma requisição `session/lock`. |
+| `an SDK session is active` | `workspace_id` | Uma sessão ativa de um token de service account, para a qual o cofre aceitará uma requisição `workspaces/{workspace_id}/session/lock`. |
 | `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | Uma sessão ativa cuja service account pertence a `security_group_id` e pode criar pacientes, exames e arquivos nele, com orçamento de armazenamento. |
 | `a patient has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | Um paciente nesse grupo com `version_id` reservada no fluxo `data` e o objeto já enviado, para o commit encontrá-lo. |
 | `an exam has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | O mesmo para um exame (sem segmento de fluxo nas rotas); `meta.patient_id` definido. |
@@ -160,8 +166,8 @@ Todo nome de provider state no contrato atual, e o que o cofre precisa semear pa
    `match.int`/`match.each_like` para campos onde só a forma importa, um valor puro ou `literal(...)` (`_wire.py`)
    para o que o SDK decide com base nele.
 4. **Exercite código real do SDK** contra o mock server do `pact.serve()` — monte um transporte com
-   `make_transport()` (`conftest.py`) ou chame a função/método de nível mais alto sob teste (`enroll()`,
-   `SessionManager.lock()`, um novo método de recurso) — nunca HTTP escrito à mão via `httpx` direto contra o mock
+   `make_transport()` (`conftest.py`) ou chame a função/método de nível mais alto sob teste (`open_token_session()`,
+   `enroll()`, `SessionManager.lock()`, um novo método de recurso) — nunca HTTP escrito à mão via `httpx` direto contra o mock
    server.
 5. **Faça a asserção sobre o retorno do SDK**, não sobre o HTTP cru — o ponto é que o SDK interpretou corretamente
    o que o contrato diz que o cofre manda.
@@ -189,8 +195,9 @@ O arquivo é ordenado e normalizado, então um diff é significativo, não ruíd
 
 ## Escopo atual, e o que não está aqui
 
-O contrato cobre: o relógio do cofre (`GET /time`); enrollment (registro, e poll através de
-pending/approved/denied/forgotten); lock (`POST session/lock`); documentos versionados — criar paciente ou exame
+O contrato cobre: o relógio do cofre (`GET /time`); a sessão do token (abri-la, um token revogado, encerrá-la com
+`POST workspaces/{workspace_id}/session/lock`); o enrollment do token legado (registro, e poll através de
+pending/approved/denied/forgotten) e o lock dele (`POST session/lock`); documentos versionados — criar paciente ou exame
 (reservar, confirmar), abrir a versão corrente, preferir um rascunho mais novo, reservar a próxima versão sob a trava
 de conflito, arquivar sem versão nova, listar, e recuar diante de uma versão pendente; e arquivos — reservar um
 arquivo, confirmá-lo, ler um arquivo pronto (o nome selado, o corpo e a chave de SSE-C que o armazenamento exige),
