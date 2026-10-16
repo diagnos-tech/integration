@@ -1,14 +1,20 @@
 # 🇺🇸 One `docker compose up` for a full diagnos-api stack: OpenBao (raft,
 # one node), a one-shot bootstrap that initialises/unseals it and hands the
-# API a scoped token, and the API itself. Meant for local development and
-# staging, not as a template for a production OpenBao cluster — see
-# `../k8s/openbao` for that. Copy `.env.example` to `.env` and `certs/` per
-# `README.md` before running this.
+# API a scoped token, and the API itself. The diagnos service account token
+# lives in OpenBao, never in `.env`: store it once, before the first `up`,
+# with `docker compose --profile login run --rm login` (hidden input; the
+# API reads it at startup). Meant for local development and staging, not as a
+# template for a production OpenBao cluster — see `../k8s/openbao` for that.
+# Copy `.env.example` to `.env` and `certs/` per `README.md` before running
+# this.
 # 🇧🇷 Um único `docker compose up` para uma stack completa do diagnos-api:
 # OpenBao (raft, um nó), um bootstrap de execução única que inicializa/
-# dessela e entrega um token restrito para a API, e a própria API. Feito
-# para desenvolvimento local e staging, não como modelo de cluster OpenBao
-# de produção — veja `../k8s/openbao` para isso. Copie `.env.example` para
+# dessela e entrega um token restrito para a API, e a própria API. O token
+# da conta de serviço do diagnos mora no OpenBao, nunca no `.env`: guarde-o
+# uma vez, antes do primeiro `up`, com `docker compose --profile login run
+# --rm login` (entrada oculta; a API o lê na subida). Feito para
+# desenvolvimento local e staging, não como modelo de cluster OpenBao de
+# produção — veja `../k8s/openbao` para isso. Copie `.env.example` para
 # `.env` e `certs/` conforme `README.md` antes de rodar isto.
 
 services:
@@ -127,7 +133,11 @@ services:
     volumes:
       - ./openbao/bootstrap.sh:/bootstrap/bootstrap.sh:ro
       - ./openbao/policy.hcl:/bootstrap/policy.hcl:ro
+      - ./openbao/token-writer-policy.hcl:/bootstrap/token-writer-policy.hcl:ro
       - openbao-state:/state
+      # 🇺🇸 Where the writer token goes — a volume the `api` service never mounts.
+      # 🇧🇷 Onde vai o token de escrita — um volume que o serviço `api` nunca monta.
+      - openbao-admin:/admin
     security_opt: [no-new-privileges:true]
     # 🇺🇸 Runs once and exits 0; `api`'s `depends_on: condition:
     # service_completed_successfully` is what actually gates startup, so
@@ -185,6 +195,43 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # 🇺🇸 Stores (or rotates) the diagnos token in OpenBao, once: `docker compose --profile login run --rm login`.
+  # The full command line image runs `diagnos login --store openbao` — hidden input, CRC check, `whoami`
+  # against the vault, then a write to `secret/diagnos/token` with the writer token. The API only ever
+  # *reads* that path; a compromised API cannot swap the token for another account's.
+  # 🇧🇷 Guarda (ou gira) o token do diagnos no OpenBao, uma vez: `docker compose --profile login run --rm login`.
+  # A imagem da linha de comando roda `diagnos login --store openbao` — entrada oculta, CRC, `whoami`
+  # contra o cofre, depois uma escrita em `secret/diagnos/token` com o token de escrita. A API só *lê*
+  # esse caminho; uma API comprometida não consegue trocar o token pelo de outra conta.
+  login:
+    profiles: [login]
+    build:
+      context: ../../../..
+      dockerfile: Dockerfile
+      target: cli
+    command: ["login", "--store", "openbao"]
+    stdin_open: true
+    tty: true
+    # 🇺🇸 The token's keys live in this process's memory too: same locking as `api`.
+    # 🇧🇷 As chaves do token também vivem na memória deste processo: o mesmo travamento do `api`.
+    cap_add: [IPC_LOCK]
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: [no-new-privileges:true]
+    env_file: .env
+    environment:
+      - OPENBAO_ADDR=http://openbao:8200
+      - OPENBAO_TOKEN_FILE=/admin/openbao-token-writer
+    volumes:
+      - openbao-admin:/admin:ro
+    depends_on:
+      openbao-bootstrap:
+        condition: service_completed_successfully
+
 volumes:
   # 🇺🇸 Raft's data — deleting this (`docker compose down -v`) destroys the
   # workspace's saved sessions beyond recovery unless the recovery/unseal
@@ -201,3 +248,6 @@ volumes:
   # unseal (só-staging, veja `openbao/bootstrap.sh`) e o token restrito que
   # `api` lê. Mesmo aviso de durabilidade de `openbao-data`.
   openbao-state:
+  # 🇺🇸 Only `openbao-bootstrap` and `login` mount it: the token that may write the diagnos token.
+  # 🇧🇷 Só `openbao-bootstrap` e `login` o montam: o token que pode gravar o token do diagnos.
+  openbao-admin:

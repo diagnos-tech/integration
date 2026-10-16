@@ -1,7 +1,11 @@
 #!/bin/sh
 # 🇺🇸 One-shot bootstrap for the Compose OpenBao: initialise (or resume),
-# unseal when the seal is Shamir, enable KV v2, and issue the scoped token
-# `diagnos-api` reads via `OPENBAO_TOKEN_FILE`. Runs once per `docker
+# unseal when the seal is Shamir, enable KV v2, and issue two scoped tokens:
+# the one `diagnos-api` reads via `OPENBAO_TOKEN_FILE` (policy `diagnos-sdk`:
+# its saved session, and *read* on the diagnos token), and the writer token
+# `diagnos login --store openbao` uses to store that token (policy
+# `diagnos-token-writer`, in the `openbao-admin` volume the API never
+# mounts). The diagnos token itself never passes through here. Runs once per `docker
 # compose up` as the `openbao-bootstrap` service, using only POSIX `sh` and
 # the binaries already in the `openbao/openbao` image (no `jq` — see the
 # `_json_field`/`_json_array` helpers below) because that image is all this
@@ -16,8 +20,13 @@
 # the recovery keys off any machine that also holds the encrypted data.
 #
 # 🇧🇷 Bootstrap de execução única para o OpenBao do Compose: inicializa (ou
-# retoma), dessela quando o seal é Shamir, habilita o KV v2 e emite o token
-# restrito que o `diagnos-api` lê via `OPENBAO_TOKEN_FILE`. Roda uma vez por
+# retoma), dessela quando o seal é Shamir, habilita o KV v2 e emite dois
+# tokens restritos: o que o `diagnos-api` lê via `OPENBAO_TOKEN_FILE`
+# (política `diagnos-sdk`: a sessão salva dele, e *leitura* do token do
+# diagnos), e o token de escrita que o `diagnos login --store openbao` usa
+# para guardar esse token (política `diagnos-token-writer`, no volume
+# `openbao-admin` que a API nunca monta). O token do diagnos em si nunca
+# passa por aqui. Roda uma vez por
 # `docker compose up` como o serviço `openbao-bootstrap`, usando só `sh`
 # POSIX e os binários que já estão na imagem `openbao/openbao` (sem `jq` —
 # veja os helpers `_json_field`/`_json_array` abaixo) porque é só isso que
@@ -41,6 +50,23 @@ TOKEN_FILE="$STATE_DIR/openbao-token"
 POLICY_NAME="diagnos-sdk"
 POLICY_SRC="/bootstrap/policy.hcl"
 POLICY_RENDERED="/tmp/diagnos-sdk-policy.hcl"
+# 🇺🇸 `/admin` in Compose (the `openbao-admin` volume, never mounted by `api`);
+# Kubernetes passes `OPENBAO_ADMIN_DIR=/state/admin`, since that pod has no
+# `/admin` (`../../k8s/openbao/bootstrap-configmap.yaml`).
+# 🇧🇷 `/admin` no Compose (o volume `openbao-admin`, que o `api` nunca monta);
+# o Kubernetes passa `OPENBAO_ADMIN_DIR=/state/admin`, já que aquele pod não
+# tem `/admin` (`../../k8s/openbao/bootstrap-configmap.yaml`).
+WRITER_DIR="${OPENBAO_ADMIN_DIR:-/admin}"
+WRITER_TOKEN_FILE="$WRITER_DIR/openbao-token-writer"
+WRITER_POLICY_NAME="diagnos-token-writer"
+WRITER_POLICY_SRC="/bootstrap/token-writer-policy.hcl"
+# 🇺🇸 Where `diagnos login --store openbao` keeps the diagnos token (the SDK's
+# `token_store/openbao.py`: `<OPENBAO_PATH_PREFIX>/token` under the `secret`
+# mount) — the literal path both policies name.
+# 🇧🇷 Onde o `diagnos login --store openbao` guarda o token do diagnos (o
+# `token_store/openbao.py` do SDK: `<OPENBAO_PATH_PREFIX>/token` sob o mount
+# `secret`) — o caminho literal que as duas políticas citam.
+DIAGNOS_TOKEN_PATH="diagnos/token"
 
 log() {
   # 🇺🇸 Every line bilingual, like every other file here — this is the one
@@ -64,10 +90,16 @@ _json_field() {
   grep -o "\"${field}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$file" | head -n1 | sed -E 's/.*:[[:space:]]*"([^"]*)"$/\1/'
 }
 
+# 🇺🇸 `-E`: `(true|false)` is an alternation only in extended regex; as a
+# basic regex it matched nothing, so `is_initialized` was always false and a
+# second `docker compose up` re-ran `bao operator init` and failed.
+# 🇧🇷 `-E`: `(true|false)` só é alternativa em regex estendida; como regex
+# básica não casava nada, então `is_initialized` era sempre falso e um
+# segundo `docker compose up` rodava `bao operator init` de novo e falhava.
 _json_bool() {
   field="$1"
   file="$2"
-  grep -o "\"${field}\"[[:space:]]*:[[:space:]]*(true|false)" "$file" | head -n1 | sed -E 's/.*:[[:space:]]*//'
+  grep -oE "\"${field}\"[[:space:]]*:[[:space:]]*(true|false)" "$file" | head -n1 | sed -E 's/.*:[[:space:]]*//'
 }
 
 # 🇺🇸 Pulls every string out of a `"field": [ "a", "b", ... ]` array,
@@ -162,18 +194,36 @@ write_policy() {
   : "${DIAGNOS_ACCOUNT_ID:?DIAGNOS_ACCOUNT_ID must be set in .env — same \`diagnos status\` output. / precisa estar no .env — mesma saída de \`diagnos status\`.}"
   sed -e "s/__WORKSPACE_ID__/${DIAGNOS_WORKSPACE_ID}/g" -e "s/__ACCOUNT_ID__/${DIAGNOS_ACCOUNT_ID}/g" "$POLICY_SRC" >"$POLICY_RENDERED"
   bao policy write "$POLICY_NAME" "$POLICY_RENDERED" >/dev/null
+  bao policy write "$WRITER_POLICY_NAME" "$WRITER_POLICY_SRC" >/dev/null
+  # 🇺🇸 One version only: rotating the token (`diagnos login` again) must not
+  # leave the old one readable in the KV history. Idempotent; works before
+  # the secret exists.
+  # 🇧🇷 Uma versão só: girar o token (`diagnos login` de novo) não pode deixar
+  # o antigo legível no histórico do KV. Idempotente; funciona antes do
+  # segredo existir.
+  bao kv metadata put -mount=secret -max-versions=1 "$DIAGNOS_TOKEN_PATH" >/dev/null
 }
 
+# 🇺🇸 `issue_token <policy> <display name> <file>`: an orphan token with only
+# that policy, written `0600` to `<file>` and handed to the uid the
+# `diagnos` images run as.
+# 🇧🇷 `issue_token <política> <nome> <arquivo>`: um token órfão só com essa
+# política, escrito `0600` em `<arquivo>` e entregue ao uid com que as
+# imagens do `diagnos` rodam.
 issue_token() {
-  bao token create -orphan -policy="$POLICY_NAME" -display-name=diagnos-api -renewable=true -format=json >/tmp/token.json
+  policy="$1"
+  display_name="$2"
+  file="$3"
+  bao token create -orphan -policy="$policy" -display-name="$display_name" -renewable=true -format=json >/tmp/token.json
   client_token="$(_json_field client_token /tmp/token.json)"
+  rm -f /tmp/token.json
   if [ -z "$client_token" ]; then
     log "🇺🇸 could not parse client_token from bao token create output · 🇧🇷 não consegui extrair client_token da saída de bao token create"
-    cat /tmp/token.json
     exit 1
   fi
-  printf '%s' "$client_token" >"$TOKEN_FILE"
-  chmod 600 "$TOKEN_FILE"
+  mkdir -p "$(dirname "$file")"
+  printf '%s' "$client_token" >"$file"
+  chmod 600 "$file"
   # 🇺🇸 The API container reads this file as uid 10001 (the root `Dockerfile`);
   # in Compose this script runs as root and hands the file over. Under
   # Kubernetes it runs as the `openbao` user via `kubectl exec`, the chown
@@ -185,13 +235,15 @@ issue_token() {
   # Kubernetes ele roda como o usuário `openbao` via `kubectl exec`, o chown
   # não é permitido, e o operador copia o token para um Secret
   # (`../../k8s/openbao/bootstrap-configmap.yaml`) — daí a falha suave.
-  chown "${DIAGNOS_API_UID:-10001}" "$TOKEN_FILE" 2>/dev/null \
-    || log "🇺🇸 could not chown $TOKEN_FILE to uid ${DIAGNOS_API_UID:-10001} (expected under Kubernetes) · 🇧🇷 não consegui fazer chown de $TOKEN_FILE para o uid ${DIAGNOS_API_UID:-10001} (esperado no Kubernetes)"
+  chown "${DIAGNOS_API_UID:-10001}" "$file" 2>/dev/null \
+    || log "🇺🇸 could not chown $file to uid ${DIAGNOS_API_UID:-10001} (expected under Kubernetes) · 🇧🇷 não consegui fazer chown de $file para o uid ${DIAGNOS_API_UID:-10001} (esperado no Kubernetes)"
 }
 
+# 🇺🇸 `token_is_valid <file>`: the file exists and its token still resolves.
+# 🇧🇷 `token_is_valid <arquivo>`: o arquivo existe e o token dele ainda resolve.
 token_is_valid() {
-  [ -f "$TOKEN_FILE" ] || return 1
-  BAO_TOKEN="$(cat "$TOKEN_FILE")" bao token lookup >/dev/null 2>&1
+  [ -f "$1" ] || return 1
+  BAO_TOKEN="$(cat "$1")" bao token lookup >/dev/null 2>&1
 }
 
 main() {
@@ -221,13 +273,25 @@ main() {
     unseal_with_saved_keys
   fi
 
-  if token_is_valid; then
-    log "🇺🇸 existing $TOKEN_FILE still resolves via \`bao token lookup\` — keeping it, no root privileges needed. · 🇧🇷 $TOKEN_FILE existente ainda resolve via \`bao token lookup\` — mantendo, sem precisar de privilégio de root."
+  api_ok=false
+  writer_ok=false
+  token_is_valid "$TOKEN_FILE" && api_ok=true
+  token_is_valid "$WRITER_TOKEN_FILE" && writer_ok=true
+  if [ "$api_ok" = true ] && [ "$writer_ok" = true ]; then
+    log "🇺🇸 existing $TOKEN_FILE and $WRITER_TOKEN_FILE still resolve via \`bao token lookup\` — keeping them, no root privileges needed. · 🇧🇷 $TOKEN_FILE e $WRITER_TOKEN_FILE existentes ainda resolvem via \`bao token lookup\` — mantendo, sem precisar de privilégio de root."
     exit 0
   fi
 
   if [ -z "$root_token" ] && [ -f "$INIT_FILE" ]; then
     root_token="$(_json_field root_token "$INIT_FILE")"
+  fi
+  if [ -z "$root_token" ] && [ "$api_ok" = true ]; then
+    # 🇺🇸 The API can still start; only storing or rotating the diagnos
+    # token waits for a privileged run. Never block the stack on that.
+    # 🇧🇷 A API ainda sobe; só guardar ou girar o token do diagnos espera
+    # uma execução privilegiada. Nunca trava a stack por isso.
+    log "🇺🇸 no usable writer token at $WRITER_TOKEN_FILE and no root token: \`diagnos login --store openbao\` cannot store the diagnos token until BAO_ROOT_TOKEN_OVERRIDE is set for one run (this also writes the current policies — needed once after upgrading to the service account token). The API keeps its token. · 🇧🇷 nenhum token de escrita utilizável em $WRITER_TOKEN_FILE e nenhum root token: o \`diagnos login --store openbao\` não consegue guardar o token do diagnos até BAO_ROOT_TOKEN_OVERRIDE ser definido por uma execução (isso também grava as políticas atuais — necessário uma vez depois de atualizar para o token de conta de serviço). A API mantém o token dela."
+    exit 0
   fi
   if [ -z "$root_token" ]; then
     log "🇺🇸 no usable token at $TOKEN_FILE and no root token available (no fresh init this run, $INIT_FILE absent or already cleaned up). Set BAO_ROOT_TOKEN_OVERRIDE in .env to a privileged token for one run to reissue it. TODO(gustavo): a real recovery flow (recovery-key-based root generation) is out of scope for a staging bootstrap script."
@@ -239,8 +303,14 @@ main() {
   export BAO_TOKEN
   ensure_kv_v2
   write_policy
-  issue_token
-  log "🇺🇸 wrote scoped token to $TOKEN_FILE (policy: $POLICY_NAME) · 🇧🇷 token restrito escrito em $TOKEN_FILE (política: $POLICY_NAME)"
+  if [ "$api_ok" = false ]; then
+    issue_token "$POLICY_NAME" diagnos-api "$TOKEN_FILE"
+    log "🇺🇸 wrote scoped token to $TOKEN_FILE (policy: $POLICY_NAME) · 🇧🇷 token restrito escrito em $TOKEN_FILE (política: $POLICY_NAME)"
+  fi
+  if [ "$writer_ok" = false ]; then
+    issue_token "$WRITER_POLICY_NAME" diagnos-token-writer "$WRITER_TOKEN_FILE"
+    log "🇺🇸 wrote writer token to $WRITER_TOKEN_FILE (policy: $WRITER_POLICY_NAME) — store the diagnos token with \`docker compose --profile login run --rm login\` · 🇧🇷 token de escrita escrito em $WRITER_TOKEN_FILE (política: $WRITER_POLICY_NAME) — guarde o token do diagnos com \`docker compose --profile login run --rm login\`"
+  fi
 }
 
 main "$@"

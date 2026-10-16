@@ -42,3 +42,21 @@ path "secret/data/diagnos/__WORKSPACE_ID__/__ACCOUNT_ID__" {
 path "secret/metadata/diagnos/__WORKSPACE_ID__/__ACCOUNT_ID__" {
   capabilities = ["create", "update", "read", "delete"]
 }
+
+# 🇺🇸 The diagnos service account token itself, which `diagnos login --store
+# openbao` (the `login` service, with the writer token of
+# `token-writer-policy.hcl`) stored: the API reads it at startup
+# (`diagnos.Settings.from_env`, OpenBao after `DIAGNOS_TOKEN`). `read` only —
+# no `create`/`update`/`delete`, so a compromised API cannot replace the
+# token with another account's or erase it. A literal path, no
+# placeholders: whoever reads it does not have the token yet.
+# 🇧🇷 O token da conta de serviço do diagnos em si, que o `diagnos login
+# --store openbao` (o serviço `login`, com o token de escrita de
+# `token-writer-policy.hcl`) guardou: a API o lê na subida
+# (`diagnos.Settings.from_env`, o OpenBao depois do `DIAGNOS_TOKEN`). Só
+# `read` — sem `create`/`update`/`delete`, então uma API comprometida não
+# consegue trocar o token pelo de outra conta nem apagá-lo. Caminho literal,
+# sem marcadores: quem o lê ainda não tem o token.
+path "secret/data/diagnos/token" {
+  capabilities = ["read"]
+}
