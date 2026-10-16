@@ -169,3 +169,15 @@ def test_status_shows_the_session_agent(
     assert label in result.output
     as_json = json.loads(runner.invoke(typer_app, ["--json", "status"]).output)
     assert as_json["agent"] == (None if found is None else {key: v for key, v in found.items() if key != "type"})
+
+
+def test_status_names_the_account_of_a_legacy_token(
+    runner: CliRunner, patched_build_client: FakeDiagnos, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """🇺🇸 Only the legacy `apikey-` token has an account id, and the text output marks it as legacy.
+
+    🇧🇷 Só o token legado `apikey-` tem id de conta, e a saída de texto o marca como legado.
+    """
+    monkeypatch.setattr(FakeDiagnos, "account_id", property(lambda self: "acct_1"))
+    result = runner.invoke(typer_app, ["status"])
+    assert "account_id:   acct_1 (legacy apikey- · legado)" in result.output

@@ -24,15 +24,16 @@ from diagnos.cli.agent.paths import AgentUnavailable, identity, socket_path
 from .agent_harness import RunningAgent, running_agent, socket_directory
 from .conftest import FakeDiagnos
 
-TOKEN = "tok_test"  # noqa: S105 — a fake token that only names a test socket
+TOKEN = "apikey-test"  # noqa: S105 — a fake legacy token that only names a test socket
+OTHER = "apikey-someone-else"  # noqa: S105 — another fake legacy token
 VAULT = "https://vault.example"
 
 
 @pytest.fixture
 def env() -> Iterator[dict[str, str]]:
-    """🇺🇸 An agent-enabled environment with a token, sockets under a short private directory.
+    """🇺🇸 An agent-enabled environment with a legacy token, sockets under a short private directory.
 
-    🇧🇷 Um ambiente com o agente ligado e um token, sockets num diretório curto e privado.
+    🇧🇷 Um ambiente com o agente ligado e um token legado, sockets num diretório curto e privado.
     """
     with socket_directory() as directory:
         yield {"XDG_RUNTIME_DIR": str(directory), "DIAGNOS_API_TOKEN": TOKEN, "DIAGNOS_VAULT_URL": VAULT}
@@ -57,13 +58,13 @@ def _agent_for(env: dict[str, str], stack: ExitStack, token: str | None = None) 
 
 @pytest.mark.parametrize(
     "argv",
-    [["--help"], ["groups", "--help"], ["--version"], [], ["--json"], ["no-such-command"], ["status"]],
-    ids=["help", "sub-help", "version", "bare", "only-flags", "unknown", "plain-status"],
+    [["--help"], ["groups", "--help"], ["--version"], [], ["--json"], ["no-such-command"], ["status"], ["login"]],
+    ids=["help", "sub-help", "version", "bare", "only-flags", "unknown", "plain-status", "login"],
 )
 def test_runs_here_when_the_session_is_not_needed(env: dict[str, str], argv: list[str]) -> None:
-    """🇺🇸 Help, version, a plain `status` and anything unknown never reach an agent.
+    """🇺🇸 Help, version, a plain `status`, `login` (it only stores a token) and anything unknown stay here.
 
-    🇧🇷 Ajuda, versão, um `status` simples e qualquer coisa desconhecida nunca chegam a um agente.
+    🇧🇷 Ajuda, versão, um `status` simples, o `login` (só guarda um token) e qualquer coisa desconhecida ficam aqui.
     """
     with ExitStack() as stack:
         agent = _agent_for(env, stack)
@@ -71,26 +72,35 @@ def test_runs_here_when_the_session_is_not_needed(env: dict[str, str], argv: lis
         assert agent.clients_made == []
 
 
-def test_runs_here_when_switched_off_or_without_a_token(env: dict[str, str]) -> None:
-    """🇺🇸 `DIAGNOS_AGENT=off`, or no token at all, keeps the command in this process.
+def test_runs_here_when_switched_off_without_a_token_or_with_a_service_account_token(env: dict[str, str]) -> None:
+    """🇺🇸 `DIAGNOS_AGENT=off`, no legacy token, or a `dgn_sk1_` token in play keeps the command in this process.
 
-    🇧🇷 `DIAGNOS_AGENT=off`, ou nenhum token, mantém o comando neste processo.
+    A service account token opens its own session per command, and
+    `DIAGNOS_TOKEN` wins over the legacy variable, so the agent is never used.
+
+    🇧🇷 `DIAGNOS_AGENT=off`, sem token legado, ou um token `dgn_sk1_` valendo mantém o comando neste processo.
+
+    Um token de conta de serviço abre a própria sessão a cada comando, e o
+    `DIAGNOS_TOKEN` vence a variável legada, então o agente nunca é usado.
     """
     with ExitStack() as stack:
         _agent_for(env, stack)
         assert _call(["groups"], {**env, "DIAGNOS_AGENT": "off"})[0] is None
         no_token = {key: value for key, value in env.items() if key != "DIAGNOS_API_TOKEN"}
         assert _call(["groups"], no_token)[0] is None
+        assert _call(["groups"], {**env, "DIAGNOS_TOKEN": "dgn_sk1_x"})[0] is None
+        assert _call(["--token", "dgn_sk1_x", "groups"], env)[0] is None
 
 
 def test_runs_here_when_no_agent_is_running(env: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 Without an agent, only `login` starts one — any other command just runs here.
+    """🇺🇸 Without an agent, only `session start` starts one — any other command just runs here.
 
-    🇧🇷 Sem agente, só o `login` sobe um — qualquer outro comando só roda aqui.
+    🇧🇷 Sem agente, só o `session start` sobe um — qualquer outro comando só roda aqui.
     """
     monkeypatch.setattr(dispatch_module, "start", lambda *a, **k: pytest.fail("started · subiu"))
     assert _call(["groups"], env)[0] is None
     assert _call(["status", "--check"], env)[0] is None
+    assert _call(["session", "lock"], env)[0] is None
 
 
 def test_a_running_agent_runs_session_commands(env: dict[str, str]) -> None:
@@ -112,20 +122,22 @@ def test_another_token_reaches_another_agent(env: dict[str, str]) -> None:
     """
     with ExitStack() as stack:
         _agent_for(env, stack)
-        assert _call(["--token", "someone-else", "groups"], env)[0] is None
-        assert _call(["--token=someone-else", "groups"], env)[0] is None
+        assert _call(["--token", OTHER, "groups"], env)[0] is None
+        assert _call([f"--token={OTHER}", "groups"], env)[0] is None
     # 🇺🇸 One in-process agent at a time: the hosting seam is process-wide, as it is in a real agent.
     # 🇧🇷 Um agente no processo por vez: a costura de hospedagem é do processo inteiro, como num agente real.
     with ExitStack() as stack:
-        _agent_for(env, stack, token="someone-else")  # noqa: S106 — a fake token
-        assert _call(["--token=someone-else", "groups"], env)[0] == 0
+        _agent_for(env, stack, token=OTHER)
+        assert _call([f"--token={OTHER}", "groups"], env)[0] == 0
         assert _call(["groups"], env)[0] is None
 
 
-def test_login_starts_an_agent_with_the_resolved_identity(env: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 `login` starts the agent for exactly the vault and token it resolved, then runs inside it.
+def test_session_start_starts_an_agent_with_the_resolved_identity(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """🇺🇸 `session start` starts the agent for exactly the vault and token it resolved, then runs inside it.
 
-    🇧🇷 O `login` sobe o agente para exatamente o cofre e o token que resolveu, depois roda dentro dele.
+    🇧🇷 O `session start` sobe o agente para exatamente o cofre e o token que resolveu, depois roda dentro dele.
     """
     started: list[dict[str, Any]] = []
     with ExitStack() as stack:
@@ -136,7 +148,7 @@ def test_login_starts_an_agent_with_the_resolved_identity(env: dict[str, str], m
 
         monkeypatch.setattr(dispatch_module, "start", fake_start)
         code, out, _err = _call(
-            ["--vault-url", "https://other.example", "login"], {**env, "DIAGNOS_AGENT_IDLE_MINUTES": "5"}
+            ["--vault-url", "https://other.example", "session", "start"], {**env, "DIAGNOS_AGENT_IDLE_MINUTES": "5"}
         )
     assert code == 0
     assert "Kept in memory by the diagnos agent" in out
@@ -145,25 +157,27 @@ def test_login_starts_an_agent_with_the_resolved_identity(env: dict[str, str], m
     assert started[0]["idle"] == 300
 
 
-def test_login_says_why_it_could_not_start_and_runs_here(env: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
-    """🇺🇸 An agent that cannot start is not fatal: `login` explains and runs in-process.
+def test_session_start_says_why_it_could_not_start_and_runs_here(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """🇺🇸 An agent that cannot start is not fatal: `session start` explains and runs in-process.
 
-    🇧🇷 Um agente que não sobe não é fatal: o `login` explica e roda no próprio processo.
+    🇧🇷 Um agente que não sobe não é fatal: o `session start` explica e roda no próprio processo.
     """
 
     def fail(*args: object, **kwargs: object) -> None:
         raise AgentUnavailable("no agent today")
 
     monkeypatch.setattr(dispatch_module, "start", fail)
-    code, _out, err = _call(["login"], env)
+    code, _out, err = _call(["session", "start"], env)
     assert code is None
     assert "no agent today" in err
 
 
 def test_an_unsafe_runtime_directory_quietly_runs_here(env: dict[str, str]) -> None:
-    """🇺🇸 A socket directory others can enter is never used; commands other than `login` say nothing.
+    """🇺🇸 A socket directory others can enter is never used; commands other than `session start` say nothing.
 
-    🇧🇷 Um diretório de socket em que outros entram nunca é usado; comandos além do `login` não dizem nada.
+    🇧🇷 Um diretório de socket em que outros entram nunca é usado; comandos além do `session start` não dizem nada.
     """
     loose = Path(env["XDG_RUNTIME_DIR"]) / f"diagnos-{os.getuid()}"
     loose.mkdir(mode=0o755)
@@ -183,7 +197,7 @@ def test_agent_status(env: dict[str, str]) -> None:
         found = agent_status(env, None, None)
         assert found is not None and found["type"] == "pong"
         assert agent_status({**env, "DIAGNOS_AGENT": "off"}, None, None) is None
-        assert agent_status(env, "someone-else", None) is None
+        assert agent_status(env, OTHER, None) is None
     assert agent_status({"XDG_RUNTIME_DIR": env["XDG_RUNTIME_DIR"]}, None, None) is None
 
 

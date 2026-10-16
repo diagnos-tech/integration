@@ -1,73 +1,96 @@
-"""🇺🇸 `diagnos login` — runs enrollment on purpose, to validate a token and show what it was granted.
+"""🇺🇸 `diagnos login` — paste the token once; it is checked, proven against the vault, and kept somewhere safe.
 
-`unlock()` is idempotent and lazy (`apps/sdk/README.md`): every other command
-would enroll on its own the moment it touched `vault.patients`/`exams`/
-`drives`. This command exists for the case where a human wants to *see* the
-approval happen — workspace, service account and granted groups — and to
-keep that session: `diagnos login` starts the session agent
-(`diagnos.cli/agent`) and runs inside it, so the commands that follow reuse
-the session until `diagnos logout`.
+The token is read with hidden input (pasting works), its CRC is checked
+before any network call — a token cut short says so — then `whoami` proves
+it: a session only opens when the vault verifies both the Ed25519 and the
+ML-DSA-65 signature. Only then is it stored: in the system keyring when
+there is one that encrypts at rest, else in OpenBao when `OPENBAO_ADDR` is
+set, else nowhere, with the reason (`diagnos.save_token`). Never in a text
+file. `DIAGNOS_TOKEN` still wins over what is stored, for CI and
+containers.
 
-🇧🇷 `diagnos login` — faz enrollment de propósito, para validar um token e
-mostrar o que foi concedido.
+🇧🇷 `diagnos login` — cole o token uma vez; ele é conferido, provado contra o cofre e guardado num lugar seguro.
 
-`unlock()` é idempotente e preguiçoso (`apps/sdk/README.md`): todo outro comando
-já faria enrollment sozinho no primeiro toque em
-`vault.patients`/`exams`/`drives`. Este comando existe para o caso em que
-uma pessoa quer *ver* a aprovação acontecer — workspace, service account e
-grupos concedidos — e guardar essa sessão: o `diagnos login` sobe o agente
-de sessão (`diagnos.cli/agent`) e roda dentro dele, então os comandos
-seguintes reaproveitam a sessão até o `diagnos logout`.
+O token é lido com entrada oculta (colar funciona), o CRC é conferido antes
+de qualquer rede — um token cortado diz isso — e então o `whoami` o prova:
+uma sessão só abre quando o cofre verifica as assinaturas Ed25519 e
+ML-DSA-65. Só então ele é guardado: no chaveiro do sistema quando há um que
+cifra em repouso, senão no OpenBao quando `OPENBAO_ADDR` está definida,
+senão em lugar nenhum, com o motivo (`diagnos.save_token`). Nunca em arquivo
+de texto. O `DIAGNOS_TOKEN` ainda vence o que está guardado, para CI e
+containers.
 """
 
 from __future__ import annotations
 
+import contextlib
+import dataclasses
+import os
+from typing import Literal
+
 import typer
 
+from diagnos import DiagnosToken, Settings, save_token
 from diagnos.cli import context
 from diagnos.cli.context import CliOptions
 from diagnos.cli.render import get_console, get_err_console, print_json
 
+StoreOption = Literal["auto", "keyring", "openbao"]
+
+
+def _read_token() -> str:
+    """🇺🇸 Hidden input on the terminal; a pipe works too (`… | diagnos login`).
+
+    🇧🇷 Entrada oculta no terminal; um pipe também serve (`… | diagnos login`).
+    """
+    text: str = typer.prompt("Token (dgn_sk1_…)", hide_input=True, err=True)
+    return text
+
 
 def login(
     ctx: typer.Context,
-    auto_unseal: bool | None = typer.Option(
-        None,
-        "--auto-unseal/--no-auto-unseal",
+    store: StoreOption = typer.Option(
+        "auto",
+        "--store",
         help=(
-            "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set) · "
-            "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
+            "Where to keep the token: the system keyring, else OpenBao (auto) · Onde guardar o token: o chaveiro "
+            "do sistema, senão o OpenBao (auto)"
         ),
     ),
 ) -> None:
-    """🇺🇸 Enrolls (or restores from OpenBao), then prints workspace, account and granted groups.
+    """🇺🇸 Reads the token, checks its CRC, proves it with `whoami`, stores it, and says where.
 
-    🇧🇷 Faz enrollment (ou restaura do OpenBao), depois imprime workspace, conta e grupos concedidos.
+    🇧🇷 Lê o token, confere o CRC, prova com `whoami`, guarda e diz onde.
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
-    err_console = get_err_console(opts)
-    with context.enrollment_progress(err_console, quiet=opts.quiet) as on_prompt:
-        vault = context.build_client(opts, on_prompt=on_prompt, auto_unseal=auto_unseal)
-        vault.unlock()
-
-    security_groups = vault.security_groups
-    result = {
-        "workspace_id": vault.workspace_id,
-        "account_id": vault.account_id,
-        "security_groups": security_groups,
-    }
+    text = _read_token()
+    try:
+        DiagnosToken.parse(text, source="diagnos login").wipe()
+        # 🇺🇸 No auto-unseal: this session only proves the token, and the OpenBao token here may be a writer that
+        # can store the diagnos token and nothing else (`token-writer-policy.hcl`).
+        # 🇧🇷 Sem auto-unseal: esta sessão só prova o token, e o token do OpenBao aqui pode ser um de escrita que
+        # só pode guardar o token do diagnos (`token-writer-policy.hcl`).
+        vault = context.build_client(dataclasses.replace(opts, token=text), auto_unseal=False)
+        who = vault.whoami()
+        where = save_token(text, settings=Settings.without_token(context.environment(opts)), store=store)
+    finally:
+        # 🇺🇸 No frame keeps the pasted text once a command error is rendered. 🇧🇷 Nenhum quadro guarda o texto colado.
+        del text
+    # 🇺🇸 The session existed only to prove the token; end it on the vault too. 🇧🇷 A sessão só provou o token.
+    with contextlib.suppress(Exception):
+        vault.lock()
+    vault.close()
+    shadowing = [name for name in ("DIAGNOS_TOKEN", "DIAGNOS_API_TOKEN") if os.environ.get(name)]
     if opts.json_output:
-        print_json(result)
+        print_json({**dataclasses.asdict(who), "stored_in": where, "shadowed_by": shadowing})
         return
-    console.print("[bold green]Enrolled · Sessão estabelecida[/bold green]")
-    console.print(f"  workspace_id: {result['workspace_id']}")
-    console.print(f"  account_id:   {result['account_id']}")
-    console.print(f"  groups · grupos: {', '.join(security_groups) or '—'}")
-    if context.is_hosted():
-        console.print(
-            "[dim]Kept in memory by the diagnos agent until `diagnos logout` or the idle timeout — next commands "
-            "reuse it.\n"
-            "Guardada na memória pelo agente do diagnos até `diagnos logout` ou o tempo ocioso — os próximos comandos "
-            "a reutilizam.[/dim]"
+    console.print("[bold green]Logged in · Sessão iniciada[/bold green]")
+    console.print(f"  identity · identidade: {who.identity}")
+    console.print(f"  groups · grupos:       {', '.join(who.security_groups) or '—'}")
+    console.print(f"  stored in · guardado:  {where}")
+    if shadowing:
+        get_err_console(opts).print(
+            f"[yellow]{', '.join(shadowing)} is set in this shell and wins over the stored token; unset it to use it. "
+            f"{', '.join(shadowing)} está definida neste shell e vence o token guardado; remova-a para usá-lo.[/yellow]"
         )

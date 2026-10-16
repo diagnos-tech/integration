@@ -21,10 +21,13 @@ comando.
 
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 from typing import Any
 
+import keyring
 import pytest
+from keyring.backends import fail
 from typer import rich_utils
 from typer.testing import CliRunner
 
@@ -41,9 +44,22 @@ from diagnos import (
     Patient,
     PatientRecord,
     PatientSummary,
+    Whoami,
 )
+from diagnos.crypto.secure import SecretBox
+from diagnos.crypto.token_keys import encode_token
 
 FIXED_NOW = "2026-09-08T12:00:00.000Z"
+KEY_ID = "svc_" + "ab" * 16
+
+
+def mint_token(workspace_id: str = "ws_1") -> str:
+    """🇺🇸 A service account token minted from fresh random bytes — a test fixture, never a real secret.
+
+    🇧🇷 Um token de conta de serviço criado de bytes aleatórios novos — fixture de teste, nunca um segredo real.
+    """
+    seed = SecretBox.from_bytes(bytearray(secrets.token_bytes(32)))
+    return encode_token(f"svc_{secrets.token_hex(16)}", seed, workspace_id)
 
 
 def _index(document_id: str, resource: str, **extra: Any) -> DocumentIndex:
@@ -295,8 +311,41 @@ class FakeDiagnos:
         return "ws_1"
 
     @property
-    def account_id(self) -> str:
-        return "acct_1"
+    def account_id(self) -> str | None:
+        return None
+
+    @property
+    def name(self) -> str | None:
+        return None
+
+    @property
+    def key_id(self) -> str:
+        return KEY_ID
+
+    @property
+    def identity(self) -> str:
+        return f"{KEY_ID}@ws_1.diagnos.health"
+
+    @property
+    def token_kind(self) -> str:
+        return "hybrid"
+
+    @property
+    def token_source(self) -> str:
+        return "keyring"
+
+    def whoami(self) -> Whoami:
+        """🇺🇸 What `Diagnos.whoami` returns once the session opened. 🇧🇷 O que `Diagnos.whoami` devolve."""
+        self.unlock()
+        return Whoami(
+            identity=self.identity,
+            key_id=KEY_ID,
+            workspace_id=self.workspace_id,
+            token_kind="hybrid",  # noqa: S106 — the token's kind, not a secret
+            token_source=self.token_source,
+            security_groups=self.security_groups,
+            session_expires_at=4_000_000_000,
+        )
 
     @property
     def security_groups(self) -> list[str]:
@@ -351,6 +400,23 @@ def _no_session_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     🇧🇷 Mantém todo teste no próprio processo mesmo se quem os roda tiver um agente no ar para um token real.
     """
     monkeypatch.setenv("DIAGNOS_AGENT", "off")
+
+
+@pytest.fixture(autouse=True)
+def _no_real_token_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 No test reads or writes the developer's keyring, OpenBao or exported token.
+
+    `login`, `logout` and every client look in the keyring and, with
+    `OPENBAO_ADDR`, in OpenBao; a test that wants a store installs a fake.
+
+    🇧🇷 Nenhum teste lê ou grava o chaveiro, o OpenBao ou o token exportado de quem roda.
+
+    `login`, `logout` e todo client procuram no chaveiro e, com `OPENBAO_ADDR`,
+    no OpenBao; um teste que quer um cofre instala um falso.
+    """
+    monkeypatch.setattr(keyring, "get_keyring", fail.Keyring)
+    for name in ("DIAGNOS_TOKEN", "DIAGNOS_API_TOKEN", "OPENBAO_ADDR", "OPENBAO_TOKEN", "OPENBAO_TOKEN_FILE"):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture(autouse=True)

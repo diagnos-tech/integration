@@ -55,13 +55,13 @@ class PromptingVault(FakeDiagnos):
 
 
 def test_every_command_shares_one_client_and_one_enrollment() -> None:
-    """🇺🇸 `login`, then two more commands: one client built, one enrollment, one panel.
+    """🇺🇸 `session start`, then two more commands: one client built, one enrollment, one panel.
 
-    🇧🇷 `login`, depois mais dois comandos: um client construído, um enrollment, um painel.
+    🇧🇷 `session start`, depois mais dois comandos: um client construído, um enrollment, um painel.
     """
     vault = PromptingVault()
     with running_agent(vault) as agent:
-        code, out, err = agent.run(["login"])
+        code, out, err = agent.run(["session", "start"])
         assert code == 0
         assert "Kept in memory by the diagnos agent" in out
         assert PROMPT.approval_url in err
@@ -179,7 +179,7 @@ def test_logout_locks_once_wipes_and_stops() -> None:
         agent.run(["groups"])
         code, out, _err = agent.run(["logout"])
         assert code == 0
-        assert "Logged out" in out
+        assert "Session agent stopped" in out
         assert (vault.lock_calls, vault.close_calls) == (1, 1)
         assert agent.stopped()
         assert not agent.path.exists()
@@ -187,10 +187,10 @@ def test_logout_locks_once_wipes_and_stops() -> None:
 
 
 def test_logout_as_json() -> None:
-    """🇺🇸 `--json logout` says whether a kept session was ended. 🇧🇷 `--json logout` diz se uma sessão foi encerrada."""
+    """🇺🇸 `--json logout` says the agent stopped and no token was stored. 🇧🇷 Diz que o agente parou."""
     with running_agent(FakeDiagnos()) as agent:
         _code, out, _err = agent.run(["--json", "logout"])
-    assert json.loads(out) == {"logged_out": True}
+    assert json.loads(out) == {"removed_from": [], "agent_stopped": True, "diagnos_token_still_set": False}
 
 
 def test_logout_before_any_command_still_stops() -> None:

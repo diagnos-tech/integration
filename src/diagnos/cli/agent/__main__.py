@@ -1,6 +1,6 @@
-"""🇺🇸 `python -m diagnos.cli.agent --socket PATH --idle SECONDS` — what `diagnos login` starts, detached.
+"""🇺🇸 `python -m diagnos.cli.agent --socket PATH --idle SECONDS` — what `diagnos session start` starts, detached.
 
-🇧🇷 `python -m diagnos.cli.agent --socket PATH --idle SECONDS` — o que o `diagnos login` sobe, destacado.
+🇧🇷 `python -m diagnos.cli.agent --socket PATH --idle SECONDS` — o que o `diagnos session start` sobe, destacado.
 """
 
 from __future__ import annotations

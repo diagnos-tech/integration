@@ -36,7 +36,7 @@ from diagnos._version import __version__
 from diagnos._wrapper.app import COMMANDS as BASE_COMMANDS
 from diagnos.cli.agent.dispatch import dispatch
 from diagnos.cli.argv import hoist_global_options
-from diagnos.cli.commands import base, exams, files, groups, login, logout, patients, session, status
+from diagnos.cli.commands import base, exams, files, groups, login, logout, patients, session, status, whoami
 from diagnos.cli.context import CliOptions
 from diagnos.cli.examples import examples
 from diagnos.cli.exit_codes import EXIT_GENERAL, classify
@@ -48,7 +48,8 @@ typer_app = typer.Typer(
     epilog=examples(
         (
             "diagnos login",
-            "Enroll this process and show the granted groups · Faz enrollment e mostra os grupos concedidos",
+            "Paste the service account token once; it goes to the system keyring · Cole o token uma vez; ele vai "
+            "para o chaveiro do sistema",
         ),
         (
             "diagnos --json patients list --all",
@@ -63,13 +64,25 @@ typer_app.add_typer(files.app, name="files")
 typer_app.add_typer(session.app, name="session")
 typer_app.command(
     "login",
-    help="Enroll and show what was granted · Faz enrollment e mostra o que foi concedido",
+    help="Store the service account token safely · Guarda o token da conta de serviço com segurança",
     epilog=examples(
-        ("diagnos login", "Prints a link and a code, waits for approval · Imprime link e código, espera a aprovação"),
-        ("diagnos login --no-auto-unseal", "Do not save the session to OpenBao · Não salva a sessão no OpenBao"),
-        ("diagnos --json login", "What was granted, as JSON · O que foi concedido, em JSON"),
+        (
+            "diagnos login",
+            "Hidden input, CRC check, whoami, then the system keyring (else OpenBao) · Entrada oculta, CRC, whoami, "
+            "depois o chaveiro do sistema (senão o OpenBao)",
+        ),
+        ("diagnos login --store openbao", "Keep it in OpenBao (OPENBAO_ADDR) · Guarda no OpenBao (OPENBAO_ADDR)"),
+        ("diagnos --json login", "Identity, groups and where it was stored · Identidade, grupos e onde foi guardado"),
     ),
 )(login.login)
+typer_app.command(
+    "whoami",
+    help="Which token this is, proven against the vault · Qual token é este, provado contra o cofre",
+    epilog=examples(
+        ("diagnos whoami", "Identity, token source, groups · Identidade, origem do token, grupos"),
+        ("diagnos --json whoami", "The same, as JSON · O mesmo, em JSON"),
+    ),
+)(whoami.whoami)
 typer_app.command(
     "status",
     help="Token, OpenBao and SDK version · Token, OpenBao e versão do SDK",
@@ -80,10 +93,10 @@ typer_app.command(
 )(status.status)
 typer_app.command(
     "logout",
-    help="Lock the session and stop the agent · Trava a sessão e para o agente",
+    help="Forget the stored token · Esquece o token guardado",
     epilog=examples(
-        ("diagnos logout", "Revoke the kept session and stop the agent · Revoga a sessão guardada e para o agente"),
-        ("diagnos --json logout", "Whether a session was ended, as JSON · Se uma sessão foi encerrada, em JSON"),
+        ("diagnos logout", "Delete it from the keyring and OpenBao · Apaga do chaveiro e do OpenBao"),
+        ("diagnos --json logout", "Where it was removed from, as JSON · De onde foi removido, em JSON"),
     ),
 )(logout.logout)
 typer_app.command(
@@ -152,9 +165,8 @@ def main(
         None,
         "--token",
         help=(
-            "Legacy apikey- token (until 2027-04-15); the credential comes from DIAGNOS_CREDENTIAL or "
-            "DIAGNOS_CREDENTIALS_FILE · Token apikey- legado (até 2027-04-15); a credencial vem de "
-            "DIAGNOS_CREDENTIAL ou DIAGNOS_CREDENTIALS_FILE"
+            "Service account token for this run (or a legacy apikey- one); prefer `diagnos login` · Token da conta "
+            "de serviço nesta execução (ou um apikey- legado); prefira `diagnos login`"
         ),
         show_default=False,
     ),

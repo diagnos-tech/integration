@@ -1,7 +1,6 @@
-"""🇺🇸 `diagnos status` — what this token identifies, whether OpenBao is configured, whether secrets are locked in RAM.
+"""🇺🇸 `diagnos status` — which token, from where, whether OpenBao is configured, whether secrets are locked in RAM.
 
-🇧🇷 `diagnos status` — o que este token identifica, se o auto-unseal via
-OpenBao está configurado, e se os segredos estão travados na RAM.
+🇧🇷 `diagnos status` — qual token, de onde, se o OpenBao está configurado, e se os segredos estão travados na RAM.
 """
 
 from __future__ import annotations
@@ -26,24 +25,19 @@ def status(
         help="Also unlock and list granted groups · Também desbloqueia e lista os grupos concedidos",
     ),
 ) -> None:
-    """🇺🇸 Parses the token locally; only touches the network for `unlock()` when `--check` is given.
+    """🇺🇸 Parses the token locally; only touches the vault for `unlock()` when `--check` is given.
 
-    `Diagnos.workspace_id`/`account_id` are read straight off the parsed
-    token in `__init__` — building the client below never makes a request
-    on its own. `name`/`key_id` are not on that list: `Diagnos` does not
-    expose them (only `diagnos.transport.token.ServiceAccountToken`, which
-    `cli` may not import — `CONVENTIONS.md` — does), so they show as
-    "not exposed by the SDK" here instead of silently vanishing.
+    The identity (`workspace_id`, `key_id`, `identity`, where the token came
+    from) is read straight off the parsed token — building the client never
+    makes a request to the vault on its own (reading the token from OpenBao,
+    when that is where it lives, is the one network call).
 
-    🇧🇷 Interpreta o token localmente; só toca a rede para `unlock()` quando
-    `--check` é passado.
+    🇧🇷 Interpreta o token localmente; só toca o cofre para `unlock()` quando `--check` é passado.
 
-    `Diagnos.workspace_id`/`account_id` são lidos direto do token já
-    interpretado em `__init__` — construir o client abaixo nunca faz uma
-    requisição por conta própria. `name`/`key_id` não estão nessa lista:
-    `Diagnos` não os expõe (só `diagnos.transport.token.ServiceAccountToken`,
-    que `cli` não pode importar — `CONVENTIONS.md` — os tem), então aparecem
-    como "não exposto pelo SDK" aqui em vez de sumir em silêncio.
+    A identidade (`workspace_id`, `key_id`, `identity`, de onde o token veio)
+    é lida direto do token interpretado — construir o client nunca faz uma
+    requisição ao cofre por conta própria (ler o token do OpenBao, quando é
+    lá que ele mora, é a única chamada de rede).
     """
     opts: CliOptions = ctx.obj
     console = get_console(opts)
@@ -52,8 +46,10 @@ def status(
     result: dict[str, object] = {
         "workspace_id": vault.workspace_id,
         "account_id": vault.account_id,
-        "name": None,
-        "key_id": None,
+        "name": vault.name,
+        "key_id": vault.key_id,
+        "identity": vault.identity,
+        "token_source": vault.token_source,
         "openbao_configured": bool(os.environ.get("OPENBAO_ADDR")),
         "sdk_version": sdk_version,
         "memory": _memory_summary(),
@@ -80,9 +76,10 @@ def status(
         print_json(result)
         return
     console.print(f"  workspace_id: {result['workspace_id']}")
-    console.print(f"  account_id:   {result['account_id']}")
-    console.print("  name:         not exposed by the SDK · não exposto pelo SDK")
-    console.print("  key_id:       not exposed by the SDK · não exposto pelo SDK")
+    console.print(f"  identity:     {result['identity'] or result['key_id']}")
+    console.print(f"  token:        {result['token_source']}")
+    if result["account_id"]:
+        console.print(f"  account_id:   {result['account_id']} (legacy apikey- · legado)")
     openbao_label = "configured · configurado" if result["openbao_configured"] else "not set · não definido"
     console.print(f"  openbao:      {openbao_label}")
     console.print(f"  sdk_version:  {result['sdk_version']}")
@@ -138,6 +135,6 @@ def _agent_summary(opts: CliOptions) -> dict[str, object] | None:
 def _agent_label(agent: object) -> str:
     """🇺🇸 One line for the agent row. 🇧🇷 Uma linha para a linha do agente."""
     if not isinstance(agent, dict):
-        return "not running · não está rodando (`diagnos login` starts it · o inicia)"
+        return "not running · não está rodando (`diagnos session start` starts it · o inicia)"
     state = "session kept · sessão guardada" if agent.get("unlocked") else "no session yet · ainda sem sessão"
     return f"running · rodando (pid {agent.get('pid')}) — {state}"

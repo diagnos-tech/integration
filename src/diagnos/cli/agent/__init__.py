@@ -1,8 +1,10 @@
 """🇺🇸 The session agent: one unlocked session, kept in the SDK's locked memory, reused by every later command.
 
 Each `diagnos` invocation is a new process, and an SDK session lives in the
-RAM of the process that unlocked it — so without help, every command would
-enroll again. `diagnos login` starts an agent instead: a background process
+RAM of the process that unlocked it — so with the legacy `apikey-` token,
+whose session needs a human approval, every command would enroll again (a
+service account token opens its own session per command and never needs
+this). `diagnos session start` starts an agent instead: a background process
 that unlocks once and keeps the session in the Rust enclave's locked,
 non-dumpable memory. Later commands do not receive the session. They send
 their arguments to the agent over a Unix socket and the agent runs the
@@ -25,10 +27,12 @@ the `sys.stdout`/`stderr`/`stdin` stand-ins; `__main__` is the process.
 comando seguinte.
 
 Cada invocação de `diagnos` é um processo novo, e uma sessão do SDK vive na
-RAM do processo que a desbloqueou — então, sem ajuda, todo comando faria
-enrollment de novo. O `diagnos login` sobe um agente no lugar: um processo em
-segundo plano que desbloqueia uma vez e guarda a sessão na memória travada e
-fora de core dump do enclave Rust. Os comandos seguintes não recebem a
+RAM do processo que a desbloqueou — então, com o token legado `apikey-`, cuja
+sessão precisa de aprovação humana, todo comando faria enrollment de novo (um
+token de conta de serviço abre a própria sessão a cada comando e nunca
+precisa disto). O `diagnos session start` sobe um agente no lugar: um
+processo em segundo plano que desbloqueia uma vez e guarda a sessão na
+memória travada e fora de core dump do enclave Rust. Os comandos seguintes não recebem a
 sessão. Eles mandam os argumentos ao agente por um socket Unix e o agente
 roda o comando ele mesmo, transmitindo a saída de volta, então as chaves
 nunca saem daquele único processo. Nada é gravado em disco, e nenhum

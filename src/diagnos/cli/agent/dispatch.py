@@ -1,17 +1,18 @@
 """🇺🇸 Decides, before any parsing, whether this command runs in the agent or in this process.
 
 Commands that need the session go to the agent when one is running for
-this identity; `login` starts one first. Everything else — `--help`,
-`--version`, a plain `status`, or any command when the agent is off, absent
-or unsupported — runs here, exactly as before the agent existed.
+this (legacy `apikey-`) identity; `session start` starts one first.
+Everything else — `--help`, `--version`, `login`, a plain `status`, or any
+command when the agent is off, absent or unsupported — runs here, exactly
+as before the agent existed.
 
 🇧🇷 Decide, antes de qualquer interpretação, se este comando roda no agente ou neste processo.
 
 Os comandos que precisam da sessão vão para o agente quando há um rodando
-para esta identidade; o `login` sobe um antes. Todo o resto — `--help`,
-`--version`, um `status` simples, ou qualquer comando quando o agente está
-desligado, ausente ou sem suporte — roda aqui, exatamente como antes do
-agente existir.
+para esta identidade (legada, `apikey-`); o `session start` sobe um antes.
+Todo o resto — `--help`, `--version`, `login`, um `status` simples, ou
+qualquer comando quando o agente está desligado, ausente ou sem suporte —
+roda aqui, exatamente como antes do agente existir.
 """
 
 from __future__ import annotations
@@ -24,14 +25,18 @@ from typing import IO, Any, Final
 from .client import connect, ping, relay, start
 from .paths import AgentUnavailable, agent_enabled, identity, idle_seconds, socket_path
 
-_SESSION_COMMANDS: Final = frozenset({"login", "logout", "groups", "patients", "exams", "files", "session", "status"})
+_SESSION_COMMANDS: Final = frozenset({"logout", "whoami", "groups", "patients", "exams", "files", "session", "status"})
 _VALUE_OPTIONS: Final = frozenset({"--token", "--vault-url"})
 
 
-def _scan(argv: list[str]) -> tuple[str | None, str | None, str | None]:
-    """🇺🇸 `(command, --token, --vault-url)` from global options already hoisted before the command.
+def _scan(argv: list[str]) -> tuple[str | None, str | None, str | None, bool]:
+    """🇺🇸 `(command, --token, --vault-url, starts)` from global options already hoisted before the command.
 
-    🇧🇷 `(comando, --token, --vault-url)` a partir das opções globais já içadas para antes do comando.
+    `starts` is `session start`, the one command that brings an agent up.
+
+    🇧🇷 `(comando, --token, --vault-url, sobe)` a partir das opções globais já içadas para antes do comando.
+
+    `sobe` é o `session start`, o único comando que levanta um agente.
     """
     command = token = vault_url = None
     index = 0
@@ -47,7 +52,8 @@ def _scan(argv: list[str]) -> tuple[str | None, str | None, str | None]:
             command = None if arg == "--" else arg
             break
         index += 1
-    return command, token, vault_url
+    starts = command == "session" and argv[index + 1 : index + 2] == ["start"]
+    return command, token, vault_url, starts
 
 
 def dispatch(
@@ -64,7 +70,7 @@ def dispatch(
     """
     if "--help" in argv or "--version" in argv:
         return None
-    command, token, vault_url = _scan(argv)
+    command, token, vault_url, starts = _scan(argv)
     if command not in _SESSION_COMMANDS or not agent_enabled(env):
         return None
     if command == "status" and "--check" not in argv:
@@ -75,12 +81,12 @@ def dispatch(
     try:
         path = socket_path(env, who)
         conn = connect(path)
-        if conn is None and command == "login":
+        if conn is None and starts:
             child_env = {**env, "DIAGNOS_VAULT_URL": who[0], "DIAGNOS_API_TOKEN": who[1]}
             start(path, child_env, idle_seconds=idle_seconds(env))
             conn = connect(path)
     except AgentUnavailable as exc:
-        if command == "login":
+        if starts:
             stderr.write(f"{exc}\n")
         return None
     if conn is None:

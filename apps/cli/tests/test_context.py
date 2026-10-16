@@ -22,17 +22,17 @@ from __future__ import annotations
 import base64
 import io
 import json
-import secrets
-from pathlib import Path
 from unittest.mock import MagicMock
 
+import keyring
 import pytest
 from rich.console import Console
 
 from diagnos import ConfigError, EnrollmentPrompt
 from diagnos.cli import context
 from diagnos.cli.context import CliOptions
-from diagnos.crypto.encoding import b64url_encode
+
+from .conftest import mint_token
 
 
 def _fake_token(*, workspace_id: str = "ws_ctx", account_id: str = "acct_ctx") -> str:
@@ -118,17 +118,52 @@ def test_enrollment_progress_never_starts_the_spinner_when_quiet(monkeypatch: py
     assert "https://vault.test/approve/enr_2" in console.file.getvalue()
 
 
-def test_the_cli_takes_the_credential_from_the_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """🇺🇸 `DIAGNOS_CREDENTIAL` needs no flag; a credential passed to `--token` says where it belongs.
+def test_the_cli_takes_the_token_from_the_environment_or_the_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 `DIAGNOS_TOKEN` needs no flag; `--token dgn_sk1_…` wins over it; a token in the legacy variable is refused.
 
-    🇧🇷 `DIAGNOS_CREDENTIAL` não precisa de flag; uma credencial passada a `--token` diz onde deve ir.
+    🇧🇷 `DIAGNOS_TOKEN` não precisa de flag; `--token dgn_sk1_…` vence; um token na variável legada é recusado.
     """
-    identity = f"svc_{secrets.token_hex(16)}@ws_cred.diagnos.health"
-    line = f"{identity}:{b64url_encode(secrets.token_bytes(32))}"
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("DIAGNOS_API_TOKEN", raising=False)
-    monkeypatch.setenv("DIAGNOS_CREDENTIAL", line)
+    monkeypatch.setenv("DIAGNOS_TOKEN", mint_token("ws_env"))
     vault = context.build_client(CliOptions())
-    assert (vault.identity, vault.credential_kind) == (identity, "ed25519")
-    with pytest.raises(ConfigError, match="use DIAGNOS_CREDENTIAL"):
-        context.build_client(CliOptions(token=line))
+    assert (vault.workspace_id, vault.token_kind, vault.token_source) == ("ws_env", "hybrid", "DIAGNOS_TOKEN")
+    assert context.build_client(CliOptions(token=mint_token("ws_flag"))).workspace_id == "ws_flag"
+    monkeypatch.delenv("DIAGNOS_TOKEN")
+    monkeypatch.setenv("DIAGNOS_API_TOKEN", mint_token())
+    with pytest.raises(ConfigError, match="put it in DIAGNOS_TOKEN"):
+        context.build_client(CliOptions())
+
+
+def test_the_cli_reads_the_keyring_that_login_filled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """🇺🇸 Unlike a library call on a mapping, the CLI always looks in the system keyring.
+
+    🇧🇷 Diferente de uma chamada de biblioteca sobre um mapeamento, a CLI sempre procura no chaveiro do sistema.
+    """
+    stored = {("diagnos", "https://vault.example.test"): mint_token("ws_stored")}
+    namespace = {
+        "__module__": "keyring.backends.macOS",
+        "get_password": lambda self, service, user: stored.get((service, user)),
+    }
+    backend = type("Keyring", (), namespace)()
+    monkeypatch.setattr(keyring, "get_keyring", lambda: backend)
+    vault = context.build_client(CliOptions(vault_url="https://vault.example.test"))
+    assert (vault.workspace_id, vault.token_source) == ("ws_stored", "keyring")
+
+
+@pytest.mark.parametrize(("tty", "quiet", "hinted"), [(True, False, True), (False, False, False), (True, True, False)])
+def test_a_token_from_the_environment_of_a_terminal_gets_one_hint(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tty: bool, quiet: bool, hinted: bool
+) -> None:
+    """🇺🇸 Interactive and not `--quiet`: one hint towards `diagnos login`, once per run; never in CI or scripts.
+
+    🇧🇷 Interativo e sem `--quiet`: uma dica para o `diagnos login`, uma vez por execução; nunca em CI ou script.
+    """
+    monkeypatch.setattr(context, "_environment_hinted", False)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: tty)
+    monkeypatch.setattr("sys.stderr.isatty", lambda: tty)
+    monkeypatch.setenv("DIAGNOS_TOKEN", mint_token())
+    context.build_client(CliOptions(quiet=quiet))
+    context.build_client(CliOptions(quiet=quiet))
+    err = capsys.readouterr().err
+    assert err.count("DIAGNOS_TOKEN is meant for CI and containers") == (1 if hinted else 0)
+    context.hint_environment_token("keyring", quiet=False)
+    assert capsys.readouterr().err == ""
