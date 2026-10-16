@@ -20,7 +20,7 @@ the SDK's real behaviour disagrees with it.
 
 - **This suite proves**: the SDK sends exactly the requests `diagnos-sdk-diagnos-vault.json` describes, and reads
   successfully from exactly the responses it describes. Every test in `contracts/tests` drives real SDK code
-  (`VaultTransport`, `enroll()`, `SessionManager.lock()`) against the Pact mock server, which fails the test if the
+  (`VaultTransport`, `open_token_session()`, `enroll()`, `SessionManager.lock()`) against the Pact mock server, which fails the test if the
   SDK sends a request no interaction describes, or if an interaction is never exercised.
 - **This suite does not prove**: that the vault actually behaves this way. That half — "provider verification" —
   runs in the vault's own (private) repository, which vendors this contract file and replays it against a real
@@ -74,22 +74,28 @@ Straight from `_wire.py`'s module docstring, because they are the whole point of
    `"mode": "single"`, `"success": true` are literal — a renamed enum value is a broken SDK. Ids, timestamps and
    ciphertext are matchers (regex/type) — a different id from the real vault is not a broken SDK.
 
-## Identity: the service account credential, and the legacy token
+## Identity: the service account token, and the legacy token
 
-Every interaction authenticates the way SDK `0.2.0` does: an Ed25519 service account credential signing each
-request with HTTP Message Signatures (RFC 9421) — `Signature-Input`, `Signature` and, with a body, `Content-Digest`
-(RFC 9530) — and **no `Authorization` header**. The credential is derived from fixed labels in
-`contracts/tests/_identity.py` (identity `svc_<hex>@ws-contract.diagnos.health`; `_identity.public_key()` prints
-its public key), never stored. The headers are pinned by shape: the exact covered components of that request
-(`"@method" "@path"`, plus `"@query"` with a query string and `"content-digest"` with a body), the parameter order
-`created`, `keyid`, `nonce`, `alg="ed25519"`, and the base64 framing. Because `created` and `nonce` are fresh on
-every request, the vault's provider verification must **re-sign each replayed request** with a key it seeded for
-the provider state (replacing `Signature-Input` and `Signature`, keeping the component list), exactly as it already
-re-signs the session HMAC (`X-Signature-*`), which stays on every session route.
+Every interaction authenticates the way SDK `0.2.0` does: a service account token (`dgn_sk1_…`) signing each request
+with HTTP Message Signatures (RFC 9421) — `Signature-Input`, `Signature` and, with a body, `Content-Digest` (RFC
+9530) — and **no `Authorization` header**. The token is built from fixed labels in `contracts/tests/_identity.py`
+(key id `svc_<hex>`, workspace `ws-contract`), never stored. The headers are pinned by shape: the exact covered
+components of that request (`"@method" "@path"`, plus `"@query"` with a query string and `"content-digest"` with a
+body), the parameter order `created`, `keyid="svc_<32 hex>"`, `nonce`, `alg="ed25519+ml-dsa-65"`, and a 3373-byte
+signature (Ed25519 ‖ ML-DSA-65) in standard base64. Because `created` and `nonce` are fresh on every request, the
+vault's provider verification must **re-sign each replayed request** with a token it created for the provider state
+(replacing `Signature-Input` and `Signature`, keeping the component list), exactly as it already re-signs the session
+HMAC (`X-Signature-*`), which stays on every session route.
 
-Three interactions keep the deprecated `Authorization: Bearer apikey-<jwt>` pinned until the vault stops accepting
-it (2027-04-15) — their descriptions say "on a legacy apikey- token". One interaction pins a credential failure:
-`401 CredentialKeyRevoked` on registration.
+The session itself is real ciphertext: `POST …/session` answers with the session and one group key sealed to the
+contract token's own X25519 + ML-KEM-768 keys, with the AADs of the reference (`diagnos-sa-session-v1:…`,
+`diagnos-sa-group-kek-v1:…`), by the independent oracles of `_crypto.py` — the SDK opens them in the test. On the
+provider side the state creates a real token, so the vault seals to that one instead; only the shapes are pinned.
+
+Six interactions keep the deprecated `Authorization: Bearer apikey-<jwt>` pinned until the vault stops accepting it
+(2027-04-15): the legacy enrollment (registration, the four poll outcomes) and the legacy `session/lock` — their
+descriptions say "on a legacy apikey- token". One interaction pins a credential failure: `401 CredentialKeyRevoked`
+on `POST …/session`.
 
 ## Provider states and path generators
 
@@ -122,16 +128,16 @@ Every provider state name in the current contract, and what the vault must seed 
 
 | Provider state | Params | The vault must seed |
 |---|---|---|
-| `a service account can enroll an SDK session` | `workspace_id` | A workspace and a service account whose active Ed25519 key can register hybrid public keys against `session/registry`. |
-| `the service account's key was revoked` | `workspace_id` | A service account whose key was revoked — registration answers `401 CredentialKeyRevoked`. |
+| `a service account token can open a session` | `workspace_id` | A workspace and a service account with an active `dgn_sk1_` token whose scope holds at least one security group, the group's key sealed to the token — `POST …/session` answers `201` with the sealed session and group keys. |
+| `the service account's key was revoked` | `workspace_id` | A service account token whose key was revoked — `POST …/session` answers `401 CredentialKeyRevoked`. |
 | `a legacy apikey- token can enroll an SDK session` | `workspace_id` | A service account holding a legacy `apikey-` token able to register against `session/registry`. |
 | `an enrollment opened with a legacy apikey- token is waiting for an admin` | `workspace_id`, `enrollment_id` | A pending enrollment of that legacy token — `GET` on it returns `"status": "pending"`. |
 | `an SDK session opened with a legacy apikey- token is active` | `workspace_id` | An active session of that legacy token the vault will accept a `session/lock` for. |
-| `an admin approved the enrollment for one security group` | `workspace_id`, `enrollment_id` | A pending enrollment that an admin has approved, with at least one security group's DEK sealed to the SDK's registered public keys. |
+| `an admin approved the enrollment for one security group` | `workspace_id`, `enrollment_id` | A pending enrollment of the legacy token that an admin has approved, with at least one security group's DEK sealed to the SDK's registered public keys. |
 | `an enrollment is waiting for an admin` | `workspace_id`, `enrollment_id` | An enrollment that exists but has not been approved or denied yet — `GET` on it returns `"status": "pending"`. |
 | `an admin denied the enrollment` | `workspace_id`, `enrollment_id` | An enrollment an admin has explicitly denied — `GET` on it returns `"status": "denied"`. |
 | `the vault no longer knows the enrollment` | `workspace_id`, `enrollment_id` | No enrollment at that id at all (expired and swept, or never existed) — `GET` on it returns `404`. |
-| `an SDK session is active` | `workspace_id` | An active, signed session the vault will accept a `session/lock` request for. |
+| `an SDK session is active` | `workspace_id` | An active session of a service account token the vault will accept a `workspaces/{workspace_id}/session/lock` request for. |
 | `the SDK session holds the key of a security group` | `workspace_id`, `security_group_id` | An active session whose service account belongs to `security_group_id` and may create patients, exams and files in it, with storage budget. |
 | `a patient has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | A patient in that group with `version_id` reserved on its `data` stream and the object already uploaded, so the commit finds it. |
 | `an exam has an uploaded version waiting to be committed` | `workspace_id`, `security_group_id`, `document_id`, `version_id` | The same for an exam (no stream segment in its routes); `meta.patient_id` set. |
@@ -156,8 +162,8 @@ Every provider state name in the current contract, and what the vault must seed 
    `match.int`/`match.each_like` for shape-only fields, a bare value or `literal(...)` (`_wire.py`) for anything the
    SDK branches on.
 4. **Exercise real SDK code** against `pact.serve()`'s mock server — build a transport with `make_transport()`
-   (`conftest.py`) or call the higher-level function/method under test (`enroll()`, `SessionManager.lock()`, a new
-   resource method) — never hand-written HTTP via `httpx` directly against the mock server.
+   (`conftest.py`) or call the higher-level function/method under test (`open_token_session()`, `enroll()`,
+   `SessionManager.lock()`, a new resource method) — never hand-written HTTP via `httpx` directly against the mock server.
 5. **Assert on the SDK's return value**, not on the raw HTTP — the point is that the SDK correctly parsed what the
    contract says the vault sends.
 6. **Run `make contract`.** If the test passes and the whole suite passes, `contracts/diagnos-sdk-diagnos-vault.json`
@@ -182,8 +188,9 @@ The file is sorted and normalized, so a diff is meaningful, not noise from reord
 
 ## Current scope, and what is not here
 
-The contract covers: the vault's clock (`GET /time`); enrollment (registration, and polling through
-pending/approved/denied/forgotten); lock (`POST session/lock`); versioned documents — creating a patient or an exam
+The contract covers: the vault's clock (`GET /time`); the token's session (opening it, a revoked token, ending it with
+`POST workspaces/{workspace_id}/session/lock`); the legacy token's enrollment (registration, and polling through
+pending/approved/denied/forgotten) and lock (`POST session/lock`); versioned documents — creating a patient or an exam
 (reserve, commit), opening the latest version, preferring a newer draft, reserving the next version under the
 conflict guard, archiving without a new version, listing, and backing off on a pending version; and files — reserving
 a file, confirming it, reading a ready file (its sealed name, its body and the SSE-C key storage demands), listing a

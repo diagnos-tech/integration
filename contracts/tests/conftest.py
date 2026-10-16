@@ -50,7 +50,7 @@ from diagnos.session.keyring import SessionKeys
 from diagnos.transport.config import Settings
 from diagnos.transport.http import VaultTransport
 
-from _identity import credential
+from _identity import token
 from _wire import API_TOKEN, CONSUMER, PROVIDER, TOKEN, session_keys
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[1]
@@ -201,17 +201,17 @@ def make_transport(
 
     Only the R2 side is stubbed: presigned object-storage URLs are not the
     vault's API, so they are not part of this contract. `legacy` swaps the
-    service account credential for the deprecated `apikey-` token.
+    service account token for the deprecated `apikey-` one.
 
     🇧🇷 O `VaultTransport` real do SDK, apontado para o mock server, com a sessão do contrato (se `signed`).
 
     Só o lado do R2 é substituído: URLs pré-assinadas de armazenamento de
     objetos não são a API do cofre, então não fazem parte deste contrato.
-    `legacy` troca a credencial de conta de serviço pelo token `apikey-` obsoleto.
+    `legacy` troca o token de conta de serviço pelo `apikey-` obsoleto.
     """
     keys: SessionKeys | None = session_keys() if signed else None
-    signer = credential()
-    settings = Settings(api_token=API_TOKEN, vault_url=url) if legacy else Settings(credential=signer, vault_url=url)
+    signer = token()
+    settings = Settings(api_token=API_TOKEN, vault_url=url) if legacy else Settings(token=signer, vault_url=url)
     return VaultTransport(
         settings,
         TOKEN if legacy else signer,

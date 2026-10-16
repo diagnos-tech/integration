@@ -1,16 +1,18 @@
-"""🇺🇸 The enrollment vocabulary both session suites share: the registry and poll paths, registration, polling.
+"""🇺🇸 The legacy `apikey-` enrollment vocabulary: the registry and poll paths, registration, polling.
 
-`test_session.py` covers the enrollment and lock under the service account
-credential; `test_credential_auth.py` covers the credential failures and the
-deprecated `apikey-` token. Both declare the same registration, so it lives
-here once.
+Only the deprecated `apikey-` token still enrolls (accepted until
+2027-04-15): a service account token opens its own session
+(`test_session.py`), and the vault answers a token on `session/registry`
+with `409 SdkEnrollmentLegacyOnly`. Every request here carries the legacy
+bearer, exactly as SDK `0.1.0` sent it.
 
-🇧🇷 O vocabulário de enrollment que as duas suítes de sessão dividem: os paths de registro e poll, registro, poll.
+🇧🇷 O vocabulário de enrollment do legado `apikey-`: os paths de registro e poll, registro, poll.
 
-`test_session.py` cobre o enrollment e o lock sob a credencial de conta de
-serviço; `test_credential_auth.py` cobre as falhas de credencial e o token
-`apikey-` obsoleto. As duas declaram o mesmo registro, então ele mora aqui
-uma vez.
+Só o token `apikey-` obsoleto ainda faz enrollment (aceito até 2027-04-15):
+um token de conta de serviço abre a própria sessão (`test_session.py`), e o
+cofre responde um token em `session/registry` com
+`409 SdkEnrollmentLegacyOnly`. Toda requisição daqui leva o bearer legado,
+exatamente como o SDK `0.1.0` mandava.
 """
 
 from __future__ import annotations
@@ -23,8 +25,7 @@ from pact import Pact, match
 from diagnos.session import runtime as runtime_module
 
 from _crypto import b64url, sdk_keypair
-from _identity import identity_headers
-from _wire import EXTERNAL_PREFIX, WORKSPACE_ID, bearer_header, declare_clock, ok, path, workspace_state
+from _wire import EXTERNAL_PREFIX, WORKSPACE_ID, bearer_header, ok, path, workspace_state
 
 ENROLLMENT_ID = "enr-contract"
 EXPIRES_AT = 1_780_000_600
@@ -50,24 +51,18 @@ def pin_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
 LEGACY = "on a legacy apikey- token "
 
 
-def register(pact: Pact, *, legacy: bool = False) -> None:
+def register(pact: Pact) -> None:
     """🇺🇸 `POST .../session/registry` — identical in every test, so pact_ffi merges it into one interaction.
 
     🇧🇷 `POST .../session/registry` — idêntico em todo teste, então o pact_ffi o mescla numa interação só.
     """
     keypair = sdk_keypair()
-    if not legacy:
-        declare_clock(pact)
-    state, params = workspace_state(
-        "a legacy apikey- token can enroll an SDK session" if legacy else "a service account can enroll an SDK session"
-    )
+    state, params = workspace_state("a legacy apikey- token can enroll an SDK session")
     (
-        pact.upon_receiving(
-            f"an SDK process {LEGACY if legacy else ''}registers its hybrid public keys to request a session"
-        )
+        pact.upon_receiving(f"an SDK process {LEGACY}registers its hybrid public keys to request a session")
         .given(state, params)
         .with_request("POST", path(REGISTRY, pattern=REGISTRY_PATTERN, expression=REGISTRY_EXPRESSION))
-        .with_headers(bearer_header() if legacy else identity_headers(body=True))
+        .with_headers(bearer_header())
         .with_body(
             {
                 "public_keys": {
@@ -105,9 +100,7 @@ def register(pact: Pact, *, legacy: bool = False) -> None:
     )
 
 
-def poll(
-    pact: Pact, *, state: str, description: str, status: int, body: dict[str, object], legacy: bool = False
-) -> None:
+def poll(pact: Pact, *, state: str, description: str, status: int, body: dict[str, object]) -> None:
     """🇺🇸 `GET .../session/registry/{enrollment_id}` answering `body` under `state`.
 
     🇧🇷 `GET .../session/registry/{enrollment_id}` respondendo `body` sob `state`.
@@ -117,7 +110,7 @@ def poll(
         pact.upon_receiving(description)
         .given(name, params)
         .with_request("GET", path(POLL, pattern=POLL_PATTERN, expression=POLL_EXPRESSION))
-        .with_headers(bearer_header() if legacy else identity_headers())
+        .with_headers(bearer_header())
         .will_respond_with(status)
         .with_body(body, content_type="application/json")
     )
