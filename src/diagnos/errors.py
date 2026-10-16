@@ -32,6 +32,51 @@ class ConfigError(DiagnosError):
     """
 
 
+class TokenError(ConfigError):
+    """🇺🇸 The text given as the service account token is not one; the message says how to fix it.
+
+    Raised before any network call, from the token's own CRC and format
+    (spec §2): a token cut short or pasted with a character wrong says
+    exactly that. Neither the message nor any attribute carries a byte of
+    the text.
+
+    🇧🇷 O texto dado como token de conta de serviço não é um; a mensagem diz como corrigir.
+
+    Lançado antes de qualquer chamada de rede, pelo próprio CRC e formato do
+    token (spec §2): um token cortado ou colado com um caractere errado diz
+    exatamente isso. Nem a mensagem nem atributo algum carrega um byte do
+    texto.
+    """
+
+    reason: str
+    """🇺🇸 `prefix`, `encoding`, `length`, `checksum`, `workspace` or `empty` — branch on it, never on the message.
+
+    🇧🇷 `prefix`, `encoding`, `length`, `checksum`, `workspace` ou `empty` — decida por ele, nunca pela mensagem.
+    """
+    source: str
+    """🇺🇸 Where the text came from (`DIAGNOS_TOKEN`, `keyring`, …). 🇧🇷 De onde o texto veio."""
+
+    def __init__(self, message: str, *, reason: str, source: str) -> None:
+        """🇺🇸 `reason` is the machine code; `message` the fix. 🇧🇷 `reason` é o código; `message`, a correção."""
+        super().__init__(message)
+        self.reason = reason
+        self.source = source
+
+
+class TokenStoreError(ConfigError):
+    """🇺🇸 There is nowhere safe to keep the token: no secure system keyring and no OpenBao configured.
+
+    The token is never written to a text file, so the message lists the two
+    places it can live, and `DIAGNOS_TOKEN` for CI and ephemeral containers.
+
+    🇧🇷 Não há lugar seguro para guardar o token: sem chaveiro seguro do sistema e sem OpenBao configurado.
+
+    O token nunca é gravado em arquivo de texto, então a mensagem lista os dois
+    lugares em que ele pode morar, e o `DIAGNOS_TOKEN` para CI e containers
+    efêmeros.
+    """
+
+
 class CryptoError(DiagnosError):
     """🇺🇸 An envelope did not open or a format did not match the protocol.
 
@@ -153,22 +198,22 @@ class RateLimitError(VaultError):
 
 
 class CredentialError(VaultError):
-    """🇺🇸 The vault refused the service account credential itself (`Credential*` codes); the message says the fix.
+    """🇺🇸 The vault refused the service account token itself (`Credential*` codes); the message says the fix.
 
-    Catch this to handle every credential failure at once; each subclass is
-    also an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).
+    Catch this to handle every token failure at once; each subclass is also
+    an `AuthenticationError` (401) or a `DiagnosPermissionError` (403).
 
-    🇧🇷 O cofre recusou a própria credencial da conta de serviço (códigos `Credential*`); a mensagem diz a correção.
+    🇧🇷 O cofre recusou o próprio token da conta de serviço (códigos `Credential*`); a mensagem diz a correção.
 
-    Capture esta para tratar toda falha de credencial de uma vez; cada
-    subclasse também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403).
+    Capture esta para tratar toda falha do token de uma vez; cada subclasse
+    também é `AuthenticationError` (401) ou `DiagnosPermissionError` (403).
     """
 
 
 class CredentialSignatureError(CredentialError, AuthenticationError):
-    """🇺🇸 `CredentialSignatureInvalid`: wrong credential, or the body changed in transit.
+    """🇺🇸 `CredentialSignatureInvalid`: a half of the hybrid signature failed — wrong token, or the request changed.
 
-    🇧🇷 `CredentialSignatureInvalid`: credencial errada, ou o corpo mudou no caminho.
+    🇧🇷 `CredentialSignatureInvalid`: uma metade da assinatura híbrida falhou — token errado, ou a requisição mudou.
     """
 
 
@@ -207,9 +252,9 @@ class CredentialUnknownError(CredentialError, AuthenticationError):
 
 
 class WorkspaceMismatchError(CredentialError, DiagnosPermissionError):
-    """🇺🇸 `CredentialWorkspaceMismatch`: the credential belongs to another workspace.
+    """🇺🇸 `CredentialWorkspaceMismatch`: the token belongs to another workspace.
 
-    🇧🇷 `CredentialWorkspaceMismatch`: a credencial é de outro workspace.
+    🇧🇷 `CredentialWorkspaceMismatch`: o token é de outro workspace.
     """
 
 
@@ -225,21 +270,21 @@ class ScopeMissingError(CredentialError, DiagnosPermissionError):
 
 
 class EnrollmentDeniedError(DiagnosError):
-    """🇺🇸 A person denied this SDK session in the web app.
+    """🇺🇸 A person denied this SDK session in the web app (legacy `apikey-` token only).
 
-    🇧🇷 Uma pessoa negou esta sessão de SDK no app web.
+    🇧🇷 Uma pessoa negou esta sessão de SDK no app web (só o token legado `apikey-`).
     """
 
 
 class EnrollmentExpiredError(DiagnosError):
-    """🇺🇸 Nobody approved within the window; start again.
+    """🇺🇸 Nobody approved within the window; start again (legacy `apikey-` token only).
 
-    🇧🇷 Ninguém aprovou dentro do prazo; comece de novo.
+    🇧🇷 Ninguém aprovou dentro do prazo; comece de novo (só o token legado `apikey-`).
     """
 
 
 class SessionExpiredError(DiagnosError):
-    """🇺🇸 The session keys are past `expires_at`; enroll again.
+    """🇺🇸 The session keys are past `expires_at`; `unlock()` opens a new one.
 
-    🇧🇷 As chaves de sessão passaram de `expires_at`; refaça o enrollment.
+    🇧🇷 As chaves de sessão passaram de `expires_at`; `unlock()` abre uma nova.
     """

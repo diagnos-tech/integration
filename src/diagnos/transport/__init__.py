@@ -7,12 +7,14 @@ from .config import Settings
 from .envelope import unwrap_result
 from .http import VaultTransport
 from .seed import open_random_seed
+from .service_token import DiagnosToken
 from .signing import canonical_string, new_nonce, normalize_query, sign_canonical, signature_headers
 from .timesync import ClockSync
 from .token import ServiceAccountToken, redact_api_token
 
 __all__ = [
     "ClockSync",
+    "DiagnosToken",
     "ServiceAccountToken",
     "Settings",
     "VaultTransport",

@@ -17,6 +17,7 @@ from typing import Final
 
 SDK: Final[dict[str, tuple[str, ...]]] = {
     "._client_identity": ("LegacyTokenWarning",),
+    "._whoami": ("Whoami",),
     ".client": ("Diagnos",),
     ".crypto.secure": ("MemoryLockWarning", "memory_status"),
     ".dates": ("TimePrecision", "to_iso_instant", "truncate_timestamp"),
@@ -42,6 +43,8 @@ SDK: Final[dict[str, tuple[str, ...]]] = {
         "RateLimitError",
         "ScopeMissingError",
         "SessionExpiredError",
+        "TokenError",
+        "TokenStoreError",
         "ValidationError",
         "VaultError",
         "WorkspaceMismatchError",
@@ -69,7 +72,8 @@ SDK: Final[dict[str, tuple[str, ...]]] = {
     ".resources.exams": ("Exams",),
     ".resources.patients": ("Patients",),
     ".session.enrollment": ("EnrollmentPrompt",),
+    ".token_store": ("forget_token", "save_token"),
     ".session.keyring": ("GroupKeyUnavailable",),
     ".transport.config": ("Settings",),
-    ".transport.credential": ("ServiceAccountCredential",),
+    ".transport.service_token": ("DiagnosToken",),
 }

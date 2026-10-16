@@ -24,12 +24,13 @@ gerar.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
 from diagnos import _client_wiring
-from diagnos._client_identity import CredentialLike, IdentityView, resolve_identity
+from diagnos._client_identity import IdentityView, TokenLike, resolve_identity
 from diagnos._client_wiring import _print_enrollment_prompt_fallback, _resolve_settings
 from diagnos.crypto import EntropyMixer
 from diagnos.errors import SessionExpiredError
@@ -49,27 +50,26 @@ if TYPE_CHECKING:
 class Diagnos(IdentityView):
     """🇺🇸 The SDK's entry point: one service account's live connection to one workspace.
 
-    `Diagnos()` (or `Diagnos.from_env()`) finds the credential in
-    `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` or
-    `~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` takes one
-    explicitly. The identity properties (`workspace_id`, `key_id`,
-    `identity`…) come from `IdentityView`.
+    `Diagnos()` finds the token in `DIAGNOS_TOKEN`, then in the system keyring
+    (`diagnos login`), then in OpenBao (`OPENBAO_ADDR`) —
+    `transport/token_sources.py`; `Diagnos.from_env()` reads the environment
+    only; `Diagnos(token=...)` takes one explicitly. The identity properties
+    (`workspace_id`, `key_id`, `identity`…) come from `IdentityView`.
 
     🇧🇷 O ponto de entrada do SDK: a conexão viva de uma service account com um workspace.
 
-    `Diagnos()` (ou `Diagnos.from_env()`) acha a credencial em
-    `DIAGNOS_CREDENTIAL`, `DIAGNOS_CREDENTIALS_FILE` ou
-    `~/.config/diagnos/credentials.json`; `Diagnos(credential=...)` recebe uma
-    explícita. As propriedades de identidade (`workspace_id`, `key_id`,
-    `identity`…) vêm de `IdentityView`.
+    `Diagnos()` acha o token em `DIAGNOS_TOKEN`, depois no chaveiro do sistema
+    (`diagnos login`), depois no OpenBao (`OPENBAO_ADDR`) —
+    `transport/token_sources.py`; `Diagnos.from_env()` lê só o ambiente;
+    `Diagnos(token=...)` recebe um explícito. As propriedades de identidade
+    (`workspace_id`, `key_id`, `identity`…) vêm de `IdentityView`.
     """
 
     def __init__(
         self,
         settings: Settings | None = None,
         *,
-        credential: CredentialLike | None = None,
-        token: str | None = None,
+        token: TokenLike | None = None,
         on_prompt: PromptCallback | None = None,
         auto_unseal: bool | None = None,
         transport: VaultTransport | None = None,
@@ -77,19 +77,20 @@ class Diagnos(IdentityView):
     ) -> None:
         """🇺🇸 Builds (or accepts) every layer below `patients`/`exams`/`drives`.
 
-        `credential` is a `ServiceAccountCredential`, its one-line form or the
-        path of its JSON file; `token` is the deprecated `apikey-` token.
+        `token` is a `DiagnosToken` or its text (`dgn_sk1_…`); the deprecated
+        `apikey-` text is still accepted, with a `LegacyTokenWarning`.
         `transport`/`session` are escape hatches for tests, not something a
         real application ever passes — see `apps/sdk/tests/test_client.py`.
 
         🇧🇷 Constrói (ou aceita) toda camada abaixo de `patients`/`exams`/`drives`.
 
-        `credential` é uma `ServiceAccountCredential`, sua forma de uma linha
-        ou o caminho do JSON; `token` é o token `apikey-` obsoleto.
+        `token` é um `DiagnosToken` ou o texto dele (`dgn_sk1_…`); o texto
+        obsoleto `apikey-` ainda é aceito, com um `LegacyTokenWarning`.
         `transport`/`session` são válvulas de escape para teste, nunca algo
         que uma aplicação de verdade passa — ver `apps/sdk/tests/test_client.py`.
         """
-        self._settings = _resolve_settings(settings, token, credential)
+        self._settings = _resolve_settings(settings, token)
+        del token
         self._identity = resolve_identity(self._settings)
         self._entropy = EntropyMixer()
         self._transport = (
@@ -100,6 +101,7 @@ class Diagnos(IdentityView):
                 self._identity,
                 session_keys=self._current_session_keys,
                 on_seed=self._entropy.mix,
+                on_session_lost=self._reopen_session,
             )
         )
 
@@ -127,6 +129,13 @@ class Diagnos(IdentityView):
         """
         return self._session.session_keys()
 
+    def _reopen_session(self) -> bool:
+        """🇺🇸 `VaultTransport`'s hook when the vault lost the session: a token opens a new one in place.
+
+        🇧🇷 O gancho do `VaultTransport` quando o cofre perdeu a sessão: um token abre outra no lugar.
+        """
+        return self._session.reopen()
+
     def _keyring_provider(self) -> Keyring:
         """🇺🇸 The live `Keyring`, auto-unlocking on first use so `vault.patients.list()` just works.
 
@@ -153,11 +162,17 @@ class Diagnos(IdentityView):
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None, **options: Any) -> Diagnos:
-        """🇺🇸 Everything from the environment (`env`, default `os.environ`); `options` go to the constructor.
+        """🇺🇸 The token from `DIAGNOS_TOKEN` (or OpenBao, with `OPENBAO_ADDR`), never the keyring; `options` go on.
 
-        🇧🇷 Tudo do ambiente (`env`, padrão `os.environ`); `options` vão para o construtor.
+        `Diagnos()` also looks in the system keyring; this is the call for CI,
+        containers and servers, where what the environment says is all there is.
+
+        🇧🇷 O token de `DIAGNOS_TOKEN` (ou do OpenBao, com `OPENBAO_ADDR`), nunca o chaveiro; `options` seguem.
+
+        `Diagnos()` também procura no chaveiro do sistema; esta é a chamada para
+        CI, containers e servidores, onde o que o ambiente diz é tudo que há.
         """
-        return cls(Settings.from_env(env), **options)
+        return cls(Settings.from_env(os.environ if env is None else env, keyring=False), **options)
 
     @property
     def security_groups(self) -> list[str]:
@@ -219,9 +234,9 @@ class Diagnos(IdentityView):
         return self._drives
 
     def unlock(self) -> Keyring:
-        """🇺🇸 Enrolls (or restores from OpenBao) and returns the live `Keyring`; idempotent.
+        """🇺🇸 Opens a session with the token (or restores it from OpenBao) and returns the live `Keyring`.
 
-        🇧🇷 Faz enrollment (ou restaura do OpenBao) e devolve o `Keyring` vivo; idempotente.
+        🇧🇷 Abre uma sessão com o token (ou a restaura do OpenBao) e devolve o `Keyring` vivo.
         """
         return self._session.unlock()
 
@@ -261,27 +276,21 @@ class Diagnos(IdentityView):
     ) -> None:
         """🇺🇸 Closes the HTTP clients but deliberately does not `lock()` the session.
 
-        Exiting a `with` block means "this process is done talking to the
-        vault right now", not "revoke this session forever" — an
-        auto-unsealing worker that restarts a minute later should restore
-        the very session this process was using, not be forced to enroll
-        again because closing merely freed a socket. Call `lock()` yourself
-        when the intent really is to end the session.
+        Leaving a `with` block means "done talking to the vault for now", not
+        "revoke this session": another process with the same token keeps the
+        session the vault shares with it. Call `lock()` to end it.
 
         🇧🇷 Fecha os clients HTTP mas deliberadamente não faz `lock()` da sessão.
 
-        Sair de um bloco `with` significa "este processo terminou de falar
-        com o cofre agora", não "revogue esta sessão para sempre" — um
-        worker com auto-unseal que reinicia um minuto depois deveria
-        restaurar a mesma sessão que este processo usava, não ser forçado a
-        um novo enrollment só porque fechar liberou um socket. Chame
-        `lock()` você mesmo quando a intenção for de fato encerrar a sessão.
+        Sair de um bloco `with` significa "terminei de falar com o cofre por
+        ora", não "revogue esta sessão": outro processo com o mesmo token
+        mantém a sessão que o cofre divide com ele. Chame `lock()` para encerrá-la.
         """
         self.close()
 
     def __repr__(self) -> str:
-        """🇺🇸 Never the seed or the token — only what identifies the workspace and the key, masked.
+        """🇺🇸 Never the seed or the token — only what identifies the workspace and the key.
 
-        🇧🇷 Nunca a semente nem o token — só o que identifica o workspace e a chave, mascarado.
+        🇧🇷 Nunca a semente nem o token — só o que identifica o workspace e a chave.
         """
         return f"Diagnos(workspace_id={self.workspace_id!r}, {self._identity_repr()})"

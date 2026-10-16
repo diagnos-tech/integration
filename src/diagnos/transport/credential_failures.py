@@ -2,7 +2,7 @@
 
 The vault's own message says *what* happened; the SDK appends *what to do
 about it*, because the person reading a traceback at 3 a.m. should not need
-the docs open. Nothing here ever includes the seed, a signature or a token:
+the docs open. Nothing here ever includes the seed, a signature or the token:
 the inputs are the error envelope and the response headers, never the
 request.
 
@@ -36,13 +36,14 @@ from diagnos.errors import (
 )
 
 _PANEL: Final = "Settings → Service accounts · Configurações → Contas de serviço"
-_REPLACE: Final = "DIAGNOS_CREDENTIAL / DIAGNOS_CREDENTIALS_FILE"
+_REPLACE: Final = "`diagnos login` (or DIAGNOS_TOKEN · ou DIAGNOS_TOKEN)"
 _HINTS: Final[dict[type[CredentialError], str]] = {
     CredentialSignatureError: (
-        "🇺🇸 The signature did not verify: the credential is not the one registered for this key, or something "
-        f"(a proxy) changed the request. Copy the credential again from where you saved it into {_REPLACE}. "
-        "🇧🇷 A assinatura não conferiu: a credencial não é a registrada para esta chave, ou algo (um proxy) "
-        f"alterou a requisição. Copie de novo a credencial de onde você a guardou para {_REPLACE}."
+        "🇺🇸 The signature did not verify (the vault checks both Ed25519 and ML-DSA-65): the token is not the one "
+        "registered for this key, or something (a proxy) changed the request. Store the token again with "
+        f"{_REPLACE}. "
+        "🇧🇷 A assinatura não conferiu (o cofre confere Ed25519 e ML-DSA-65): o token não é o registrado para "
+        f"esta chave, ou algo (um proxy) alterou a requisição. Guarde o token de novo com {_REPLACE}."
     ),
     CredentialReplayError: (
         "🇺🇸 The vault already saw this request's nonce: something resent it (a proxy or a retry outside the SDK). "
@@ -51,27 +52,27 @@ _HINTS: Final[dict[type[CredentialError], str]] = {
         "Não foi retentada, porque a primeira cópia pode ter passado."
     ),
     CredentialRevokedError: (
-        f"🇺🇸 This key was revoked. Add a new key to the service account ({_PANEL}), put it in {_REPLACE}, "
-        "then revoke the old one if it is still listed. "
-        f"🇧🇷 Esta chave foi revogada. Adicione uma chave nova à conta de serviço ({_PANEL}), coloque-a em "
-        f"{_REPLACE} e revogue a antiga se ela ainda aparecer."
+        f"🇺🇸 This token was revoked. Create a new token for the service account ({_PANEL}) and store it with "
+        f"{_REPLACE}. "
+        f"🇧🇷 Este token foi revogado. Crie um token novo para a conta de serviço ({_PANEL}) e guarde-o com "
+        f"{_REPLACE}."
     ),
     CredentialExpiredError: (
-        f"🇺🇸 This key reached its expiry date. Add a new key to the service account ({_PANEL}), put it in "
-        f"{_REPLACE} and revoke the old one. 🇧🇷 Esta chave chegou à data de validade. Adicione uma chave nova à "
-        f"conta de serviço ({_PANEL}), coloque-a em {_REPLACE} e revogue a antiga."
+        f"🇺🇸 This token reached its expiry date. Create a new token for the service account ({_PANEL}), store it "
+        f"with {_REPLACE} and revoke the old one. 🇧🇷 Este token chegou à data de validade. Crie um token novo "
+        f"para a conta de serviço ({_PANEL}), guarde-o com {_REPLACE} e revogue o antigo."
     ),
     CredentialUnknownError: (
-        "🇺🇸 The vault does not know this key. Check DIAGNOS_VAULT_URL points at the environment where the "
-        f"credential was created; if the key was deleted or revoked, create a new one ({_PANEL}). "
-        "🇧🇷 O cofre não conhece esta chave. Confira se DIAGNOS_VAULT_URL aponta para o ambiente em que a "
-        f"credencial foi criada; se a chave foi apagada ou revogada, crie outra ({_PANEL})."
+        "🇺🇸 The vault does not know this token. Check DIAGNOS_VAULT_URL points at the environment where the "
+        f"token was created; if it was deleted or revoked, create a new one ({_PANEL}). "
+        "🇧🇷 O cofre não conhece este token. Confira se DIAGNOS_VAULT_URL aponta para o ambiente em que o token "
+        f"foi criado; se ele foi apagado ou revogado, crie outro ({_PANEL})."
     ),
     WorkspaceMismatchError: (
-        "🇺🇸 The credential belongs to a different workspace than the one this request targets. Use a credential "
-        "created in the target workspace. "
-        "🇧🇷 A credencial pertence a um workspace diferente do que esta requisição visa. Use uma credencial "
-        "criada no workspace de destino."
+        "🇺🇸 The token belongs to a different workspace than the one this request targets. Use a token created "
+        "in the target workspace. "
+        "🇧🇷 O token pertence a um workspace diferente do que esta requisição visa. Use um token criado no "
+        "workspace de destino."
     ),
 }
 _CLASSES: Final[dict[str, type[CredentialError]]] = {
@@ -159,9 +160,10 @@ def _scope_hint(details: dict[str, Any]) -> tuple[str, dict[str, str | None]]:
     where = f" in security group '{group}'" if group else ""
     where_pt = f" no grupo de segurança '{group}'" if group else ""
     hint = (
-        f"🇺🇸 This service account lacks the permission {what or '(unnamed)'}{where}. Ask a workspace admin to grant "
-        f"it ({_PANEL}). 🇧🇷 Falta à conta de serviço a permissão {what_pt or '(sem nome)'}{where_pt}. Peça a um "
-        f"admin do workspace para concedê-la ({_PANEL})."
+        f"🇺🇸 This service account lacks the permission {what or '(unnamed)'}{where}. A token's scope is fixed when "
+        f"it is created: ask a workspace admin for a new token with it ({_PANEL}). 🇧🇷 Falta à conta de serviço a "
+        f"permissão {what_pt or '(sem nome)'}{where_pt}. O escopo de um token é fixado na criação: peça a um admin "
+        f"do workspace um token novo com ela ({_PANEL})."
     )
     return hint, fields
 

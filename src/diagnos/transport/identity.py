@@ -1,16 +1,16 @@
-"""🇺🇸 `RequestIdentity`: what the transport needs from "who is calling", whichever credential that is.
+"""🇺🇸 `RequestIdentity`: what the transport needs from "who is calling", whichever token that is.
 
-Two shapes satisfy it: `ServiceAccountCredential` (Ed25519, RFC 9421 — the
-current one) and `ServiceAccountToken` (the deprecated `apikey-` bearer,
-accepted until 2027-04-15). The transport asks for headers once per attempt,
-so a retry always carries a fresh signature and nonce.
+Two shapes satisfy it: `DiagnosToken` (`dgn_sk1_…`, Ed25519 + ML-DSA-65 over
+RFC 9421 — the current one) and `ServiceAccountToken` (the deprecated
+`apikey-` bearer, accepted until 2027-04-15). The transport asks for headers
+once per attempt, so a retry always carries a fresh signature and nonce.
 
-🇧🇷 `RequestIdentity`: o que o transporte precisa de "quem está chamando", seja qual for a credencial.
+🇧🇷 `RequestIdentity`: o que o transporte precisa de "quem está chamando", seja qual for o token.
 
-Duas formas a satisfazem: `ServiceAccountCredential` (Ed25519, RFC 9421 — a
-atual) e `ServiceAccountToken` (o bearer `apikey-` obsoleto, aceito até
-2027-04-15). O transporte pede os headers uma vez por tentativa, então uma
-retentativa sempre leva assinatura e nonce novos.
+Duas formas a satisfazem: `DiagnosToken` (`dgn_sk1_…`, Ed25519 + ML-DSA-65
+sobre RFC 9421 — o atual) e `ServiceAccountToken` (o bearer `apikey-`
+obsoleto, aceito até 2027-04-15). O transporte pede os headers uma vez por
+tentativa, então uma retentativa sempre leva assinatura e nonce novos.
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ if TYPE_CHECKING:
 
 
 class RequestIdentity(Protocol):
-    """🇺🇸 The credential-agnostic face the transport and the session layer use.
+    """🇺🇸 The token-agnostic face the transport and the session layer use.
 
-    🇧🇷 A face agnóstica de credencial que o transporte e a camada de sessão usam.
+    🇧🇷 A face agnóstica de token que o transporte e a camada de sessão usam.
     """
 
     @property

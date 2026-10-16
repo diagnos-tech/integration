@@ -5,14 +5,13 @@
 
 from __future__ import annotations
 
-import secrets
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 import pytest
+from _tokens import parsed
 
-from diagnos.crypto.encoding import b64url_encode
 from diagnos.errors import (
     AuthenticationError,
     ClockSkewError,
@@ -28,7 +27,6 @@ from diagnos.errors import (
     WorkspaceMismatchError,
 )
 from diagnos.transport.config import Settings
-from diagnos.transport.credential import ServiceAccountCredential
 from diagnos.transport.credential_failures import credential_error
 from diagnos.transport.envelope import unwrap_result
 from diagnos.transport.http import VaultTransport
@@ -45,13 +43,13 @@ def failure(code: str, status: int, details: dict[str, Any] | None = None, **hea
 @pytest.mark.parametrize(
     ("code", "status", "cls", "base", "advice"),
     [
-        ("CredentialSignatureInvalid", 401, CredentialSignatureError, AuthenticationError, "Copy the credential"),
+        ("CredentialSignatureInvalid", 401, CredentialSignatureError, AuthenticationError, "diagnos login"),
         ("CredentialReplayed", 401, CredentialReplayError, AuthenticationError, "not retried"),
-        ("CredentialKeyRevoked", 401, CredentialRevokedError, AuthenticationError, "Add a new key"),
+        ("CredentialKeyRevoked", 401, CredentialRevokedError, AuthenticationError, "Create a new token"),
         ("CredentialKeyExpired", 401, CredentialExpiredError, AuthenticationError, "expiry"),
         ("CredentialKeyUnknown", 401, CredentialUnknownError, AuthenticationError, "DIAGNOS_VAULT_URL"),
         ("CredentialWorkspaceMismatch", 403, WorkspaceMismatchError, DiagnosPermissionError, "target workspace"),
-        ("CredentialScopeMissing", 403, ScopeMissingError, DiagnosPermissionError, "workspace admin"),
+        ("CredentialScopeMissing", 403, ScopeMissingError, DiagnosPermissionError, "a new token"),
         ("CredentialClockSkew", 401, ClockSkewError, AuthenticationError, "NTP"),
     ],
 )
@@ -148,12 +146,11 @@ def test_other_codes_keep_their_status_class_and_now_carry_details() -> None:
 
 
 def _transport(handler: Any) -> VaultTransport:
-    """🇺🇸 A transport signing with a credential generated now. 🇧🇷 Um transporte com credencial gerada agora."""
-    identity = f"svc_{secrets.token_hex(16)}@wsT.diagnos.health"
-    credential = ServiceAccountCredential.parse(f"{identity}:{b64url_encode(secrets.token_bytes(32))}")
+    """🇺🇸 A transport signing with a token minted now. 🇧🇷 Um transporte com um token criado agora."""
+    token = parsed("wsT")
     return VaultTransport(
-        Settings(credential=credential, vault_url="https://vault.test"),
-        credential,
+        Settings(token=token, vault_url="https://vault.test"),
+        token,
         session_keys=lambda: None,
         client=httpx.Client(base_url="https://vault.test", transport=httpx.MockTransport(handler)),
         sleep=lambda seconds: None,
@@ -161,9 +158,9 @@ def _transport(handler: Any) -> VaultTransport:
 
 
 def test_the_transport_signs_unsigned_calls_too_and_resyncs_once_on_clock_skew() -> None:
-    """🇺🇸 Identity on an enrollment-style call, `/time` before the first signature, one resync on skew.
+    """🇺🇸 Identity on a call with no session yet, `/time` before the first signature, one resync on skew.
 
-    🇧🇷 Identidade numa chamada estilo enrollment, `/time` antes da 1ª assinatura, uma ressincronização no relógio.
+    🇧🇷 Identidade numa chamada ainda sem sessão, `/time` antes da 1ª assinatura, uma ressincronização no relógio.
     """
     seen: list[httpx.Request] = []
     answers = iter([failure("CredentialClockSkew", 401), httpx.Response(200, json={"success": True, "result": 7})])

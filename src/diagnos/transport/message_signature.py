@@ -1,4 +1,4 @@
-r"""🇺🇸 HTTP Message Signatures (RFC 9421), the minimal profile the vault verifies — the credential's proof of identity.
+r"""🇺🇸 HTTP Message Signatures (RFC 9421), the closed profile the vault verifies — the token's proof of identity.
 
 Every external request carries `Signature-Input`, `Signature` and, when it
 has a body, `Content-Digest` (RFC 9530). The signature base is built exactly
@@ -6,17 +6,20 @@ as RFC 9421 §2.5 says: one `"component": value` line per covered component,
 in the order `Signature-Input` lists them, then `"@signature-params"` — the
 `Signature-Input` value without its label — joined by `\n`, no trailing
 newline. The vault rebuilds the same string from the raw request, so every
-choice below is fixed by the service account credential spec (§3), never
-"what seems reasonable":
+choice below is fixed by the service account token spec (§4), never "what
+seems reasonable":
 
 - covered components: `@method`, `@path`, `@query` only if there is a query
   string, `content-digest` only if there is a body;
 - `@path` and `@query` are the bytes on the wire (`httpx.URL.raw_path`),
   still percent-encoded and in the order sent — never decoded or sorted;
-- parameters in this order: `created`, `keyid` (the full identity),
-  `nonce` (16 random bytes, base64url), `alg="ed25519"`.
+- parameters in this order: `created`, `keyid` (`svc_<32 hex>` alone — the
+  workspace comes from the route), `nonce` (16 random bytes, base64url),
+  `alg="ed25519+ml-dsa-65"`;
+- `Signature` is `ed25519(64) ‖ ml-dsa-65(3309)` over the same base, in
+  standard base64; the vault requires both halves.
 
-🇧🇷 HTTP Message Signatures (RFC 9421), o perfil mínimo que o cofre verifica — a prova de identidade da credencial.
+🇧🇷 HTTP Message Signatures (RFC 9421), o perfil fechado que o cofre verifica — a prova de identidade do token.
 
 Toda requisição externa leva `Signature-Input`, `Signature` e, quando tem
 corpo, `Content-Digest` (RFC 9530). A signature base é montada exatamente como
@@ -24,15 +27,18 @@ diz a RFC 9421 §2.5: uma linha `"componente": valor` por componente coberto,
 na ordem em que o `Signature-Input` os lista, depois `"@signature-params"` — o
 valor do `Signature-Input` sem o rótulo — unidas por `\n`, sem quebra de linha
 final. O cofre remonta a mesma string a partir da requisição crua, então toda
-escolha abaixo é fixada pela spec da credencial de conta de serviço (§3),
-nunca "o que parece razoável":
+escolha abaixo é fixada pela spec do token de conta de serviço (§4), nunca
+"o que parece razoável":
 
 - componentes cobertos: `@method`, `@path`, `@query` só se houver query
   string, `content-digest` só se houver corpo;
 - `@path` e `@query` são os bytes do fio (`httpx.URL.raw_path`), ainda
   percent-encoded e na ordem enviada — nunca decodificados nem ordenados;
-- parâmetros nesta ordem: `created`, `keyid` (a identidade completa),
-  `nonce` (16 bytes aleatórios, base64url), `alg="ed25519"`.
+- parâmetros nesta ordem: `created`, `keyid` (só `svc_<32 hex>` — o
+  workspace vem da rota), `nonce` (16 bytes aleatórios, base64url),
+  `alg="ed25519+ml-dsa-65"`;
+- `Signature` é `ed25519(64) ‖ ml-dsa-65(3309)` sobre a mesma base, em
+  base64 padrão; o cofre exige as duas metades.
 """
 
 from __future__ import annotations
@@ -49,7 +55,7 @@ SIGNATURE_LABEL: Final = "diagnos"
 # 🇧🇷 Os conjuntos de percent-encode da URL WHATWG (path, query especial): o que o `new URL()` do cofre escapa.
 _PATH_SET: Final = frozenset(' "#<>`{}')
 _QUERY_SET: Final = frozenset(" \"#<>'")
-ALGORITHM: Final = "ed25519"
+ALGORITHM: Final = "ed25519+ml-dsa-65"
 
 
 def _b64(data: bytes) -> str:
@@ -116,9 +122,9 @@ def signature_params(components: tuple[str, ...], *, created: int, keyid: str, n
 
 
 def signature_base(*, method: str, path: str, query: str, digest: str | None, params: str) -> str:
-    """🇺🇸 The exact string Ed25519 signs (RFC 9421 §2.5); `query` without its `?`, empty when there is none.
+    """🇺🇸 The exact string both algorithms sign (RFC 9421 §2.5); `query` without its `?`, empty when there is none.
 
-    🇧🇷 A string exata que o Ed25519 assina (RFC 9421 §2.5); `query` sem o `?`, vazia quando não há.
+    🇧🇷 A string exata que os dois algoritmos assinam (RFC 9421 §2.5); `query` sem o `?`, vazia quando não há.
     """
     lines = [f'"@method": {method.upper()}', f'"@path": {path}']
     if query:
@@ -141,13 +147,13 @@ def identity_headers(
 ) -> dict[str, str]:
     """🇺🇸 `Signature-Input`, `Signature` and (with a body) `Content-Digest` for one request.
 
-    `sign` is the credential's Ed25519 signer: the seed never comes here.
+    `sign` is the token's hybrid signer: the seed never comes here.
     An empty body is "no body" — no digest, no `content-digest` component —
     which is how the vault reads a `GET` or a body-less `POST`.
 
     🇧🇷 `Signature-Input`, `Signature` e (com corpo) `Content-Digest` de uma requisição.
 
-    `sign` é o assinador Ed25519 da credencial: a semente nunca chega aqui.
+    `sign` é o assinador híbrido do token: a semente nunca chega aqui.
     Corpo vazio é "sem corpo" — sem digest, sem componente
     `content-digest` — que é como o cofre lê um `GET` ou um `POST` sem corpo.
     """
