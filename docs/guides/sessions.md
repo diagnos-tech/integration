@@ -20,7 +20,7 @@ stateDiagram-v2
 ```
 
 - **`Diagnos()`** only finds and parses the token. It makes no request to the vault.
-- **`unlock()`** restores a saved session from OpenBao when one is configured and still valid, and otherwise opens one
+- **`unlock()`** restores a saved session from OpenBao when auto-unseal is on and it is still valid, and otherwise opens one
   with a single signed `POST …/session` (the legacy `apikey-` token enrolls instead, and waits for a person). It is
   idempotent, and you rarely call it: `with Diagnos() as vault:` unlocks on entry, and the first touch of
   `vault.patients`, `vault.exams` or `vault.drives` unlocks lazily.
@@ -86,10 +86,11 @@ A session is never written to disk (unless you opt into OpenBao) and never share
 
 ## Auto-unseal with OpenBao
 
-With [OpenBao](https://openbao.org/) configured, the SDK saves its unlocked state right after it opens a session and
-restores it on the next start, until the saved session itself expires. With the service account token that saves one
-signed request per restart — a restart never needed a person anyway. With the legacy `apikey-` token it is what spares
-a person approving every restart of a pod or a cron job.
+With auto-unseal on, the SDK saves its unlocked state in [OpenBao](https://openbao.org/) right after it opens a session
+and restores it on the next start, until the saved session itself expires. With the legacy `apikey-` token that is
+what spares a person approving every restart of a pod or a cron job, so it is **on by default** whenever OpenBao is
+configured. With the service account token it would save only one signed request per restart — a restart never needs
+a person — at the price of group keys that outlive a revocation of the token, so it is **off by default**.
 
 ```mermaid
 sequenceDiagram
@@ -114,15 +115,16 @@ export OPENBAO_ADDR="https://openbao.internal:8200"
 export OPENBAO_TOKEN="…"            # or OPENBAO_TOKEN_FILE=/run/secrets/openbao-token
 ```
 
-Auto-unseal is on exactly when `OPENBAO_ADDR` is set — the same variable that lets the SDK read the token from
-OpenBao. `auto_unseal=` overrides that for one client, and the CLI's `session start --auto-unseal/--no-auto-unseal`
-does the same for one invocation:
+By default auto-unseal is on for the legacy token when `OPENBAO_ADDR` is set, and off for a service account token —
+even though the same `OPENBAO_ADDR` is how a server reads the token itself from OpenBao. `auto_unseal=` overrides the
+default for one client (`Diagnos(auto_unseal=True)` turns it on with the token, knowingly), and the CLI's
+`session start --auto-unseal/--no-auto-unseal` does the same for one invocation:
 
 ```python
 from diagnos import Diagnos
 
-vault = Diagnos()  # auto-unseal is on exactly when OPENBAO_ADDR is set
-local_only = Diagnos(auto_unseal=False)  # never saves or restores, even when it is
+vault = Diagnos()  # the token: the session is never saved; the legacy token: saved when OPENBAO_ADDR is set
+local_only = Diagnos(auto_unseal=False)  # never saves or restores, whatever the token
 ```
 
 `OPENBAO_MOUNT`, `OPENBAO_PATH_PREFIX` and `OPENBAO_NAMESPACE` are in [Configuration](configuration.md#openbao).
@@ -132,13 +134,15 @@ local_only = Diagnos(auto_unseal=False)  # never saves or restores, even when it
 > [!WARNING]
 > Auto-unseal moves your group keys from "only ever in this process's locked memory" to "also in OpenBao's storage,
 > at `<OPENBAO_PATH_PREFIX>/<workspace_id>/<key_id>`". **Whoever can read that one path can decrypt exactly what this
-> process can**, and keeps the group keys even after the token is revoked. With the service account token the gain is
-> one request per restart; when that is not worth it, pass `auto_unseal=False` and keep OpenBao for the token alone.
+> process can**, and keeps the group keys even after the token is revoked — a revocation stops new sessions, not
+> keys already copied. With the service account token the gain is one request per restart, which is why it is off by
+> default; turn it on with `auto_unseal=True` only when that request matters more than an immediate revocation.
 
 | | Without OpenBao | With OpenBao |
 |---|---|---|
 | where group keys live | this process's locked RAM | that, plus OpenBao's encrypted KV |
 | a restart needs | one signed request (the legacy token: a person to approve) | nothing, until the saved session expires |
+| revoking the token | cuts the process off at its next request | the saved group keys stay readable in OpenBao |
 | a stolen OpenBao token with read on the path | — | decrypts what this process can |
 | keys as Python objects | never | for milliseconds, while saving and restoring |
 
@@ -163,7 +167,8 @@ path "secret/data/diagnos/token" {
 }
 ```
 
-`metadata/` is there because `lock()` deletes every saved version, not only the latest. The last rule lets the process
+The first two rules matter only when auto-unseal is on (the legacy token, or `auto_unseal=True`); `metadata/` is there
+because `lock()` deletes every saved version, not only the latest. The last rule lets the process
 *read* the token and nothing more: storing or rotating it takes the separate writer token of
 `token-writer-policy.hcl`, which `diagnos login --store openbao` uses. `diagnos whoami` prints the two ids.
 

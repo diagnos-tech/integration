@@ -58,6 +58,30 @@ def _resolve_settings(settings: Settings | None, token: TokenLike | None) -> Set
     return resolve_settings(settings, token)
 
 
+def _auto_unseal(requested: bool | None, settings: Settings) -> bool:
+    """🇺🇸 Whether to save the session to OpenBao: as asked; by default, only for the legacy token with `OPENBAO_ADDR`.
+
+    A service account token needs no person to open a session — a restart
+    costs one signed request — while a saved session keeps the group keys in
+    OpenBao, where they outlive a revocation of the token. So with the token
+    it is off unless `auto_unseal=True` asks for it; the legacy `apikey-`
+    token, whose restart would wait for an admin's approval, keeps it on
+    whenever `OPENBAO_ADDR` is set (`docs/guides/sessions.md`).
+
+    🇧🇷 Se salva a sessão no OpenBao: como pedido; por padrão, só para o token legado com `OPENBAO_ADDR`.
+
+    Um token de conta de serviço não precisa de pessoa para abrir uma sessão —
+    um reinício custa uma requisição assinada —, enquanto uma sessão salva
+    mantém as chaves de grupo no OpenBao, onde elas sobrevivem à revogação do
+    token. Então, com o token, fica desligado a menos que `auto_unseal=True`
+    peça; o token legado `apikey-`, cujo reinício esperaria a aprovação de um
+    admin, continua ligado sempre que `OPENBAO_ADDR` está definida.
+    """
+    if requested is not None:
+        return requested
+    return settings.openbao_addr is not None and settings.token is None
+
+
 def _print_enrollment_prompt_fallback() -> PromptCallback:
     """🇺🇸 A deferred-import wrapper around `SessionManager`'s own `default_prompt`.
 

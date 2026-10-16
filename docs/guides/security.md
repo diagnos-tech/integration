@@ -97,7 +97,7 @@ encrypted.
 | Choice | What changes |
 |---|---|
 | the token in `DIAGNOS_TOKEN` | whatever can read the process environment (`/proc/<pid>/environ`, `docker inspect`) can read the token — fine for CI and ephemeral containers; prefer the keyring or OpenBao |
-| [OpenBao auto-unseal](sessions.md#the-trade-off) | group keys also live in OpenBao: whoever reads that path decrypts what the process can |
+| [OpenBao auto-unseal](sessions.md#the-trade-off) (on by default only for the legacy token; `auto_unseal=True` with the service account token) | group keys also live in OpenBao: whoever reads that path decrypts what the process can, even after the token is revoked |
 | `DIAGNOS_MEMORY_LOCK=best-effort` (the default) | if the OS refuses to lock memory, keys may reach swap; you get one `MemoryLockWarning` — `require` refuses to run instead |
 | `DIAGNOS_HARDEN_PROCESS=0` | core dumps and debuggers can read keys from the process |
 | running the REST API | plaintext crosses your network between callers and the API, inside mutual TLS — see below |

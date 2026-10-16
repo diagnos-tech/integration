@@ -46,8 +46,9 @@ def start(
         None,
         "--auto-unseal/--no-auto-unseal",
         help=(
-            "Save/restore the session via OpenBao (default: on when OPENBAO_ADDR is set) · "
-            "Salva/restaura a sessão via OpenBao (padrão: ligado quando OPENBAO_ADDR está definida)"
+            "Save/restore the session via OpenBao (default: on for the legacy token when OPENBAO_ADDR is set, off "
+            "for a service account token) · Salva/restaura a sessão via OpenBao (padrão: ligado para o token legado "
+            "quando OPENBAO_ADDR está definida, desligado para um token de conta de serviço)"
         ),
     ),
 ) -> None:

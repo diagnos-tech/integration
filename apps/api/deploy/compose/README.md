@@ -43,7 +43,8 @@ present in that image).
    itself as soon as the process starts.
 4. Enables KV v2 at `secret` (idempotent — a second `enable` failing with "already in use" is the success path).
 5. Writes policy `diagnos-sdk` from `openbao/policy.hcl` with `__WORKSPACE_ID__`/`__ACCOUNT_ID__` substituted from
-   `.env` (the saved session, and *read* on `secret/diagnos/token`), and policy `diagnos-token-writer` from
+   `.env` (*read* on `secret/diagnos/token`, and the saved session — used only when auto-unseal is on, which it is not
+   by default with the service account token), and policy `diagnos-token-writer` from
    `openbao/token-writer-policy.hcl` (store, rotate or remove `secret/diagnos/token`, nothing else); keeps one version
    of that path (`max-versions=1`), so a rotated-out token does not stay readable.
 6. Mints an orphan, renewable token scoped to `diagnos-sdk` and writes it to `/state/openbao-token` (`0600`), and one

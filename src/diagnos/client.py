@@ -79,15 +79,19 @@ class Diagnos(IdentityView):
 
         `token` is a `DiagnosToken` or its text (`dgn_sk1_…`); the deprecated
         `apikey-` text is still accepted, with a `LegacyTokenWarning`.
-        `transport`/`session` are escape hatches for tests, not something a
-        real application ever passes — see `apps/sdk/tests/test_client.py`.
+        `auto_unseal` saves the session to OpenBao; by default only the legacy
+        token does, with `OPENBAO_ADDR` set. `transport`/`session` are escape
+        hatches for tests, not something a real application ever passes — see
+        `apps/sdk/tests/test_client.py`.
 
         🇧🇷 Constrói (ou aceita) toda camada abaixo de `patients`/`exams`/`drives`.
 
         `token` é um `DiagnosToken` ou o texto dele (`dgn_sk1_…`); o texto
         obsoleto `apikey-` ainda é aceito, com um `LegacyTokenWarning`.
-        `transport`/`session` são válvulas de escape para teste, nunca algo
-        que uma aplicação de verdade passa — ver `apps/sdk/tests/test_client.py`.
+        `auto_unseal` salva a sessão no OpenBao; por padrão só o token legado
+        salva, com `OPENBAO_ADDR` definida. `transport`/`session` são válvulas
+        de escape para teste, nunca algo que uma aplicação de verdade passa —
+        ver `apps/sdk/tests/test_client.py`.
         """
         self._settings = _resolve_settings(settings, token)
         del token
@@ -108,10 +112,9 @@ class Diagnos(IdentityView):
         if session is not None:
             self._session = session
         else:
-            auto_unseal_enabled = auto_unseal if auto_unseal is not None else self._settings.openbao_addr is not None
             store = (
                 OpenBaoStore(self._settings, workspace_id=self.workspace_id, account_id=self.account_id or self.key_id)
-                if auto_unseal_enabled
+                if _client_wiring._auto_unseal(auto_unseal, self._settings)
                 else None
             )
             resolved_prompt = on_prompt if on_prompt is not None else _print_enrollment_prompt_fallback()

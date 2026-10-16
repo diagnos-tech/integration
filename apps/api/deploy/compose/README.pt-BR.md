@@ -43,7 +43,8 @@ ausente naquela imagem).
 4. Habilita o KV v2 em `secret` (idempotente — um segundo `enable` falhar com "already in use" é o caminho de
    sucesso).
 5. Escreve a política `diagnos-sdk` a partir de `openbao/policy.hcl` com `__WORKSPACE_ID__`/`__ACCOUNT_ID__`
-   substituídos a partir do `.env` (a sessão salva, e *leitura* de `secret/diagnos/token`), e a política
+   substituídos a partir do `.env` (*leitura* de `secret/diagnos/token`, e a sessão salva — usada só com o auto-unseal
+   ligado, o que não é o padrão com o token de conta de serviço), e a política
    `diagnos-token-writer` a partir de `openbao/token-writer-policy.hcl` (guardar, girar ou remover
    `secret/diagnos/token`, nada mais); mantém uma versão só desse caminho (`max-versions=1`), então um token girado
    não continua legível.

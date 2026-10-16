@@ -60,7 +60,7 @@ vault = Diagnos.from_env()  # só o ambiente (e o OpenBao), nunca o chaveiro —
 | os grupos que um admin escolhia a cada aprovação | os grupos escolhidos quando o token foi criado; um grupo novo é um token novo |
 | `vault.account_id` — o id da conta vindo do token | `None`: a identidade é a chave (`vault.identity`, `vault.key_id`); `vault.token_kind` diz qual token está em uso |
 | o `diagnos login` fazia enrollment e mantinha a sessão num agente em segundo plano | o `diagnos login` guarda o token; todo comando abre a própria sessão. O `diagnos session start` mantém o fluxo antigo de aprovar uma vez para o token legado |
-| path no OpenBao `<prefixo>/<workspace_id>/<account_id>` | `<prefixo>/<workspace_id>/<key_id>`; o próprio token, num servidor, em `<prefixo>/token` |
+| auto-unseal ligado sempre que `OPENBAO_ADDR` estava definida, em `<prefixo>/<workspace_id>/<account_id>` | desligado por padrão — um reinício abre uma sessão nova com uma requisição assinada, e chaves de grupo salvas sobreviveriam a uma revogação; `Diagnos(auto_unseal=True)` o liga, em `<prefixo>/<workspace_id>/<key_id>`. O próprio token, num servidor, mora em `<prefixo>/token` |
 | `DIAGNOS_API_TOKEN` no `.env` do deployment ou no Secret do Kubernetes | o token no OpenBao; o token do OpenBao da API só pode lê-lo. Rode o bootstrap uma vez com `BAO_ROOT_TOKEN_OVERRIDE` para gravar as políticas novas e o token de escrita ([Compose](apps/api/deploy/compose/README.pt-BR.md)) |
 | um token revogado ou errado: `AuthenticationError` | `CredentialRevokedError`, `CredentialUnknownError`, `ClockSkewError`… — todos `CredentialError`, cada um dizendo o que fazer |
 
