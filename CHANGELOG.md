@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This file is English-only and exempt from the repository's bilingual-documentation pairing rule
 (`scripts/check_docs.py`).
 
+## [Unreleased]
+
+### Added
+
+- **`npx diagnos`, the Node.js wrapper** (`wrappers/ts`, on npm as `diagnos`). The same four commands as
+  `pip install diagnos` — `docs`, `version`, `setup sdk|cli|api`, `help` — with the same safeguards (every command
+  shown and confirmed first, no shell, no installer ever downloaded, the API image verified by its pulled digest)
+  and the same `--json` shapes, checked against `wrappers/contract.json`. No dependencies and no install scripts.
+  Every other command is handed to the Python `diagnos` once its CLI is installed. Its version follows the release
+  it sets up: `diagnos@0.1.0` on npm installs `diagnos==0.1.0` and the `0.1.0` image.
+
 ## [0.2.0] - 2026-10-15
 
 `0.2.0` replaces the service account's `apikey-` token with a **service account token**, `dgn_sk1_…`: one line whose

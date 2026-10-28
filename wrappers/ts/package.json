@@ -1,0 +1,65 @@
+{
+  "name": "diagnos",
+  "version": "0.1.0",
+  "description": "The diagnos vault from Node.js: links to the docs, and the zero-knowledge Python SDK, CLI and signed REST API image set up step by step.",
+  "keywords": [
+    "diagnos",
+    "health",
+    "medical",
+    "vault",
+    "zero-knowledge",
+    "e2ee",
+    "sdk",
+    "cli",
+    "sigstore",
+    "cosign"
+  ],
+  "homepage": "https://dev.diagnos.health",
+  "bugs": {
+    "url": "https://github.com/diagnos-tech/integration/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diagnos-tech/integration.git",
+    "directory": "wrappers/ts"
+  },
+  "license": "Apache-2.0",
+  "author": "diagnos",
+  "maintainers": [
+    {
+      "name": "Gustavo Simões",
+      "email": "gustavo@diagnos.health"
+    }
+  ],
+  "type": "module",
+  "bin": {
+    "diagnos": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.pt-BR.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node scripts/declarations.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "check": "npm run typecheck && npm test && npm run build",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

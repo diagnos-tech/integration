@@ -1,0 +1,5 @@
+# 🇺🇸 Installed by `npm ci`, built by `npm run build` — never committed.
+# 🇧🇷 Instalado pelo `npm ci`, construído pelo `npm run build` — nunca commitado.
+node_modules/
+dist/
+*.tgz

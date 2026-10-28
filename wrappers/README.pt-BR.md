@@ -11,13 +11,15 @@ quatro coisas, do mesmo jeito, para os primeiros cinco minutos serem iguais come
 | Wrapper | Pacote | Situação |
 |---|---|---|
 | [`py/`](py/README.pt-BR.md) | `pip install diagnos` — a base do próprio pacote Python (`src/diagnos/_wrapper`) | ✅ |
-| `node/`, `go/`, … | `npx diagnos`, `go run …` — configuram as camadas Python, quase sempre o container da API | planejado |
+| [`ts/`](ts/README.pt-BR.md) | `npx diagnos` — TypeScript para Node.js, no npm como [`diagnos`](https://www.npmjs.com/package/diagnos); configura as camadas Python, quase sempre o container da API | ✅ |
+| `go/`, … | `go run …` | planejado |
 
 ## O contrato
 
 O [`contract.json`](contract.json) é a fonte da verdade legível por máquina: comandos, opções, links, alvos do
 `setup` e códigos de saída. Um wrapper traz um teste de conformidade contra ele — o do Python é o
-[`py/tests/test_contract.py`](py/tests/test_contract.py).
+[`py/tests/test_contract.py`](py/tests/test_contract.py), o do TypeScript é o
+[`ts/test/contract.test.ts`](ts/test/contract.test.ts).
 
 | Comando | Faz |
 |---|---|
