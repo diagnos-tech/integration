@@ -22,7 +22,7 @@ crate-type = ["cdylib", "rlib"]
 #    own floor), instead of one wheel per interpreter version.
 # 🇧🇷 `abi3-py311` = um wheel por plataforma para todo CPython ≥ 3.11 (o piso do
 #    próprio SDK), em vez de um wheel por versão do interpretador.
-pyo3 = { version = "0.29", features = ["abi3-py311"] }
+pyo3 = { version = "0.30", features = ["abi3-py311"] }
 zeroize = { version = "1.8", features = ["derive", "serde"] }
 subtle = "2.6"
 hmac = "0.13"
