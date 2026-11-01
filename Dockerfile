@@ -25,7 +25,7 @@
 # 🇧🇷 Cada imagem base uma vez, como um `FROM imagem:tag@sha256:…` literal — a única forma que o Dependabot lê e
 #    atualiza. O uv daqui é o mesmo que a CI fixa (`UV_VERSION` no `package.yml`, `.github/actions/setup`): suba juntos.
 FROM python:3.13-slim-trixie@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f AS python
-FROM ghcr.io/astral-sh/uv:0.13.0@sha256:cdc6093146eb3ff6a40107b38f008b789e050e77ad87865e381d9917da55a168 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
 # 🇺🇸 Local builds only: the wheel compiled from this checkout, by the same maturin build `uv build` runs. The Rust
 #    image's version is `rust-toolchain.toml`'s.
